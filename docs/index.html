@@ -60,3 +60,10 @@
   <script defer src="js/app.js"></script>
 </body>
 </html>
+
+<script>
+  if (!sessionStorage.getItem('lf-credits-shown')) {
+    alert("Hey, this website is owned by Mason Wong. Inspiration was from a guy named AJ.");
+    sessionStorage.setItem('lf-credits-shown', '1');
+  }
+</script>
