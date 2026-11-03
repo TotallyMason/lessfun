@@ -738,6 +738,19 @@ async function createPost() {
     }
     const content = document.getElementById("postContent").value.trim();
     if (!content) return;
+    if (supabaseClient) {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) { alert("Please sign in to post"); openAuthModal(); return; }
+        const { error } = await supabaseClient.from('posts').insert({
+            user_id: user.id,
+            username: currentUser.username,
+            content: content
+        });
+        if (error) { alert(error.message); return; }
+        document.getElementById("postContent").value = "";
+        renderCommunity();
+        return;
+    }
     const posts = JSON.parse(localStorage.getItem("lessfun_posts") || "[]");
     posts.unshift({
         id: Date.now(),
@@ -751,7 +764,18 @@ async function createPost() {
 }
 
 async function deletePost(id) {
-    if (!currentUser || currentUser.username !== "TotallyMason") return;
+    if (!currentUser) return;
+    if (supabaseClient) {
+        if (currentUser.username !== "TotallyMason") {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) return;
+        }
+        const { error } = await supabaseClient.from('posts').delete().eq('id', id);
+        if (error) { alert(error.message); return; }
+        renderCommunity();
+        return;
+    }
+    if (currentUser.username !== "TotallyMason") return;
     let posts = JSON.parse(localStorage.getItem("lessfun_posts") || "[]");
     posts = posts.filter(p => p.id !== id);
     localStorage.setItem("lessfun_posts", JSON.stringify(posts));
@@ -759,17 +783,39 @@ async function deletePost(id) {
 }
 
 async function renderCommunity() {
-    const posts = JSON.parse(localStorage.getItem("lessfun_posts") || "[]");
     const container = document.getElementById("communityPosts");
+    if (supabaseClient) {
+        const { data: posts, error } = await supabaseClient
+            .from('posts')
+            .select('*')
+            .order('created_at', { ascending: false });
+        if (error || !posts) {
+            container.innerHTML = "<p style=\"text-align:center;color:rgba(255,255,255,0.5);padding:40px;\">No posts yet</p>";
+            return;
+        }
+        if (posts.length === 0) {
+            container.innerHTML = "<p style=\"text-align:center;color:rgba(255,255,255,0.5);padding:40px;\">No posts yet</p>";
+            return;
+        }
+        container.innerHTML = posts.map(post => {
+            const date = new Date(post.created_at);
+            const isOwner = post.username === "TotallyMason";
+            const canDelete = currentUser && (currentUser.username === "TotallyMason" || currentUser.username === post.username);
+            return `<div class="community-post"><div class="post-header"><div style="display:flex;align-items:center;gap:8px;"><span class="post-user">${escapeHtml(post.username)}</span>${isOwner ? '<span style="font-size:9px;padding:2px 5px;background:linear-gradient(90deg,#a855f7,#ec4899);border-radius:4px;font-weight:600;">OWNER</span>' : ''}</div><span class="post-time">${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</span></div><div class="post-content">${escapeHtml(post.content)}</div>${canDelete ? `<button class="post-delete" onclick="deletePost(${post.id})">Delete</button>` : ""}</div>`;
+        }).join("");
+        return;
+    }
+    const posts = JSON.parse(localStorage.getItem("lessfun_posts") || "[]");
     if (posts.length === 0) {
         container.innerHTML = "<p style=\"text-align:center;color:rgba(255,255,255,0.5);padding:40px;\">No posts yet</p>";
         return;
     }
     container.innerHTML = posts.map(post => {
-        const date = new Date(post.time);
+        const date = new Date(post.time || post.created_at);
         const canDelete = currentUser && currentUser.username === "TotallyMason";
-        const isOwner = post.user === "TotallyMason";
-        return `<div class="community-post"><div class="post-header"><div style="display:flex;align-items:center;gap:8px;"><span class="post-user">${post.user}</span>${isOwner ? '<span style="font-size:9px;padding:2px 5px;background:linear-gradient(90deg,#a855f7,#ec4899);border-radius:4px;font-weight:600;">OWNER</span>' : ''}</div><span class="post-time">${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</span></div><div class="post-content">${escapeHtml(post.content)}</div>${canDelete ? `<button class="post-delete" onclick="deletePost(${post.id})">Delete</button>` : ""}</div>`;
+        const isOwner = post.user === "TotallyMason" || post.username === "TotallyMason";
+        const username = post.user || post.username;
+        return `<div class="community-post"><div class="post-header"><div style="display:flex;align-items:center;gap:8px;"><span class="post-user">${escapeHtml(username)}</span>${isOwner ? '<span style="font-size:9px;padding:2px 5px;background:linear-gradient(90deg,#a855f7,#ec4899);border-radius:4px;font-weight:600;">OWNER</span>' : ''}</div><span class="post-time">${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</span></div><div class="post-content">${escapeHtml(post.content)}</div>${canDelete ? `<button class="post-delete" onclick="deletePost(${post.id})">Delete</button>` : ""}</div>`;
     }).join("");
 }
 
