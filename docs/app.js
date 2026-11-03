@@ -95,6 +95,10 @@ function closeGame() {
 }
 
 // Initialize
+function closePromo() {
+    document.getElementById('promoBanner').style.display = 'none';
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     renderGames();
 });
