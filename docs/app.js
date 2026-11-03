@@ -733,9 +733,14 @@ async function savePostsToCloud(posts) {
 const GIST_ID = "1234567890abcdef";
 async function syncPosts() {
     try {
-        const r = await fetch("https://gist.githubusercontent.com/TotallyMason/" + GIST_ID + "/raw/lessfun.json?t=" + Date.now());
+        const r = await fetch("posts.json?t=" + Date.now());
         const cloud = await r.json();
-        if (Array.isArray(cloud)) {
+        if (Array.isArray(cloud.posts)) {
+            localStorage.setItem("lessfun_posts", JSON.stringify(cloud.posts));
+            if (document.getElementById("communityPosts") && document.getElementById("communityView").style.display !== "none") {
+                renderCommunity();
+            }
+        } else if (Array.isArray(cloud)) {
             localStorage.setItem("lessfun_posts", JSON.stringify(cloud));
             if (document.getElementById("communityPosts") && document.getElementById("communityView").style.display !== "none") {
                 renderCommunity();
@@ -743,4 +748,7 @@ async function syncPosts() {
         }
     } catch(e){}
 }
-setInterval(syncPosts, 15000);
+setInterval(syncPosts, 10000);
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(syncPosts, 500);
+});
