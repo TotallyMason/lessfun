@@ -370,7 +370,7 @@
     <!-- Auth Modal -->
     <div id="authModal" class="modal" style="display: none;">
         <div class="modal-backdrop" onclick="closeAuthModal()"></div>
-        <div class="modal-content" style="max-width: 400px; max-height: 500px; margin: auto;">
+        <div class="modal-content" style="max-width: 400px; max-height: 450px; margin: auto;">
             <div class="modal-header">
                 <h2 id="authTitle">Sign In</h2>
                 <button class="modal-close" onclick="closeAuthModal()">
@@ -381,7 +381,7 @@
             </div>
             <div class="modal-body" style="flex-direction: column; align-items: stretch;">
                 <div id="authSignIn">
-                    <input type="email" id="signinEmail" class="auth-input" placeholder="Email" style="margin-bottom:12px;">
+                    <input type="text" id="signinUsername" class="auth-input" placeholder="Username" style="margin-bottom:12px;">
                     <input type="password" id="signinPassword" class="auth-input" placeholder="Password" style="margin-bottom:16px;">
                     <button class="game-btn-3d" onclick="signIn()" style="width:100%;">Sign In</button>
                     <button class="auth-link" onclick="showAuthSignup()">Create Account</button>
@@ -389,7 +389,6 @@
                 </div>
                 <div id="authSignUp" style="display:none;">
                     <input type="text" id="signupUsername" class="auth-input" placeholder="Username" style="margin-bottom:12px;">
-                    <input type="email" id="signupEmail" class="auth-input" placeholder="Email" style="margin-bottom:12px;">
                     <input type="password" id="signupPassword" class="auth-input" placeholder="Password" style="margin-bottom:16px;">
                     <button class="game-btn-3d" onclick="signUp()" style="width:100%;">Create Account</button>
                     <button class="auth-link" onclick="showAuthSignin()">Back to Sign In</button>
