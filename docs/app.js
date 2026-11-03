@@ -668,8 +668,8 @@ function saveScore(gameName, score) {
 }
 
 // Community System
-function createPost() {
-    if (currentUser.type === "guest") {
+async function createPost() {
+    if (!currentUser || currentUser.type === "guest") {
         alert("Please sign in to post");
         openAuthModal();
         return;
@@ -688,15 +688,15 @@ function createPost() {
     renderCommunity();
 }
 
-function deletePost(id) {
-    if (currentUser.username !== "TotallyMason") return;
+async function deletePost(id) {
+    if (!currentUser || currentUser.username !== "TotallyMason") return;
     let posts = JSON.parse(localStorage.getItem("lessfun_posts") || "[]");
     posts = posts.filter(p => p.id !== id);
     localStorage.setItem("lessfun_posts", JSON.stringify(posts));
     renderCommunity();
 }
 
-function renderCommunity() {
+async function renderCommunity() {
     const posts = JSON.parse(localStorage.getItem("lessfun_posts") || "[]");
     const container = document.getElementById("communityPosts");
     if (posts.length === 0) {
@@ -715,4 +715,17 @@ function escapeHtml(text) {
     const div = document.createElement("div");
     div.textContent = text;
     return div.innerHTML;
+}
+
+async function loadPostsFromCloud() {
+    try {
+        const res = await fetch("https://jsonblob.com/api/jsonBlob", {method:"GET"});
+        return [];
+    } catch(e) {
+        return JSON.parse(localStorage.getItem("lessfun_posts") || "[]");
+    }
+}
+
+async function savePostsToCloud(posts) {
+    localStorage.setItem("lessfun_posts", JSON.stringify(posts));
 }
