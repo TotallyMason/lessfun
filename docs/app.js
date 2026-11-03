@@ -57,7 +57,7 @@ function showView(view) {
     } else if (view === 'settings') {
         document.getElementById('settingsView').style.display = 'block';
         document.getElementById('nav-settings').classList.add('active');
-        updateViewDisplay();
+        initViewCounter();
     }
     
     currentView = view;
@@ -539,17 +539,27 @@ function closePromo() {
 }
 
 // Initialize
-function initViewCounter() {
-    let views = parseInt(localStorage.getItem('lessfun_views') || '0');
-    views++;
-    localStorage.setItem('lessfun_views', views.toString());
+async function initViewCounter() {
+    try {
+        const res = await fetch('https://api.countapi.xyz/hit/totallymason-lessfun/visits');
+        const data = await res.json();
+        if (document.getElementById('viewCounterDisplay')) {
+            document.getElementById('viewCounterDisplay').textContent = data.value.toLocaleString();
+        }
+    } catch(e) {
+        let views = parseInt(localStorage.getItem('lessfun_views') || '0');
+        views++;
+        localStorage.setItem('lessfun_views', views.toString());
+        if (document.getElementById('viewCounterDisplay')) {
+            document.getElementById('viewCounterDisplay').textContent = views.toLocaleString();
+        }
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     renderGames();
     loadUser();
     initViewCounter();
-    updateViewDisplay();
 });
 
 // Authentication System
