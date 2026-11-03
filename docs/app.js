@@ -355,4 +355,3 @@ async function logout() {
     localStorage.removeItem('lessfun_user');
     updateUserSection();
 }
----
