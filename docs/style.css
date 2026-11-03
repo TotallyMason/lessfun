@@ -160,6 +160,15 @@ h1 {
     line-height: 1.4;
 }
 
+.promo-link {
+    color: #2997ff;
+    text-decoration: none;
+}
+
+.promo-link:hover {
+    text-decoration: underline;
+}
+
 .promo-close {
     position: absolute;
     right: 12px;
