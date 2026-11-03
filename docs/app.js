@@ -164,11 +164,23 @@ function openProfile(username) {
     document.getElementById('profileUsername').textContent = username;
     document.getElementById('profileAvatar').textContent = username.charAt(0).toUpperCase();
     document.getElementById('profileJoined').textContent = 'Member';
+    const logoutBtn = document.getElementById('profileLogoutBtn');
+    if (currentUser && currentUser.username === username) {
+        logoutBtn.style.display = 'block';
+    } else {
+        logoutBtn.style.display = 'none';
+    }
     loadProfilePosts(username);
 }
 
 function closeProfile() {
     document.getElementById('profileModal').style.display = 'none';
+}
+
+async function logoutFromProfile() {
+    await logout();
+    closeProfile();
+    updateUserSection();
 }
 
 async function loadProfilePosts(username) {
