@@ -1,4 +1,8 @@
 /* LessFun Games - Full Implementation with 3D Effects */
+const SUPABASE_URL = "https://yuuopbgzfrwcatmhuypr.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_Ev9umZevWcT-AwVHTPQLnw_DHdpDHWR";
+const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
 const games = [
     { id: 1, name: "Tap Frenzy", description: "Tap as fast as you can for 10 seconds", icon: "hand.tap", category: "arcade" },
     { id: 2, name: "Whack-a-Mole", description: "Bonk the moles, avoid bombs", icon: "hammer", category: "arcade" },
