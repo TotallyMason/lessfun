@@ -729,3 +729,18 @@ async function loadPostsFromCloud() {
 async function savePostsToCloud(posts) {
     localStorage.setItem("lessfun_posts", JSON.stringify(posts));
 }
+
+const GIST_ID = "1234567890abcdef";
+async function syncPosts() {
+    try {
+        const r = await fetch("https://gist.githubusercontent.com/TotallyMason/" + GIST_ID + "/raw/lessfun.json?t=" + Date.now());
+        const cloud = await r.json();
+        if (Array.isArray(cloud)) {
+            localStorage.setItem("lessfun_posts", JSON.stringify(cloud));
+            if (document.getElementById("communityPosts") && document.getElementById("communityView").style.display !== "none") {
+                renderCommunity();
+            }
+        }
+    } catch(e){}
+}
+setInterval(syncPosts, 15000);
