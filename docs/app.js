@@ -117,12 +117,13 @@ function playRPS(c) { const choices=['rock','paper','scissors']; const b=choices
 function closePromo() { const p=document.getElementById('promoBanner'); if(p) p.style.display='none'; }
 
 function updateUserSection() {
-    const section=document.getElementById('userSection');
-    if(!section) return;
-    if(currentUser && currentUser.type==='user'){
-        section.innerHTML=`<button class="nav-btn" onclick="openProfile('${escapeHtml(currentUser.username).replace(/'/g,"\\'")}')"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-right:6px;"><circle cx="8" cy="6" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M3 13c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>${escapeHtml(currentUser.username)}</button>`;
-    } else {
-        section.innerHTML=`<button class="nav-btn" onclick="openAuthModal()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-right:6px;"><circle cx="8" cy="6" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M3 13c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Sign In</button>`;
+    const txt=document.getElementById('navProfileText');
+    if(txt){
+        if(currentUser && currentUser.type==='user'){
+            txt.textContent = currentUser.username;
+        } else {
+            txt.textContent = 'Sign In';
+        }
     }
 }
 function openAuthModal(){ document.getElementById('authModal').style.display='flex'; document.getElementById('authSignIn').style.display='block'; document.getElementById('authSignUp').style.display='none'; document.getElementById('authTitle').textContent='Sign In'; }
