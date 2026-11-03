@@ -5,9 +5,10 @@
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  background: #000;
+  background: radial-gradient(ellipse at top, #1a1033 0%, #000 50%);
   color: #fff;
   line-height: 1.5;
+  min-height: 100vh;
 }
 
 header {
@@ -41,16 +42,18 @@ main {
 }
 
 .card {
-  background: #111;
-  border: 1px solid #222;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(30, 30, 30, 0.8) 100%);
+  border: 1px solid rgba(139, 92, 246, 0.4);
   border-radius: 12px;
   padding: 16px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
 }
 
 .card:hover {
-  background: #1a1a1a;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.25) 0%, rgba(40, 40, 40, 0.9) 100%);
+  border-color: rgba(168, 85, 247, 0.6);
+  transform: translateY(-2px);
 }
 
 .card h2 {
@@ -75,8 +78,8 @@ main {
 }
 
 .game {
-  background: #111;
-  border: 1px solid #222;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(30, 30, 30, 0.8) 100%);
+  border: 1px solid rgba(139, 92, 246, 0.4);
   border-radius: 12px;
   padding: 24px;
 }
