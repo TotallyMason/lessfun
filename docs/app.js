@@ -41,10 +41,12 @@ function showView(view) {
     document.getElementById('supportView').style.display = 'none';
     document.getElementById('settingsView').style.display = 'none';
     document.getElementById('communityView').style.display = 'none';
+    if(document.getElementById('usersView')) document.getElementById('usersView').style.display = 'none';
     document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-    document.getElementById('profileModal').style.display = 'none';
+    if (document.getElementById('profileModal')) document.getElementById('profileModal').style.display = 'none';
     if (view === 'games') { document.getElementById('gamesView').style.display = 'block'; document.getElementById('nav-games').classList.add('active'); }
     else if (view === 'community') { document.getElementById('communityView').style.display = 'block'; document.getElementById('nav-community').classList.add('active'); renderCommunity(); }
+    else if (view === 'users') { document.getElementById('usersView').style.display = 'block'; document.getElementById('nav-users').classList.add('active'); renderUsers(); }
     else if (view === 'store') { document.getElementById('storeView').style.display = 'block'; document.getElementById('nav-store').classList.add('active'); }
     else if (view === 'support') { document.getElementById('supportView').style.display = 'block'; document.getElementById('nav-support').classList.add('active'); }
     else if (view === 'settings') { document.getElementById('settingsView').style.display = 'block'; document.getElementById('nav-settings').classList.add('active'); }
@@ -190,4 +192,33 @@ async function loadProfilePosts(username) {
         return;
     }
     container.innerHTML = '<p style="color:rgba(255,255,255,0.5);text-align:center;">No posts yet</p>';
+}
+
+async function renderUsers() {
+    const container = document.getElementById('usersList');
+    if (!container) return;
+    container.innerHTML = '<p style="color:rgba(255,255,255,0.5);text-align:center;">Loading...</p>';
+    const search = document.getElementById('userSearch') ? document.getElementById('userSearch').value.toLowerCase() : '';
+    let users = new Set();
+    if (supabaseClient) {
+        const { data: posts } = await supabaseClient.from('posts').select('username');
+        if (posts) {
+            posts.forEach(p => { if (p.username) users.add(p.username); });
+        }
+    }
+    users.add('TotallyMason');
+    const userList = Array.from(users).filter(u => !search || u.toLowerCase().includes(search));
+    if (userList.length === 0) {
+        container.innerHTML = '<p style="color:rgba(255,255,255,0.5);text-align:center;">No users found</p>';
+        return;
+    }
+    container.innerHTML = userList.map(u => `
+        <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;background:linear-gradient(145deg,rgba(40,40,45,0.8),rgba(25,25,30,0.8));border:1px solid rgba(255,255,255,0.08);border-radius:12px;cursor:pointer;" onclick="openProfile('${escapeHtml(u).replace(/'/g,"\\'")}')">
+            <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#a855f7,#ec4899);display:flex;align-items:center;justify-content:center;font-weight:600;">${escapeHtml(u).charAt(0).toUpperCase()}</div>
+            <div style="flex:1;">
+                <div style="font-weight:600;">${escapeHtml(u)}${u==='TotallyMason'?' <span style="font-size:9px;padding:2px 5px;background:linear-gradient(90deg,#a855f7,#ec4899);border-radius:4px;">OWNER</span>':''}</div>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="rgba(255,255,255,0.5)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+    `).join('');
 }
