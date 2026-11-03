@@ -57,24 +57,15 @@ function showView(view) {
     currentView = view;
 }
 
-function renderGames(filter = '') {
+function renderGames() {
     const gameList = document.getElementById('gameList');
-    const filteredGames = filter 
-        ? games.filter(g => g.name.toLowerCase().includes(filter.toLowerCase()) || g.description.toLowerCase().includes(filter.toLowerCase()))
-        : games;
-    
-    gameList.innerHTML = filteredGames.map(game => `
+    gameList.innerHTML = games.map(game => `
         <div class="game-card" onclick="openGame(${game.id})">
             <div class="game-icon">${getIcon(game.icon).replace('width="24" height="24"', 'width="28" height="28"')}</div>
             <h3>${game.name}</h3>
             <p>${game.description}</p>
         </div>
     `).join('');
-}
-
-function searchGames() {
-    const searchInput = document.getElementById('searchInput');
-    renderGames(searchInput.value);
 }
 
 function openGame(id) {
