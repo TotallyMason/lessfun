@@ -1094,3 +1094,91 @@ body {
 .auth-link:hover {
     text-decoration: underline;
 }
+
+/* Community Styles */
+.community-section {
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.community-post-form {
+    padding: 20px;
+    background: linear-gradient(145deg, rgba(40, 40, 45, 0.8) 0%, rgba(25, 25, 30, 0.8) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    margin-bottom: 24px;
+}
+
+.community-post-form h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.post-input {
+    width: 100%;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    color: white;
+    font-size: 15px;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 80px;
+    box-sizing: border-box;
+}
+
+.post-input:focus {
+    outline: none;
+    border-color: rgba(168, 85, 247, 0.6);
+}
+
+.community-posts {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.community-post {
+    padding: 16px 20px;
+    background: linear-gradient(145deg, rgba(40, 40, 45, 0.8) 0%, rgba(25, 25, 30, 0.8) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+}
+
+.post-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.post-user {
+    font-weight: 600;
+    color: #a855f7;
+}
+
+.post-time {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.post-content {
+    color: rgba(255, 255, 255, 0.9);
+    line-height: 1.5;
+    margin-bottom: 10px;
+    white-space: pre-wrap;
+}
+
+.post-delete {
+    background: none;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.post-delete:hover {
+    text-decoration: underline;
+}

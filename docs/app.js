@@ -37,12 +37,17 @@ function showView(view) {
     document.getElementById('storeView').style.display = 'none';
     document.getElementById('supportView').style.display = 'none';
     document.getElementById('settingsView').style.display = 'none';
+    document.getElementById('communityView').style.display = 'none';
     
     document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
     
     if (view === 'games') {
         document.getElementById('gamesView').style.display = 'block';
         document.getElementById('nav-games').classList.add('active');
+    } else if (view === 'community') {
+        document.getElementById('communityView').style.display = 'block';
+        document.getElementById('nav-community').classList.add('active');
+        renderCommunity();
     } else if (view === 'store') {
         document.getElementById('storeView').style.display = 'block';
         document.getElementById('nav-store').classList.add('active');
@@ -638,4 +643,53 @@ function saveScore(gameName, score) {
             localStorage.setItem("lessfun_users", JSON.stringify(users));
         }
     }
+}
+
+// Community System
+function createPost() {
+    if (currentUser.type === "guest") {
+        alert("Please sign in to post");
+        openAuthModal();
+        return;
+    }
+    const content = document.getElementById("postContent").value.trim();
+    if (!content) return;
+    const posts = JSON.parse(localStorage.getItem("lessfun_posts") || "[]");
+    posts.unshift({
+        id: Date.now(),
+        user: currentUser.username,
+        content: content,
+        time: new Date().toISOString()
+    });
+    localStorage.setItem("lessfun_posts", JSON.stringify(posts));
+    document.getElementById("postContent").value = "";
+    renderCommunity();
+}
+
+function deletePost(id) {
+    if (currentUser.username !== "TotallyMason") return;
+    let posts = JSON.parse(localStorage.getItem("lessfun_posts") || "[]");
+    posts = posts.filter(p => p.id !== id);
+    localStorage.setItem("lessfun_posts", JSON.stringify(posts));
+    renderCommunity();
+}
+
+function renderCommunity() {
+    const posts = JSON.parse(localStorage.getItem("lessfun_posts") || "[]");
+    const container = document.getElementById("communityPosts");
+    if (posts.length === 0) {
+        container.innerHTML = "<p style=\"text-align:center;color:rgba(255,255,255,0.5);padding:40px;\">No posts yet</p>";
+        return;
+    }
+    container.innerHTML = posts.map(post => {
+        const date = new Date(post.time);
+        const canDelete = currentUser && currentUser.username === "TotallyMason";
+        return `<div class="community-post"><div class="post-header"><span class="post-user">${post.user}</span><span class="post-time">${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</span></div><div class="post-content">${escapeHtml(post.content)}</div>${canDelete ? `<button class="post-delete" onclick="deletePost(${post.id})">Delete</button>` : ""}</div>`;
+    }).join("");
+}
+
+function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
 }
