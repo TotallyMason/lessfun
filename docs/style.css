@@ -142,6 +142,23 @@ h1 {
     letter-spacing: -0.01em;
 }
 
+.promo-banner {
+    background: linear-gradient(90deg, rgba(168, 85, 247, 0.15) 0%, rgba(236, 72, 153, 0.15) 100%);
+    border: 0.5px solid rgba(168, 85, 247, 0.4);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 32px;
+    text-align: center;
+    animation: fadeInUp 0.6s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.promo-banner p {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 15px;
+    margin: 0;
+    line-height: 1.4;
+}
+
 /* Game Grid */
 .game-grid {
     display: grid;
@@ -155,19 +172,44 @@ h1 {
     border-radius: 12px;
     padding: 20px;
     cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.25, 0.1, 0.25, 1);
+    transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
+    animation: fadeInUp 0.6s cubic-bezier(0.25, 0.1, 0.25, 1) backwards;
 }
 
+.game-card:nth-child(1) { animation-delay: 0.05s; }
+.game-card:nth-child(2) { animation-delay: 0.1s; }
+.game-card:nth-child(3) { animation-delay: 0.15s; }
+.game-card:nth-child(4) { animation-delay: 0.2s; }
+.game-card:nth-child(5) { animation-delay: 0.25s; }
+.game-card:nth-child(6) { animation-delay: 0.3s; }
+.game-card:nth-child(7) { animation-delay: 0.35s; }
+.game-card:nth-child(8) { animation-delay: 0.4s; }
+.game-card:nth-child(9) { animation-delay: 0.45s; }
+.game-card:nth-child(10) { animation-delay: 0.5s; }
+
 .game-card:hover {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.06) 100%);
-    border-color: rgba(255, 255, 255, 0.25);
-    transform: scale(1.02);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.08) 100%);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
 }
 
 .game-card:active {
-    transform: scale(0.98);
+    transform: translateY(-2px) scale(0.98);
+    transition: all 0.15s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .game-icon {
