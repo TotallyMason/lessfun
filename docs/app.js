@@ -684,7 +684,8 @@ function renderCommunity() {
     container.innerHTML = posts.map(post => {
         const date = new Date(post.time);
         const canDelete = currentUser && currentUser.username === "TotallyMason";
-        return `<div class="community-post"><div class="post-header"><span class="post-user">${post.user}</span><span class="post-time">${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</span></div><div class="post-content">${escapeHtml(post.content)}</div>${canDelete ? `<button class="post-delete" onclick="deletePost(${post.id})">Delete</button>` : ""}</div>`;
+        const isOwner = post.user === "TotallyMason";
+        return `<div class="community-post"><div class="post-header"><div style="display:flex;align-items:center;gap:8px;"><span class="post-user">${post.user}</span>${isOwner ? '<span style="font-size:9px;padding:2px 5px;background:linear-gradient(90deg,#a855f7,#ec4899);border-radius:4px;font-weight:600;">OWNER</span>' : ''}</div><span class="post-time">${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</span></div><div class="post-content">${escapeHtml(post.content)}</div>${canDelete ? `<button class="post-delete" onclick="deletePost(${post.id})">Delete</button>` : ""}</div>`;
     }).join("");
 }
 
