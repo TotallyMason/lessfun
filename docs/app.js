@@ -42,6 +42,7 @@ function showView(view) {
     document.getElementById('settingsView').style.display = 'none';
     document.getElementById('communityView').style.display = 'none';
     document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById('profileModal').style.display = 'none';
     if (view === 'games') { document.getElementById('gamesView').style.display = 'block'; document.getElementById('nav-games').classList.add('active'); }
     else if (view === 'community') { document.getElementById('communityView').style.display = 'block'; document.getElementById('nav-community').classList.add('active'); renderCommunity(); }
     else if (view === 'store') { document.getElementById('storeView').style.display = 'block'; document.getElementById('nav-store').classList.add('active'); }
@@ -153,3 +154,40 @@ document.addEventListener('DOMContentLoaded', ()=>{
     initViewCounter();
     updateUserSection();
 });
+
+function openProfile(username) {
+    if (!username) { openAuthModal(); return; }
+    document.getElementById('profileModal').style.display = 'flex';
+    document.getElementById('profileTitle').textContent = username + "'s Profile";
+    document.getElementById('profileUsername').textContent = username;
+    document.getElementById('profileAvatar').textContent = username.charAt(0).toUpperCase();
+    document.getElementById('profileJoined').textContent = 'Member';
+    loadProfilePosts(username);
+}
+
+function closeProfile() {
+    document.getElementById('profileModal').style.display = 'none';
+}
+
+async function loadProfilePosts(username) {
+    const container = document.getElementById('profilePosts');
+    container.innerHTML = '<p style="color:rgba(255,255,255,0.5);text-align:center;">Loading...</p>';
+    if (supabaseClient) {
+        const { data: posts } = await supabaseClient
+            .from('posts')
+            .select('*')
+            .eq('username', username)
+            .order('created_at', { ascending: false })
+            .limit(20);
+        if (!posts || posts.length === 0) {
+            container.innerHTML = '<p style="color:rgba(255,255,255,0.5);text-align:center;">No posts yet</p>';
+            return;
+        }
+        container.innerHTML = posts.map(post => {
+            const date = new Date(post.created_at);
+            return `<div style="padding:12px;background:rgba(255,255,255,0.05);border-radius:8px;"><div style="color:rgba(255,255,255,0.8);margin-bottom:6px;">${escapeHtml(post.content)}</div><div style="font-size:11px;color:rgba(255,255,255,0.4);">${date.toLocaleDateString()}</div></div>`;
+        }).join('');
+        return;
+    }
+    container.innerHTML = '<p style="color:rgba(255,255,255,0.5);text-align:center;">No posts yet</p>';
+}
