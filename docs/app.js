@@ -611,14 +611,21 @@ function showAuthSignin() {
     document.getElementById("authTitle").textContent = "Sign In";
 }
 
-function signUp() {
-    const username = document.getElementById("signupUsername").value;
-    const email = document.getElementById("signupEmail").value;
+async function signUp() {
+    const username = document.getElementById("signupUsername").value.trim();
+    const email = document.getElementById("signupEmail").value.trim();
     const password = document.getElementById("signupPassword").value;
     if (!username || !password) { alert("Please fill in all fields"); return; }
-    const users = JSON.parse(localStorage.getItem("lessfun_users") || "[]");
+    let users = [];
+    try {
+        const r = await fetch("users.json?t=" + Date.now());
+        const data = await r.json();
+        users = data.users || [];
+    } catch(e) {
+        users = JSON.parse(localStorage.getItem("lessfun_users") || "[]");
+    }
     if (users.find(u => u.username === username)) { alert("Username already exists"); return; }
-    users.push({ username, email, password, scores: {} });
+    users.push({ username, email, password, scores: {}, created: Date.now() });
     localStorage.setItem("lessfun_users", JSON.stringify(users));
     currentUser = { type: "user", username, scores: {} };
     localStorage.setItem("lessfun_user", JSON.stringify(currentUser));
@@ -627,13 +634,20 @@ function signUp() {
     alert("Account created!");
 }
 
-function signIn() {
-    const username = document.getElementById("signinUsername").value;
+async function signIn() {
+    const username = document.getElementById("signinUsername").value.trim();
     const password = document.getElementById("signinPassword").value;
-    const users = JSON.parse(localStorage.getItem("lessfun_users") || "[]");
+    let users = [];
+    try {
+        const r = await fetch("users.json?t=" + Date.now());
+        const data = await r.json();
+        users = data.users || [];
+    } catch(e) {
+        users = JSON.parse(localStorage.getItem("lessfun_users") || "[]");
+    }
     const user = users.find(u => u.username === username && u.password === password);
     if (!user) { alert("Invalid credentials"); return; }
-    currentUser = { type: "user", username: user.username, scores: user.sores || {} };
+    currentUser = { type: "user", username: user.username, scores: user.scores || {} };
     localStorage.setItem("lessfun_user", JSON.stringify(currentUser));
     closeAuthModal();
     updateUserSection();
