@@ -197,15 +197,18 @@ h1 {
 }
 
 .game-card {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%);
-    border: 0.5px solid rgba(255, 255, 255, 0.15);
-    border-radius: 12px;
-    padding: 20px;
+    background: linear-gradient(145deg, rgba(40, 40, 45, 0.9) 0%, rgba(20, 20, 25, 0.9) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 24px;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    animation: fadeInUp 0.6s cubic-bezier(0.25, 0.1, 0.25, 1) backwards;
+    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    box-shadow: 
+        0 10px 40px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    animation: fadeInUp 0.6s cubic-bezier(0.23, 1, 0.32, 1) backwards;
+    transform-style: preserve-3d;
+    perspective: 1000px;
 }
 
 .game-card:nth-child(1) { animation-delay: 0.05s; }
@@ -220,37 +223,43 @@ h1 {
 .game-card:nth-child(10) { animation-delay: 0.5s; }
 
 .game-card:hover {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.08) 100%);
-    border-color: rgba(255, 255, 255, 0.3);
-    transform: translateY(-4px) scale(1.02);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    background: linear-gradient(145deg, rgba(60, 60, 70, 0.95) 0%, rgba(30, 30, 40, 0.95) 100%);
+    border-color: rgba(168, 85, 247, 0.5);
+    transform: translateY(-8px) rotateX(5deg) scale(1.02);
+    box-shadow: 
+        0 25px 60px rgba(138, 43, 226, 0.3),
+        0 0 0 1px rgba(168, 85, 247, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .game-card:active {
-    transform: translateY(-2px) scale(0.98);
-    transition: all 0.15s cubic-bezier(0.25, 0.1, 0.25, 1);
+    transform: translateY(-4px) rotateX(2deg) scale(0.98);
+    transition: all 0.15s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 @keyframes fadeInUp {
     from {
         opacity: 0;
-        transform: translateY(20px);
+        transform: translateY(30px) rotateX(-10deg);
     }
     to {
         opacity: 1;
-        transform: translateY(0);
+        transform: translateY(0) rotateX(0deg);
     }
 }
 
 .game-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 10px;
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 12px;
-    background: linear-gradient(135deg, rgba(168, 85, 247, 0.8) 0%, rgba(236, 72, 153, 0.8) 100%);
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.9) 0%, rgba(236, 72, 153, 0.9) 100%);
+    box-shadow: 
+        0 8px 20px rgba(168, 85, 247, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .game-card h3 {
@@ -491,4 +500,336 @@ h1 {
     .game-grid {
         grid-template-columns: 1fr;
     }
+}
+
+/* 3D Game Styles */
+.game-3d-container {
+    perspective: 1000px;
+    padding: 20px 0;
+}
+
+.game-stats {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin-bottom: 30px;
+}
+
+.stat-3d {
+    background: linear-gradient(145deg, rgba(40,40,45,0.9) 0%, rgba(20,20,25,0.9) 100%);
+    padding: 12px 24px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+    transform: translateZ(20px);
+}
+
+.stat-3d span {
+    display: block;
+    color: rgba(255,255,255,0.6);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.stat-3d strong {
+    display: block;
+    font-size: 28px;
+    font-weight: 600;
+    margin-top: 4px;
+}
+
+.tap-button-3d {
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #a855f7 0%, #ec4899 100%);
+    border: none;
+    color: white;
+    font-size: 32px;
+    font-weight: 700;
+    cursor: pointer;
+    display: block;
+    margin: 40px auto;
+    box-shadow: 
+        0 20px 60px rgba(168,85,247,0.6),
+        inset 0 2px 0 rgba(255,255,255,0.3),
+        inset 0 -4px 10px rgba(0,0,0,0.3);
+    transition: all 0.2s cubic-bezier(0.23,1,0.32,1);
+    transform-style: preserve-3d;
+}
+
+.tap-button-3d:hover {
+    transform: scale(1.05) translateZ(10px);
+    box-shadow: 
+        0 25px 70px rgba(168,85,247,0.7),
+        inset 0 2px 0 rgba(255,255,255,0.4);
+}
+
+.tap-button-3d:active {
+    transform: scale(0.95);
+    box-shadow: 
+        0 10px 30px rgba(168,85,247,0.5),
+        inset 0 4px 10px rgba(0,0,0,0.4);
+}
+
+.game-instruction {
+    text-align: center;
+    color: rgba(255,255,255,0.6);
+    margin-top: 20px;
+}
+
+.mole-grid-3d {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    max-width: 300px;
+    margin: 30px auto;
+}
+
+.mole-hole-3d {
+    aspect-ratio: 1;
+    background: linear-gradient(145deg, #2a2a2a 0%, #1a1a1a 100%);
+    border-radius: 12px;
+    border: 2px solid rgba(255,255,255,0.1);
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: inset 0 4px 10px rgba(0,0,0,0.5);
+}
+
+.mole-hole-3d.active {
+    background: linear-gradient(145deg, #22c55e 0%, #16a34a 100%);
+    box-shadow: 
+        0 10px 30px rgba(34,197,94,0.5),
+        inset 0 2px 0 rgba(255,255,255,0.3);
+}
+
+.game-btn-3d {
+    display: block;
+    margin: 20px auto;
+    padding: 12px 32px;
+    background: linear-gradient(145deg, #a855f7 0%, #9333ea 100%);
+    border: none;
+    color: white;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 10px 30px rgba(168,85,247,0.4), inset 0 1px 0 rgba(255,255,255,0.2);
+    transition: all 0.2s;
+}
+
+.game-btn-3d:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 40px rgba(168,85,247,0.5);
+}
+
+.reaction-box-3d {
+    width: 100%;
+    max-width: 400px;
+    height: 200px;
+    margin: 30px auto;
+    background: #333;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.3s;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+
+.memory-grid-3d {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    max-width: 320px;
+    margin: 30px auto;
+}
+
+.memory-card-3d {
+    aspect-ratio: 1;
+    perspective: 1000px;
+    cursor: pointer;
+}
+
+.memory-card-inner {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.4s;
+}
+
+.memory-card-3d.flipped .memory-card-inner {
+    transform: rotateY(180deg);
+}
+
+.memory-card-3d.matched .memory-card-inner {
+    transform: rotateY(180deg);
+    opacity: 0.5;
+}
+
+.memory-card-front, .memory-card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.memory-card-front {
+    background: linear-gradient(145deg, #a855f7 0%, #9333ea 100%);
+}
+
+.memory-card-back {
+    background: linear-gradient(145deg, #3b82f6 0%, #2563eb 100%);
+    transform: rotateY(180deg);
+}
+
+.ttt-grid-3d {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    max-width: 250px;
+    margin: 0 auto;
+}
+
+.ttt-cell-3d {
+    aspect-ratio: 1;
+    background: linear-gradient(145deg, rgba(40,40,45,0.9) 0%, rgba(20,20,25,0.9) 100%);
+    border: 2px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    transition: all 0.2s;
+}
+
+.ttt-cell-3d:hover {
+    background: linear-gradient(145deg, rgba(60,60,70,0.9) 0%, rgba(30,30,40,0.9) 100%);
+    border-color: rgba(168,85,247,0.5);
+}
+
+.ttt-cell-3d.x { color: #3b82f6; }
+.ttt-cell-3d.o { color: #ef4444; }
+
+.guess-input-3d {
+    padding: 12px 20px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 10px;
+    color: white;
+    font-size: 16px;
+    width: 100px;
+    text-align: center;
+}
+
+.card-3d {
+    width: 80px;
+    height: 120px;
+    background: linear-gradient(145deg, white 0%, #f0f0f0 100%);
+    color: black;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    font-weight: 700;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+}
+
+.dice-3d {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(145deg, white 0%, #f0f0f0 100%);
+    color: black;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    font-weight: 700;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+}
+
+.coin-3d-container {
+    perspective: 1000px;
+    width: 120px;
+    height: 120px;
+    margin: 40px auto;
+}
+
+.coin-3d {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.6s;
+}
+
+.coin-face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    font-weight: 700;
+}
+
+.coin-heads {
+    background: linear-gradient(145deg, #fbbf24 0%, #f59e0b 100%);
+    color: white;
+}
+
+.coin-tails {
+    background: linear-gradient(145deg, #9ca3af 0%, #6b7280 100%);
+    color: white;
+    transform: rotateY(180deg);
+}
+
+.rps-choice-3d {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(145deg, rgba(40,40,45,0.9) 0%, rgba(20,20,25,0.9) 100%);
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: 700;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.5);
+}
+
+.rps-btn-3d {
+    padding: 10px 20px;
+    background: linear-gradient(145deg, rgba(40,40,45,0.9) 0%, rgba(20,20,25,0.9) 100%);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    transition: all 0.2s;
+}
+
+.rps-btn-3d:hover {
+    background: linear-gradient(145deg, rgba(60,60,70,0.9) 0%, rgba(30,30,40,0.9) 100%);
+    border-color: rgba(168,85,247,0.5);
 }
