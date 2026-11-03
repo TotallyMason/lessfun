@@ -46,7 +46,7 @@ function showView(view) {
     if (document.getElementById('profileModal')) document.getElementById('profileModal').style.display = 'none';
     if (view === 'games') { document.getElementById('gamesView').style.display = 'block'; document.getElementById('nav-games').classList.add('active'); }
     else if (view === 'community') { document.getElementById('communityView').style.display = 'block'; document.getElementById('nav-community').classList.add('active'); renderCommunity(); }
-    else if (view === 'users') { document.getElementById('usersView').style.display = 'block'; document.getElementById('nav-users').classList.add('active'); renderUsers(); }
+    else if (view === 'users') { if(document.getElementById('usersView')){ document.getElementById('usersView').style.display = 'block'; document.getElementById('nav-users').classList.add('active'); renderUsers(); } }
     else if (view === 'store') { document.getElementById('storeView').style.display = 'block'; document.getElementById('nav-store').classList.add('active'); }
     else if (view === 'support') { document.getElementById('supportView').style.display = 'block'; document.getElementById('nav-support').classList.add('active'); }
     else if (view === 'settings') { document.getElementById('settingsView').style.display = 'block'; document.getElementById('nav-settings').classList.add('active'); }
