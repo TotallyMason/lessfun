@@ -38,6 +38,7 @@ body {
     align-items: center;
     justify-content: space-between;
     height: 52px;
+    position: relative;
 }
 
 .nav-left, .nav-center, .nav-right {
@@ -49,6 +50,13 @@ body {
 .nav-center {
     justify-content: center;
     gap: 32px;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.nav-left {
+    justify-content: flex-start;
 }
 
 .nav-right {
