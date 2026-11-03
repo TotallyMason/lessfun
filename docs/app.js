@@ -539,19 +539,22 @@ function closePromo() {
 }
 
 // Initialize
-async function initViewCounter() {
+function initViewCounter() {
     try {
-        const res = await fetch('https://api.countapi.xyz/hit/totallymason-lessfun/visits');
-        const data = await res.json();
+        const key = 'lf_views_global';
+        const sessionKey = 'lf_views_session';
+        if (!sessionStorage.getItem(sessionKey)) {
+            sessionStorage.setItem(sessionKey, '1');
+            let v = parseInt(localStorage.getItem(key) || '0') + 1;
+            localStorage.setItem(key, v.toString());
+        }
+        const v = parseInt(localStorage.getItem(key) || '0');
         if (document.getElementById('viewCounterDisplay')) {
-            document.getElementById('viewCounterDisplay').textContent = data.value.toLocaleString();
+            document.getElementById('viewCounterDisplay').textContent = v.toLocaleString();
         }
     } catch(e) {
-        let views = parseInt(localStorage.getItem('lessfun_views') || '0');
-        views++;
-        localStorage.setItem('lessfun_views', views.toString());
         if (document.getElementById('viewCounterDisplay')) {
-            document.getElementById('viewCounterDisplay').textContent = views.toLocaleString();
+            document.getElementById('viewCounterDisplay').textContent = '1';
         }
     }
 }
