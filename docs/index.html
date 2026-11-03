@@ -50,7 +50,7 @@
                     Support
                 </button>
             </div>
-            <div class="nav-right">
+            <div class="nav-right" style="gap:12px;">
                 <div class="search-box">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                         <circle cx="7" cy="7" r="5" stroke="#666" stroke-width="1.5"/>
@@ -58,6 +58,13 @@
                     </svg>
                     <input type="text" id="searchInput" placeholder="Search games..." oninput="searchGames()">
                 </div>
+                <button class="nav-btn" onclick="showView('settings')" id="nav-settings">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-right:6px;">
+                        <circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    Settings
+                </button>
             </div>
         </div>
     </nav>
@@ -161,6 +168,124 @@
                     <div class="faq-item">
                         <h3>Is this game free?</h3>
                         <p>Yes, all current games are free to play. In-app purchases are coming soon.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings View -->
+    <div id="settingsView" class="view" style="display: none;">
+        <div class="container">
+            <header>
+                <h1>Settings</h1>
+                <p class="subtitle">Customize your experience</p>
+            </header>
+            <div class="settings-section">
+                <div class="settings-group">
+                    <h2>Appearance</h2>
+                    <div class="settings-item">
+                        <div>
+                            <h3>Dark Mode</h3>
+                            <p>Always enabled for optimal experience</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" checked disabled>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <h3>Animations</h3>
+                            <p>Enable smooth transitions and effects</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <h3>3D Effects</h3>
+                            <p>Enhanced depth and perspective</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="settings-group">
+                    <h2>Gameplay</h2>
+                    <div class="settings-item">
+                        <div>
+                            <h3>Sound Effects</h3>
+                            <p>Play sounds on interactions</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <h3>Auto-save Scores</h3>
+                            <p>Automatically save game progress</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <h3>Show Hints</h3>
+                            <p>Display helpful tips for new games</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="settings-group">
+                    <h2>About LessFun</h2>
+                    <div class="settings-item">
+                        <div>
+                            <h3>Version</h3>
+                            <p>1.2.0</p>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <h3>Build</h3>
+                            <p>2026.11.03</p>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <h3>Games Available</h3>
+                            <p>10 Mini Games</p>
+                        </div>
+                    </div>
+                    <div class="info-card">
+                        <h3>Latest Updates</h3>
+                        <ul class="updates-list">
+                            <li><strong>v1.2.0</strong> - Fullscreen games, enhanced 3D graphics, centered navigation, settings menu</li>
+                            <li><strong>v1.1.0</strong> - Added all 10 games, animations, promo banner, shop page</li>
+                            <li><strong>v1.0.0</strong> - Initial release with core games and UI</li>
+                        </ul>
+                    </div>
+                    <div class="info-card">
+                        <h3>About</h3>
+                        <p>LessFun is a collection of clean, modern mini-games designed with Apple's design language. Built with vanilla HTML, CSS, and JavaScript for fast, responsive gameplay.</p>
+                        <p style="margin-top:12px;">Contact: <a href="mailto:masonwyj@gmail.com" style="color:#2997ff;">masonwyj@gmail.com</a></p>
+                        <p style="margin-top:12px;">Website: <a href="https://totallymason.github.io/lessfun/" style="color:#2997ff;">totallymason.github.io/lessfun</a></p>
+                    </div>
+                    <div class="info-card">
+                        <h3>Credits</h3>
+                        <p>Designed and developed by Mason Wong</p>
+                        <p style="margin-top:8px; color:rgba(255,255,255,0.6); font-size:13px;">Powered by pure web technologies</p>
                     </div>
                 </div>
             </div>

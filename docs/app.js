@@ -36,6 +36,7 @@ function showView(view) {
     document.getElementById('gamesView').style.display = 'none';
     document.getElementById('storeView').style.display = 'none';
     document.getElementById('supportView').style.display = 'none';
+    document.getElementById('settingsView').style.display = 'none';
     
     document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
     
@@ -48,6 +49,9 @@ function showView(view) {
     } else if (view === 'support') {
         document.getElementById('supportView').style.display = 'block';
         document.getElementById('nav-support').classList.add('active');
+    } else if (view === 'settings') {
+        document.getElementById('settingsView').style.display = 'block';
+        document.getElementById('nav-settings').classList.add('active');
     }
     
     currentView = view;
