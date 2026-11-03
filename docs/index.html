@@ -26,9 +26,29 @@
                 </div>
             </div>
             <div class="nav-center">
-                <button class="nav-btn active" onclick="showView('games')" id="nav-games">Games</button>
-                <button class="nav-btn" onclick="showView('store')" id="nav-store">Store</button>
-                <button class="nav-btn" onclick="showView('support')" id="nav-support">Support</button>
+                <button class="nav-btn active" onclick="showView('games')" id="nav-games">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-right:6px;">
+                        <rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/>
+                        <rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/>
+                        <rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/>
+                        <rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/>
+                    </svg>
+                    Games
+                </button>
+                <button class="nav-btn" onclick="showView('store')" id="nav-store">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-right:6px;">
+                        <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M2 8h12M8 2a10 10 0 0 1 3 6 10 10 0 0 1-3 6M8 2a10 10 0 0 0-3 6 10 10 0 0 0 3 6" stroke="currentColor" stroke-width="1.5"/>
+                    </svg>
+                    Store
+                </button>
+                <button class="nav-btn" onclick="showView('support')" id="nav-support">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-right:6px;">
+                        <circle cx="8" cy="6" r="3" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M3 13c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    Support
+                </button>
             </div>
             <div class="nav-right">
                 <div class="search-box">
