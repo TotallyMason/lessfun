@@ -542,6 +542,20 @@ function closePromo() {
     document.getElementById('promoBanner').style.display = 'none';
 }
 
+// Initialize auth state
+if (supabaseClient) {
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+        if (session) {
+            currentUser = { type: 'user', username: session.user.user_metadata?.username || session.user.email?.split('@')[0] };
+            localStorage.setItem('lessfun_user', JSON.stringify(currentUser));
+        } else if (event === 'SIGNED_OUT') {
+            currentUser = { type: 'guest', username: 'Guest' };
+            localStorage.removeItem('lessfun_user');
+        }
+        updateUserSection();
+    });
+}
+
 // Initialize
 function initViewCounter() {
     try {
@@ -616,6 +630,21 @@ function showAuthSignin() {
 }
 
 async function signUp() {
+    if (supabaseClient) {
+        const username = document.getElementById("signupUsername").value.trim();
+        const email = document.getElementById("signupEmail").value.trim();
+        const password = document.getElementById("signupPassword").value;
+        if (!username || !email || !password) { alert("Please fill in all fields"); return; }
+        const { error } = await supabaseClient.auth.signUp({
+            email,
+            password,
+            options: { data: { username } }
+        });
+        if (error) { alert(error.message); return; }
+        alert("Check your email to confirm!");
+        closeAuthModal();
+        return;
+    }
     const username = document.getElementById("signupUsername").value.trim();
     const email = document.getElementById("signupEmail").value.trim();
     const password = document.getElementById("signupPassword").value;
@@ -639,6 +668,18 @@ async function signUp() {
 }
 
 async function signIn() {
+    if (supabaseClient) {
+        const email = document.getElementById("signinEmail").value.trim();
+        const password = document.getElementById("signinPassword").value;
+        if (!email || !password) { alert("Please fill in all fields"); return; }
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        if (error) { alert(error.message); return; }
+        currentUser = { type: "user", username: data.user.user_metadata?.username || email.split('@')[0] };
+        localStorage.setItem("lessfun_user", JSON.stringify(currentUser));
+        closeAuthModal();
+        updateUserSection();
+        return;
+    }
     const username = document.getElementById("signinUsername").value.trim();
     const password = document.getElementById("signinPassword").value;
     let users = [];
@@ -664,7 +705,10 @@ function continueAsGuest() {
     updateUserSection();
 }
 
-function logout() {
+async function logout() {
+    if (supabaseClient) {
+        await supabaseClient.auth.signOut();
+    }
     currentUser = { type: "guest", username: "Guest" };
     localStorage.removeItem("lessfun_user");
     updateUserSection();
@@ -770,3 +814,60 @@ setInterval(syncPosts, 10000);
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(syncPosts, 500);
 });
+// Replace auth with Supabase
+async function loadUser() {
+    if (supabaseClient) {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session) {
+            currentUser = { type: 'user', username: session.user.user_metadata?.username || session.user.email?.split('@')[0] };
+            updateUserSection();
+            return;
+        }
+    }
+    const saved = localStorage.getItem('lessfun_user');
+    if (saved) {
+        currentUser = JSON.parse(saved);
+    } else {
+        currentUser = { type: 'guest', username: 'Guest' };
+    }
+    updateUserSection();
+}
+
+async function signUp() {
+    if (!supabaseClient) { alert('Supabase not connected'); return; }
+    const username = document.getElementById("signupUsername").value.trim();
+    const email = document.getElementById("signupEmail").value.trim();
+    const password = document.getElementById("signupPassword").value;
+    if (!username || !email || !password) { alert("Please fill in all fields"); return; }
+    const { error } = await supabaseClient.auth.signUp({
+        email,
+        password,
+        options: { data: { username } }
+    });
+    if (error) { alert(error.message); return; }
+    alert("Check your email to confirm!");
+    closeAuthModal();
+}
+
+async function signIn() {
+    if (!supabaseClient) { alert('Supabase not connected'); return; }
+    const email = document.getElementById("signinEmail").value.trim();
+    const password = document.getElementById("signinPassword").value;
+    if (!email || !password) { alert("Please fill in all fields"); return; }
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) { alert(error.message); return; }
+    currentUser = { type: 'user', username: data.user.user_metadata?.username || email.split('@')[0] };
+    localStorage.setItem('lessfun_user', JSON.stringify(currentUser));
+    closeAuthModal();
+    updateUserSection();
+}
+
+async function logout() {
+    if (supabaseClient) {
+        await supabaseClient.auth.signOut();
+    }
+    currentUser = { type: 'guest', username: 'Guest' };
+    localStorage.removeItem('lessfun_user');
+    updateUserSection();
+}
+---
