@@ -1,23 +1,23 @@
-document.addEventListener('DOMContentLoaded', () => {
-    renderGames();
-    loadUser();
-    initViewCounter();
-});
+/* LessFun Games - Full Implementation with 3D Effects */
+const SUPABASE_URL = "https://yuuopbgzfrwcatmhuypr.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_Ev9umZevWcT-AwVHTPQLnw_DHdpDHWR";
+const supabaseClient = (typeof window !== 'undefined' && window.supabase) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
-// Authentication System
-let currentUser = null;
+const games = [
+    { id: 1, name: "Tap Frenzy", description: "Tap as fast as you can for 10 seconds", icon: "hand.tap", category: "arcade" },
+    { id: 2, name: "Whack-a-Mole", description: "Bonk the moles, avoid bombs", icon: "hammer", category: "arcade" },
+    { id: 3, name: "Reaction Test", description: "Tap when the screen turns green", icon: "bolt", category: "arcade" },
+    { id: 4, name: "Memory Match", description: "Flip cards and find pairs", icon: "brain", category: "puzzle" },
+    { id: 5, name: "Tic-Tac-Toe", description: "Beat the robot opponent", icon: "grid", category: "puzzle" },
+    { id: 6, name: "Guess the Number", description: "Find the hidden number", icon: "hash", category: "puzzle" },
+    { id: 7, name: "Higher or Lower", description: "Guess if next card is higher or lower", icon: "spade", category: "luck" },
+    { id: 8, name: "Dice Roller", description: "Roll the dice and predict", icon: "dice", category: "luck" },
+    { id: 9, name: "Coin Flip", description: "Heads or tails", icon: "circle", category: "luck" },
+    { id: 10, name: "Rock Paper Scissors", description: "First to three wins", icon: "scissors", category: "versus" }
+];
 
-function loadUser() {
-    const saved = localStorage.getItem("lessfun_user");
-    if (saved) {
-        currentUser = JSON.parse(saved);
-        updateUserSection();
-    } else {
-        currentUser = { type: "guest", username: "Guest" };
-        updateUserSection();
-    }
-}
-
+let currentView = 'games';
+let gameState = {};
 function updateUserSection() {
     const section = document.getElementById("userSection");
     if (currentUser.type === "guest") {
@@ -279,8 +279,26 @@ async function syncPosts() {
 }
 setInterval(syncPosts, 10000);
 document.addEventListener('DOMContentLoaded', () => {
+    renderGames();
+    loadUser();
+    initViewCounter();
     setTimeout(syncPosts, 500);
 });
+
+// Initialize auth state
+if (supabaseClient) {
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+        if (session) {
+            currentUser = { type: 'user', username: session.user.user_metadata?.username || session.user.email?.split('@')[0] };
+            localStorage.setItem('lessfun_user', JSON.stringify(currentUser));
+        } else if (event === 'SIGNED_OUT') {
+            currentUser = { type: 'guest', username: 'Guest' };
+            localStorage.removeItem('lessfun_user');
+        }
+        updateUserSection();
+    });
+}
+
 // Replace auth with Supabase
 async function loadUser() {
     if (supabaseClient) {
