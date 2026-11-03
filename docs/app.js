@@ -57,6 +57,7 @@ function showView(view) {
     } else if (view === 'settings') {
         document.getElementById('settingsView').style.display = 'block';
         document.getElementById('nav-settings').classList.add('active');
+        updateViewDisplay();
     }
     
     currentView = view;
@@ -538,9 +539,17 @@ function closePromo() {
 }
 
 // Initialize
+function initViewCounter() {
+    let views = parseInt(localStorage.getItem('lessfun_views') || '0');
+    views++;
+    localStorage.setItem('lessfun_views', views.toString());
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     renderGames();
     loadUser();
+    initViewCounter();
+    updateViewDisplay();
 });
 
 // Authentication System
