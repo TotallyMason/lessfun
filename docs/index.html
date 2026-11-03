@@ -7,18 +7,142 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>LessFun</h1>
-            <p class="subtitle">Ten games. Zero guarantees.</p>
-        </header>
-        <div id="gameList" class="game-list"></div>
-        <div id="gameView" class="game-view" style="display: none;">
-            <button onclick="showList()" class="back-btn">← Back</button>
-            <h2 id="gameTitle"></h2>
-            <div id="gameContent"></div>
+    <!-- Top Navigation Bar -->
+    <nav class="top-nav">
+        <div class="nav-container">
+            <div class="nav-left">
+                <div class="logo">
+                    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                        <rect width="28" height="28" rx="6" fill="url(#gradient)"/>
+                        <path d="M9 10L12 13L9 16M15 16H19" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <defs>
+                            <linearGradient id="gradient" x1="0" y1="0" x2="28" y2="28">
+                                <stop stop-color="#a855f7"/>
+                                <stop offset="1" stop-color="#ec4899"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <span class="logo-text">LessFun</span>
+                </div>
+            </div>
+            <div class="nav-center">
+                <button class="nav-btn active" onclick="showView('games')" id="nav-games">Games</button>
+                <button class="nav-btn" onclick="showView('store')" id="nav-store">Store</button>
+                <button class="nav-btn" onclick="showView('support')" id="nav-support">Support</button>
+            </div>
+            <div class="nav-right">
+                <div class="search-box">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <circle cx="7" cy="7" r="5" stroke="#666" stroke-width="1.5"/>
+                        <path d="M11 11L14 14" stroke="#666" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    <input type="text" id="searchInput" placeholder="Search games..." oninput="searchGames()">
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Games View -->
+    <div id="gamesView" class="view">
+        <div class="container">
+            <header>
+                <h1>Games</h1>
+                <p class="subtitle">All your favorite mini games</p>
+            </header>
+            <div id="gameList" class="game-grid"></div>
         </div>
     </div>
+
+    <!-- Store View -->
+    <div id="storeView" class="view" style="display: none;">
+        <div class="container">
+            <header>
+                <h1>Store</h1>
+                <p class="subtitle">Enhance your experience</p>
+            </header>
+            <div class="store-section">
+                <div class="store-card">
+                    <div class="store-icon">
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                            <circle cx="16" cy="16" r="12" stroke="url(#grad2)" stroke-width="2"/>
+                            <path d="M16 10V22M10 16H22" stroke="url(#grad2)" stroke-width="2" stroke-linecap="round"/>
+                            <defs>
+                                <linearGradient id="grad2" x1="0" y1="0" x2="32" y2="32">
+                                    <stop stop-color="#a855f7"/>
+                                    <stop offset="1" stop-color="#ec4899"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                    <h2>In-App Purchases</h2>
+                    <p>Coming Soon</p>
+                    <span class="coming-soon-badge">Coming Soon</span>
+                </div>
+                <div class="store-card">
+                    <div class="store-icon">
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                            <path d="M8 12L16 6L24 12V24C24 24.5304 23.7893 25.0391 23.4142 25.4142C23.0391 25.7893 22.5304 26 22 26H10C9.46957 26 8.96086 25.7893 8.58579 25.4142C8.21071 25.0391 8 24.5304 8 24V12Z" stroke="url(#grad3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <polyline points="12,26 12,16 20,16 20,26" stroke="url(#grad3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <defs>
+                                <linearGradient id="grad3" x1="0" y1="0" x2="32" y2="32">
+                                    <stop stop-color="#a855f7"/>
+                                    <stop offset="1" stop-color="#ec4899"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                    <h2>Remove Ads</h2>
+                    <p>Coming Soon</p>
+                    <span class="coming-soon-badge">Coming Soon</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Support View -->
+    <div id="supportView" class="view" style="display: none;">
+        <div class="container">
+            <header>
+                <h1>Support</h1>
+                <p class="subtitle">We're here to help</p>
+            </header>
+            <div class="support-section">
+                <div class="support-card">
+                    <h2>Contact Us</h2>
+                    <p>For questions, feedback, or support, please reach out to us.</p>
+                    <a href="mailto:support@lessfun.com" class="support-link">support@lessfun.com</a>
+                </div>
+                <div class="support-card">
+                    <h2>FAQ</h2>
+                    <div class="faq-item">
+                        <h3>How do I save my scores?</h3>
+                        <p>Scores are automatically saved locally on your device.</p>
+                    </div>
+                    <div class="faq-item">
+                        <h3>Are there more games coming?</h3>
+                        <p>Yes! We're constantly working on adding new games.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Modal -->
+    <div id="gameModal" class="modal" style="display: none;">
+        <div class="modal-backdrop" onclick="closeGame()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalGameTitle"></h2>
+                <button class="modal-close" onclick="closeGame()">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body" id="modalGameBody"></div>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>
