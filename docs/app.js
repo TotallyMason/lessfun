@@ -284,7 +284,8 @@ function tapFrenzyTap() {
                 clearInterval(gameState.timer);
                 gameState.tap.running = false;
                 document.getElementById('tapBtn').textContent = 'GAME OVER';
-                alert('Score: ' + gameState.tap.score);
+                saveScore('Tap Frenzy', gameState.tap.score);
+                alert('Score: ' + gameState.tap.score + (currentUser.type !== 'guest' ? ' (Saved)' : ''));
             }
         }, 100);
     } else {
@@ -312,7 +313,8 @@ function startWhack() {
         if (gameState.whack.time <= 0) {
             clearInterval(gameState.timer);
             gameState.whack.running = false;
-            alert('Score: ' + gameState.whack.score);
+            saveScore('Whack-a-Mole', gameState.whack.score);
+            alert('Score: ' + gameState.whack.score + (currentUser.type !== 'guest' ? ' (Saved)' : ''));
         }
     }, 1000);
     
@@ -542,4 +544,107 @@ function closePromo() {
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     renderGames();
+    loadUser();
 });
+
+// Authentication System
+let currentUser = null;
+
+function loadUser() {
+    const saved = localStorage.getItem("lessfun_user");
+    if (saved) {
+        currentUser = JSON.parse(saved);
+        updateUserSection();
+    } else {
+        currentUser = { type: "guest", username: "Guest" };
+        updateUserSection();
+    }
+}
+
+function updateUserSection() {
+    const section = document.getElementById("userSection");
+    if (currentUser.type === "guest") {
+        section.innerHTML = `<button class="nav-btn" onclick="openAuthModal()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-right:6px;"><circle cx="8" cy="6" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M3 13c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Sign In</button>`;
+    } else {
+        section.innerHTML = `<button class="nav-btn" onclick="logout()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-right:6px;"><circle cx="8" cy="6" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M3 13c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>${currentUser.username}</button>`;
+    }
+}
+
+function openAuthModal() {
+    document.getElementById("authModal").style.display = "flex";
+    document.getElementById("authSignIn").style.display = "block";
+    document.getElementById("authSignUp").style.display = "none";
+    document.getElementById("authTitle").textContent = "Sign In";
+}
+
+function closeAuthModal() {
+    document.getElementById("authModal").style.display = "none";
+}
+
+function showAuthSignup() {
+    document.getElementById("authSignIn").style.display = "none";
+    document.getElementById("authSignUp").style.display = "block";
+    document.getElementById("authTitle").textContent = "Create Account";
+}
+
+function showAuthSignin() {
+    document.getElementById("authSignIn").style.display = "block";
+    document.getElementById("authSignUp").style.display = "none";
+    document.getElementById("authTitle").textContent = "Sign In";
+}
+
+function signUp() {
+    const username = document.getElementById("signupUsername").value;
+    const email = document.getElementById("signupEmail").value;
+    const password = document.getElementById("signupPassword").value;
+    if (!username || !password) { alert("Please fill in all fields"); return; }
+    const users = JSON.parse(localStorage.getItem("lessfun_users") || "[]");
+    if (users.find(u => u.username === username)) { alert("Username already exists"); return; }
+    users.push({ username, email, password, scores: {} });
+    localStorage.setItem("lessfun_users", JSON.stringify(users));
+    currentUser = { type: "user", username, scores: {} };
+    localStorage.setItem("lessfun_user", JSON.stringify(currentUser));
+    closeAuthModal();
+    updateUserSection();
+    alert("Account created!");
+}
+
+function signIn() {
+    const username = document.getElementById("signinUsername").value;
+    const password = document.getElementById("signinPassword").value;
+    const users = JSON.parse(localStorage.getItem("lessfun_users") || "[]");
+    const user = users.find(u => u.username === username && u.password === password);
+    if (!user) { alert("Invalid credentials"); return; }
+    currentUser = { type: "user", username: user.username, scores: user.sores || {} };
+    localStorage.setItem("lessfun_user", JSON.stringify(currentUser));
+    closeAuthModal();
+    updateUserSection();
+}
+
+function continueAsGuest() {
+    currentUser = { type: "guest", username: "Guest" };
+    localStorage.removeItem("lessfun_user");
+    closeAuthModal();
+    updateUserSection();
+}
+
+function logout() {
+    currentUser = { type: "guest", username: "Guest" };
+    localStorage.removeItem("lessfun_user");
+    updateUserSection();
+}
+
+function saveScore(gameName, score) {
+    if (currentUser.type === "guest") return;
+    if (!currentUser.scores) currentUser.scores = {};
+    if (!currentUser.scores[gameName] || score > currentUser.scores[gameName]) {
+        currentUser.scores[gameName] = score;
+        localStorage.setItem("lessfun_user", JSON.stringify(currentUser));
+        const users = JSON.parse(localStorage.getItem("lessfun_users") || "[]");
+        const idx = users.findIndex(u => u.username === currentUser.username);
+        if (idx >= 0) {
+            users[idx].scores = currentUser.scores;
+            localStorage.setItem("lessfun_users", JSON.stringify(users));
+        }
+    }
+}
