@@ -330,11 +330,26 @@ if(supabaseClient){
     });
 }
 
+const APP_VERSION = "LessFun Developer Beta 1.20.1";
+const UPDATE_NOTES = "Guest/Account authentication modes, improved profile navigation, and cache fixes";
+
+function checkForUpdates() {
+    const lastVersion = localStorage.getItem('lessfun_version');
+    if (lastVersion !== APP_VERSION) {
+        // Show update notification
+        setTimeout(() => {
+            alert('🎉 New Update!\n\nVersion: ' + APP_VERSION + '\n\nWhat's new:\n' + UPDATE_NOTES);
+        }, 500);
+        localStorage.setItem('lessfun_version', APP_VERSION);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', ()=>{
     renderGames();
     loadUser();
     initViewCounter();
     updateUserSection();
+    checkForUpdates();
 });
 
 function openProfile(username) {
