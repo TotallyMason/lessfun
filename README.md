@@ -46,6 +46,6 @@ Rush, Cube Stack, Helix Drop, and Star Dodger — all rendered in real 3D.
 
 - Icons are inline SVG — no emoji anywhere.
 - The website requires JavaScript; a `<noscript>` message is shown otherwise.
-- Community pins sync for everyone when the `posts` table has a boolean `pinned`
-  column. If that column is missing, the owner's pins are kept locally on their
-  device.
+- Owner pins are stored as a hidden marker in the post content, so they work
+  with the existing `posts` schema and sync for everyone. If the post update is
+  blocked, pins fall back to local storage for the owner.

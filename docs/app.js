@@ -269,6 +269,17 @@ async function logout(){
 }
 
 function escapeHtml(t){ const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
+
+// Pins are stored as a hidden prefix in the post content because the existing
+// posts table has no `pinned` column. It is stripped before display.
+const PIN_MARKER = '[[PINNED]]';
+function isPinnedByContent(content) {
+    return typeof content === 'string' && content.indexOf(PIN_MARKER) === 0;
+}
+function stripPinMarker(content) {
+    if (!isPinnedByContent(content)) return content;
+    return content.slice(PIN_MARKER.length).replace(/^\s+/, '');
+}
 async function createPost(){ 
     if(!currentUser || currentUser.type === 'guest' || !currentUser.persistScores){ 
         alert('Please sign in to post'); 
@@ -332,18 +343,31 @@ async function togglePin(id, pinned) {
     const next = !pinned;
     if (supabaseClient) {
         try {
-            const { data, error } = await supabaseClient
+            const { data: row } = await supabaseClient
                 .from('posts')
-                .update({ pinned: next })
+                .select('content')
                 .eq('id', id)
-                .select('id, pinned');
-            if (!error && data && data.length && data[0].pinned === next) {
-                renderCommunity();
-                return;
+                .maybeSingle();
+            if (row && typeof row.content === 'string') {
+                const hasMarker = isPinnedByContent(row.content);
+                let content = row.content;
+                if (next && !hasMarker) content = PIN_MARKER + content;
+                if (!next && hasMarker) content = stripPinMarker(content);
+                if (content !== row.content) {
+                    const { data, error } = await supabaseClient
+                        .from('posts')
+                        .update({ content: content })
+                        .eq('id', id)
+                        .select('id, content');
+                    if (!error && data && data.length) {
+                        renderCommunity();
+                        return;
+                    }
+                }
             }
         } catch (e) {}
     }
-    // Fallback for projects whose posts table has no `pinned` column yet.
+    // Local fallback if the post could not be updated (e.g. RLS blocks it).
     const ids = getPinnedIds();
     const sid = String(id);
     const idx = ids.indexOf(sid);
@@ -352,7 +376,6 @@ async function togglePin(id, pinned) {
     savePinnedIds(ids);
     renderCommunity();
 }
-
 async function renderCommunity() {
     const container = document.getElementById('communityPosts');
     if (!container) return;
@@ -367,7 +390,7 @@ async function renderCommunity() {
     const isOwner = currentUser && currentUser.username === 'TotallyMason' && currentUser.type !== 'guest' && currentUser.persistScores;
     const entries = posts.map(post => ({
         post,
-        pinned: post.pinned === true || localPins.indexOf(String(post.id)) >= 0
+        pinned: post.pinned === true || isPinnedByContent(post.content) || localPins.indexOf(String(post.id)) >= 0
     }));
     entries.sort((a, b) => {
         if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
@@ -391,7 +414,7 @@ async function renderCommunity() {
                 </div>
                 <span class="post-time">${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</span>
             </div>
-            <div class="post-content">${escapeHtml(post.content)}</div>
+            <div class="post-content">${escapeHtml(stripPinMarker(post.content))}</div>
             <div class="post-actions">
                 ${canDelete ? `<button class="post-delete" onclick="deletePost(${post.id})">Delete</button>` : ''}
                 ${pinButton}
@@ -517,7 +540,7 @@ async function loadProfilePosts(username) {
         }
         container.innerHTML = posts.map(post => {
             const date = new Date(post.created_at);
-            return `<div style="padding:12px;background:rgba(255,255,255,0.05);border-radius:8px;"><div style="color:rgba(255,255,255,0.8);margin-bottom:6px;">${escapeHtml(post.content)}</div><div style="font-size:11px;color:rgba(255,255,255,0.4);">${date.toLocaleDateString()}</div></div>`;
+            return `<div style="padding:12px;background:rgba(255,255,255,0.05);border-radius:8px;"><div style="color:rgba(255,255,255,0.8);margin-bottom:6px;">${escapeHtml(stripPinMarker(post.content))}</div><div style="font-size:11px;color:rgba(255,255,255,0.4);">${date.toLocaleDateString()}</div></div>`;
         }).join('');
         return;
     }
