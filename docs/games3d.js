@@ -58,85 +58,210 @@
         try { if (gameMeta.onGameOver) gameMeta.onGameOver(rounded); } catch (e) {}
     }
 
-    /* ---------------- Neon Racer ---------------- */
+    /* ---------------- Beach Racer ---------------- */
     function createRacer(ctx) {
         var scene = ctx.scene, camera = ctx.camera;
-        scene.fog = new THREE.FogExp2(0x05020c, 0.013);
-        camera.position.set(0, 4.4, 10.5);
-        camera.lookAt(0, 1.1, -20);
+        scene.background = new THREE.Color(0x9bd7f2);
+        scene.fog = new THREE.FogExp2(0xffe0bd, 0.0065);
+        camera.position.set(0, 4.2, 10.5);
+        camera.lookAt(0, 1.0, -20);
 
-        scene.add(new THREE.AmbientLight(0x8a8aff, 1.1));
-        var sun = new THREE.DirectionalLight(0xffffff, 1.4); sun.position.set(6, 16, 10); scene.add(sun);
-        var pl = new THREE.PointLight(0xff2fd0, 3.2, 80); pl.position.set(-8, 5, 4); scene.add(pl);
-        var pr = new THREE.PointLight(0x2ff6ff, 3.2, 80); pr.position.set(8, 5, -8); scene.add(pr);
+        // Sunset sky dome.
+        var skyCanvas = document.createElement('canvas');
+        skyCanvas.width = 16; skyCanvas.height = 256;
+        var skyCtx = skyCanvas.getContext('2d');
+        var skyGrad = skyCtx.createLinearGradient(0, 0, 0, 256);
+        skyGrad.addColorStop(0, '#2b6cb0');
+        skyGrad.addColorStop(0.38, '#74c6e8');
+        skyGrad.addColorStop(0.62, '#bfe6f2');
+        skyGrad.addColorStop(0.78, '#ffd9a3');
+        skyGrad.addColorStop(0.9, '#ffab76');
+        skyGrad.addColorStop(1, '#ff8a70');
+        skyCtx.fillStyle = skyGrad;
+        skyCtx.fillRect(0, 0, 16, 256);
+        var skyTex = new THREE.CanvasTexture(skyCanvas);
+        scene.add(new THREE.Mesh(
+            new THREE.SphereGeometry(480, 32, 20),
+            new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide, depthWrite: false, fog: false })
+        ));
+
+        // Sun and a few low clouds.
+        var sunDisc = new THREE.Mesh(new THREE.SphereGeometry(20, 20, 20), new THREE.MeshBasicMaterial({ color: 0xfff3c4, fog: false }));
+        sunDisc.position.set(-70, 40, -380); scene.add(sunDisc);
+        var sunGlow = new THREE.Mesh(new THREE.SphereGeometry(30, 20, 20), new THREE.MeshBasicMaterial({ color: 0xffe0a0, transparent: true, opacity: 0.22, fog: false }));
+        sunGlow.position.copy(sunDisc.position); scene.add(sunGlow);
+
+        var cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, fog: false });
+        for (var cl = 0; cl < 6; cl++) {
+            var cloud = new THREE.Group();
+            for (var cp = 0; cp < 3; cp++) {
+                var puff = new THREE.Mesh(new THREE.SphereGeometry(4 + Math.random() * 3, 10, 8), cloudMat);
+                puff.position.set(cp * 6 - 6, Math.random() * 2, Math.random() * 3);
+                puff.scale.y = 0.55;
+                cloud.add(puff);
+            }
+            cloud.position.set(-140 + Math.random() * 280, 34 + Math.random() * 16, -220 - Math.random() * 160);
+            scene.add(cloud);
+        }
+
+        // Warm coastal lighting.
+        scene.add(new THREE.HemisphereLight(0xcfeaff, 0xffd9a8, 0.9));
+        scene.add(new THREE.AmbientLight(0xfff2dd, 0.5));
+        var sunLight = new THREE.DirectionalLight(0xfff1d6, 1.7);
+        sunLight.position.set(18, 28, 12); scene.add(sunLight);
 
         var LANES = [-3.2, 0, 3.2];
         var ROAD_W = 11.4;
 
-        var road = new THREE.Mesh(
-            new THREE.BoxGeometry(ROAD_W, 0.5, 460),
-            new THREE.MeshStandardMaterial({ color: 0x0a0a16, metalness: 0.6, roughness: 0.4 })
+        // Sand, packed track, wet shore, and ocean.
+        var sand = new THREE.Mesh(
+            new THREE.BoxGeometry(260, 0.5, 620),
+            new THREE.MeshStandardMaterial({ color: 0xf0d9a8, roughness: 0.95 })
         );
-        road.position.set(0, -0.25, -220); scene.add(road);
+        sand.position.set(0, -0.32, -240); scene.add(sand);
 
-        var railMat = neon(0xff2fd0, 1.6);
-        var railL = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.0, 460), railMat);
-        railL.position.set(-ROAD_W / 2, 0.5, -220); scene.add(railL);
-        var railR = railL.clone(); railR.position.x = ROAD_W / 2; scene.add(railR);
+        var track = new THREE.Mesh(
+            new THREE.BoxGeometry(ROAD_W, 0.06, 470),
+            new THREE.MeshStandardMaterial({ color: 0xe2c48c, roughness: 0.9 })
+        );
+        track.position.set(0, -0.02, -225); scene.add(track);
 
-        // Dashed lane dividers, one set per lane boundary.
-        var dashMat = neon(0xf5f5ff, 0.9);
-        var dashes = [];
-        [-1.6, 1.6].forEach(function (lx) {
-            for (var i = 0; i < 46; i++) {
-                var d = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.05, 2.6), dashMat);
-                d.position.set(lx, 0.03, -i * 10);
-                scene.add(d); dashes.push(d);
-            }
+        var wetSand = new THREE.Mesh(
+            new THREE.BoxGeometry(5, 0.08, 470),
+            new THREE.MeshStandardMaterial({ color: 0xc9a878, roughness: 0.7 })
+        );
+        wetSand.position.set(-9.5, -0.05, -225); scene.add(wetSand);
+
+        var ocean = new THREE.Mesh(
+            new THREE.BoxGeometry(150, 0.4, 620),
+            new THREE.MeshStandardMaterial({ color: 0x1e8fb0, metalness: 0.35, roughness: 0.18 })
+        );
+        ocean.position.set(-85, -0.28, -240); scene.add(ocean);
+
+        var glint = new THREE.Mesh(
+            new THREE.BoxGeometry(9, 0.03, 520),
+            new THREE.MeshBasicMaterial({ color: 0xffe6b0, transparent: true, opacity: 0.16 })
+        );
+        glint.position.set(-46, -0.05, -240); scene.add(glint);
+
+        // Rope fence along both sides of the sand track.
+        var postMat = new THREE.MeshStandardMaterial({ color: 0x9c6b3f, roughness: 0.85 });
+        var ropeMat = new THREE.MeshStandardMaterial({ color: 0xdcb98a, roughness: 0.9 });
+        [-1, 1].forEach(function (side) {
+            var rope = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 470), ropeMat);
+            rope.position.set(side * (ROAD_W / 2 + 0.6), 0.82, -225); scene.add(rope);
+            var rope2 = rope.clone(); rope2.position.y = 0.48; scene.add(rope2);
         });
 
-        var edgeMat = neon(0x2ff6ff, 1.8);
-        var edges = [];
-        for (var j = 0; j < 27; j++) {
-            var e = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.07, 4), edgeMat);
-            e.position.set((j % 2 === 0 ? -1 : 1) * (ROAD_W / 2 - 0.4), 0.05, -j * 14);
-            scene.add(e); edges.push(e);
+        var scrollers = [];
+        function addScroller(obj, wrap, factor) {
+            scrollers.push({ obj: obj, wrap: wrap, factor: factor == null ? 1 : factor });
+            scene.add(obj);
+            return obj;
         }
 
-        var starGeo = new THREE.BufferGeometry();
-        var starPos = [];
-        for (var s = 0; s < 650; s++) starPos.push((Math.random() - 0.5) * 190, Math.random() * 70 + 8, -Math.random() * 300 - 20);
-        starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
-        scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.5, transparent: true, opacity: 0.8 })));
+        var postGeo = new THREE.BoxGeometry(0.22, 1.15, 0.22);
+        for (var side2 = -1; side2 <= 1; side2 += 2) {
+            for (var pi = 0; pi < 14; pi++) {
+                var post = new THREE.Mesh(postGeo, postMat);
+                post.position.set(side2 * (ROAD_W / 2 + 0.6), 0.45, 10 - pi * 14);
+                addScroller(post, 196);
+            }
+        }
 
-        function buildCar(bodyColor, glowColor) {
+        // Palm trees on the dry side of the beach.
+        var trunkGeo = new THREE.CylinderGeometry(0.16, 0.3, 5.6, 8);
+        var trunkMat = new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.9 });
+        var leafGeo = new THREE.BoxGeometry(2.7, 0.09, 0.55);
+        var leafMat = new THREE.MeshStandardMaterial({ color: 0x2f9e44, roughness: 0.75 });
+        function makePalm() {
+            var g = new THREE.Group();
+            var trunk = new THREE.Mesh(trunkGeo, trunkMat);
+            trunk.position.y = 2.8;
+            trunk.rotation.z = (Math.random() - 0.5) * 0.18;
+            g.add(trunk);
+            for (var li = 0; li < 7; li++) {
+                var pivot = new THREE.Group();
+                pivot.position.y = 5.35;
+                pivot.rotation.y = li / 7 * Math.PI * 2 + Math.random() * 0.3;
+                var leaf = new THREE.Mesh(leafGeo, leafMat);
+                leaf.position.x = 1.25;
+                leaf.rotation.z = -0.3 + Math.random() * 0.18;
+                pivot.add(leaf);
+                g.add(pivot);
+            }
+            return g;
+        }
+        for (var pa = 0; pa < 14; pa++) {
+            var palm = makePalm();
+            palm.position.set(8.5 + Math.random() * 4.5, 0, 12 - pa * 18);
+            addScroller(palm, 252);
+        }
+
+        // Beach umbrellas further back on the sand.
+        var umbPoleGeo = new THREE.CylinderGeometry(0.05, 0.05, 2.8, 6);
+        var umbPoleMat = new THREE.MeshStandardMaterial({ color: 0xf7f3e8, roughness: 0.7 });
+        var umbColors = [0xef476f, 0xffd166, 0x06d6a0, 0x118ab2];
+        for (var ui = 0; ui < 7; ui++) {
+            var umb = new THREE.Group();
+            var pole = new THREE.Mesh(umbPoleGeo, umbPoleMat); pole.position.y = 1.4; umb.add(pole);
+            var top = new THREE.Mesh(
+                new THREE.ConeGeometry(1.9, 0.75, 10),
+                new THREE.MeshStandardMaterial({ color: umbColors[ui % umbColors.length], roughness: 0.55 })
+            );
+            top.position.y = 2.9; umb.add(top);
+            umb.position.set(15 + Math.random() * 4, 0, -6 - ui * 52);
+            addScroller(umb, 364);
+        }
+
+        // Shells and starfish give the sand motion cues.
+        var shellGeo = new THREE.SphereGeometry(0.11, 6, 6);
+        var shellMat = new THREE.MeshStandardMaterial({ color: 0xfff2e2, roughness: 0.5 });
+        var starGeo = new THREE.CylinderGeometry(0.13, 0.13, 0.035, 5);
+        var starMat = new THREE.MeshStandardMaterial({ color: 0xff8fa3, roughness: 0.6 });
+        for (var sh = 0; sh < 70; sh++) {
+            var shell = new THREE.Mesh(sh < 54 ? shellGeo : starGeo, sh < 54 ? shellMat : starMat);
+            shell.position.set((Math.random() - 0.5) * 10, 0.06, -Math.random() * 460);
+            var ss = 0.7 + Math.random() * 0.8;
+            shell.scale.set(ss, ss, ss);
+            addScroller(shell, 460);
+        }
+
+        // Foam lines rolling in from the ocean.
+        var foamMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 });
+        for (var fo = 0; fo < 30; fo++) {
+            var foam = new THREE.Mesh(new THREE.BoxGeometry(2.5 + Math.random() * 5, 0.03, 0.5), foamMat);
+            foam.position.set(-11 - Math.random() * 12, -0.05, -Math.random() * 320);
+            addScroller(foam, 320, 0.55);
+        }
+
+        function buildCar(bodyColor) {
             var g = new THREE.Group();
             var body = new THREE.Mesh(
                 new THREE.BoxGeometry(1.7, 0.5, 3.0),
-                new THREE.MeshStandardMaterial({ color: bodyColor, metalness: 0.7, roughness: 0.25, emissive: bodyColor, emissiveIntensity: 0.25 })
+                new THREE.MeshStandardMaterial({ color: bodyColor, metalness: 0.45, roughness: 0.35, emissive: bodyColor, emissiveIntensity: 0.04 })
             );
             body.position.y = 0.6; g.add(body);
 
             var cabin = new THREE.Mesh(
                 new THREE.BoxGeometry(1.15, 0.5, 1.4),
-                new THREE.MeshStandardMaterial({ color: 0x07070d, metalness: 0.9, roughness: 0.1 })
+                new THREE.MeshStandardMaterial({ color: 0x0b3a44, metalness: 0.6, roughness: 0.12 })
             );
             cabin.position.set(0, 1.0, -0.1); g.add(cabin);
 
-            var wheelMat = new THREE.MeshStandardMaterial({ color: 0x050507, roughness: 0.9 });
+            var wheelMat = new THREE.MeshStandardMaterial({ color: 0x2b2b2b, roughness: 0.9 });
             [[-0.9, 0.95], [0.9, 0.95], [-0.9, -0.95], [0.9, -0.95]].forEach(function (p) {
                 var w = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.26, 14), wheelMat);
                 w.rotation.z = Math.PI / 2; w.position.set(p[0], 0.35, p[1]); g.add(w);
             });
 
-            var under = new THREE.Mesh(
-                new THREE.BoxGeometry(2.0, 0.07, 3.2),
-                new THREE.MeshBasicMaterial({ color: glowColor, transparent: true, opacity: 0.85 })
+            var shadow = new THREE.Mesh(
+                new THREE.BoxGeometry(2.1, 0.02, 3.3),
+                new THREE.MeshBasicMaterial({ color: 0x7a5a30, transparent: true, opacity: 0.3 })
             );
-            under.position.y = 0.12; g.add(under);
+            shadow.position.y = 0.02; g.add(shadow);
 
-            // Amber indicator lamps on the corners that face the player. They
-            // blink for 1-3 seconds before the car actually moves over.
+            // Amber indicator lamps on the corners facing the chase camera.
             var lampGeo = new THREE.SphereGeometry(0.15, 8, 8);
             var lampMat = new THREE.MeshBasicMaterial({ color: 0xffb020 });
             var lampL = new THREE.Mesh(lampGeo, lampMat);
@@ -148,9 +273,18 @@
             return g;
         }
 
-        var player = buildCar(0xff2fd0, 0x2ff6ff);
+        var player = buildCar(0xef476f);
         player.position.set(0, 0, 5);
         scene.add(player);
+
+        // Surfboard on the roof.
+        var board = new THREE.Mesh(
+            new THREE.BoxGeometry(0.55, 0.08, 2.5),
+            new THREE.MeshStandardMaterial({ color: 0x06d6a0, roughness: 0.35 })
+        );
+        board.position.set(0, 1.33, -0.1);
+        board.rotation.y = 0.05;
+        player.add(board);
 
         // Rear brake lights facing the chase camera.
         var brakeMat = new THREE.MeshBasicMaterial({ color: 0x5a1018 });
@@ -161,7 +295,7 @@
         });
 
         var traffic = [];
-        var colors = [0x2ff6ff, 0xffd166, 0x9b5cff, 0x22c55e, 0xff7a4d];
+        var colors = [0xef476f, 0xffd166, 0x06d6a0, 0x118ab2, 0xf78c6b, 0xf7f3e8];
 
         function laneBusy(lane, self, z, range) {
             for (var i = 0; i < traffic.length; i++) {
@@ -181,7 +315,7 @@
             for (var i = 0; i < order.length; i++) {
                 if (!laneBusy(order[i], null, z, 16)) { lane = order[i]; break; }
             }
-            var car = buildCar(colors[Math.floor(Math.random() * colors.length)], 0xffffff);
+            var car = buildCar(colors[Math.floor(Math.random() * colors.length)]);
             car.position.set(LANES[lane], 0, z);
             var u = car.userData;
             u.lane = lane;
@@ -226,7 +360,7 @@
             else speed = Math.min(baseSpeed, speed + 10 * dt);
             distance += speed * dt;
 
-            // Free steering: slide anywhere across the road, not fixed lanes.
+            // Free steering: slide anywhere across the beach, not fixed lanes.
             var steerInput = 0;
             if (input.left) steerInput -= 1;
             if (input.right) steerInput += 1;
@@ -248,13 +382,10 @@
             player.rotation.x = (input.brake ? 0.035 : 0) + Math.max(-0.03, Math.min(0.03, -vx * 0.002));
             brakeMat.color.setHex(input.brake ? 0xff2438 : 0x5a1018);
 
-            for (var i = 0; i < dashes.length; i++) {
-                dashes[i].position.z += speed * dt;
-                if (dashes[i].position.z > 12) dashes[i].position.z -= 460;
-            }
-            for (var i2 = 0; i2 < edges.length; i2++) {
-                edges[i2].position.z += speed * dt;
-                if (edges[i2].position.z > 12) edges[i2].position.z -= 378;
+            for (var si = 0; si < scrollers.length; si++) {
+                var sc = scrollers[si];
+                sc.obj.position.z += speed * dt * sc.factor;
+                if (sc.obj.position.z > 25) sc.obj.position.z -= sc.wrap;
             }
 
             spawnT += dt;
@@ -333,7 +464,7 @@
             }
 
             camera.position.x += (player.position.x * 0.42 - camera.position.x) * Math.min(1, dt * 5);
-            camera.lookAt(player.position.x * 0.5 + vx * 0.22, 1.1, -20);
+            camera.lookAt(player.position.x * 0.5 + vx * 0.22, 1.0, -20);
             setHud(distance, (input.brake ? 'BRAKE · ' : '') + Math.round(speed * 3.6) + ' km/h');
         }
 

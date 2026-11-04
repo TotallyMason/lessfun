@@ -1652,3 +1652,67 @@ body::before {
         line-height: 1.35;
     }
 }
+
+/* Pinned community posts (owner: TotallyMason) */
+.community-post.pinned {
+    position: relative;
+    border-color: rgba(255, 200, 90, 0.42);
+    background: linear-gradient(145deg, rgba(74, 58, 30, 0.72) 0%, rgba(30, 26, 22, 0.85) 100%);
+    box-shadow: 0 12px 38px rgba(255, 170, 60, 0.14), inset 0 1px 0 rgba(255, 235, 190, 0.18);
+}
+
+.community-post.pinned::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 14px;
+    bottom: 14px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: linear-gradient(180deg, #ffd166, #ff9f43);
+    box-shadow: 0 0 16px rgba(255, 190, 80, 0.6);
+}
+
+.post-pin-badge {
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 700;
+    color: #2a1a00;
+    background: linear-gradient(90deg, #ffe29a, #ffb347);
+    box-shadow: 0 0 14px rgba(255, 180, 71, 0.4);
+}
+
+.post-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.post-pin {
+    background: rgba(255, 200, 90, 0.1);
+    border: 1px solid rgba(255, 200, 90, 0.35);
+    color: #ffd166;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.post-pin:hover {
+    background: rgba(255, 200, 90, 0.2);
+}
+
+.post-pin:active {
+    transform: scale(0.96);
+}
+
+.post-pin.is-pinned {
+    background: rgba(255, 200, 90, 0.22);
+    border-color: rgba(255, 209, 102, 0.7);
+    color: #fff0c2;
+}

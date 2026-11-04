@@ -4,7 +4,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_Ev9umZevWcT-AwVHTPQLnw_DHdpDHWR";
 const supabaseClient = (typeof window !== 'undefined' && window.supabase) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 const games = [
-    { id: 1, name: "Neon Racer", description: "Dodge traffic at insane speed", icon: "car", hasBrake: true, controls: "Steer freely with ← → or drag · hold ↓ / S or BRAKE to slow" },
+    { id: 1, name: "Beach Racer", description: "Outrun traffic along the sunset coast", icon: "beach", hasBrake: true, controls: "Steer freely with ← → or drag · hold ↓ / S or BRAKE to slow" },
     { id: 2, name: "Tunnel Rush", description: "Thread the neon tunnel at warp speed", icon: "tunnel", controls: "Left / Right or drag to rotate" },
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
     { id: 4, name: "Helix Drop", description: "Fall through the rotating helix", icon: "helix", controls: "Left / Right or drag to rotate" },
@@ -26,6 +26,7 @@ function getIcon(name) {
         "circle": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><circle cx="12" cy="12" r="9"/></svg>',
         "scissors": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><path d="M8.2 7.8 20 20M8.2 16.2 20 4"/></svg>',
         "car": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"/><path d="M4 11h16v6a1 1 0 0 1-1 1h-1a2 2 0 0 1-4 0H10a2 2 0 0 1-4 0H5a1 1 0 0 1-1-1v-6Z"/><path d="M7 14h.01M17 14h.01"/></svg>',
+        "beach": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><circle cx="17.5" cy="6.5" r="3"/><path d="M2 16c3.2 0 3.2-2 6.4-2s3.2 2 6.4 2 3.2-2 6.2-2"/><path d="M2 20.5c3.2 0 3.2-2 6.4-2s3.2 2 6.4 2 3.2-2 6.2-2"/></svg>',
         "tunnel": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5.5"/><circle cx="12" cy="12" r="2"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>',
         "blocks": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><rect x="4" y="15" width="16" height="5" rx="1"/><rect x="6" y="9" width="13" height="5" rx="1"/><rect x="8" y="3" width="9" height="5" rx="1"/></svg>',
         "helix": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><path d="M7 3c0 3 10 3 10 6S7 12 7 15s10 3 10 6"/><circle cx="17" cy="9" r="1.6" fill="white" stroke="none"/></svg>',
@@ -309,7 +310,95 @@ async function deletePost(id){
         }
     } 
 }
-async function renderCommunity(){ const container=document.getElementById('communityPosts'); if(!container)return; if(supabaseClient){ const {data:posts}=await supabaseClient.from('posts').select('*').order('created_at',{ascending:false}); if(!posts||posts.length===0){ container.innerHTML='<p style="text-align:center;color:rgba(255,255,255,0.5);padding:40px;">No posts yet</p>'; return; } container.innerHTML=posts.map(post=>{ const date=new Date(post.created_at); const isOwner=post.username==='TotallyMason'; const canDelete=currentUser&&(currentUser.username==='TotallyMason'||currentUser.username===post.username); return `<div class="community-post"><div class="post-header"><div style="display:flex;align-items:center;gap:8px;"><span class="post-user" style="cursor:pointer;" onclick="openProfile('${escapeHtml(post.username).replace(/'/g,"\\'")}')">${escapeHtml(post.username)}</span>${isOwner?'<span style="font-size:9px;padding:2px 5px;background:linear-gradient(90deg,#a855f7,#ec4899);border-radius:4px;font-weight:600;">OWNER</span>':''}</div><span class="post-time">${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</span></div><div class="post-content">${escapeHtml(post.content)}</div>${canDelete?`<button class="post-delete" onclick="deletePost(${post.id})">Delete</button>`:''}</div>`; }).join(''); return; } }
+function getPinnedIds() {
+    try {
+        const raw = localStorage.getItem('lessfun_pinned_posts');
+        const arr = raw ? JSON.parse(raw) : [];
+        return Array.isArray(arr) ? arr.map(String) : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function savePinnedIds(ids) {
+    try { localStorage.setItem('lessfun_pinned_posts', JSON.stringify(ids)); } catch (e) {}
+}
+
+async function togglePin(id, pinned) {
+    if (!currentUser || currentUser.username !== 'TotallyMason' || currentUser.type === 'guest' || !currentUser.persistScores) {
+        alert('Only TotallyMason can pin posts');
+        return;
+    }
+    const next = !pinned;
+    if (supabaseClient) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('posts')
+                .update({ pinned: next })
+                .eq('id', id)
+                .select('id, pinned');
+            if (!error && data && data.length && data[0].pinned === next) {
+                renderCommunity();
+                return;
+            }
+        } catch (e) {}
+    }
+    // Fallback for projects whose posts table has no `pinned` column yet.
+    const ids = getPinnedIds();
+    const sid = String(id);
+    const idx = ids.indexOf(sid);
+    if (next && idx < 0) ids.push(sid);
+    if (!next && idx >= 0) ids.splice(idx, 1);
+    savePinnedIds(ids);
+    renderCommunity();
+}
+
+async function renderCommunity() {
+    const container = document.getElementById('communityPosts');
+    if (!container) return;
+    if (!supabaseClient) return;
+    const { data: posts } = await supabaseClient.from('posts').select('*').order('created_at', { ascending: false });
+    if (!posts || posts.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:rgba(255,255,255,0.5);padding:40px;">No posts yet</p>';
+        return;
+    }
+
+    const localPins = getPinnedIds();
+    const isOwner = currentUser && currentUser.username === 'TotallyMason' && currentUser.type !== 'guest' && currentUser.persistScores;
+    const entries = posts.map(post => ({
+        post,
+        pinned: post.pinned === true || localPins.indexOf(String(post.id)) >= 0
+    }));
+    entries.sort((a, b) => {
+        if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+        return new Date(b.post.created_at) - new Date(a.post.created_at);
+    });
+
+    container.innerHTML = entries.map(({ post, pinned }) => {
+        const date = new Date(post.created_at);
+        const postIsOwner = post.username === 'TotallyMason';
+        const canDelete = currentUser && (currentUser.username === 'TotallyMason' || currentUser.username === post.username);
+        const safeUser = escapeHtml(post.username).replace(/'/g, "\\'");
+        const pinButton = isOwner
+            ? `<button class="post-pin${pinned ? ' is-pinned' : ''}" onclick="togglePin(${post.id}, ${pinned})">${pinned ? '📌 Unpin' : '📌 Pin'}</button>`
+            : '';
+        return `<div class="community-post${pinned ? ' pinned' : ''}">
+            <div class="post-header">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <span class="post-user" style="cursor:pointer;" onclick="openProfile('${safeUser}')">${escapeHtml(post.username)}</span>
+                    ${postIsOwner ? '<span style="font-size:9px;padding:2px 5px;background:linear-gradient(90deg,#a855f7,#ec4899);border-radius:4px;font-weight:600;">OWNER</span>' : ''}
+                    ${pinned ? '<span class="post-pin-badge">📌 PINNED</span>' : ''}
+                </div>
+                <span class="post-time">${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</span>
+            </div>
+            <div class="post-content">${escapeHtml(post.content)}</div>
+            <div class="post-actions">
+                ${canDelete ? `<button class="post-delete" onclick="deletePost(${post.id})">Delete</button>` : ''}
+                ${pinButton}
+            </div>
+        </div>`;
+    }).join('');
+}
 
 function loadUser(){ 
     const saved=localStorage.getItem('lessfun_user'); 

@@ -32,17 +32,20 @@ cd docs
 python3 -m http.server 8765
 ```
 
-Then open <http://localhost:8765>. Games are addressable by hash, for example
-<http://localhost:8765/#tapFrenzy> or <http://localhost:8765/#rps>.
+Then open <http://localhost:8765>. The arcade includes Beach Racer, Tunnel
+Rush, Cube Stack, Helix Drop, and Star Dodger — all rendered in real 3D.
 
 ## Features
 
-- Multiple game modes and difficulty levels
+- Five real-time 3D arcade games powered by Three.js
+- Free steering and braking in Beach Racer
 - Guest and account authentication options
-- Community posts
-- Store and support pages
+- Community posts with owner pinning
 
 ## Notes
 
 - Icons are inline SVG — no emoji anywhere.
 - The website requires JavaScript; a `<noscript>` message is shown otherwise.
+- Community pins sync for everyone when the `posts` table has a boolean `pinned`
+  column. If that column is missing, the owner's pins are kept locally on their
+  device.
