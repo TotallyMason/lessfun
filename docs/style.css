@@ -2446,3 +2446,22 @@ body::before {
         max-width: 150px;
     }
 }
+
+/* Keep the owner-only nav item compact on tablet widths. */
+@media (max-width: 1120px) {
+    .nav-center {
+        gap: 14px;
+    }
+
+    .nav-right {
+        gap: 8px !important;
+    }
+
+    .nav-debug-label {
+        display: none;
+    }
+
+    .nav-debug svg {
+        margin-right: 0 !important;
+    }
+}
