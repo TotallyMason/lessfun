@@ -195,38 +195,24 @@ async function signUp(){
     if(!username||!password){alert("Please fill in all fields");return;} 
     if(supabaseClient){ 
         try {
-            // Try to create account via Supabase Auth
-            const email = username.replace(/[^a-zA-Z0-9]/g, '') + '@lessfun.app';
-            const { data, error } = await supabaseClient.auth.signUp({
-                email: email,
-                password: password,
-                options: {
-                    data: {
-                        username: username
-                    }
-                }
-            });
-            if(error){ 
+            const {data:existing}=await supabaseClient.from('users').select('*').eq('username',username).maybeSingle(); 
+            if(existing){alert('Username taken');return;} 
+            const {error}=await supabaseClient.from('users').insert({username: username, password: password}); 
+            if(error){
                 alert(error.message);
                 return;
-            }
-            // Also try to insert into users table if possible
-            try {
-                await supabaseClient.from('users').insert({username: username, password: password});
-            } catch(e) {
-                // Ignore RLS errors
-            }
+            } 
             currentUser={type:'user',username: username, persistScores: true}; 
             localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); 
             closeAuthModal(); 
             updateUserSection(); 
             return;
         } catch(e) {
-            alert(e.message || 'Error creating account');
+            alert(e.message || 'Error');
             return;
         }
     } else { 
-        alert('Supabase not configured');
+        alert('Error');
     } 
 }
 
@@ -236,27 +222,9 @@ async function signIn(){
     if(!username||!password){alert("Please fill in all fields");return;} 
     if(supabaseClient){ 
         try {
-            const email = username.replace(/[^a-zA-Z0-9]/g, '') + '@lessfun.app';
-            const { data, error } = await supabaseClient.auth.signInWithPassword({
-                email: email,
-                password: password,
-            });
-            if(error){ 
-                // Try custom users table
-                try {
-                    const {data: userData} = await supabaseClient.from('users').select('*').eq('username',username).eq('password',password).maybeSingle();
-                    if(userData) {
-                        currentUser={type:'user',username: userData.username, persistScores: true}; 
-                        localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); 
-                        closeAuthModal(); 
-                        updateUserSection(); 
-                        return;
-                    }
-                } catch(e) {}
-                alert('Invalid username or password');
-                return;
-            }
-            currentUser={type:'user',username: username, persistScores: true}; 
+            const {data}=await supabaseClient.from('users').select('*').eq('username',username).eq('password',password).maybeSingle(); 
+            if(!data){alert('Invalid username or password');return;} 
+            currentUser={type:'user',username:data.username, persistScores: true}; 
             localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); 
             closeAuthModal(); 
             updateUserSection(); 
@@ -266,7 +234,7 @@ async function signIn(){
             return;
         }
     } else { 
-        alert('Supabase not configured');
+        alert('Error');
     } 
 }
 
