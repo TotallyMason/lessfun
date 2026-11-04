@@ -61,6 +61,9 @@
     /* ---------------- Beach Racer ---------------- */
     function createRacer(ctx) {
         var scene = ctx.scene, camera = ctx.camera;
+        var cosmetics = (ctx.options && ctx.options.cosmetics) || {};
+        var paintColor = cosmetics.paint != null ? cosmetics.paint : 0xef476f;
+        var boardColor = cosmetics.board != null ? cosmetics.board : 0x06d6a0;
         scene.background = new THREE.Color(0x9bd7f2);
         scene.fog = new THREE.FogExp2(0xffe0bd, 0.0065);
         camera.position.set(0, 4.2, 10.5);
@@ -273,14 +276,14 @@
             return g;
         }
 
-        var player = buildCar(0xef476f);
+        var player = buildCar(paintColor);
         player.position.set(0, 0, 5);
         scene.add(player);
 
         // Surfboard on the roof.
         var board = new THREE.Mesh(
             new THREE.BoxGeometry(0.55, 0.08, 2.5),
-            new THREE.MeshStandardMaterial({ color: 0x06d6a0, roughness: 0.35 })
+            new THREE.MeshStandardMaterial({ color: boardColor, roughness: 0.35 })
         );
         board.position.set(0, 1.33, -0.1);
         board.rotation.y = 0.05;
@@ -946,7 +949,7 @@
 
         clock = new THREE.Clock();
         var factory = factories[gameId];
-        active = factory ? factory({ scene: scene, camera: camera, input: input }) : null;
+        active = factory ? factory({ scene: scene, camera: camera, input: input, options: opts || {} }) : null;
         if (!active) return;
 
         resize();

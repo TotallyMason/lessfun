@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261126">
+    <link rel="stylesheet" href="style.css?v=20261127">
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -62,6 +62,13 @@
                 </button>
             </div>
             <div class="nav-right" style="gap:12px;">
+                <button class="nav-btn nav-shells" onclick="showView('store')" id="nav-shells" title="Your Shells">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;">
+                        <path d="M12 3c5.2 0 9 3.4 9 7.6 0 2.1-1.8 3.9-3.9 3.9H6.9C4.8 14.5 3 12.7 3 10.6 3 6.4 6.8 3 12 3Z"/>
+                        <path d="M12 3v11.5M6.6 5.2 9.2 14M17.4 5.2 14.8 14"/>
+                    </svg>
+                    <span class="shells-amount" id="navShells">100</span>
+                </button>
                 <button class="nav-btn" onclick="handleProfileNavClick()" id="nav-profile">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-right:6px;">
                         <circle cx="8" cy="6" r="3" stroke="currentColor" stroke-width="1.5"/>
@@ -106,41 +113,23 @@
                 <h1>Store</h1>
                 <p class="subtitle">Enhance your experience</p>
             </header>
-            <div class="store-section">
-                <div class="store-card">
-                    <div class="store-icon">
-                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                            <circle cx="16" cy="16" r="12" stroke="url(#grad2)" stroke-width="2"/>
-                            <path d="M16 10V22M10 16H22" stroke="url(#grad2)" stroke-width="2" stroke-linecap="round"/>
-                            <defs>
-                                <linearGradient id="grad2" x1="0" y1="0" x2="32" y2="32">
-                                    <stop stop-color="#a855f7"/>
-                                    <stop offset="1" stop-color="#ec4899"/>
-                                </linearGradient>
-                            </defs>
-                        </svg>
-                    </div>
-                    <h2>In-App Purchases</h2>
-                    <p>Coming Soon</p>
-                    <span class="coming-soon-badge">Coming Soon</span>
+            <div class="store-balance">
+                <div class="store-balance-icon">
+                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 3c5.2 0 9 3.4 9 7.6 0 2.1-1.8 3.9-3.9 3.9H6.9C4.8 14.5 3 12.7 3 10.6 3 6.4 6.8 3 12 3Z"/>
+                        <path d="M12 3v11.5M6.6 5.2 9.2 14M17.4 5.2 14.8 14"/>
+                    </svg>
                 </div>
-                <div class="store-card">
-                    <div class="store-icon">
-                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                            <path d="M8 12L16 6L24 12V24C24 24.5304 23.7893 25.0391 23.4142 25.4142C23.0391 25.7893 22.5304 26 22 26H10C9.46957 26 8.96086 25.7893 8.58579 25.4142C8.21071 25.0391 8 24.5304 8 24V12Z" stroke="url(#grad3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            <polyline points="12,26 12,16 20,16 20,26" stroke="url(#grad3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            <defs>
-                                <linearGradient id="grad3" x1="0" y1="0" x2="32" y2="32">
-                                    <stop stop-color="#a855f7"/>
-                                    <stop offset="1" stop-color="#ec4899"/>
-                                </linearGradient>
-                            </defs>
-                        </svg>
-                    </div>
-                    <h2>Remove Ads</h2>
-                    <p>Coming Soon</p>
-                    <span class="coming-soon-badge">Coming Soon</span>
+                <div>
+                    <div class="store-balance-label">Your Shells</div>
+                    <div class="store-balance-value" id="storeShells">100</div>
                 </div>
+                <p class="store-balance-hint">Earn 1 Shell per 1,000 points · daily and streak bonuses · spend on cosmetics only</p>
+            </div>
+            <p class="store-guest-note" id="storeGuestNote" style="display:none;">Playing as a guest — Shells are saved on this device only. <button type="button" onclick="openAuthModal()">Sign in</button> to keep them across devices.</p>
+            <div class="store-status" id="storeStatus" role="status"></div>
+            <div id="storeContent">
+                <p class="store-loading">Loading shop…</p>
             </div>
         </div>
     </div>
@@ -429,6 +418,7 @@
                     <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#a855f7,#ec4899);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:600;" id="profileAvatar">?</div>
                     <h3 id="profileUsername" style="font-size:24px;margin-bottom:4px;"></h3>
                     <p id="profileJoined" style="color:rgba(255,255,255,0.6);font-size:13px;"></p>
+                    <p id="profileShells" class="profile-shells" style="display:none;"></p>
                     <button id="profileLogoutBtn" class="game-btn-3d" style="display:none;margin:16px auto 0;padding:8px 24px;">Log Out</button>
                 </div>
                 <div style="margin-bottom:20px;">
@@ -441,7 +431,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
-    <script src="games3d.js?v=20261126"></script>
-    <script src="app.js?v=20261126"></script>
+    <script src="games3d.js?v=20261127"></script>
+    <script src="app.js?v=20261127"></script>
 </body>
 </html>

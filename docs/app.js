@@ -47,7 +47,7 @@ function showView(view) {
     if (view === 'games') { document.getElementById('gamesView').style.display = 'block'; document.getElementById('nav-games').classList.add('active'); }
     else if (view === 'community') { document.getElementById('communityView').style.display = 'block'; document.getElementById('nav-community').classList.add('active'); renderCommunity(); }
     else if (view === 'users') { if(document.getElementById('usersView')){ document.getElementById('usersView').style.display = 'block'; document.getElementById('nav-users').classList.add('active'); renderUsers(); } }
-    else if (view === 'store') { document.getElementById('storeView').style.display = 'block'; document.getElementById('nav-store').classList.add('active'); }
+    else if (view === 'store') { document.getElementById('storeView').style.display = 'block'; document.getElementById('nav-store').classList.add('active'); renderWalletUI(); renderStore(); }
     else if (view === 'support') { document.getElementById('supportView').style.display = 'block'; document.getElementById('nav-support').classList.add('active'); }
     else if (view === 'settings') { document.getElementById('settingsView').style.display = 'block'; document.getElementById('nav-settings').classList.add('active'); }
 }
@@ -85,6 +85,7 @@ function openGame(id) {
                 '<div class="game3d-over-card">' +
                     '<h3>Game Over</h3>' +
                     '<p>Score <strong id="g3dFinal">0</strong></p>' +
+                    '<p class="game3d-earned" id="g3dEarned" style="display:none;"></p>' +
                     '<button class="game-btn-3d" onclick="restartGame3D()">Play Again</button>' +
                 '</div>' +
             '</div>' +
@@ -94,13 +95,9 @@ function openGame(id) {
     if (window.Games3D) {
         window.Games3D.start(id, document.getElementById('g3dCanvas'), {
             name: game.name,
+            cosmetics: getEquippedCosmetics(),
             onScore: function (name, score) { saveScore(name, score); },
-            onGameOver: function (score) {
-                var over = document.getElementById('g3dOver');
-                var fin = document.getElementById('g3dFinal');
-                if (fin) fin.textContent = score;
-                if (over) over.style.display = 'flex';
-            }
+            onGameOver: function (score) { handleGameOver(score); }
         });
     }
 
@@ -135,15 +132,28 @@ function closeGame() {
 
 async function saveScore(gameName, score) {
     if (!currentUser || currentUser.type === 'guest' || !currentUser.persistScores) return;
+    var entry = {
+        username: currentUser.username,
+        game: gameName,
+        score: Math.max(0, Math.floor(Number(score) || 0)),
+        created_at: new Date().toISOString()
+    };
+    var saved = false;
     if (supabaseClient) {
         try {
-            await supabaseClient.from('scores').insert({
-                username: currentUser.username,
-                game: gameName,
-                score: score,
-                created_at: new Date().toISOString()
-            });
-        } catch (e) { /* ignore */ }
+            var res = await supabaseClient.from('scores').insert(entry);
+            saved = !res || !res.error;
+        } catch (e) { /* table may not exist yet */ }
+    }
+    if (!saved) {
+        // Scores are the one thing allowed to cache locally.
+        try {
+            var key = 'lessfun_scores';
+            var list = JSON.parse(localStorage.getItem(key) || '[]');
+            if (!Array.isArray(list)) list = [];
+            list.push(entry);
+            localStorage.setItem(key, JSON.stringify(list.slice(-200)));
+        } catch (e) {}
     }
 }
 
@@ -219,6 +229,7 @@ async function signUp(){
             localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); 
             closeAuthModal(); 
             updateUserSection(); 
+            loadWallet();
             return;
         } catch(e) {
             alert(e.message || 'Error');
@@ -241,6 +252,7 @@ async function signIn(){
             localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); 
             closeAuthModal(); 
             updateUserSection(); 
+            loadWallet();
             return;
         } catch(e) {
             alert('Invalid username or password');
@@ -256,6 +268,7 @@ function continueAsGuest(){
     localStorage.removeItem('lessfun_user'); 
     closeAuthModal(); 
     updateUserSection(); 
+    loadWallet();
 }
 async function logout(){ 
     if(supabaseClient){ 
@@ -266,9 +279,374 @@ async function logout(){
     currentUser={type:'guest',username:'Guest', persistScores: false}; 
     localStorage.removeItem('lessfun_user'); 
     updateUserSection(); 
+    loadWallet();
 }
 
 function escapeHtml(t){ const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
+
+/* ============================================================
+   Shells wallet + cosmetics shop
+   ============================================================ */
+
+const SHELLS_START = 100;
+const WALLET_STORAGE_PREFIX = 'lessfun_wallet_v1_';
+const DAILY_BONUS = 25;
+const STREAK_BONUSES = { 3: 150, 7: 400, 14: 1000 };
+
+const COSMETICS = [
+    { id: 'paint_coral', type: 'paint', name: 'Coral Cruiser', cost: 0, default: true, color: '#ef476f', threeColor: 0xef476f },
+    { id: 'paint_sunset', type: 'paint', name: 'Sunset Amber', cost: 250, color: '#ffa94d', threeColor: 0xffa94d },
+    { id: 'paint_lagoon', type: 'paint', name: 'Lagoon Teal', cost: 350, color: '#2ec4b6', threeColor: 0x2ec4b6 },
+    { id: 'paint_grape', type: 'paint', name: 'Grape Soda', cost: 500, color: '#9b5de5', threeColor: 0x9b5de5 },
+    { id: 'paint_midnight', type: 'paint', name: 'Midnight', cost: 650, color: '#1b263b', threeColor: 0x1b263b },
+    { id: 'paint_gold', type: 'paint', name: 'Gold Rush', cost: 1200, color: '#ffd166', threeColor: 0xffd166 },
+    { id: 'board_teal', type: 'board', name: 'Teal Board', cost: 0, default: true, color: '#06d6a0', threeColor: 0x06d6a0 },
+    { id: 'board_flame', type: 'board', name: 'Flame Board', cost: 300, color: '#ff6b35', threeColor: 0xff6b35 },
+    { id: 'board_ice', type: 'board', name: 'Ice Board', cost: 450, color: '#9be7ff', threeColor: 0x9be7ff },
+    { id: 'board_rainbow', type: 'board', name: 'Rainbow Board', cost: 900, color: '#ff70a6', threeColor: 0xff70a6 },
+    { id: 'board_void', type: 'board', name: 'Void Board', cost: 1500, color: '#2b2d42', threeColor: 0x2b2d42 }
+];
+
+let wallet = null;
+let walletLoadToken = 0;
+let walletMutated = false;
+let storeStatusTimer = 0;
+
+function shellIcon(size) {
+    var s = size || 16;
+    return '<svg class="shell-icon" width="' + s + '" height="' + s + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c5.2 0 9 3.4 9 7.6 0 2.1-1.8 3.9-3.9 3.9H6.9C4.8 14.5 3 12.7 3 10.6 3 6.4 6.8 3 12 3Z"/><path d="M12 3v11.5M6.6 5.2 9.2 14M17.4 5.2 14.8 14"/></svg>';
+}
+
+function walletUsername() {
+    return (currentUser && currentUser.type === 'user' && currentUser.username) ? currentUser.username : 'guest';
+}
+
+function walletStorageKey(username) {
+    return WALLET_STORAGE_PREFIX + String(username || 'guest').toLowerCase();
+}
+
+function readLocalWallet(username) {
+    try {
+        var raw = localStorage.getItem(walletStorageKey(username));
+        return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function writeLocalWallet(w) {
+    if (!w) return;
+    try { localStorage.setItem(walletStorageKey(w.username), JSON.stringify(w)); } catch (e) {}
+}
+
+function normalizeWallet(raw, username) {
+    var w = raw || {};
+    var inventory = Array.isArray(w.inventory) ? w.inventory.slice() : [];
+    var equipped = Object.assign({}, w.equipped || {});
+
+    COSMETICS.forEach(function (item) {
+        if (item.default) {
+            if (inventory.indexOf(item.id) < 0) inventory.push(item.id);
+            if (!equipped[item.type]) equipped[item.type] = item.id;
+        }
+    });
+
+    ['paint', 'board'].forEach(function (type) {
+        var current = equipped[type];
+        var valid = COSMETICS.some(function (item) {
+            return item.id === current && item.type === type && inventory.indexOf(item.id) >= 0;
+        });
+        if (!valid) {
+            var fallback = COSMETICS.find(function (item) { return item.type === type && item.default; });
+            equipped[type] = fallback ? fallback.id : null;
+        }
+    });
+
+    return {
+        username: username,
+        shells: Number.isFinite(w.shells) ? Math.max(0, Math.floor(w.shells)) : SHELLS_START,
+        inventory: inventory,
+        equipped: equipped,
+        streak: Number.isFinite(w.streak) ? Math.max(0, Math.floor(w.streak)) : 0,
+        lastPlayDay: typeof w.lastPlayDay === 'string' ? w.lastPlayDay : (typeof w.last_play_day === 'string' ? w.last_play_day : null),
+        streakRewards: Array.isArray(w.streakRewards) ? w.streakRewards : (Array.isArray(w.streak_rewards) ? w.streak_rewards : []),
+        totalEarned: Number.isFinite(w.totalEarned) ? w.totalEarned : (Number.isFinite(w.total_earned) ? w.total_earned : 0),
+        updatedAt: Number.isFinite(w.updatedAt) ? w.updatedAt : (w.updated_at ? (Date.parse(w.updated_at) || 0) : 0)
+    };
+}
+
+async function loadWallet() {
+    var username = walletUsername();
+    var token = ++walletLoadToken;
+    walletMutated = false;
+
+    var local = normalizeWallet(readLocalWallet(username), username);
+    wallet = local;
+    renderWalletUI();
+
+    if (!(currentUser && currentUser.type === 'user' && supabaseClient)) return;
+
+    try {
+        var res = await supabaseClient
+            .from('wallets')
+            .select('*')
+            .eq('username', username)
+            .maybeSingle();
+
+        if (token !== walletLoadToken) return;
+
+        if (!res.error && res.data) {
+            var remote = normalizeWallet(res.data, username);
+            if (walletMutated || local.updatedAt > remote.updatedAt) {
+                // The player earned or bought something while the request was
+                // in flight. Keep the newer local copy and push it up.
+                wallet = local;
+                await saveWallet();
+            } else {
+                wallet = remote;
+                writeLocalWallet(wallet);
+            }
+        } else if (!res.error && !res.data && !walletMutated) {
+            await supabaseClient.from('wallets').insert({
+                username: username,
+                shells: wallet.shells,
+                inventory: wallet.inventory,
+                equipped: wallet.equipped,
+                streak: wallet.streak,
+                last_play_day: wallet.lastPlayDay,
+                streak_rewards: wallet.streakRewards,
+                total_earned: wallet.totalEarned
+            });
+        }
+    } catch (e) {
+        // The wallets table may not exist yet. The local wallet keeps working.
+    }
+
+    if (token === walletLoadToken) {
+        renderWalletUI();
+        var storeView = document.getElementById('storeView');
+        if (storeView && storeView.style.display !== 'none') renderStore();
+    }
+}
+
+async function saveWallet() {
+    if (!wallet) return;
+    walletMutated = true;
+    wallet.updatedAt = Date.now();
+    writeLocalWallet(wallet);
+    renderWalletUI();
+
+    if (!(currentUser && currentUser.type === 'user' && supabaseClient)) return;
+
+    try {
+        await supabaseClient.from('wallets').upsert({
+            username: wallet.username,
+            shells: wallet.shells,
+            inventory: wallet.inventory,
+            equipped: wallet.equipped,
+            streak: wallet.streak,
+            last_play_day: wallet.lastPlayDay,
+            streak_rewards: wallet.streakRewards,
+            total_earned: wallet.totalEarned,
+            updated_at: new Date(wallet.updatedAt).toISOString()
+        }, { onConflict: 'username' });
+    } catch (e) {
+        // Offline or table missing: localStorage remains the source of truth.
+    }
+}
+
+function renderWalletUI() {
+    var shells = wallet ? wallet.shells : SHELLS_START;
+    ['navShells', 'storeShells'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.textContent = shells.toLocaleString();
+    });
+
+    var profileShells = document.getElementById('profileShells');
+    if (profileShells && wallet && currentUser && currentUser.type === 'user' && currentUser.username === wallet.username) {
+        profileShells.innerHTML = shellIcon(14) + ' <span>' + shells.toLocaleString() + ' Shells</span>';
+    }
+
+    var guestNote = document.getElementById('storeGuestNote');
+    if (guestNote) {
+        guestNote.style.display = (!currentUser || currentUser.type !== 'user') ? 'block' : 'none';
+    }
+}
+
+function getEquippedCosmetics() {
+    var equipped = wallet ? wallet.equipped : {};
+    var paint = COSMETICS.find(function (c) { return c.id === equipped.paint; });
+    var board = COSMETICS.find(function (c) { return c.id === equipped.board; });
+    return {
+        paint: paint ? paint.threeColor : 0xef476f,
+        board: board ? board.threeColor : 0x06d6a0
+    };
+}
+
+function cosmeticCards(type) {
+    return COSMETICS.filter(function (item) { return item.type === type; }).map(function (item) {
+        var owned = wallet.inventory.indexOf(item.id) >= 0;
+        var equipped = wallet.equipped[item.type] === item.id;
+        var affordable = wallet.shells >= item.cost;
+
+        var preview = type === 'paint'
+            ? '<div class="cosmetic-car" style="--swatch:' + item.color + '"></div>'
+            : '<div class="cosmetic-board" style="--swatch:' + item.color + '"></div>';
+
+        var action, cls, disabled = '';
+        if (equipped) {
+            action = 'Equipped';
+            cls = 'equipped';
+            disabled = ' disabled';
+        } else if (owned) {
+            action = 'Equip';
+            cls = 'owned';
+        } else {
+            action = 'Buy · ' + item.cost.toLocaleString();
+            cls = affordable ? 'buy' : 'locked';
+        }
+
+        return '<div class="cosmetic-card' + (equipped ? ' is-equipped' : '') + '">' +
+            '<div class="cosmetic-preview">' + preview + '</div>' +
+            '<h3 class="cosmetic-name">' + escapeHtml(item.name) + '</h3>' +
+            '<div class="cosmetic-price">' + (owned ? (equipped ? 'In use' : 'Owned') : shellIcon(13) + ' ' + item.cost.toLocaleString()) + '</div>' +
+            '<button class="cosmetic-btn ' + cls + '"' + disabled + ' onclick="handleCosmetic(\'' + item.id + '\')">' + action + '</button>' +
+        '</div>';
+    }).join('');
+}
+
+function renderStore() {
+    var content = document.getElementById('storeContent');
+    if (!content) return;
+    if (!wallet) {
+        content.innerHTML = '<p class="store-loading">Loading shop…</p>';
+        return;
+    }
+    content.innerHTML =
+        '<h2 class="store-heading">Car Paints</h2>' +
+        '<div class="cosmetic-grid">' + cosmeticCards('paint') + '</div>' +
+        '<h2 class="store-heading">Surfboards</h2>' +
+        '<div class="cosmetic-grid">' + cosmeticCards('board') + '</div>' +
+        '<p class="store-note">Cosmetics only — nothing in the shop changes your score or speed. Shells are earned by playing.</p>';
+}
+
+function flashStoreStatus(message, isError) {
+    var el = document.getElementById('storeStatus');
+    if (!el) return;
+    el.textContent = message;
+    el.className = 'store-status is-visible ' + (isError ? 'is-error' : 'is-success');
+    if (storeStatusTimer) clearTimeout(storeStatusTimer);
+    storeStatusTimer = setTimeout(function () {
+        el.className = 'store-status';
+    }, 3200);
+}
+
+async function handleCosmetic(id) {
+    var item = COSMETICS.find(function (c) { return c.id === id; });
+    if (!item || !wallet) return;
+
+    var owned = wallet.inventory.indexOf(item.id) >= 0;
+    if (!owned) {
+        if (wallet.shells < item.cost) {
+            flashStoreStatus('Not enough Shells. You need ' + (item.cost - wallet.shells).toLocaleString() + ' more.', true);
+            return;
+        }
+        if (!window.confirm('Buy ' + item.name + ' for ' + item.cost.toLocaleString() + ' Shells?')) return;
+
+        wallet.shells -= item.cost;
+        wallet.inventory.push(item.id);
+        wallet.equipped[item.type] = item.id;
+        await saveWallet();
+        renderStore();
+        flashStoreStatus('Purchased ' + item.name + ' and equipped it.');
+        return;
+    }
+
+    wallet.equipped[item.type] = item.id;
+    await saveWallet();
+    renderStore();
+    flashStoreStatus(item.name + ' equipped.');
+}
+
+function dayKey(date) {
+    var d = date || new Date();
+    var m = String(d.getMonth() + 1);
+    var day = String(d.getDate());
+    if (m.length < 2) m = '0' + m;
+    if (day.length < 2) day = '0' + day;
+    return d.getFullYear() + '-' + m + '-' + day;
+}
+
+function dayNumber(key) {
+    var parts = String(key).split('-');
+    if (parts.length !== 3) return NaN;
+    return Math.floor(Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])) / 86400000);
+}
+
+async function awardShells(score) {
+    var result = { total: 0, base: 0, bonus: 0, messages: [] };
+    if (!wallet) return result;
+
+    var points = Math.max(0, Math.floor(Number(score) || 0));
+    var base = points > 0 ? Math.max(1, Math.floor(points / 1000)) : 0;
+    var bonus = 0;
+    var messages = [];
+    var today = dayKey();
+
+    if (wallet.lastPlayDay !== today) {
+        var previous = wallet.lastPlayDay;
+        var streak = 1;
+        if (previous) {
+            var gap = dayNumber(today) - dayNumber(previous);
+            streak = gap === 1 ? (wallet.streak || 0) + 1 : 1;
+        }
+        wallet.streak = streak;
+        wallet.lastPlayDay = today;
+        bonus += DAILY_BONUS;
+        messages.push('daily +' + DAILY_BONUS);
+
+        var streakBonus = STREAK_BONUSES[streak];
+        if (streakBonus && wallet.streakRewards.indexOf(streak) < 0) {
+            wallet.streakRewards.push(streak);
+            bonus += streakBonus;
+            messages.push(streak + '-day streak +' + streakBonus);
+        }
+    }
+
+    if (base === 0 && bonus === 0) return result;
+
+    var total = base + bonus;
+    wallet.shells += total;
+    wallet.totalEarned += total;
+    await saveWallet();
+    renderWalletUI();
+
+    result.total = total;
+    result.base = base;
+    result.bonus = bonus;
+    result.messages = messages;
+    return result;
+}
+
+function handleGameOver(score) {
+    var over = document.getElementById('g3dOver');
+    var fin = document.getElementById('g3dFinal');
+    if (fin) fin.textContent = score;
+    if (over) over.style.display = 'flex';
+
+    awardShells(score).then(function (result) {
+        var el = document.getElementById('g3dEarned');
+        if (!el) return;
+        if (!result || result.total <= 0) {
+            el.style.display = 'none';
+            return;
+        }
+        var parts = ['score +' + result.base];
+        for (var i = 0; i < result.messages.length; i++) parts.push(result.messages[i]);
+        el.innerHTML = shellIcon(14) + '<span>+' + result.total + ' Shells</span><small>' + parts.join(' · ') + '</small>';
+        el.style.display = 'flex';
+    });
+}
 
 // Pins are stored as a hidden prefix in the post content because the existing
 // posts table has no `pinned` column. It is stripped before display.
@@ -454,6 +832,7 @@ if(supabaseClient){
             localStorage.removeItem('lessfun_user'); 
         }
         updateUserSection();
+        loadWallet();
     });
 }
 
@@ -475,6 +854,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     loadUser();
     initViewCounter();
     updateUserSection();
+    loadWallet();
     checkForUpdates();
 });
 
@@ -485,6 +865,15 @@ function openProfile(username) {
     document.getElementById('profileUsername').textContent = username;
     document.getElementById('profileAvatar').textContent = username.charAt(0).toUpperCase();
     document.getElementById('profileJoined').textContent = 'Member';
+    const profileShells = document.getElementById('profileShells');
+    if (profileShells) {
+        if (currentUser && currentUser.type === 'user' && currentUser.username === username) {
+            profileShells.style.display = 'block';
+            profileShells.innerHTML = shellIcon(14) + ' <span>' + (wallet ? wallet.shells.toLocaleString() : SHELLS_START.toLocaleString()) + ' Shells</span>';
+        } else {
+            profileShells.style.display = 'none';
+        }
+    }
     const logoutBtn = document.getElementById('profileLogoutBtn');
     if (currentUser && currentUser.username === username) {
         logoutBtn.style.display = 'block';
