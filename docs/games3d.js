@@ -4,6 +4,7 @@
 
     var input = {
         left: false, right: false, up: false, down: false,
+        leftPressed: false, rightPressed: false,
         pointerActive: false, pointerX: 0, pointerY: 0, tapQueued: false
     };
 
@@ -61,33 +62,43 @@
     /* ---------------- Neon Racer ---------------- */
     function createRacer(ctx) {
         var scene = ctx.scene, camera = ctx.camera;
-        scene.fog = new THREE.FogExp2(0x05020c, 0.02);
-        camera.position.set(0, 4.6, 11);
-        camera.lookAt(0, 1.2, -12);
+        scene.fog = new THREE.FogExp2(0x05020c, 0.013);
+        camera.position.set(0, 4.4, 10.5);
+        camera.lookAt(0, 1.1, -20);
 
         scene.add(new THREE.AmbientLight(0x8a8aff, 1.1));
         var sun = new THREE.DirectionalLight(0xffffff, 1.4); sun.position.set(6, 16, 10); scene.add(sun);
-        var pl = new THREE.PointLight(0xff2fd0, 3, 60); pl.position.set(-8, 5, 4); scene.add(pl);
-        var pr = new THREE.PointLight(0x2ff6ff, 3, 60); pr.position.set(8, 5, -8); scene.add(pr);
+        var pl = new THREE.PointLight(0xff2fd0, 3.2, 80); pl.position.set(-8, 5, 4); scene.add(pl);
+        var pr = new THREE.PointLight(0x2ff6ff, 3.2, 80); pr.position.set(8, 5, -8); scene.add(pr);
 
-        var ROAD_W = 11;
-        var road = new THREE.Mesh(new THREE.BoxGeometry(ROAD_W, 0.5, 440), new THREE.MeshStandardMaterial({ color: 0x0a0a16, metalness: 0.6, roughness: 0.4 }));
-        road.position.set(0, -0.25, -200); scene.add(road);
+        var LANES = [-3.2, 0, 3.2];
+        var ROAD_W = 11.4;
+
+        var road = new THREE.Mesh(
+            new THREE.BoxGeometry(ROAD_W, 0.5, 460),
+            new THREE.MeshStandardMaterial({ color: 0x0a0a16, metalness: 0.6, roughness: 0.4 })
+        );
+        road.position.set(0, -0.25, -220); scene.add(road);
 
         var railMat = neon(0xff2fd0, 1.6);
-        var railL = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.0, 440), railMat);
-        railL.position.set(-ROAD_W / 2, 0.5, -200); scene.add(railL);
+        var railL = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.0, 460), railMat);
+        railL.position.set(-ROAD_W / 2, 0.5, -220); scene.add(railL);
         var railR = railL.clone(); railR.position.x = ROAD_W / 2; scene.add(railR);
 
-        var dashMat = neon(0xf5f5ff, 1.0);
+        // Dashed lane dividers, one set per lane boundary.
+        var dashMat = neon(0xf5f5ff, 0.9);
         var dashes = [];
-        for (var i = 0; i < 44; i++) {
-            var d = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.05, 2.4), dashMat);
-            d.position.set(0, 0.03, -i * 10); scene.add(d); dashes.push(d);
-        }
+        [-1.6, 1.6].forEach(function (lx) {
+            for (var i = 0; i < 46; i++) {
+                var d = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.05, 2.6), dashMat);
+                d.position.set(lx, 0.03, -i * 10);
+                scene.add(d); dashes.push(d);
+            }
+        });
+
         var edgeMat = neon(0x2ff6ff, 1.8);
         var edges = [];
-        for (var j = 0; j < 26; j++) {
+        for (var j = 0; j < 27; j++) {
             var e = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.07, 4), edgeMat);
             e.position.set((j % 2 === 0 ? -1 : 1) * (ROAD_W / 2 - 0.4), 0.05, -j * 14);
             scene.add(e); edges.push(e);
@@ -95,76 +106,208 @@
 
         var starGeo = new THREE.BufferGeometry();
         var starPos = [];
-        for (var s = 0; s < 600; s++) starPos.push((Math.random() - 0.5) * 180, Math.random() * 70 + 8, -Math.random() * 280 - 20);
+        for (var s = 0; s < 650; s++) starPos.push((Math.random() - 0.5) * 190, Math.random() * 70 + 8, -Math.random() * 300 - 20);
         starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
         scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.5, transparent: true, opacity: 0.8 })));
 
         function buildCar(bodyColor, glowColor) {
             var g = new THREE.Group();
-            var body = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.5, 3.0), new THREE.MeshStandardMaterial({ color: bodyColor, metalness: 0.7, roughness: 0.25, emissive: bodyColor, emissiveIntensity: 0.25 }));
+            var body = new THREE.Mesh(
+                new THREE.BoxGeometry(1.7, 0.5, 3.0),
+                new THREE.MeshStandardMaterial({ color: bodyColor, metalness: 0.7, roughness: 0.25, emissive: bodyColor, emissiveIntensity: 0.25 })
+            );
             body.position.y = 0.6; g.add(body);
-            var cabin = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.5, 1.4), new THREE.MeshStandardMaterial({ color: 0x07070d, metalness: 0.9, roughness: 0.1 }));
+
+            var cabin = new THREE.Mesh(
+                new THREE.BoxGeometry(1.15, 0.5, 1.4),
+                new THREE.MeshStandardMaterial({ color: 0x07070d, metalness: 0.9, roughness: 0.1 })
+            );
             cabin.position.set(0, 1.0, -0.1); g.add(cabin);
+
             var wheelMat = new THREE.MeshStandardMaterial({ color: 0x050507, roughness: 0.9 });
             [[-0.9, 0.95], [0.9, 0.95], [-0.9, -0.95], [0.9, -0.95]].forEach(function (p) {
                 var w = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.26, 14), wheelMat);
                 w.rotation.z = Math.PI / 2; w.position.set(p[0], 0.35, p[1]); g.add(w);
             });
-            var under = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.07, 3.2), new THREE.MeshBasicMaterial({ color: glowColor, transparent: true, opacity: 0.85 }));
+
+            var under = new THREE.Mesh(
+                new THREE.BoxGeometry(2.0, 0.07, 3.2),
+                new THREE.MeshBasicMaterial({ color: glowColor, transparent: true, opacity: 0.85 })
+            );
             under.position.y = 0.12; g.add(under);
+
+            // Amber indicator lamps on the corners that face the player. They
+            // blink for 1-3 seconds before the car actually moves over.
+            var lampGeo = new THREE.SphereGeometry(0.15, 8, 8);
+            var lampMat = new THREE.MeshBasicMaterial({ color: 0xffb020 });
+            var lampL = new THREE.Mesh(lampGeo, lampMat);
+            lampL.position.set(-0.74, 0.68, 1.46); lampL.visible = false; g.add(lampL);
+            var lampR = new THREE.Mesh(lampGeo, lampMat);
+            lampR.position.set(0.74, 0.68, 1.46); lampR.visible = false; g.add(lampR);
+            g.userData.leftLamp = lampL;
+            g.userData.rightLamp = lampR;
             return g;
         }
 
         var player = buildCar(0xff2fd0, 0x2ff6ff);
-        player.position.set(0, 0, 5); scene.add(player);
+        player.position.set(LANES[1], 0, 5);
+        scene.add(player);
+        var playerLane = 1;
 
         var traffic = [];
-        function spawnTraffic() {
-            var lane = (Math.floor(Math.random() * 3) - 1) * 3.2;
-            var colors = [0x2ff6ff, 0xffd166, 0x9b5cff, 0x22c55e];
-            var car = buildCar(colors[Math.floor(Math.random() * colors.length)], 0xffffff);
-            car.position.set(lane, 0, -120 - Math.random() * 60);
-            scene.add(car); traffic.push(car);
-        }
-        for (var t = 0; t < 4; t++) spawnTraffic();
+        var colors = [0x2ff6ff, 0xffd166, 0x9b5cff, 0x22c55e, 0xff7a4d];
 
-        var distance = 0, speed = 22, elapsed = 0, spawnT = 0;
+        function laneBusy(lane, self, z, range) {
+            for (var i = 0; i < traffic.length; i++) {
+                var o = traffic[i];
+                if (o === self) continue;
+                if (Math.abs(o.position.z - z) > range) continue;
+                if (o.userData.lane === lane || o.userData.targetLane === lane) return true;
+            }
+            return false;
+        }
+
+        function spawnTraffic(forceZ) {
+            var z = forceZ != null ? forceZ : (-230 - Math.random() * 70);
+            var order = [0, 1, 2];
+            order.sort(function () { return Math.random() - 0.5; });
+            var lane = order[0];
+            for (var i = 0; i < order.length; i++) {
+                if (!laneBusy(order[i], null, z, 16)) { lane = order[i]; break; }
+            }
+            var car = buildCar(colors[Math.floor(Math.random() * colors.length)], 0xffffff);
+            car.position.set(LANES[lane], 0, z);
+            var u = car.userData;
+            u.lane = lane;
+            u.targetLane = lane;
+            u.state = 'cruise';
+            u.signal = 0;
+            u.signalT = 0;
+            u.blinkT = 0;
+            u.changeT = 0;
+            u.fromX = LANES[lane];
+            u.toX = LANES[lane];
+            u.decisionT = 1.5 + Math.random() * 3.5;
+            u.approach = 0.9 + Math.random() * 0.25;
+            scene.add(car);
+            traffic.push(car);
+        }
+
+        for (var t = 0; t < 6; t++) spawnTraffic(-120 - t * 34);
+
+        function blink(car, side) {
+            var u = car.userData;
+            var on = (u.blinkT * 4.8) % 1 < 0.55;
+            u.leftLamp.visible = on && side < 0;
+            u.rightLamp.visible = on && side > 0;
+        }
+
+        function clearBlink(car) {
+            car.userData.leftLamp.visible = false;
+            car.userData.rightLamp.visible = false;
+        }
+
+        var distance = 0, speed = 34, elapsed = 0, spawnT = 0;
 
         function update(dt) {
             elapsed += dt;
-            speed = Math.min(18 + elapsed * 0.7, 52);
+            speed = Math.min(34 + elapsed * 1.55, 92);
             distance += speed * dt;
 
-            var target = 0;
-            if (input.left) target -= 1;
-            if (input.right) target += 1;
-            if (input.pointerActive) target = input.pointerX;
-            if (target < -1) target = -1;
-            if (target > 1) target = 1;
+            // Player lane changes are discrete: one tap = one lane.
+            if (input.leftPressed && playerLane > 0) playerLane--;
+            if (input.rightPressed && playerLane < LANES.length - 1) playerLane++;
 
-            var targetX = target * (ROAD_W / 2 - 1.4);
-            player.position.x += (targetX - player.position.x) * Math.min(1, dt * 8);
-            player.rotation.z = (player.position.x / (ROAD_W / 2)) * -0.12;
-            player.rotation.y = (target - player.position.x / (ROAD_W / 2)) * 0.32;
+            var targetX = LANES[playerLane];
+            var dx = targetX - player.position.x;
+            player.position.x += dx * Math.min(1, dt * 11);
+            player.rotation.y = Math.max(-0.3, Math.min(0.3, dx * 0.14));
+            player.rotation.z = Math.max(-0.12, Math.min(0.12, -dx * 0.06));
 
-            for (var i = 0; i < dashes.length; i++) { dashes[i].position.z += speed * dt; if (dashes[i].position.z > 8) dashes[i].position.z -= 440; }
-            for (var i2 = 0; i2 < edges.length; i2++) { edges[i2].position.z += speed * dt; if (edges[i2].position.z > 8) edges[i2].position.z -= 364; }
+            for (var i = 0; i < dashes.length; i++) {
+                dashes[i].position.z += speed * dt;
+                if (dashes[i].position.z > 12) dashes[i].position.z -= 460;
+            }
+            for (var i2 = 0; i2 < edges.length; i2++) {
+                edges[i2].position.z += speed * dt;
+                if (edges[i2].position.z > 12) edges[i2].position.z -= 378;
+            }
 
             spawnT += dt;
-            if (spawnT > Math.max(0.85, 1.8 - elapsed * 0.008)) { spawnT = 0; spawnTraffic(); }
+            if (spawnT > Math.max(0.62, 1.35 - elapsed * 0.01)) { spawnT = 0; spawnTraffic(); }
+
+            var relative = Math.min(0.42 + elapsed * 0.0045, 0.74);
 
             for (var k = traffic.length - 1; k >= 0; k--) {
                 var c = traffic[k];
-                c.position.z += speed * 0.78 * dt;
-                if (c.position.z > 14) { scene.remove(c); disposeObject(c); traffic.splice(k, 1); continue; }
-                if (Math.abs(c.position.x - player.position.x) < 1.35 && Math.abs(c.position.z - player.position.z) < 2.7) {
+                var u = c.userData;
+
+                if (u.state === 'cruise') {
+                    u.decisionT -= dt;
+                    if (u.decisionT <= 0) {
+                        var choices = [];
+                        if (u.lane > 0 && !laneBusy(u.lane - 1, c, c.position.z, 11)) choices.push(-1);
+                        if (u.lane < LANES.length - 1 && !laneBusy(u.lane + 1, c, c.position.z, 11)) choices.push(1);
+                        if (choices.length) {
+                            u.signal = choices[Math.floor(Math.random() * choices.length)];
+                            u.signalT = 1 + Math.random() * 2; // 1-3 second warning
+                            u.targetLane = u.lane + u.signal;
+                            u.blinkT = 0;
+                            u.state = 'signal';
+                        } else {
+                            u.decisionT = 0.8 + Math.random() * 1.6;
+                        }
+                    }
+                } else if (u.state === 'signal') {
+                    u.signalT -= dt;
+                    u.blinkT += dt;
+                    blink(c, u.signal);
+                    if (u.signalT <= 0) {
+                        u.state = 'change';
+                        u.changeT = 0;
+                        u.fromX = LANES[u.lane];
+                        u.targetLane = u.lane + u.signal;
+                        u.toX = LANES[u.targetLane];
+                    }
+                } else if (u.state === 'change') {
+                    u.changeT += dt;
+                    var p = Math.min(1, u.changeT / 0.75);
+                    var ease = p * p * (3 - 2 * p);
+                    c.position.x = u.fromX + (u.toX - u.fromX) * ease;
+                    c.rotation.y = (u.toX - u.fromX) * -0.06 * Math.sin(p * Math.PI);
+                    u.blinkT += dt;
+                    blink(c, u.toX > u.fromX ? 1 : -1);
+                    if (p >= 1) {
+                        c.position.x = u.toX;
+                        c.rotation.y = 0;
+                        u.lane = u.targetLane;
+                        u.state = 'cruise';
+                        u.signal = 0;
+                        u.signalT = 0;
+                        clearBlink(c);
+                        u.decisionT = 1.8 + Math.random() * 3.2;
+                    }
+                }
+
+                c.position.z += speed * relative * dt * u.approach;
+
+                if (c.position.z > 14) {
+                    scene.remove(c); disposeObject(c); traffic.splice(k, 1); continue;
+                }
+                if (Math.abs(c.position.x - player.position.x) < 1.45 && Math.abs(c.position.z - player.position.z) < 2.75) {
                     endGame(distance);
                     return;
                 }
             }
 
-            camera.position.x += (player.position.x * 0.45 - camera.position.x) * Math.min(1, dt * 4);
-            camera.lookAt(player.position.x * 0.5, 1.2, -14);
+            var fov = 62 + Math.min(12, speed * 0.10);
+            if (Math.abs(camera.fov - fov) > 0.1) {
+                camera.fov = fov;
+                camera.updateProjectionMatrix();
+            }
+
+            camera.position.x += (player.position.x * 0.42 - camera.position.x) * Math.min(1, dt * 5);
+            camera.lookAt(player.position.x * 0.5, 1.1, -20);
             setHud(distance, Math.round(speed * 3.6) + ' km/h');
         }
 
@@ -561,8 +704,17 @@
         var KEY_DOWN = ['ArrowDown', 's', 'S'];
 
         function down(e) {
-            if (KEY_LEFT.indexOf(e.key) >= 0) input.left = true;
-            if (KEY_RIGHT.indexOf(e.key) >= 0) input.right = true;
+            // Edge-triggered: only fire on the first transition so holding a key
+            // doesn't spam lane changes. Games read `leftPressed` / `rightPressed`
+            // for discrete steps, and `left` / `right` for held steering.
+            if (KEY_LEFT.indexOf(e.key) >= 0) {
+                if (!input.left) input.leftPressed = true;
+                input.left = true;
+            }
+            if (KEY_RIGHT.indexOf(e.key) >= 0) {
+                if (!input.right) input.rightPressed = true;
+                input.right = true;
+            }
             if (KEY_UP.indexOf(e.key) >= 0) input.up = true;
             if (KEY_DOWN.indexOf(e.key) >= 0) input.down = true;
             if (e.key === ' ' || e.key === 'Enter') { input.tapQueued = true; e.preventDefault(); }
@@ -588,6 +740,10 @@
             input.pointerActive = true;
             input.tapQueued = true;
             pos(e);
+            // Tap-to-step: tapping the left or right third of the canvas is one
+            // lane change, just like a single arrow key press.
+            if (input.pointerX < -0.15) input.leftPressed = true;
+            else if (input.pointerX > 0.15) input.rightPressed = true;
             try { if (el.setPointerCapture) el.setPointerCapture(e.pointerId); } catch (err) {}
         });
         listen(el, 'pointermove', function (e) { if (input.pointerActive) pos(e); });
@@ -602,6 +758,10 @@
         if (active && running && !active.over) {
             active.update(dt);
         }
+        // Presses are one-shot: consume them every frame whether or not the
+        // current game uses them, so a tap can never fire twice.
+        input.leftPressed = false;
+        input.rightPressed = false;
         if (renderer && scene && camera) renderer.render(scene, camera);
     }
 
@@ -620,6 +780,7 @@
         }
 
         input.left = false; input.right = false; input.up = false; input.down = false;
+        input.leftPressed = false; input.rightPressed = false;
         input.pointerActive = false; input.pointerX = 0; input.pointerY = 0; input.tapQueued = false;
 
         resetScene();
@@ -668,6 +829,7 @@
         camera = null;
         container = null;
         input.left = false; input.right = false; input.up = false; input.down = false;
+        input.leftPressed = false; input.rightPressed = false;
         input.pointerActive = false; input.tapQueued = false;
     }
 
