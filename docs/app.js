@@ -368,7 +368,7 @@ function closeProfile() {
     document.getElementById('profileModal').style.display = 'none';
 }
 
-async async function logoutFromProfile() {
+async function logoutFromProfile() {
     await logout();
     closeProfile();
     updateUserSection();
