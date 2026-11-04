@@ -3,8 +3,7 @@
     'use strict';
 
     var input = {
-        left: false, right: false, up: false, down: false,
-        leftPressed: false, rightPressed: false,
+        left: false, right: false, up: false, down: false, brake: false,
         pointerActive: false, pointerX: 0, pointerY: 0, tapQueued: false
     };
 
@@ -150,9 +149,16 @@
         }
 
         var player = buildCar(0xff2fd0, 0x2ff6ff);
-        player.position.set(LANES[1], 0, 5);
+        player.position.set(0, 0, 5);
         scene.add(player);
-        var playerLane = 1;
+
+        // Rear brake lights facing the chase camera.
+        var brakeMat = new THREE.MeshBasicMaterial({ color: 0x5a1018 });
+        [-0.55, 0.55].forEach(function (lx) {
+            var lamp = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.13, 0.06), brakeMat);
+            lamp.position.set(lx, 0.78, 1.52);
+            player.add(lamp);
+        });
 
         var traffic = [];
         var colors = [0x2ff6ff, 0xffd166, 0x9b5cff, 0x22c55e, 0xff7a4d];
@@ -207,22 +213,40 @@
             car.userData.rightLamp.visible = false;
         }
 
-        var distance = 0, speed = 34, elapsed = 0, spawnT = 0;
+        var distance = 0, speed = 42, elapsed = 0, spawnT = 0;
+        var maxX = ROAD_W / 2 - 1.3;
+        var steerX = 0;
 
         function update(dt) {
             elapsed += dt;
-            speed = Math.min(34 + elapsed * 1.55, 92);
+
+            // Rising top speed, but the brake can dump it fast.
+            var baseSpeed = Math.min(42 + elapsed * 1.3, 98);
+            if (input.brake) speed = Math.max(10, speed - 72 * dt);
+            else speed = Math.min(baseSpeed, speed + 10 * dt);
             distance += speed * dt;
 
-            // Player lane changes are discrete: one tap = one lane.
-            if (input.leftPressed && playerLane > 0) playerLane--;
-            if (input.rightPressed && playerLane < LANES.length - 1) playerLane++;
+            // Free steering: slide anywhere across the road, not fixed lanes.
+            var steerInput = 0;
+            if (input.left) steerInput -= 1;
+            if (input.right) steerInput += 1;
+            if (input.pointerActive) {
+                steerX = Math.max(-maxX, Math.min(maxX, input.pointerX * maxX * 1.08));
+            } else {
+                steerX += steerInput * dt * 9.5;
+                steerX = Math.max(-maxX, Math.min(maxX, steerX));
+            }
 
-            var targetX = LANES[playerLane];
-            var dx = targetX - player.position.x;
-            player.position.x += dx * Math.min(1, dt * 11);
-            player.rotation.y = Math.max(-0.3, Math.min(0.3, dx * 0.14));
-            player.rotation.z = Math.max(-0.12, Math.min(0.12, -dx * 0.06));
+            var beforeX = player.position.x;
+            player.position.x += (steerX - player.position.x) * Math.min(1, dt * 10);
+            player.position.x = Math.max(-maxX, Math.min(maxX, player.position.x));
+            var vx = (player.position.x - beforeX) / (dt || 0.016);
+
+            // Nose points into the turn, body banks, and the car dips on brakes.
+            player.rotation.y = Math.max(-0.42, Math.min(0.42, vx * 0.045));
+            player.rotation.z = Math.max(-0.2, Math.min(0.2, -vx * 0.022));
+            player.rotation.x = (input.brake ? 0.035 : 0) + Math.max(-0.03, Math.min(0.03, -vx * 0.002));
+            brakeMat.color.setHex(input.brake ? 0xff2438 : 0x5a1018);
 
             for (var i = 0; i < dashes.length; i++) {
                 dashes[i].position.z += speed * dt;
@@ -275,11 +299,13 @@
                     var ease = p * p * (3 - 2 * p);
                     c.position.x = u.fromX + (u.toX - u.fromX) * ease;
                     c.rotation.y = (u.toX - u.fromX) * -0.06 * Math.sin(p * Math.PI);
+                    c.rotation.z = (u.toX - u.fromX) * 0.035 * Math.sin(p * Math.PI);
                     u.blinkT += dt;
                     blink(c, u.toX > u.fromX ? 1 : -1);
                     if (p >= 1) {
                         c.position.x = u.toX;
                         c.rotation.y = 0;
+                        c.rotation.z = 0;
                         u.lane = u.targetLane;
                         u.state = 'cruise';
                         u.signal = 0;
@@ -307,8 +333,8 @@
             }
 
             camera.position.x += (player.position.x * 0.42 - camera.position.x) * Math.min(1, dt * 5);
-            camera.lookAt(player.position.x * 0.5, 1.1, -20);
-            setHud(distance, Math.round(speed * 3.6) + ' km/h');
+            camera.lookAt(player.position.x * 0.5 + vx * 0.22, 1.1, -20);
+            setHud(distance, (input.brake ? 'BRAKE · ' : '') + Math.round(speed * 3.6) + ' km/h');
         }
 
         return { over: false, update: update };
@@ -704,19 +730,13 @@
         var KEY_DOWN = ['ArrowDown', 's', 'S'];
 
         function down(e) {
-            // Edge-triggered: only fire on the first transition so holding a key
-            // doesn't spam lane changes. Games read `leftPressed` / `rightPressed`
-            // for discrete steps, and `left` / `right` for held steering.
-            if (KEY_LEFT.indexOf(e.key) >= 0) {
-                if (!input.left) input.leftPressed = true;
-                input.left = true;
-            }
-            if (KEY_RIGHT.indexOf(e.key) >= 0) {
-                if (!input.right) input.rightPressed = true;
-                input.right = true;
-            }
+            if (KEY_LEFT.indexOf(e.key) >= 0) input.left = true;
+            if (KEY_RIGHT.indexOf(e.key) >= 0) input.right = true;
             if (KEY_UP.indexOf(e.key) >= 0) input.up = true;
-            if (KEY_DOWN.indexOf(e.key) >= 0) input.down = true;
+            if (KEY_DOWN.indexOf(e.key) >= 0) {
+                input.down = true;
+                input.brake = true;
+            }
             if (e.key === ' ' || e.key === 'Enter') { input.tapQueued = true; e.preventDefault(); }
             if (KEY_LEFT.indexOf(e.key) >= 0 || KEY_RIGHT.indexOf(e.key) >= 0 || KEY_UP.indexOf(e.key) >= 0 || KEY_DOWN.indexOf(e.key) >= 0) e.preventDefault();
         }
@@ -724,7 +744,10 @@
             if (KEY_LEFT.indexOf(e.key) >= 0) input.left = false;
             if (KEY_RIGHT.indexOf(e.key) >= 0) input.right = false;
             if (KEY_UP.indexOf(e.key) >= 0) input.up = false;
-            if (KEY_DOWN.indexOf(e.key) >= 0) input.down = false;
+            if (KEY_DOWN.indexOf(e.key) >= 0) {
+                input.down = false;
+                input.brake = false;
+            }
         }
         listen(global, 'keydown', down);
         listen(global, 'keyup', up);
@@ -740,10 +763,6 @@
             input.pointerActive = true;
             input.tapQueued = true;
             pos(e);
-            // Tap-to-step: tapping the left or right third of the canvas is one
-            // lane change, just like a single arrow key press.
-            if (input.pointerX < -0.15) input.leftPressed = true;
-            else if (input.pointerX > 0.15) input.rightPressed = true;
             try { if (el.setPointerCapture) el.setPointerCapture(e.pointerId); } catch (err) {}
         });
         listen(el, 'pointermove', function (e) { if (input.pointerActive) pos(e); });
@@ -758,10 +777,6 @@
         if (active && running && !active.over) {
             active.update(dt);
         }
-        // Presses are one-shot: consume them every frame whether or not the
-        // current game uses them, so a tap can never fire twice.
-        input.leftPressed = false;
-        input.rightPressed = false;
         if (renderer && scene && camera) renderer.render(scene, camera);
     }
 
@@ -780,7 +795,7 @@
         }
 
         input.left = false; input.right = false; input.up = false; input.down = false;
-        input.leftPressed = false; input.rightPressed = false;
+        input.brake = false;
         input.pointerActive = false; input.pointerX = 0; input.pointerY = 0; input.tapQueued = false;
 
         resetScene();
@@ -829,9 +844,11 @@
         camera = null;
         container = null;
         input.left = false; input.right = false; input.up = false; input.down = false;
-        input.leftPressed = false; input.rightPressed = false;
+        input.brake = false;
         input.pointerActive = false; input.tapQueued = false;
     }
 
-    global.Games3D = { start: start, stop: stop };
+    function setBrake(on) { input.brake = !!on; }
+
+    global.Games3D = { start: start, stop: stop, setBrake: setBrake };
 })(window);

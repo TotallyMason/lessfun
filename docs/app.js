@@ -4,7 +4,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_Ev9umZevWcT-AwVHTPQLnw_DHdpDHWR";
 const supabaseClient = (typeof window !== 'undefined' && window.supabase) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 const games = [
-    { id: 1, name: "Neon Racer", description: "Dodge traffic at insane speed", icon: "car", controls: "Tap left/right or press ← → to switch lanes" },
+    { id: 1, name: "Neon Racer", description: "Dodge traffic at insane speed", icon: "car", hasBrake: true, controls: "Steer freely with ← → or drag · hold ↓ / S or BRAKE to slow" },
     { id: 2, name: "Tunnel Rush", description: "Thread the neon tunnel at warp speed", icon: "tunnel", controls: "Left / Right or drag to rotate" },
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
     { id: 4, name: "Helix Drop", description: "Fall through the rotating helix", icon: "helix", controls: "Left / Right or drag to rotate" },
@@ -79,6 +79,7 @@ function openGame(id) {
             '</div>' +
             '<div id="g3dCanvas" class="game3d-canvas"></div>' +
             '<div class="game3d-hint">' + (game.controls || '') + '</div>' +
+            (game.hasBrake ? '<button class="game3d-brake" id="g3dBrake" type="button">Brake</button>' : '') +
             '<div class="game3d-over" id="g3dOver" style="display:none;">' +
                 '<div class="game3d-over-card">' +
                     '<h3>Game Over</h3>' +
@@ -100,6 +101,24 @@ function openGame(id) {
                 if (over) over.style.display = 'flex';
             }
         });
+    }
+
+    var brakeBtn = document.getElementById('g3dBrake');
+    if (brakeBtn && window.Games3D && window.Games3D.setBrake) {
+        var pressBrake = function (e) {
+            e.preventDefault();
+            window.Games3D.setBrake(true);
+            brakeBtn.classList.add('is-braking');
+        };
+        var releaseBrake = function (e) {
+            if (e) e.preventDefault();
+            window.Games3D.setBrake(false);
+            brakeBtn.classList.remove('is-braking');
+        };
+        brakeBtn.addEventListener('pointerdown', pressBrake);
+        brakeBtn.addEventListener('pointerup', releaseBrake);
+        brakeBtn.addEventListener('pointercancel', releaseBrake);
+        brakeBtn.addEventListener('pointerleave', releaseBrake);
     }
 }
 
