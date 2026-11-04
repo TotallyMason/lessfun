@@ -367,7 +367,7 @@ function checkForUpdates() {
     if (lastVersion !== APP_VERSION) {
         // Show update notification
         setTimeout(() => {
-            alert('🎉 New Update!\n\nVersion: ' + APP_VERSION + '\n\nWhat's new:\n' + UPDATE_NOTES);
+            alert('New Update!\n\nVersion: ' + APP_VERSION + '\n\nWhat\'s new:\n' + UPDATE_NOTES);
         }, 500);
         localStorage.setItem('lessfun_version', APP_VERSION);
     }
