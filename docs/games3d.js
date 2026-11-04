@@ -233,7 +233,8 @@
             grp.userData.checked = false;
             scene.add(grp); obstacles.push(grp);
         }
-        spawnObstacle();
+        // NOTE: only one gate at a time. Two gates spawned at the same z had
+        // different gaps, so their blocks combined into a solid ring.
         spawnObstacle();
 
         var angle = 0, elapsed = 0, speed = 20, spawnT = 0;
