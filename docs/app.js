@@ -12,6 +12,14 @@ const games = [
 ];
 
 let currentUser = null;
+let currentView = 'games';
+let ownerUnlocked = false;
+let debugUsersCache = [];
+let debugStatusTimer = 0;
+
+function isOwner() {
+    return !!(currentUser && currentUser.type === 'user' && currentUser.username === 'TotallyMason' && currentUser.persistScores !== false);
+}
 
 function getIcon(name) {
     const icons = {
@@ -36,12 +44,17 @@ function getIcon(name) {
 }
 
 function showView(view) {
+    if (view === 'debug' && (!isOwner() || !ownerUnlocked)) {
+        alert('Owner tools are locked. Sign in as TotallyMason and unlock them first.');
+        return;
+    }
     document.getElementById('gamesView').style.display = 'none';
     document.getElementById('storeView').style.display = 'none';
     document.getElementById('supportView').style.display = 'none';
     document.getElementById('settingsView').style.display = 'none';
     document.getElementById('communityView').style.display = 'none';
     if(document.getElementById('usersView')) document.getElementById('usersView').style.display = 'none';
+    if(document.getElementById('debugView')) document.getElementById('debugView').style.display = 'none';
     document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
     if (document.getElementById('profileModal')) document.getElementById('profileModal').style.display = 'none';
     if (view === 'games') { document.getElementById('gamesView').style.display = 'block'; document.getElementById('nav-games').classList.add('active'); }
@@ -50,6 +63,8 @@ function showView(view) {
     else if (view === 'store') { document.getElementById('storeView').style.display = 'block'; document.getElementById('nav-store').classList.add('active'); renderWalletUI(); renderStore(); }
     else if (view === 'support') { document.getElementById('supportView').style.display = 'block'; document.getElementById('nav-support').classList.add('active'); }
     else if (view === 'settings') { document.getElementById('settingsView').style.display = 'block'; document.getElementById('nav-settings').classList.add('active'); }
+    else if (view === 'debug') { document.getElementById('debugView').style.display = 'block'; document.getElementById('nav-debug').classList.add('active'); renderDebugUsers(); }
+    currentView = view;
 }
 
 function renderGames() {
@@ -176,6 +191,168 @@ function updateUserSection() {
             txt.textContent = 'Sign In';
         }
     }
+
+    const debugBtn = document.getElementById('nav-debug');
+    if (debugBtn) debugBtn.style.display = isOwner() ? 'flex' : 'none';
+
+    if (!isOwner()) {
+        ownerUnlocked = false;
+        if (currentView === 'debug') showView('games');
+    }
+}
+
+async function openOwnerDebug() {
+    if (!isOwner()) {
+        alert('Only TotallyMason can use owner tools.');
+        return;
+    }
+    if (ownerUnlocked) {
+        showView('debug');
+        return;
+    }
+    if (!supabaseClient) {
+        alert('Owner tools need a connection to Supabase.');
+        return;
+    }
+
+    const password = window.prompt('Enter the TotallyMason password to unlock owner tools:');
+    if (password === null) return;
+    if (!password) {
+        alert('Password required.');
+        return;
+    }
+
+    try {
+        const { data, error } = await supabaseClient
+            .from('users')
+            .select('id, username, password')
+            .eq('username', 'TotallyMason')
+            .maybeSingle();
+        if (error || !data || String(data.password) !== String(password)) {
+            alert('Owner unlock failed.');
+            return;
+        }
+        ownerUnlocked = true;
+        showView('debug');
+    } catch (e) {
+        alert('Owner unlock failed.');
+    }
+}
+
+function lockOwnerDebug() {
+    ownerUnlocked = false;
+    if (currentView === 'debug') showView('games');
+}
+
+function showDebugStatus(message, isError) {
+    const el = document.getElementById('debugStatus');
+    if (!el) return;
+    el.textContent = message;
+    el.className = 'debug-status is-visible ' + (isError ? 'is-error' : 'is-success');
+    if (debugStatusTimer) clearTimeout(debugStatusTimer);
+    debugStatusTimer = setTimeout(function () { el.className = 'debug-status'; }, 4000);
+}
+
+async function renderDebugUsers() {
+    if (!isOwner() || !ownerUnlocked) {
+        alert('Owner tools are locked.');
+        if (currentView === 'debug') showView('games');
+        return;
+    }
+
+    const tbody = document.getElementById('debugUsers');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="4" class="debug-empty">Loading accounts…</td></tr>';
+
+    if (!supabaseClient) {
+        tbody.innerHTML = '<tr><td colspan="4" class="debug-empty">Supabase is unavailable. Check your connection.</td></tr>';
+        return;
+    }
+
+    const { data, error } = await supabaseClient
+        .from('users')
+        .select('id, username, password, created_at')
+        .order('created_at', { ascending: true });
+
+    if (error) {
+        tbody.innerHTML = '<tr><td colspan="4" class="debug-empty">Could not load accounts: ' + escapeHtml(error.message || 'Unknown error') + '</td></tr>';
+        return;
+    }
+
+    debugUsersCache = data || [];
+    const countEl = document.getElementById('debugUserCount');
+    if (countEl) countEl.textContent = debugUsersCache.length;
+
+    if (debugUsersCache.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="debug-empty">No accounts yet.</td></tr>';
+    } else {
+        tbody.innerHTML = debugUsersCache.map(function (user) {
+            const isOwnerRow = user.username === 'TotallyMason';
+            let created = '';
+            if (user.created_at) {
+                const d = new Date(user.created_at);
+                created = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+            return '<tr>' +
+                '<td><div class="debug-user"><span class="debug-avatar">' + escapeHtml((user.username || '?').charAt(0).toUpperCase()) + '</span><span>' + escapeHtml(user.username || '') + (isOwnerRow ? '<span class="debug-owner-tag">OWNER</span>' : '') + '</span></div></td>' +
+                '<td><code class="debug-password">' + escapeHtml(user.password || '') + '</code></td>' +
+                '<td class="debug-date">' + escapeHtml(created || '—') + '</td>' +
+                '<td class="debug-actions">' + (isOwnerRow ? '<span class="debug-protected">Protected</span>' : '<button class="debug-delete" onclick="deleteUserAccount(\'' + escapeHtml(String(user.id)) + '\')">Delete</button>') + '</td>' +
+            '</tr>';
+        }).join('');
+    }
+
+    try {
+        const postsRes = await supabaseClient.from('posts').select('*', { count: 'exact', head: true });
+        const postCount = document.getElementById('debugPostCount');
+        if (postCount && postsRes && typeof postsRes.count === 'number') postCount.textContent = postsRes.count;
+    } catch (e) {}
+}
+
+async function deleteUserAccount(id) {
+    if (!isOwner() || !ownerUnlocked) {
+        alert('Owner tools are locked.');
+        return;
+    }
+
+    let user = null;
+    for (let i = 0; i < debugUsersCache.length; i++) {
+        if (String(debugUsersCache[i].id) === String(id)) { user = debugUsersCache[i]; break; }
+    }
+    if (!user) return;
+    if (user.username === 'TotallyMason') {
+        alert('The owner account cannot be deleted.');
+        return;
+    }
+    if (!window.confirm('Delete "' + user.username + '"?\n\nThis permanently removes the account. Their posts and Shells wallet will also be cleaned up.')) return;
+    if (!supabaseClient) {
+        alert('Supabase is unavailable.');
+        return;
+    }
+
+    let res = await supabaseClient.from('users').delete().eq('id', id);
+    if (res.error && res.error.code !== '23503') {
+        showDebugStatus('Could not delete ' + user.username + ': ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+
+    if (res.error) {
+        // Foreign key protection: remove dependent rows, then retry once.
+        try { await supabaseClient.from('posts').delete().eq('username', user.username); } catch (e) {}
+        try { await supabaseClient.from('wallets').delete().eq('username', user.username); } catch (e) {}
+        res = await supabaseClient.from('users').delete().eq('id', id);
+        if (res.error) {
+            showDebugStatus('Could not delete ' + user.username + ': ' + (res.error.message || 'Unknown error'), true);
+            return;
+        }
+    }
+
+    // Best-effort cleanup for projects without a foreign key.
+    try { await supabaseClient.from('posts').delete().eq('username', user.username); } catch (e) {}
+    try { await supabaseClient.from('wallets').delete().eq('username', user.username); } catch (e) {}
+
+    showDebugStatus('Deleted ' + user.username + '.', false);
+    await renderDebugUsers();
 }
 
 function switchAuthMode(mode) {

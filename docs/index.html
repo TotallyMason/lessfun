@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261127">
+    <link rel="stylesheet" href="style.css?v=20261128">
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -82,6 +82,13 @@
                         <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                     </svg>
                     Settings
+                </button>
+                <button class="nav-btn nav-debug" onclick="openOwnerDebug()" id="nav-debug" style="display:none;" title="Owner tools">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;">
+                        <rect x="7" y="7" width="10" height="12" rx="5"/>
+                        <path d="M9 7V5a3 3 0 0 1 6 0v2M3 11h4M17 11h4M3 17h4M17 17h4M12 11v8"/>
+                    </svg>
+                    Debug
                 </button>
             </div>
         </div>
@@ -168,6 +175,54 @@
                     <input type="text" id="userSearch" placeholder="Search users..." oninput="renderUsers()">
                 </div>
                 <div id="usersList" style="display:flex;flex-direction:column;gap:10px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Owner Debug View (TotallyMason only) -->
+    <div id="debugView" class="view" style="display: none;">
+        <div class="container">
+            <header>
+                <h1>Owner Debug</h1>
+                <p class="subtitle">Account tools for TotallyMason only</p>
+            </header>
+            <div class="debug-warning">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="4" y="10" width="16" height="11" rx="2"/>
+                    <path d="M8 10V7a4 4 0 0 1 8 0v3M12 15v2"/>
+                </svg>
+                <div>
+                    <strong>Private owner tools</strong>
+                    <p>This tab shows every account password in plain text. Never share or screenshot this screen. Only the TotallyMason account can unlock it.</p>
+                </div>
+            </div>
+            <div class="debug-toolbar">
+                <div class="debug-stat">
+                    <span id="debugUserCount">0</span>
+                    <small>accounts</small>
+                </div>
+                <div class="debug-stat">
+                    <span id="debugPostCount">0</span>
+                    <small>posts</small>
+                </div>
+                <div class="debug-toolbar-actions">
+                    <button class="game-btn-3d debug-refresh" onclick="renderDebugUsers()">Refresh</button>
+                    <button class="debug-lock" onclick="lockOwnerDebug()">Lock</button>
+                </div>
+            </div>
+            <div id="debugStatus" class="debug-status" role="status"></div>
+            <div class="debug-table-wrap">
+                <table class="debug-table">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Password</th>
+                            <th>Created</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="debugUsers"></tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -431,7 +486,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
-    <script src="games3d.js?v=20261127"></script>
-    <script src="app.js?v=20261127"></script>
+    <script src="games3d.js?v=20261128"></script>
+    <script src="app.js?v=20261128"></script>
 </body>
 </html>

@@ -60,6 +60,10 @@ Supabase dashboard (**SQL Editor → New query → paste → Run**). It creates 
 `wallets` and `scores` tables and enables the row-level-security policies the
 browser client needs.
 
+If you already ran that migration before the owner debug tab existed, also run
+[`supabase/owner_debug.sql`](supabase/owner_debug.sql) to add the account-delete
+permissions.
+
 Until that migration is run:
 
 - Scores fall back to `localStorage` on the device.
@@ -70,6 +74,21 @@ The migration is intentionally permissive because the beta signs users in
 against the public `users` table with the publishable key instead of Supabase
 Auth. Move to Supabase Auth before handling real payments.
 
+## Owner debug
+
+The **Debug** nav item is only shown to the `TotallyMason` account. Opening it
+asks for the TotallyMason password again, then lists every account with its
+stored password, creation date, and a delete button.
+
+- The owner account is protected and cannot be deleted.
+- Deleting an account also best-effort removes that user's posts and Shells
+  wallet.
+- Press **Lock** to close the tools and require the password again.
+
+This is a developer tool, not production authentication. The app still signs in
+against a public table with the publishable key, so move to Supabase Auth before
+handling real user data or payments.
+
 ## Features
 
 - Five real-time 3D arcade games powered by Three.js
@@ -78,6 +97,7 @@ Auth. Move to Supabase Auth before handling real payments.
 - Shells wallet, daily and streak bonuses, and a cosmetics shop
 - Car paints and surfboards applied to the 3D beach buggy
 - Community posts with owner pinning
+- Password-unlocked owner debug tab for account management
 
 ## Notes
 

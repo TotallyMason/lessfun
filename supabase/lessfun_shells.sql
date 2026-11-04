@@ -26,7 +26,15 @@ create policy "lessfun_users_insert"
     on public.users for insert
     with check (true);
 
-grant select, insert on public.users to anon, authenticated;
+-- Owner-only delete is enforced in the UI (TotallyMason + password unlock).
+-- The database policy is intentionally open because this beta has no
+-- server-side owner role yet.
+drop policy if exists "lessfun_users_delete" on public.users;
+create policy "lessfun_users_delete"
+    on public.users for delete
+    using (true);
+
+grant select, insert, delete on public.users to anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Shells wallets
@@ -62,7 +70,13 @@ create policy "lessfun_wallets_update"
     using (true)
     with check (true);
 
-grant select, insert, update on public.wallets to anon, authenticated;
+-- Used when the owner deletes an account from the debug tab.
+drop policy if exists "lessfun_wallets_delete" on public.wallets;
+create policy "lessfun_wallets_delete"
+    on public.wallets for delete
+    using (true);
+
+grant select, insert, update, delete on public.wallets to anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Scores (the app already tries to write here)

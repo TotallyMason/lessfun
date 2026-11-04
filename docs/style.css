@@ -2148,3 +2148,301 @@ body::before {
     text-decoration: underline;
     cursor: pointer;
 }
+
+/* ============================================================
+   Owner debug tools (TotallyMason only)
+   ============================================================ */
+
+.nav-debug {
+    border: 1px solid rgba(239, 68, 68, 0.26);
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.14), rgba(168, 85, 247, 0.1));
+    color: #ffc9c9;
+}
+
+.nav-debug:hover {
+    border-color: rgba(239, 68, 68, 0.42);
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.22), rgba(168, 85, 247, 0.16));
+    color: #ffe0e0;
+}
+
+.nav-debug.active {
+    border-color: rgba(255, 120, 120, 0.55);
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(168, 85, 247, 0.22));
+}
+
+.debug-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 22px;
+    padding: 18px 20px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 209, 102, 0.3);
+    background: linear-gradient(135deg, rgba(84, 62, 24, 0.6), rgba(48, 26, 26, 0.55));
+    box-shadow: inset 0 1px 0 rgba(255, 235, 190, 0.18), 0 12px 32px rgba(0, 0, 0, 0.24);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    backdrop-filter: blur(18px) saturate(150%);
+}
+
+.debug-warning svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: #ffd166;
+}
+
+.debug-warning strong {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 14px;
+    color: #fff0c2;
+}
+
+.debug-warning p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.debug-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.debug-stat {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    padding: 10px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.025));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.debug-stat span {
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+}
+
+.debug-stat small {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.debug-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.debug-refresh {
+    padding: 9px 18px;
+    font-size: 13px;
+}
+
+.debug-lock {
+    padding: 9px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.debug-lock:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.debug-status {
+    max-height: 0;
+    margin-bottom: 0;
+    padding: 0 16px;
+    overflow: hidden;
+    opacity: 0;
+    border-radius: 12px;
+    font-size: 13px;
+    transition: max-height 0.25s ease, opacity 0.25s ease, margin 0.25s ease, padding 0.25s ease;
+}
+
+.debug-status.is-visible {
+    max-height: 90px;
+    margin-bottom: 18px;
+    padding: 12px 16px;
+    opacity: 1;
+}
+
+.debug-status.is-success {
+    border: 1px solid rgba(6, 214, 160, 0.3);
+    background: rgba(6, 214, 160, 0.12);
+    color: #b8ffe8;
+}
+
+.debug-status.is-error {
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.12);
+    color: #ffc9c9;
+}
+
+.debug-table-wrap {
+    overflow-x: auto;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 18px 44px rgba(0, 0, 0, 0.24);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    backdrop-filter: blur(20px) saturate(150%);
+}
+
+.debug-table {
+    width: 100%;
+    min-width: 620px;
+    border-collapse: collapse;
+}
+
+.debug-table th {
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    text-align: left;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.42);
+}
+
+.debug-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    vertical-align: middle;
+    font-size: 13px;
+}
+
+.debug-table tr:last-child td {
+    border-bottom: none;
+}
+
+.debug-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.debug-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+}
+
+.debug-avatar {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #a855f7, #ec4899);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.debug-owner-tag {
+    margin-left: 8px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #a855f7, #ec4899);
+    font-size: 9px;
+    letter-spacing: 0.04em;
+}
+
+.debug-password {
+    display: inline-block;
+    max-width: 220px;
+    overflow: hidden;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 209, 102, 0.2);
+    background: rgba(255, 209, 102, 0.1);
+    color: #ffe29a;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.debug-date {
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.debug-actions {
+    text-align: right;
+}
+
+.debug-delete {
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    background: rgba(239, 68, 68, 0.12);
+    color: #ffc9c9;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.debug-delete:hover {
+    border-color: rgba(239, 68, 68, 0.55);
+    background: rgba(239, 68, 68, 0.24);
+}
+
+.debug-delete:active {
+    transform: scale(0.96);
+}
+
+.debug-protected {
+    font-size: 10px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.35);
+}
+
+.debug-empty {
+    padding: 42px 16px !important;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+@media (max-width: 640px) {
+    .debug-warning {
+        padding: 14px 16px;
+    }
+
+    .debug-toolbar-actions {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .debug-refresh {
+        flex: 1;
+    }
+
+    .debug-password {
+        max-width: 150px;
+    }
+}
