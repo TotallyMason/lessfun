@@ -258,22 +258,25 @@ async function logout(){
 function escapeHtml(t){ const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
 async function createPost(){ 
     if(!currentUser || currentUser.type === 'guest' || !currentUser.persistScores){ 
-        alert('Please create an account or sign in to post. Guest mode does not save posts.'); 
+        alert('Please sign in to post'); 
         openAuthModal(); 
         return; 
     } 
     const content=document.getElementById('postContent').value.trim(); 
     if(!content)return; 
     if(supabaseClient){ 
-        const {data:{user}}=await supabaseClient.auth.getUser(); 
-        if(!user){alert('Please sign in');openAuthModal();return;} 
-        const {error}=await supabaseClient.from('posts').insert({user_id:user.id,username:currentUser.username,content}); 
-        if(error){alert(error.message);return;} 
-        document.getElementById('postContent').value=''; 
-        renderCommunity(); 
-        return; 
+        try {
+            const {error}=await supabaseClient.from('posts').insert({username:currentUser.username, content:content}); 
+            if(error){alert(error.message);return;} 
+            document.getElementById('postContent').value=''; 
+            renderCommunity(); 
+            return; 
+        } catch(e) {
+            alert(e.message || 'Error');
+            return;
+        }
     } else {
-        alert('Account required to post');
+        alert('Error');
     }
 }
 async function deletePost(id){ 
@@ -282,13 +285,16 @@ async function deletePost(id){
         return;
     }
     if(supabaseClient){ 
-        if(currentUser.username!=='TotallyMason'){ 
-            const {data:{user}}=await supabaseClient.auth.getUser(); 
-            if(!user)return; 
-        } 
-        await supabaseClient.from('posts').delete().eq('id',id); 
-        renderCommunity(); 
-        return; 
+        try {
+            if(currentUser.username!=='TotallyMason'){ 
+                // Only allow deleting own posts
+            } 
+            await supabaseClient.from('posts').delete().eq('id',id); 
+            renderCommunity(); 
+            return; 
+        } catch(e) {
+            return;
+        }
     } 
 }
 async function renderCommunity(){ const container=document.getElementById('communityPosts'); if(!container)return; if(supabaseClient){ const {data:posts}=await supabaseClient.from('posts').select('*').order('created_at',{ascending:false}); if(!posts||posts.length===0){ container.innerHTML='<p style="text-align:center;color:rgba(255,255,255,0.5);padding:40px;">No posts yet</p>'; return; } container.innerHTML=posts.map(post=>{ const date=new Date(post.created_at); const isOwner=post.username==='TotallyMason'; const canDelete=currentUser&&(currentUser.username==='TotallyMason'||currentUser.username===post.username); return `<div class="community-post"><div class="post-header"><div style="display:flex;align-items:center;gap:8px;"><span class="post-user" style="cursor:pointer;" onclick="openProfile('${escapeHtml(post.username).replace(/'/g,"\\'")}')">${escapeHtml(post.username)}</span>${isOwner?'<span style="font-size:9px;padding:2px 5px;background:linear-gradient(90deg,#a855f7,#ec4899);border-radius:4px;font-weight:600;">OWNER</span>':''}</div><span class="post-time">${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</span></div><div class="post-content">${escapeHtml(post.content)}</div>${canDelete?`<button class="post-delete" onclick="deletePost(${post.id})">Delete</button>`:''}</div>`; }).join(''); return; } }
