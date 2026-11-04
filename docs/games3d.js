@@ -132,7 +132,7 @@
 
         function update(dt) {
             elapsed += dt;
-            speed = Math.min(22 + elapsed * 0.9, 62);
+            speed = Math.min(18 + elapsed * 0.7, 52);
             distance += speed * dt;
 
             var target = 0;
@@ -151,13 +151,13 @@
             for (var i2 = 0; i2 < edges.length; i2++) { edges[i2].position.z += speed * dt; if (edges[i2].position.z > 8) edges[i2].position.z -= 364; }
 
             spawnT += dt;
-            if (spawnT > Math.max(0.5, 1.4 - elapsed * 0.01)) { spawnT = 0; spawnTraffic(); }
+            if (spawnT > Math.max(0.85, 1.8 - elapsed * 0.008)) { spawnT = 0; spawnTraffic(); }
 
             for (var k = traffic.length - 1; k >= 0; k--) {
                 var c = traffic[k];
                 c.position.z += speed * 0.78 * dt;
                 if (c.position.z > 14) { scene.remove(c); disposeObject(c); traffic.splice(k, 1); continue; }
-                if (Math.abs(c.position.x - player.position.x) < 1.55 && Math.abs(c.position.z - player.position.z) < 3.0) {
+                if (Math.abs(c.position.x - player.position.x) < 1.35 && Math.abs(c.position.z - player.position.z) < 2.7) {
                     endGame(distance);
                     return;
                 }
@@ -174,41 +174,47 @@
     /* ---------------- Tunnel Rush ---------------- */
     function createTunnel(ctx) {
         var scene = ctx.scene, camera = ctx.camera;
-        scene.fog = new THREE.FogExp2(0x05010f, 0.055);
+        // Wide-open visibility: light fog and a wide FOV so rings/gaps are readable.
+        scene.fog = new THREE.FogExp2(0x05010f, 0.010);
         camera.position.set(0, 0, 0);
-        camera.lookAt(0, 0, -10);
+        camera.fov = 80;
+        camera.updateProjectionMatrix();
+        camera.lookAt(0, 0, -20);
 
-        scene.add(new THREE.AmbientLight(0x9090ff, 1.2));
-        var lp = new THREE.PointLight(0xff2fd0, 4, 60); lp.position.set(0, 0, -5); scene.add(lp);
+        scene.add(new THREE.AmbientLight(0x9090ff, 1.3));
+        var lp = new THREE.PointLight(0xff2fd0, 3, 90); lp.position.set(0, 0, -6); scene.add(lp);
+        var lp2 = new THREE.PointLight(0x2ff6ff, 2.5, 90); lp2.position.set(0, 0, -34); scene.add(lp2);
 
-        var R = 3.4, orbitR = R - 0.9;
-        var ringMat = neon(0x2ff6ff, 1.6);
+        var R = 3.0, orbitR = 1.9;
+        var ringMat = neon(0x2ff6ff, 1.5);
         var rings = [];
-        var RING_COUNT = 28;
+        var RING_COUNT = 32, RING_SPACING = 5;
         for (var i = 0; i < RING_COUNT; i++) {
-            var ring = new THREE.Mesh(new THREE.TorusGeometry(R, 0.055, 6, 40), ringMat);
-            ring.position.z = -i * 4;
+            var ring = new THREE.Mesh(new THREE.TorusGeometry(R, 0.06, 6, 48), ringMat);
+            ring.position.z = -(i + 1) * RING_SPACING;
             scene.add(ring); rings.push(ring);
         }
-        var stripMat = neon(0x9b5cff, 0.9);
+
+        var stripMat = neon(0x9b5cff, 0.8);
         for (var k = 0; k < 8; k++) {
             var a = k / 8 * Math.PI * 2;
-            var strip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 120), stripMat);
-            strip.position.set(Math.cos(a) * R, Math.sin(a) * R, -60);
+            var strip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 170), stripMat);
+            strip.position.set(Math.cos(a) * R, Math.sin(a) * R, -85);
             strip.rotation.z = a;
             scene.add(strip);
         }
 
         var ship = new THREE.Group();
-        var hull = new THREE.Mesh(new THREE.ConeGeometry(0.36, 1.1, 4), neon(0xff2fd0, 1.4));
+        var hull = new THREE.Mesh(new THREE.ConeGeometry(0.34, 1.0, 4), neon(0xff2fd0, 1.4));
         hull.rotation.x = -Math.PI / 2; ship.add(hull);
-        var flame = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.7, 6), new THREE.MeshBasicMaterial({ color: 0x2ff6ff, transparent: true, opacity: 0.9 }));
-        flame.rotation.x = Math.PI / 2; flame.position.z = 0.8; ship.add(flame);
+        var flame = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.65, 6), new THREE.MeshBasicMaterial({ color: 0x2ff6ff, transparent: true, opacity: 0.9 }));
+        flame.rotation.x = Math.PI / 2; flame.position.z = 0.75; ship.add(flame);
+        ship.position.set(orbitR, 0, -3);
         scene.add(ship);
 
         var obstacles = [];
-        var SEG_N = 20, GAP_HALF = 0.62;
-        var obstacleMat = neon(0xff2fd0, 1.3);
+        var SEG_N = 24, GAP_HALF = 0.9; // ~103 degree opening
+        var obstacleMat = neon(0xff2fd0, 1.2);
 
         function spawnObstacle() {
             var gapCenter = Math.random() * Math.PI * 2;
@@ -217,48 +223,50 @@
                 var a = i / SEG_N * Math.PI * 2;
                 var d = Math.atan2(Math.sin(a - gapCenter), Math.cos(a - gapCenter));
                 if (Math.abs(d) < GAP_HALF) continue;
-                var block = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.55, 0.9), obstacleMat);
+                var block = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 1.1), obstacleMat);
                 block.position.set(Math.cos(a) * orbitR, Math.sin(a) * orbitR, 0);
                 block.rotation.z = a;
                 grp.add(block);
             }
-            grp.position.z = -110;
+            grp.position.z = -70;
             grp.userData.gapCenter = gapCenter;
             grp.userData.checked = false;
             scene.add(grp); obstacles.push(grp);
         }
-        spawnObstacle(); spawnObstacle();
+        spawnObstacle();
+        spawnObstacle();
 
-        var angle = 0, elapsed = 0, speed = 30, spawnT = 0;
+        var angle = 0, elapsed = 0, speed = 20, spawnT = 0;
 
         function update(dt) {
             elapsed += dt;
-            speed = Math.min(30 + elapsed * 1.4, 78);
+            speed = Math.min(20 + elapsed * 0.6, 52);
             spawnT += dt;
-            if (spawnT > Math.max(0.7, 1.6 - elapsed * 0.012)) { spawnT = 0; spawnObstacle(); }
+            if (spawnT > Math.max(1.4, 2.6 - elapsed * 0.02)) { spawnT = 0; spawnObstacle(); }
 
             var steer = 0;
             if (input.left) steer -= 1;
             if (input.right) steer += 1;
             if (input.pointerActive) steer = input.pointerX;
-            angle += steer * dt * 3.0;
+            angle += steer * dt * 2.8;
 
-            ship.position.set(Math.cos(angle) * orbitR, Math.sin(angle) * orbitR, -1.5);
+            ship.position.set(Math.cos(angle) * orbitR, Math.sin(angle) * orbitR, -3);
             ship.rotation.z = angle;
 
             for (var i = 0; i < rings.length; i++) {
                 rings[i].position.z += speed * dt;
-                if (rings[i].position.z > 4) rings[i].position.z -= RING_COUNT * 4;
+                if (rings[i].position.z > 10) rings[i].position.z -= RING_COUNT * RING_SPACING;
             }
 
             for (var o = obstacles.length - 1; o >= 0; o--) {
                 var grp = obstacles[o];
                 grp.position.z += speed * dt;
-                if (grp.position.z > 8) { scene.remove(grp); disposeObject(grp); obstacles.splice(o, 1); continue; }
-                if (!grp.userData.checked && grp.position.z > -2.2) {
+                if (grp.position.z > 10) { scene.remove(grp); disposeObject(grp); obstacles.splice(o, 1); continue; }
+                if (!grp.userData.checked && grp.position.z > -3.8) {
                     grp.userData.checked = true;
                     var d = Math.atan2(Math.sin(angle - grp.userData.gapCenter), Math.cos(angle - grp.userData.gapCenter));
-                    if (Math.abs(d) > GAP_HALF - 0.12) { endGame(elapsed * 10); return; }
+                    // Generous safe window; only the solid blocks are fatal.
+                    if (Math.abs(d) > GAP_HALF - 0.08) { endGame(elapsed * 10); return; }
                 }
             }
 
@@ -352,7 +360,7 @@
         scene.add(new THREE.AmbientLight(0x8a8aff, 1.1));
         var sun = new THREE.DirectionalLight(0xffffff, 1.2); sun.position.set(6, 12, 8); scene.add(sun);
 
-        var R = 2.8, SEG = 22, GAP_SEG = 4;
+        var R = 2.8, SEG = 22, GAP_SEG = 6;
         var gapHalf = (GAP_SEG / SEG) * Math.PI;
         var group = new THREE.Group(); scene.add(group);
 
@@ -389,7 +397,7 @@
         function angDist(a, b) { return Math.atan2(Math.sin(a - b), Math.cos(a - b)); }
 
         function update(dt) {
-            speed = Math.min(6 + passed * 0.16, 19);
+            speed = Math.min(5 + passed * 0.12, 15);
             ballY -= speed * dt;
             ball.position.y = ballY;
 
