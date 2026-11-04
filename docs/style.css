@@ -1229,3 +1229,241 @@ body {
 .post-delete:hover {
     text-decoration: underline;
 }
+
+/* ============================================================
+   Liquid Glass Effects
+   ============================================================ */
+
+/* Ambient aurora backdrop for glass to refract */
+body::before {
+    content: '';
+    position: fixed;
+    inset: -20%;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        radial-gradient(38% 46% at 18% 22%, rgba(168, 85, 247, 0.28) 0%, transparent 70%),
+        radial-gradient(42% 40% at 82% 18%, rgba(236, 72, 153, 0.22) 0%, transparent 70%),
+        radial-gradient(50% 50% at 50% 88%, rgba(59, 130, 246, 0.20) 0%, transparent 70%),
+        radial-gradient(30% 30% at 70% 60%, rgba(34, 197, 94, 0.10) 0%, transparent 70%);
+    filter: blur(40px) saturate(140%);
+    animation: auroraDrift 24s ease-in-out infinite alternate;
+}
+
+@keyframes auroraDrift {
+    0%   { transform: translate3d(-1.5%, -1%, 0) scale(1.02); }
+    50%  { transform: translate3d(1.5%, 1.5%, 0) scale(1.06); }
+    100% { transform: translate3d(-1%, 2%, 0) scale(1.03); }
+}
+
+/* Shared liquid-glass surface */
+.top-nav,
+.game-card,
+.store-card,
+.support-card,
+.community-post,
+.community-post-form,
+.settings-group,
+.info-card,
+.modal-header {
+    position: relative;
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.02) 45%, rgba(255, 255, 255, 0.06) 100%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    backdrop-filter: blur(28px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow:
+        0 18px 50px rgba(0, 0, 0, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.28),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* Specular sheen sweeping across glass surfaces */
+.top-nav::before,
+.game-card::before,
+.store-card::before,
+.support-card::before,
+.community-post::before,
+.community-post-form::before,
+.settings-group::before,
+.info-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(115deg,
+        rgba(255, 255, 255, 0.22) 0%,
+        rgba(255, 255, 255, 0.05) 22%,
+        rgba(255, 255, 255, 0) 48%,
+        rgba(255, 255, 255, 0.06) 72%,
+        rgba(255, 255, 255, 0.16) 100%);
+    opacity: 0.55;
+    mix-blend-mode: screen;
+    transition: opacity 0.4s ease, transform 0.6s ease;
+}
+
+.game-card:hover::before,
+.store-card:hover::before,
+.support-card:hover::before,
+.community-post:hover::before {
+    opacity: 0.9;
+    transform: translateX(2%);
+}
+
+/* Liquid highlight on game cards */
+.game-card {
+    border-radius: 20px;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+.game-card:hover {
+    border-color: rgba(255, 255, 255, 0.32);
+    box-shadow:
+        0 24px 60px rgba(168, 85, 247, 0.30),
+        0 8px 24px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    transform: translateY(-4px) scale(1.01);
+}
+
+/* Navigation glass */
+.top-nav {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+    border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.nav-btn {
+    border-radius: 999px;
+    transition: background 0.25s ease, color 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
+}
+
+.nav-btn:hover {
+    background: rgba(255, 255, 255, 0.14);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 4px 14px rgba(168, 85, 247, 0.25);
+    transform: translateY(-1px);
+}
+
+.nav-btn.active {
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.42), rgba(236, 72, 153, 0.32));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 6px 20px rgba(168, 85, 247, 0.35);
+}
+
+/* Liquid buttons */
+.game-btn-3d {
+    position: relative;
+    overflow: hidden;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    background: linear-gradient(145deg, rgba(168, 85, 247, 0.95) 0%, rgba(236, 72, 153, 0.9) 100%);
+    box-shadow:
+        0 12px 30px rgba(168, 85, 247, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.5),
+        inset 0 -2px 6px rgba(0, 0, 0, 0.25);
+    transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.3s ease;
+}
+
+.game-btn-3d::after {
+    content: '';
+    position: absolute;
+    top: -60%;
+    left: -30%;
+    width: 60%;
+    height: 220%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+    transform: rotate(20deg);
+    transition: left 0.6s ease;
+    pointer-events: none;
+}
+
+.game-btn-3d:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow:
+        0 18px 44px rgba(236, 72, 153, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.game-btn-3d:hover::after {
+    left: 120%;
+}
+
+.game-btn-3d:active {
+    transform: translateY(0) scale(0.98);
+}
+
+/* Modal glass */
+.modal-content {
+    background:
+        radial-gradient(ellipse at top, rgba(168, 85, 247, 0.18) 0%, transparent 55%),
+        linear-gradient(180deg, rgba(20, 20, 28, 0.92) 0%, rgba(6, 6, 10, 0.96) 100%);
+    -webkit-backdrop-filter: blur(40px) saturate(160%);
+    backdrop-filter: blur(40px) saturate(160%);
+}
+
+.modal-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.modal-close {
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04));
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+/* Glass inputs */
+.auth-input,
+.post-input,
+.guess-input-3d,
+.search-box {
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03)) !important;
+    border: 1px solid rgba(255, 255, 255, 0.20) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    backdrop-filter: blur(18px) saturate(160%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.auth-input:focus,
+.post-input:focus,
+.guess-input-3d:focus {
+    border-color: rgba(168, 85, 247, 0.7) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.25),
+        0 0 0 3px rgba(168, 85, 247, 0.22);
+    outline: none;
+}
+
+/* Glass stat pills and badges */
+.stat-3d,
+.coming-soon-badge {
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    backdrop-filter: blur(18px) saturate(160%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+/* Promo banner glass */
+.promo-banner {
+    -webkit-backdrop-filter: blur(24px) saturate(170%);
+    backdrop-filter: blur(24px) saturate(170%);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    body::before { animation: none; }
+    .top-nav::before,
+    .game-card::before,
+    .store-card::before,
+    .support-card::before,
+    .community-post::before,
+    .community-post-form::before,
+    .settings-group::before,
+    .info-card::before { transition: none; }
+    .game-btn-3d::after { display: none; }
+}
