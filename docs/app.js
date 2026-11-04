@@ -94,9 +94,29 @@ function getGameHTML(game) {
 
 function initGame(game) { if (game.id === 1) initTapFrenzy(); if (game.id === 2) initWhack(); if (game.id === 3) initReaction(); if (game.id === 4) initMemory(); if (game.id === 5) resetTTT(); if (game.id === 6) initGuess(); if (game.id === 7) startHL(); if (game.id === 10) resetRPS(); }
 function initTapFrenzy() { gameState.tap = {score:0,time:10,running:false}; document.getElementById('tapScore').textContent='0'; document.getElementById('tapTime').textContent='10.0'; document.getElementById('tapBtn').textContent='START'; }
-function tapFrenzyTap() { if (!gameState.tap.running) { gameState.tap.running=true; gameState.tap.score=0; gameState.tap.time=10; document.getElementById('tapBtn').textContent='TAP'; document.getElementById('tapScore').textContent='0'; if (gameState.timer) clearInterval(gameState.timer); gameState.timer=setInterval(()=>{ gameState.tap.time-=0.1; document.getElementById('tapTime').textContent=gameState.tap.time.toFixed(1); if (gameState.tap.time<=0){ clearInterval(gameState.timer); gameState.tap.running=false; document.getElementById('tapBtn').textContent='GAME OVER'; alert('Score: '+gameState.tap.score); }},100); } else { gameState.tap.score++; document.getElementById('tapScore').textContent=gameState.tap.score; } }
+async function saveScore(gameName, score) {
+    if (!currentUser || currentUser.type === 'guest' || !currentUser.persistScores) {
+        // Guest mode - do not persist scores
+        return;
+    }
+    if (supabaseClient) {
+        try {
+            await supabaseClient.from('scores').insert({
+                username: currentUser.username,
+                game: gameName,
+                score: score,
+                created_at: new Date().toISOString()
+            });
+        } catch (e) {
+            // Silently fail if table doesn't exist or other issues
+        }
+    }
+    // For account mode without Supabase table, still don't persist to localStorage
+}
+
+function tapFrenzyTap() { if (!gameState.tap.running) { gameState.tap.running=true; gameState.tap.score=0; gameState.tap.time=10; document.getElementById('tapBtn').textContent='TAP'; document.getElementById('tapScore').textContent='0'; if (gameState.timer) clearInterval(gameState.timer); gameState.timer=setInterval(()=>{ gameState.tap.time-=0.1; document.getElementById('tapTime').textContent=gameState.tap.time.toFixed(1); if (gameState.tap.time<=0){ clearInterval(gameState.timer); gameState.tap.running=false; document.getElementById('tapBtn').textContent='GAME OVER'; const finalScore = gameState.tap.score; saveScore('Tap Frenzy', finalScore); alert('Score: '+finalScore); }},100); } else { gameState.tap.score++; document.getElementById('tapScore').textContent=gameState.tap.score; } }
 function initWhack() { gameState.whack={score:0,time:20,running:false,active:-1}; document.getElementById('whackScore').textContent='0'; document.getElementById('whackTime').textContent='20'; }
-function startWhack() { if (gameState.whack.running) return; gameState.whack.running=true; gameState.whack.score=0; gameState.whack.time=20; document.getElementById('whackScore').textContent='0'; if (gameState.timer) clearInterval(gameState.timer); gameState.timer=setInterval(()=>{ gameState.whack.time--; document.getElementById('whackTime').textContent=gameState.whack.time; if (gameState.whack.time<=0){ clearInterval(gameState.timer); gameState.whack.running=false; alert('Score: '+gameState.whack.score); }},1000); setInterval(()=>{ if (!gameState.whack.running) return; for(let i=0;i<9;i++) document.getElementById('hole'+i).classList.remove('active'); const a=Math.floor(Math.random()*9); document.getElementById('hole'+a).classList.add('active'); gameState.whack.active=a; },800); }
+function startWhack() { if (gameState.whack.running) return; gameState.whack.running=true; gameState.whack.score=0; gameState.whack.time=20; document.getElementById('whackScore').textContent='0'; if (gameState.timer) clearInterval(gameState.timer); gameState.timer=setInterval(()=>{ gameState.whack.time--; document.getElementById('whackTime').textContent=gameState.whack.time; if (gameState.whack.time<=0){ clearInterval(gameState.timer); gameState.whack.running=false; const finalScore = gameState.whack.score; saveScore('Whack-a-Mole', finalScore); alert('Score: '+finalScore); }},1000); setInterval(()=>{ if (!gameState.whack.running) return; for(let i=0;i<9;i++) document.getElementById('hole'+i).classList.remove('active'); const a=Math.floor(Math.random()*9); document.getElementById('hole'+a).classList.add('active'); gameState.whack.active=a; },800); }
 function whackMole(i) { if (gameState.whack.running && i===gameState.whack.active){ gameState.whack.score++; document.getElementById('whackScore').textContent=gameState.whack.score; document.getElementById('hole'+i).classList.remove('active'); } }
 function initReaction() { gameState.reaction={state:'idle'}; const box=document.getElementById('reactionBox'); if(box) box.style.background='#333'; const t=document.getElementById('reactionText'); if(t) t.textContent='Tap to Start'; }
 function reactionTap() { const box=document.getElementById('reactionBox'); const text=document.getElementById('reactionText'); if (gameState.reaction.state==='idle'){ box.style.background='#f59e0b'; text.textContent='Wait...'; gameState.reaction.state='waiting'; setTimeout(()=>{ if (gameState.reaction.state==='waiting'){ box.style.background='#22c55e'; text.textContent='TAP!'; gameState.reaction.state='ready'; gameState.reaction.start=Date.now(); }},1000+Math.random()*2000); } else if (gameState.reaction.state==='ready'){ const time=Date.now()-gameState.reaction.start; document.getElementById('reactionTime').textContent=time+'ms'; box.style.background='#333'; text.textContent='Tap to try again'; gameState.reaction.state='idle'; } else if (gameState.reaction.state==='waiting'){ box.style.background='#ef4444'; text.textContent='Too early!'; gameState.reaction.state='idle'; } }
@@ -116,37 +136,196 @@ function resetRPS() { gameState.rps={you:0,bot:0}; document.getElementById('rpsY
 function playRPS(c) { const choices=['rock','paper','scissors']; const b=choices[Math.floor(Math.random()*3)]; document.getElementById('rpsYou').textContent=c==='rock'?'R':c==='paper'?'P':'S'; document.getElementById('rpsBot').textContent=b==='rock'?'R':b==='paper'?'P':'S'; if(c===b){ alert('Draw!'); } else if((c==='rock'&&b==='scissors')||(c==='paper'&&b==='rock')||(c==='scissors'&&b==='paper')){ gameState.rps.you++; alert('You win!'); } else { gameState.rps.bot++; alert('Bot wins!'); } document.getElementById('rpsScore').textContent='You: '+gameState.rps.you+' | Bot: '+gameState.rps.bot; }
 function closePromo() { const p=document.getElementById('promoBanner'); if(p) p.style.display='none'; }
 
+function handleProfileNavClick() {
+    if (currentUser && currentUser.type === 'user') {
+        logout();
+    } else {
+        openAuthModal();
+    }
+}
+
 function updateUserSection() {
     const txt=document.getElementById('navProfileText');
     if(txt){
-        if(currentUser && currentUser.type==='user'){
-            txt.textContent = currentUser.username;
+        if(currentUser && currentUser.type==='user' && currentUser.username !== 'Guest' && currentUser.username !== 'Anonymous-Guest'){
+            txt.textContent = 'Log Out';
         } else {
             txt.textContent = 'Sign In';
         }
     }
 }
-function openAuthModal(){ document.getElementById('authModal').style.display='flex'; document.getElementById('authSignIn').style.display='block'; document.getElementById('authSignUp').style.display='none'; document.getElementById('authTitle').textContent='Sign In'; }
+
+function switchAuthMode(mode) {
+    const guestSection = document.getElementById('authGuestSection');
+    const accountSection = document.getElementById('authAccountSection');
+    const guestLabel = document.getElementById('guestModeLabel');
+    const accountLabel = document.getElementById('accountModeLabel');
+    
+    if (mode === 'guest') {
+        guestSection.style.display = 'block';
+        accountSection.style.display = 'none';
+        guestLabel.style.borderColor = '#a855f7';
+        accountLabel.style.borderColor = 'transparent';
+        document.getElementById('authTitle').textContent = 'Sign In - Guest Mode';
+    } else if (mode === 'account') {
+        guestSection.style.display = 'none';
+        accountSection.style.display = 'block';
+        guestLabel.style.borderColor = 'transparent';
+        accountLabel.style.borderColor = '#a855f7';
+        document.getElementById('authTitle').textContent = 'Sign In - Account Mode';
+        document.getElementById('authSignIn').style.display = 'block';
+        document.getElementById('authSignUp').style.display = 'none';
+    }
+}
+
+function openAuthModal(){ 
+    document.getElementById('authModal').style.display='flex'; 
+    // Default to guest mode
+    document.getElementById('authModeGuest').checked = true;
+    switchAuthMode('guest');
+}
+
 function closeAuthModal(){ document.getElementById('authModal').style.display='none'; }
-function showAuthSignup(){ document.getElementById('authSignIn').style.display='none'; document.getElementById('authSignUp').style.display='block'; document.getElementById('authTitle').textContent='Create Account'; }
-function showAuthSignin(){ document.getElementById('authSignIn').style.display='block'; document.getElementById('authSignUp').style.display='none'; document.getElementById('authTitle').textContent='Sign In'; }
-async function signUp(){ const username=document.getElementById("signupUsername").value.trim(); const password=document.getElementById("signupPassword").value; if(!username||!password){alert("Please fill in all fields");return;} if(supabaseClient){ const {data:existing}=await supabaseClient.from('users').select('*').eq('username',username).maybeSingle(); if(existing){alert('Username taken');return;} const {error}=await supabaseClient.from('users').insert({username,password}); if(error){alert(error.message);return;} currentUser={type:'user',username}; localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); closeAuthModal(); updateUserSection(); return; } else { currentUser={type:'user',username}; localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); localStorage.setItem('lessfun_pass_'+username,password); closeAuthModal(); updateUserSection(); } }
-async function signIn(){ const username=document.getElementById("signinUsername").value.trim(); const password=document.getElementById("signinPassword").value; if(!username||!password){alert("Please fill in all fields");return;} if(supabaseClient){ const {data}=await supabaseClient.from('users').select('*').eq('username',username).eq('password',password).maybeSingle(); if(!data){alert('Invalid username or password');return;} currentUser={type:'user',username:data.username}; localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); closeAuthModal(); updateUserSection(); return; } else { const saved=localStorage.getItem('lessfun_user'); if(saved){ const u=JSON.parse(saved); if(u.type==='user'){ const p=localStorage.getItem('lessfun_pass_'+u.username); if((p===password||!p)&&u.username===username){ currentUser=u; closeAuthModal(); updateUserSection(); return; } } } alert('Invalid username or password'); } }
-function continueAsGuest(){ currentUser={type:'guest',username:'Guest'}; localStorage.removeItem('lessfun_user'); closeAuthModal(); updateUserSection(); }
-async function logout(){ if(supabaseClient){ await supabaseClient.auth.signOut(); } currentUser={type:'guest',username:'Guest'}; localStorage.removeItem('lessfun_user'); updateUserSection(); }
+function showAuthSignup(){ document.getElementById('authSignIn').style.display='none'; document.getElementById('authSignUp').style.display='block'; }
+function showAuthSignin(){ document.getElementById('authSignIn').style.display='block'; document.getElementById('authSignUp').style.display='none'; }
+
+async function signUp(){ 
+    const username=document.getElementById("signupUsername").value.trim(); 
+    const password=document.getElementById("signupPassword").value; 
+    if(!username||!password){alert("Please fill in all fields");return;} 
+    if(supabaseClient){ 
+        const {data:existing}=await supabaseClient.from('users').select('*').eq('username',username).maybeSingle(); 
+        if(existing){alert('Username taken');return;} 
+        const {error}=await supabaseClient.from('users').insert({username,password}); 
+        if(error){alert(error.message);return;} 
+        currentUser={type:'user',username, persistScores: true}; 
+        localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); 
+        closeAuthModal(); 
+        updateUserSection(); 
+        return; 
+    } else { 
+        currentUser={type:'user',username, persistScores: true}; 
+        localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); 
+        localStorage.setItem('lessfun_pass_'+username,password); 
+        closeAuthModal(); 
+        updateUserSection(); 
+    } 
+}
+
+async function signIn(){ 
+    const username=document.getElementById("signinUsername").value.trim(); 
+    const password=document.getElementById("signinPassword").value; 
+    if(!username||!password){alert("Please fill in all fields");return;} 
+    if(supabaseClient){ 
+        const {data}=await supabaseClient.from('users').select('*').eq('username',username).eq('password',password).maybeSingle(); 
+        if(!data){alert('Invalid username or password');return;} 
+        currentUser={type:'user',username:data.username, persistScores: true}; 
+        localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); 
+        closeAuthModal(); 
+        updateUserSection(); 
+        return; 
+    } else { 
+        const saved=localStorage.getItem('lessfun_user'); 
+        if(saved){ 
+            const u=JSON.parse(saved); 
+            if(u.type==='user'){ 
+                const p=localStorage.getItem('lessfun_pass_'+u.username); 
+                if((p===password||!p)&&u.username===username){ 
+                    currentUser={...u, persistScores: true}; 
+                    closeAuthModal(); 
+                    updateUserSection(); 
+                    return; 
+                } 
+            } 
+        } 
+        alert('Invalid username or password'); 
+    } 
+}
+
+function continueAsGuest(){ 
+    currentUser={type:'guest',username:'Guest', persistScores: false}; 
+    localStorage.removeItem('lessfun_user'); 
+    closeAuthModal(); 
+    updateUserSection(); 
+}
+async function logout(){ 
+    if(supabaseClient){ 
+        try {
+            await supabaseClient.auth.signOut(); 
+        } catch(e) {}
+    } 
+    currentUser={type:'guest',username:'Guest', persistScores: false}; 
+    localStorage.removeItem('lessfun_user'); 
+    updateUserSection(); 
+}
 
 function escapeHtml(t){ const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
-async function createPost(){ if(!currentUser||currentUser.type==='guest'){alert('Please sign in to post');openAuthModal();return;} const content=document.getElementById('postContent').value.trim(); if(!content)return; if(supabaseClient){ const {data:{user}}=await supabaseClient.auth.getUser(); if(!user){alert('Please sign in');openAuthModal();return;} const {error}=await supabaseClient.from('posts').insert({user_id:user.id,username:currentUser.username,content}); if(error){alert(error.message);return;} document.getElementById('postContent').value=''; renderCommunity(); return; } }
-async function deletePost(id){ if(!currentUser)return; if(supabaseClient){ if(currentUser.username!=='TotallyMason'){ const {data:{user}}=await supabaseClient.auth.getUser(); if(!user)return; } await supabaseClient.from('posts').delete().eq('id',id); renderCommunity(); return; } }
+async function createPost(){ 
+    if(!currentUser || currentUser.type === 'guest' || !currentUser.persistScores){ 
+        alert('Please create an account or sign in to post. Guest mode does not save posts.'); 
+        openAuthModal(); 
+        return; 
+    } 
+    const content=document.getElementById('postContent').value.trim(); 
+    if(!content)return; 
+    if(supabaseClient){ 
+        const {data:{user}}=await supabaseClient.auth.getUser(); 
+        if(!user){alert('Please sign in');openAuthModal();return;} 
+        const {error}=await supabaseClient.from('posts').insert({user_id:user.id,username:currentUser.username,content}); 
+        if(error){alert(error.message);return;} 
+        document.getElementById('postContent').value=''; 
+        renderCommunity(); 
+        return; 
+    } else {
+        alert('Account required to post');
+    }
+}
+async function deletePost(id){ 
+    if(!currentUser || currentUser.type === 'guest' || !currentUser.persistScores) {
+        alert('Account required to delete posts');
+        return;
+    }
+    if(supabaseClient){ 
+        if(currentUser.username!=='TotallyMason'){ 
+            const {data:{user}}=await supabaseClient.auth.getUser(); 
+            if(!user)return; 
+        } 
+        await supabaseClient.from('posts').delete().eq('id',id); 
+        renderCommunity(); 
+        return; 
+    } 
+}
 async function renderCommunity(){ const container=document.getElementById('communityPosts'); if(!container)return; if(supabaseClient){ const {data:posts}=await supabaseClient.from('posts').select('*').order('created_at',{ascending:false}); if(!posts||posts.length===0){ container.innerHTML='<p style="text-align:center;color:rgba(255,255,255,0.5);padding:40px;">No posts yet</p>'; return; } container.innerHTML=posts.map(post=>{ const date=new Date(post.created_at); const isOwner=post.username==='TotallyMason'; const canDelete=currentUser&&(currentUser.username==='TotallyMason'||currentUser.username===post.username); return `<div class="community-post"><div class="post-header"><div style="display:flex;align-items:center;gap:8px;"><span class="post-user" style="cursor:pointer;" onclick="openProfile('${escapeHtml(post.username).replace(/'/g,"\\'")}')">${escapeHtml(post.username)}</span>${isOwner?'<span style="font-size:9px;padding:2px 5px;background:linear-gradient(90deg,#a855f7,#ec4899);border-radius:4px;font-weight:600;">OWNER</span>':''}</div><span class="post-time">${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</span></div><div class="post-content">${escapeHtml(post.content)}</div>${canDelete?`<button class="post-delete" onclick="deletePost(${post.id})">Delete</button>`:''}</div>`; }).join(''); return; } }
 
-function loadUser(){ const saved=localStorage.getItem('lessfun_user'); if(saved){ currentUser=JSON.parse(saved); } else { currentUser={type:'guest',username:'Guest'}; } updateUserSection(); }
+function loadUser(){ 
+    const saved=localStorage.getItem('lessfun_user'); 
+    if(saved){ 
+        currentUser=JSON.parse(saved); 
+        // Ensure persistScores is set
+        if(currentUser.persistScores === undefined) {
+            currentUser.persistScores = currentUser.type === 'user';
+        }
+    } else { 
+        currentUser={type:'guest',username:'Guest', persistScores: false}; 
+    } 
+    updateUserSection(); 
+}
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
 if(supabaseClient){
     supabaseClient.auth.onAuthStateChange((event,session)=>{
-        if(session){ currentUser={type:'user',username:session.user.user_metadata?.username||session.user.email?.split('@')[0]}; localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); }
-        else if(event==='SIGNED_OUT'){ currentUser={type:'guest',username:'Guest'}; localStorage.removeItem('lessfun_user'); }
+        if(session){ 
+            currentUser={
+                type:'user',
+                username: session.user.user_metadata?.username || session.user.email?.split('@')[0],
+                persistScores: true
+            }; 
+            localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); 
+        }
+        else if(event==='SIGNED_OUT'){ 
+            currentUser={type:'guest',username:'Guest', persistScores: false}; 
+            localStorage.removeItem('lessfun_user'); 
+        }
         updateUserSection();
     });
 }
@@ -168,6 +347,17 @@ function openProfile(username) {
     const logoutBtn = document.getElementById('profileLogoutBtn');
     if (currentUser && currentUser.username === username) {
         logoutBtn.style.display = 'block';
+        // Force check - if it's guest or not a proper user account
+        if (currentUser.type === 'guest' || currentUser.username === 'Guest' || currentUser.username === 'Anonymous-Guest') {
+            logoutBtn.innerText = 'Sign In';
+            logoutBtn.onclick = function() { closeProfile(); document.getElementById('authModal').style.display = 'flex'; return false; };
+        } else if (currentUser.type === 'user') {
+            logoutBtn.innerText = 'Log Out';
+            logoutBtn.onclick = logoutFromProfile;
+        } else {
+            logoutBtn.innerText = 'Sign In';
+            logoutBtn.onclick = function() { closeProfile(); openAuthModal(); return false; };
+        }
     } else {
         logoutBtn.style.display = 'none';
     }
@@ -178,10 +368,19 @@ function closeProfile() {
     document.getElementById('profileModal').style.display = 'none';
 }
 
-async function logoutFromProfile() {
+async async function logoutFromProfile() {
     await logout();
     closeProfile();
     updateUserSection();
+}
+
+function clearCurrentSession() {
+    localStorage.removeItem('lessfun_user');
+    localStorage.removeItem('lessfun_pass_*');
+    // Clear any session data
+    currentUser = { type: 'guest', username: 'Guest', persistScores: false };
+    updateUserSection();
+    alert('Session cleared');
 }
 
 async function loadProfilePosts(username) {

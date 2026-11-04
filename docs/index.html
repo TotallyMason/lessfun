@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=20261105">
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -59,12 +62,12 @@
                 </button>
             </div>
             <div class="nav-right" style="gap:12px;">
-                <button class="nav-btn" onclick="openProfile(currentUser ? currentUser.username : null)" id="nav-profile">
+                <button class="nav-btn" onclick="handleProfileNavClick()" id="nav-profile">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-right:6px;">
                         <circle cx="8" cy="6" r="3" stroke="currentColor" stroke-width="1.5"/>
                         <path d="M3 13c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                     </svg>
-                    <span id="navProfileText">Profile</span>
+                    <span id="navProfileText">Sign In</span>
                 </button>
                 <button class="nav-btn" onclick="showView('settings')" id="nav-settings">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-right:6px;">
@@ -81,7 +84,7 @@
     <div id="gamesView" class="view">
         <div class="container">
             <div class="promo-banner halloween" id="promoBanner">
-                <p><a href="shop.html" class="promo-link">Shop online</a> • 🎃 Happy Halloween! Enjoy spooky games this season! 👻</p>
+                <p>🎃 Happy Halloween! Enjoy spooky games this season! 👻</p>
                 <button class="promo-close" onclick="closePromo()">
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                         <path d="M9 3L3 9M3 3L9 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -371,18 +374,45 @@
                 </button>
             </div>
             <div class="modal-body" style="flex-direction: column; align-items: stretch;">
-                <div id="authSignIn">
-                    <input type="text" id="signinUsername" class="auth-input" placeholder="Username" style="margin-bottom:12px;">
-                    <input type="password" id="signinPassword" class="auth-input" placeholder="Password" style="margin-bottom:16px;">
-                    <button class="game-btn-3d" onclick="signIn()" style="width:100%;">Sign In</button>
-                    <button class="auth-link" onclick="showAuthSignup()">Create Account</button>
-                    <button class="auth-link" onclick="continueAsGuest()">Continue as Guest</button>
+                <div style="margin-bottom:20px;">
+                    <h3 style="margin:0 0 12px 0;font-size:18px;font-weight:600;">Authentication Mode</h3>
+                    <div style="display:flex;gap:12px;margin-bottom:16px;">
+                        <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(255,255,255,0.05);border-radius:8px;cursor:pointer;border:2px solid transparent;" id="guestModeLabel">
+                            <input type="radio" name="authMode" id="authModeGuest" value="guest" checked onchange="switchAuthMode('guest')" style="cursor:pointer;">
+                            <div>
+                                <div style="font-weight:500;">Guest</div>
+                                <div style="font-size:11px;color:rgba(255,255,255,0.6);">No account needed</div>
+                            </div>
+                        </label>
+                        <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(255,255,255,0.05);border-radius:8px;cursor:pointer;border:2px solid transparent;" id="accountModeLabel">
+                            <input type="radio" name="authMode" id="authModeAccount" value="account" onchange="switchAuthMode('account')" style="cursor:pointer;">
+                            <div>
+                                <div style="font-weight:500;">Account</div>
+                                <div style="font-size:11px;color:rgba(255,255,255,0.6);">Save progress</div>
+                            </div>
+                        </label>
+                    </div>
                 </div>
-                <div id="authSignUp" style="display:none;">
-                    <input type="text" id="signupUsername" class="auth-input" placeholder="Username" style="margin-bottom:12px;">
-                    <input type="password" id="signupPassword" class="auth-input" placeholder="Password" style="margin-bottom:16px;">
-                    <button class="game-btn-3d" onclick="signUp()" style="width:100%;">Create Account</button>
-                    <button class="auth-link" onclick="showAuthSignin()">Back to Sign In</button>
+                
+                <div id="authGuestSection">
+                    <button class="game-btn-3d" onclick="continueAsGuest()" style="width:100%;">Continue as Guest</button>
+                    <p style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:10px;text-align:center;">Guest mode: Scores and posts won't be saved across sessions</p>
+                </div>
+                
+                <div id="authAccountSection" style="display:none;">
+                    <div id="authSignIn">
+                        <input type="text" id="signinUsername" class="auth-input" placeholder="Username" style="margin-bottom:12px;">
+                        <input type="password" id="signinPassword" class="auth-input" placeholder="Password" style="margin-bottom:16px;">
+                        <button class="game-btn-3d" onclick="signIn()" style="width:100%;">Sign In</button>
+                        <button class="auth-link" onclick="showAuthSignup()">Create Account</button>
+                    </div>
+                    <div id="authSignUp" style="display:none;">
+                        <input type="text" id="signupUsername" class="auth-input" placeholder="Username" style="margin-bottom:12px;">
+                        <input type="password" id="signupPassword" class="auth-input" placeholder="Password" style="margin-bottom:16px;">
+                        <button class="game-btn-3d" onclick="signUp()" style="width:100%;">Create Account</button>
+                        <button class="auth-link" onclick="showAuthSignin()">Back to Sign In</button>
+                    </div>
+                    <p style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:10px;text-align:center;">Account mode: Scores and posts are saved to your account</p>
                 </div>
             </div>
         </div>
@@ -405,7 +435,7 @@
                     <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#a855f7,#ec4899);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:600;" id="profileAvatar">?</div>
                     <h3 id="profileUsername" style="font-size:24px;margin-bottom:4px;"></h3>
                     <p id="profileJoined" style="color:rgba(255,255,255,0.6);font-size:13px;"></p>
-                    <button id="profileLogoutBtn" class="game-btn-3d" onclick="logoutFromProfile()" style="display:none;margin:16px auto 0;padding:8px 24px;">Log Out</button>
+                    <button id="profileLogoutBtn" class="game-btn-3d" style="display:none;margin:16px auto 0;padding:8px 24px;">Log Out</button>
                 </div>
                 <div style="margin-bottom:20px;">
                     <h4 style="margin-bottom:12px;">Posts</h4>
@@ -416,6 +446,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js"></script>
+    <script src="app.js?v=20261105"></script>
 </body>
 </html>
