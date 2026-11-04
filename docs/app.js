@@ -379,6 +379,7 @@ function renderDebugTab() {
     renderDebugPosts();
     renderDebugWallets();
     renderDebugScores();
+    renderDebugTools();
 }
 
 function debugEmptyRow(colspan, message) {
@@ -567,6 +568,219 @@ function renderDebugScores() {
             '<td class="debug-actions"><button class="debug-delete" onclick="deleteDebugScore(\'' + debugArg(String(row.id)) + '\')">Delete</button></td>' +
         '</tr>';
     }).join('');
+}
+
+function debugWalletDefaults(username) {
+    const inventory = [];
+    const equipped = {};
+    COSMETICS.forEach(function (item) {
+        if (item.default) {
+            inventory.push(item.id);
+            if (!equipped[item.type]) equipped[item.type] = item.id;
+        }
+    });
+    return {
+        username: username,
+        shells: SHELLS_START,
+        inventory: inventory,
+        equipped: equipped,
+        streak: 0,
+        last_play_day: null,
+        streak_rewards: [],
+        total_earned: 0,
+        updated_at: new Date().toISOString()
+    };
+}
+
+function debugWalletRow(username) {
+    return debugData.wallets.filter(function (w) {
+        return String(w.username).toLowerCase() === String(username).toLowerCase();
+    })[0] || null;
+}
+
+function renderDebugTools() {
+    const recipient = document.getElementById('debugGrantRecipient');
+    const cosmetic = document.getElementById('debugGrantCosmetic');
+    if (!recipient || !cosmetic) return;
+
+    const keepRecipient = recipient.value;
+    const keepCosmetic = cosmetic.value;
+    const names = [];
+    debugData.users.forEach(function (user) {
+        if (user.username && names.indexOf(user.username) < 0) names.push(user.username);
+    });
+    if (currentUser && currentUser.username && names.indexOf(currentUser.username) < 0) names.push(currentUser.username);
+
+    recipient.innerHTML = names.length ? names.map(function (name) {
+        const suffix = currentUser && name === currentUser.username ? ' (you)' : '';
+        return '<option value="' + escapeHtml(name) + '">' + escapeHtml(name + suffix) + '</option>';
+    }).join('') : '<option value="">No accounts loaded</option>';
+
+    if (keepRecipient && names.indexOf(keepRecipient) >= 0) {
+        recipient.value = keepRecipient;
+    } else if (currentUser && currentUser.username) {
+        recipient.value = currentUser.username;
+    }
+
+    cosmetic.innerHTML = COSMETICS.map(function (item) {
+        return '<option value="' + escapeHtml(item.id) + '">' + escapeHtml(item.name + ' · ' + item.type) + '</option>';
+    }).join('');
+    if (keepCosmetic) cosmetic.value = keepCosmetic;
+}
+
+function debugSelectMyself() {
+    const recipient = document.getElementById('debugGrantRecipient');
+    if (!recipient || !currentUser) return;
+    recipient.value = currentUser.username;
+    showDebugStatus('Recipient set to ' + currentUser.username + '.', false);
+}
+
+async function debugGiveShells() {
+    if (!debugGuard()) return;
+    if (!supabaseClient) {
+        showDebugStatus('Supabase is unavailable.', true);
+        return;
+    }
+    const recipient = document.getElementById('debugGrantRecipient');
+    const amountInput = document.getElementById('debugGrantAmount');
+    const username = recipient ? recipient.value : '';
+    const amount = Math.floor(Number(amountInput ? amountInput.value : 0));
+
+    if (!username) {
+        showDebugStatus('Choose a recipient first.', true);
+        return;
+    }
+    if (!isFinite(amount) || amount <= 0) {
+        showDebugStatus('Enter a positive number of Shells.', true);
+        return;
+    }
+
+    const row = debugWalletRow(username);
+    let res;
+    if (row) {
+        const next = Math.max(0, Math.floor(Number(row.shells) || 0) + amount);
+        res = await debugQuery(supabaseClient.from('wallets').update({
+            shells: next,
+            updated_at: new Date().toISOString()
+        }).eq('username', row.username));
+        if (!res.error) {
+            showDebugStatus('Gave ' + debugNum(amount) + ' Shells to ' + username + ' (' + debugNum(next) + ' total).', false);
+        }
+    } else {
+        const fresh = debugWalletDefaults(username);
+        fresh.shells = SHELLS_START + amount;
+        res = await debugQuery(supabaseClient.from('wallets').insert(fresh));
+        if (!res.error) {
+            showDebugStatus('Created ' + username + "'s wallet with " + debugNum(fresh.shells) + ' Shells.', false);
+        }
+    }
+
+    if (res.error) {
+        showDebugStatus('Could not give Shells: ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    await refreshOwnWalletIfNeeded(username);
+    await renderDebugUsers();
+}
+
+async function debugGiveCosmetic() {
+    if (!debugGuard()) return;
+    if (!supabaseClient) {
+        showDebugStatus('Supabase is unavailable.', true);
+        return;
+    }
+    const recipient = document.getElementById('debugGrantRecipient');
+    const select = document.getElementById('debugGrantCosmetic');
+    const username = recipient ? recipient.value : '';
+    const itemId = select ? select.value : '';
+    const item = COSMETICS.filter(function (c) { return c.id === itemId; })[0];
+
+    if (!username) {
+        showDebugStatus('Choose a recipient first.', true);
+        return;
+    }
+    if (!item) {
+        showDebugStatus('Choose a cosmetic first.', true);
+        return;
+    }
+
+    const row = debugWalletRow(username);
+    if (row) {
+        const inventory = Array.isArray(row.inventory) ? row.inventory.slice() : [];
+        if (inventory.indexOf(item.id) >= 0) {
+            showDebugStatus(username + ' already owns ' + item.name + '.', true);
+            return;
+        }
+        inventory.push(item.id);
+        const equipped = Object.assign({}, row.equipped || {});
+        if (!equipped[item.type]) equipped[item.type] = item.id;
+        const res = await debugQuery(supabaseClient.from('wallets').update({
+            inventory: inventory,
+            equipped: equipped,
+            updated_at: new Date().toISOString()
+        }).eq('username', row.username));
+        if (res.error) {
+            showDebugStatus('Could not give cosmetic: ' + (res.error.message || 'Unknown error'), true);
+            return;
+        }
+    } else {
+        const fresh = debugWalletDefaults(username);
+        if (fresh.inventory.indexOf(item.id) < 0) fresh.inventory.push(item.id);
+        if (!fresh.equipped[item.type]) fresh.equipped[item.type] = item.id;
+        const res = await debugQuery(supabaseClient.from('wallets').insert(fresh));
+        if (res.error) {
+            showDebugStatus('Could not create wallet: ' + (res.error.message || 'Unknown error'), true);
+            return;
+        }
+    }
+
+    showDebugStatus('Gave ' + item.name + ' to ' + username + '.', false);
+    await refreshOwnWalletIfNeeded(username);
+    await renderDebugUsers();
+}
+
+async function debugGiveAllCosmetics() {
+    if (!debugGuard()) return;
+    if (!supabaseClient) {
+        showDebugStatus('Supabase is unavailable.', true);
+        return;
+    }
+    const recipient = document.getElementById('debugGrantRecipient');
+    const username = recipient ? recipient.value : '';
+    if (!username) {
+        showDebugStatus('Choose a recipient first.', true);
+        return;
+    }
+    if (!window.confirm('Give every cosmetic to "' + username + '"?')) return;
+
+    const allIds = COSMETICS.map(function (item) { return item.id; });
+    const row = debugWalletRow(username);
+    let res;
+    if (row) {
+        const inventory = Array.isArray(row.inventory) ? row.inventory.slice() : [];
+        allIds.forEach(function (id) { if (inventory.indexOf(id) < 0) inventory.push(id); });
+        const equipped = Object.assign({}, row.equipped || {});
+        COSMETICS.forEach(function (item) {
+            if (item.default && !equipped[item.type]) equipped[item.type] = item.id;
+        });
+        res = await debugQuery(supabaseClient.from('wallets').update({
+            inventory: inventory,
+            equipped: equipped,
+            updated_at: new Date().toISOString()
+        }).eq('username', row.username));
+    } else {
+        const fresh = debugWalletDefaults(username);
+        allIds.forEach(function (id) { if (fresh.inventory.indexOf(id) < 0) fresh.inventory.push(id); });
+        res = await debugQuery(supabaseClient.from('wallets').insert(fresh));
+    }
+
+    if (res.error) {
+        showDebugStatus('Could not give cosmetics: ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    showDebugStatus('Gave all ' + COSMETICS.length + ' cosmetics to ' + username + '.', false);
+    await refreshOwnWalletIfNeeded(username);
+    await renderDebugUsers();
 }
 
 async function resetDebugPassword(username) {

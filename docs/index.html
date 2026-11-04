@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261130">
+    <link rel="stylesheet" href="style.css?v=20261131">
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -337,6 +337,28 @@
 
             <div class="debug-panel" id="debugPanel-tools" style="display:none;">
                 <div class="debug-tools-grid">
+                    <div class="debug-tool-card debug-grant-card">
+                        <h3>Give Shells or cosmetics</h3>
+                        <p>Send currency or items to any account, including yourself. Grants apply instantly.</p>
+                        <div class="debug-grant-form">
+                            <label class="debug-grant-field">
+                                <span>Recipient</span>
+                                <select id="debugGrantRecipient"></select>
+                            </label>
+                            <label class="debug-grant-field">
+                                <span>Shells</span>
+                                <input type="number" id="debugGrantAmount" min="0" step="1" value="100">
+                            </label>
+                            <button class="debug-tool-btn" onclick="debugGiveShells()">Give Shells</button>
+                            <button class="debug-btn" onclick="debugSelectMyself()">Select myself</button>
+                            <label class="debug-grant-field debug-grant-wide">
+                                <span>Cosmetic</span>
+                                <select id="debugGrantCosmetic"></select>
+                            </label>
+                            <button class="debug-tool-btn" onclick="debugGiveCosmetic()">Give cosmetic</button>
+                            <button class="debug-btn" onclick="debugGiveAllCosmetics()">Give all cosmetics</button>
+                        </div>
+                    </div>
                     <div class="debug-tool-card">
                         <h3>Export data</h3>
                         <p>Download accounts, posts, wallets, and scores as JSON. Includes passwords.</p>
@@ -631,7 +653,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
-    <script src="games3d.js?v=20261130"></script>
-    <script src="app.js?v=20261130"></script>
+    <script src="games3d.js?v=20261131"></script>
+    <script src="app.js?v=20261131"></script>
 </body>
 </html>

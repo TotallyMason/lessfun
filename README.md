@@ -86,9 +86,10 @@ asks for the TotallyMason password again, then unlocks a six-tab console:
 - **Posts** — search every post, pin or unpin, and delete individual posts.
 - **Wallets** — balances and streaks, add or set Shells, and delete wallets.
 - **Scores** — recent runs with per-score deletion.
-- **Tools** — JSON export, local-cache clearing, guest-wallet cleanup, and
-  danger-zone actions to delete all posts, clear all scores, or reset every
-  wallet to the 100-Shell starting balance.
+- **Tools** — give Shells or cosmetics to any account (including yourself),
+  JSON export, local-cache clearing, guest-wallet cleanup, and danger-zone
+  actions to delete all posts, clear all scores, or reset every wallet to the
+  100-Shell starting balance.
 
 Deleting an account also best-effort removes that user's posts, wallet, and
 scores. Press **Lock** to close the console and require the password again.
