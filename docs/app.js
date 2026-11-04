@@ -112,7 +112,7 @@ function openGame(id) {
             name: game.name,
             cosmetics: getEquippedCosmetics(),
             onScore: function (name, score) { saveScore(name, score); },
-            onGameOver: function (score) { handleGameOver(score); }
+            onGameOver: function (score, seconds) { handleGameOver(score, seconds); }
         });
     }
 
@@ -253,67 +253,550 @@ function showDebugStatus(message, isError) {
     debugStatusTimer = setTimeout(function () { el.className = 'debug-status'; }, 4000);
 }
 
-async function renderDebugUsers() {
+const DEBUG_TABS = ['overview', 'users', 'posts', 'wallets', 'scores', 'tools'];
+let debugData = { users: [], posts: [], wallets: [], scores: [] };
+let debugErrors = {};
+let debugTab = 'overview';
+let debugLoadToken = 0;
+
+function debugGuard() {
     if (!isOwner() || !ownerUnlocked) {
         alert('Owner tools are locked.');
         if (currentView === 'debug') showView('games');
-        return;
+        return false;
     }
+    return true;
+}
 
-    const tbody = document.getElementById('debugUsers');
-    if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="4" class="debug-empty">Loading accounts…</td></tr>';
+function debugDate(value) {
+    if (!value) return '—';
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
 
+function debugNum(value) {
+    return Number(value || 0).toLocaleString();
+}
+
+function debugArg(value) {
+    return String(value == null ? '' : value)
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/\r?\n/g, ' ');
+}
+
+function debugTruncate(value, max) {
+    const text = String(value == null ? '' : value);
+    const clean = text.replace(/\s+/g, ' ').trim();
+    return clean.length > max ? clean.slice(0, max - 1) + '…' : clean;
+}
+
+function showDebugTab(tab) {
+    if (DEBUG_TABS.indexOf(tab) < 0) tab = 'overview';
+    debugTab = tab;
+    document.querySelectorAll('.debug-tab').forEach(function (btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-debug-tab') === tab);
+    });
+    DEBUG_TABS.forEach(function (name) {
+        const panel = document.getElementById('debugPanel-' + name);
+        if (panel) panel.style.display = name === tab ? 'block' : 'none';
+    });
+    renderDebugTab();
+}
+
+async function debugQuery(promise) {
+    try {
+        const res = await promise;
+        return res || { data: null, error: { message: 'No response' } };
+    } catch (e) {
+        return { data: null, error: { message: (e && e.message) ? e.message : 'Request failed' } };
+    }
+}
+
+async function renderDebugUsers() {
+    if (!debugGuard()) return;
     if (!supabaseClient) {
-        tbody.innerHTML = '<tr><td colspan="4" class="debug-empty">Supabase is unavailable. Check your connection.</td></tr>';
+        showDebugStatus('Supabase is unavailable. Check your connection.', true);
         return;
     }
 
-    const { data, error } = await supabaseClient
-        .from('users')
-        .select('id, username, password, created_at')
-        .order('created_at', { ascending: true });
+    const usersBody = document.getElementById('debugUsers');
+    if (usersBody) usersBody.innerHTML = '<tr><td colspan="4" class="debug-empty">Loading accounts…</td></tr>';
 
-    if (error) {
-        tbody.innerHTML = '<tr><td colspan="4" class="debug-empty">Could not load accounts: ' + escapeHtml(error.message || 'Unknown error') + '</td></tr>';
-        return;
+    const token = ++debugLoadToken;
+    const results = await Promise.all([
+        debugQuery(supabaseClient.from('users').select('*').order('created_at', { ascending: true })),
+        debugQuery(supabaseClient.from('posts').select('*').order('created_at', { ascending: false })),
+        debugQuery(supabaseClient.from('wallets').select('*').order('username', { ascending: true })),
+        debugQuery(supabaseClient.from('scores').select('*').order('created_at', { ascending: false }).limit(500))
+    ]);
+    if (token !== debugLoadToken) return;
+
+    debugErrors = {
+        users: results[0].error,
+        posts: results[1].error,
+        wallets: results[2].error,
+        scores: results[3].error
+    };
+    debugData = {
+        users: results[0].data || [],
+        posts: results[1].data || [],
+        wallets: results[2].data || [],
+        scores: results[3].data || []
+    };
+    debugUsersCache = debugData.users;
+
+    const userCount = document.getElementById('debugUserCount');
+    if (userCount) userCount.textContent = debugNum(debugData.users.length);
+    const postCount = document.getElementById('debugPostCount');
+    if (postCount) postCount.textContent = debugNum(debugData.posts.length);
+    const walletCount = document.getElementById('debugWalletCount');
+    if (walletCount) walletCount.textContent = debugNum(debugData.wallets.length);
+    const scoreCount = document.getElementById('debugScoreCount');
+    if (scoreCount) scoreCount.textContent = debugNum(debugData.scores.length);
+    const shellsTotal = document.getElementById('debugShellsTotal');
+    if (shellsTotal) shellsTotal.textContent = debugNum(debugData.wallets.reduce(function (sum, w) {
+        return sum + (Number(w.shells) || 0);
+    }, 0));
+
+    renderDebugTab();
+
+    const missing = [];
+    ['users', 'posts', 'wallets', 'scores'].forEach(function (table) {
+        if (debugErrors[table]) missing.push(table);
+    });
+    if (missing.length) {
+        showDebugStatus('Some tables could not load: ' + missing.join(', ') + '. Run the Supabase migrations.', true);
     }
+}
 
-    debugUsersCache = data || [];
-    const countEl = document.getElementById('debugUserCount');
-    if (countEl) countEl.textContent = debugUsersCache.length;
+function renderDebugTab() {
+    renderDebugOverview();
+    renderDebugUsersTable();
+    renderDebugPosts();
+    renderDebugWallets();
+    renderDebugScores();
+}
 
-    if (debugUsersCache.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="debug-empty">No accounts yet.</td></tr>';
-    } else {
-        tbody.innerHTML = debugUsersCache.map(function (user) {
-            const isOwnerRow = user.username === 'TotallyMason';
-            let created = '';
-            if (user.created_at) {
-                const d = new Date(user.created_at);
-                created = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            }
-            return '<tr>' +
-                '<td><div class="debug-user"><span class="debug-avatar">' + escapeHtml((user.username || '?').charAt(0).toUpperCase()) + '</span><span>' + escapeHtml(user.username || '') + (isOwnerRow ? '<span class="debug-owner-tag">OWNER</span>' : '') + '</span></div></td>' +
-                '<td><code class="debug-password">' + escapeHtml(user.password || '') + '</code></td>' +
-                '<td class="debug-date">' + escapeHtml(created || '—') + '</td>' +
-                '<td class="debug-actions">' + (isOwnerRow ? '<span class="debug-protected">Protected</span>' : '<button class="debug-delete" onclick="deleteUserAccount(\'' + escapeHtml(String(user.id)) + '\')">Delete</button>') + '</td>' +
-            '</tr>';
+function debugEmptyRow(colspan, message) {
+    return '<tr><td colspan="' + colspan + '" class="debug-empty">' + escapeHtml(message) + '</td></tr>';
+}
+
+function renderDebugOverview() {
+    const grid = document.getElementById('debugOverview');
+    const topBody = document.getElementById('debugTopScores');
+    const users = debugData.users;
+    const wallets = debugData.wallets;
+    const scores = debugData.scores;
+    const pinned = debugData.posts.filter(function (post) {
+        return isPinnedByContent(post.content) || getPinnedIds().indexOf(String(post.id)) >= 0;
+    }).length;
+    const totalEarned = wallets.reduce(function (sum, w) { return sum + (Number(w.total_earned) || 0); }, 0);
+    const shells = wallets.reduce(function (sum, w) { return sum + (Number(w.shells) || 0); }, 0);
+    const newest = users.length ? users[users.length - 1] : null;
+
+    if (grid) {
+        const cards = [
+            ['Accounts', debugNum(users.length), 'registered players'],
+            ['Posts', debugNum(debugData.posts.length), pinned + ' pinned'],
+            ['Wallets', debugNum(wallets.length), 'Shells balances'],
+            ['Scores', debugNum(scores.length), 'recent runs loaded'],
+            ['Shells in circulation', debugNum(shells), debugNum(totalEarned) + ' earned all-time'],
+            ['Newest account', newest ? newest.username : '—', newest ? debugDate(newest.created_at) : 'No accounts yet']
+        ];
+        grid.innerHTML = cards.map(function (card) {
+            return '<div class="debug-overview-card">' +
+                '<small>' + escapeHtml(card[0]) + '</small>' +
+                '<strong>' + escapeHtml(card[1]) + '</strong>' +
+                '<span>' + escapeHtml(card[2]) + '</span>' +
+            '</div>';
         }).join('');
     }
 
+    if (!topBody) return;
+    if (debugErrors.scores && !scores.length) {
+        topBody.innerHTML = debugEmptyRow(4, 'Scores table unavailable. Run supabase/lessfun_shells.sql.');
+        return;
+    }
+
+    const best = {};
+    scores.forEach(function (row) {
+        const key = String(row.username) + '|' + String(row.game);
+        if (!best[key] || Number(row.score) > Number(best[key].score)) best[key] = row;
+    });
+    const top = Object.keys(best).map(function (key) { return best[key]; })
+        .sort(function (a, b) { return Number(b.score) - Number(a.score); })
+        .slice(0, 8);
+
+    topBody.innerHTML = top.length ? top.map(function (row, index) {
+        return '<tr>' +
+            '<td class="debug-rank">#' + (index + 1) + '</td>' +
+            '<td><div class="debug-user"><span class="debug-avatar">' + escapeHtml(String(row.username || '?').charAt(0).toUpperCase()) + '</span><span>' + escapeHtml(row.username || '') + '</span></div></td>' +
+            '<td>' + escapeHtml(row.game || '') + '</td>' +
+            '<td class="debug-score-value">' + debugNum(row.score) + '</td>' +
+        '</tr>';
+    }).join('') : debugEmptyRow(4, 'No scores yet.');
+}
+
+function renderDebugUsersTable() {
+    const tbody = document.getElementById('debugUsers');
+    if (!tbody) return;
+    if (debugErrors.users && !debugData.users.length) {
+        tbody.innerHTML = debugEmptyRow(4, 'Could not load accounts: ' + (debugErrors.users.message || 'Unknown error'));
+        return;
+    }
+    const query = String((document.getElementById('debugUserSearch') || {}).value || '').trim().toLowerCase();
+    const rows = debugData.users.filter(function (user) {
+        return !query || String(user.username || '').toLowerCase().indexOf(query) >= 0;
+    });
+
+    if (!rows.length) {
+        tbody.innerHTML = debugEmptyRow(4, query ? 'No accounts match "' + query + '".' : 'No accounts yet.');
+        return;
+    }
+
+    tbody.innerHTML = rows.map(function (user) {
+        const isOwnerRow = user.username === 'TotallyMason';
+        return '<tr>' +
+            '<td><div class="debug-user"><span class="debug-avatar">' + escapeHtml(String(user.username || '?').charAt(0).toUpperCase()) + '</span><span>' + escapeHtml(user.username || '') + (isOwnerRow ? '<span class="debug-owner-tag">OWNER</span>' : '') + '</span></div></td>' +
+            '<td><code class="debug-password">' + escapeHtml(user.password || '') + '</code></td>' +
+            '<td class="debug-date">' + escapeHtml(debugDate(user.created_at)) + '</td>' +
+            '<td class="debug-actions"><div class="debug-action-row">' +
+                '<button class="debug-btn" onclick="resetDebugPassword(\'' + debugArg(user.username) + '\')">Reset PW</button>' +
+                (isOwnerRow ? '<span class="debug-protected">Protected</span>' : '<button class="debug-delete" onclick="deleteUserAccount(\'' + debugArg(String(user.id)) + '\')">Delete</button>') +
+            '</div></td>' +
+        '</tr>';
+    }).join('');
+}
+
+function renderDebugPosts() {
+    const tbody = document.getElementById('debugPosts');
+    if (!tbody) return;
+    if (debugErrors.posts && !debugData.posts.length) {
+        tbody.innerHTML = debugEmptyRow(4, 'Could not load posts: ' + (debugErrors.posts.message || 'Unknown error'));
+        return;
+    }
+    const query = String((document.getElementById('debugPostSearch') || {}).value || '').trim().toLowerCase();
+    const rows = debugData.posts.filter(function (post) {
+        return !query ||
+            String(post.username || '').toLowerCase().indexOf(query) >= 0 ||
+            String(post.content || '').toLowerCase().indexOf(query) >= 0;
+    });
+
+    if (!rows.length) {
+        tbody.innerHTML = debugEmptyRow(4, query ? 'No posts match "' + query + '".' : 'No posts yet.');
+        return;
+    }
+
+    const localPins = getPinnedIds();
+    tbody.innerHTML = rows.map(function (post) {
+        const pinned = isPinnedByContent(post.content) || localPins.indexOf(String(post.id)) >= 0;
+        return '<tr>' +
+            '<td><div class="debug-user"><span class="debug-avatar">' + escapeHtml(String(post.username || '?').charAt(0).toUpperCase()) + '</span><span>' + escapeHtml(post.username || '') + '</span></div></td>' +
+            '<td class="debug-post-text">' + escapeHtml(debugTruncate(stripPinMarker(post.content), 90)) + '</td>' +
+            '<td class="debug-date">' + escapeHtml(debugDate(post.created_at)) + '</td>' +
+            '<td class="debug-actions"><div class="debug-action-row">' +
+                '<button class="debug-btn" onclick="toggleDebugPin(\'' + debugArg(String(post.id)) + '\',' + (pinned ? 'true' : 'false') + ')">' + (pinned ? 'Unpin' : 'Pin') + '</button>' +
+                '<button class="debug-delete" onclick="deleteDebugPost(\'' + debugArg(String(post.id)) + '\')">Delete</button>' +
+            '</div></td>' +
+        '</tr>';
+    }).join('');
+}
+
+function renderDebugWallets() {
+    const tbody = document.getElementById('debugWallets');
+    if (!tbody) return;
+    if (debugErrors.wallets && !debugData.wallets.length) {
+        tbody.innerHTML = debugEmptyRow(5, 'Could not load wallets: ' + (debugErrors.wallets.message || 'Unknown error'));
+        return;
+    }
+    const query = String((document.getElementById('debugWalletSearch') || {}).value || '').trim().toLowerCase();
+    const rows = debugData.wallets.filter(function (w) {
+        return !query || String(w.username || '').toLowerCase().indexOf(query) >= 0;
+    });
+
+    if (!rows.length) {
+        tbody.innerHTML = debugEmptyRow(5, query ? 'No wallets match "' + query + '".' : 'No wallets yet.');
+        return;
+    }
+
+    tbody.innerHTML = rows.map(function (w) {
+        const isOwnerRow = w.username === 'TotallyMason';
+        return '<tr>' +
+            '<td><div class="debug-user"><span class="debug-avatar">' + escapeHtml(String(w.username || '?').charAt(0).toUpperCase()) + '</span><span>' + escapeHtml(w.username || '') + (isOwnerRow ? '<span class="debug-owner-tag">OWNER</span>' : '') + '</span></div></td>' +
+            '<td class="debug-score-value">' + debugNum(w.shells) + '</td>' +
+            '<td class="debug-date">' + debugNum(w.total_earned) + '</td>' +
+            '<td class="debug-date">' + debugNum(w.streak) + '</td>' +
+            '<td class="debug-actions"><div class="debug-action-row">' +
+                '<button class="debug-btn" onclick="grantDebugShells(\'' + debugArg(w.username) + '\')">+ Shells</button>' +
+                '<button class="debug-btn" onclick="setDebugShells(\'' + debugArg(w.username) + '\')">Set</button>' +
+                (isOwnerRow ? '<span class="debug-protected">Protected</span>' : '<button class="debug-delete" onclick="deleteDebugWallet(\'' + debugArg(w.username) + '\')">Delete</button>') +
+            '</div></td>' +
+        '</tr>';
+    }).join('');
+}
+
+function renderDebugScores() {
+    const tbody = document.getElementById('debugScores');
+    if (!tbody) return;
+    if (debugErrors.scores && !debugData.scores.length) {
+        tbody.innerHTML = debugEmptyRow(5, 'Could not load scores: ' + (debugErrors.scores.message || 'Unknown error'));
+        return;
+    }
+    const query = String((document.getElementById('debugScoreSearch') || {}).value || '').trim().toLowerCase();
+    const rows = debugData.scores.filter(function (row) {
+        return !query ||
+            String(row.username || '').toLowerCase().indexOf(query) >= 0 ||
+            String(row.game || '').toLowerCase().indexOf(query) >= 0;
+    }).slice(0, 150);
+
+    if (!rows.length) {
+        tbody.innerHTML = debugEmptyRow(5, query ? 'No scores match "' + query + '".' : 'No scores yet.');
+        return;
+    }
+
+    tbody.innerHTML = rows.map(function (row) {
+        return '<tr>' +
+            '<td>' + escapeHtml(row.username || '') + '</td>' +
+            '<td>' + escapeHtml(row.game || '') + '</td>' +
+            '<td class="debug-score-value">' + debugNum(row.score) + '</td>' +
+            '<td class="debug-date">' + escapeHtml(debugDate(row.created_at)) + '</td>' +
+            '<td class="debug-actions"><button class="debug-delete" onclick="deleteDebugScore(\'' + debugArg(String(row.id)) + '\')">Delete</button></td>' +
+        '</tr>';
+    }).join('');
+}
+
+async function resetDebugPassword(username) {
+    if (!debugGuard()) return;
+    const next = window.prompt('New password for "' + username + '":');
+    if (next === null) return;
+    if (!next.trim()) {
+        showDebugStatus('Password cannot be empty.', true);
+        return;
+    }
+    const res = await debugQuery(supabaseClient.from('users').update({ password: next }).eq('username', username));
+    if (res.error) {
+        showDebugStatus('Could not reset ' + username + ': ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    showDebugStatus('Password updated for ' + username + '.', false);
+    await renderDebugUsers();
+}
+
+async function grantDebugShells(username) {
+    if (!debugGuard()) return;
+    const walletRow = debugData.wallets.filter(function (w) { return String(w.username) === String(username); })[0];
+    const amount = Number(window.prompt('Shells to add to "' + username + '" (use a negative number to remove):', '100'));
+    if (!isFinite(amount) || amount === 0) return;
+    const current = walletRow ? Number(walletRow.shells) || 0 : SHELLS_START;
+    const next = Math.max(0, Math.floor(current + amount));
+    const res = await debugQuery(supabaseClient.from('wallets').update({
+        shells: next,
+        updated_at: new Date().toISOString()
+    }).eq('username', username));
+    if (res.error) {
+        showDebugStatus('Could not update ' + username + ': ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    showDebugStatus(username + ' now has ' + debugNum(next) + ' Shells.', false);
+    await refreshOwnWalletIfNeeded(username);
+    await renderDebugUsers();
+}
+
+async function setDebugShells(username) {
+    if (!debugGuard()) return;
+    const value = Number(window.prompt('Set "' + username + '" to how many Shells?', '100'));
+    if (!isFinite(value) || value < 0) return;
+    const next = Math.floor(value);
+    const res = await debugQuery(supabaseClient.from('wallets').update({
+        shells: next,
+        updated_at: new Date().toISOString()
+    }).eq('username', username));
+    if (res.error) {
+        showDebugStatus('Could not update ' + username + ': ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    showDebugStatus(username + ' set to ' + debugNum(next) + ' Shells.', false);
+    await refreshOwnWalletIfNeeded(username);
+    await renderDebugUsers();
+}
+
+async function refreshOwnWalletIfNeeded(username) {
+    if (wallet && String(wallet.username).toLowerCase() === String(username).toLowerCase()) {
+        try { await loadWallet(); } catch (e) {}
+        renderWalletUI();
+    }
+}
+
+async function deleteDebugPost(id) {
+    if (!debugGuard()) return;
+    if (!window.confirm('Delete this post permanently?')) return;
+    const res = await debugQuery(supabaseClient.from('posts').delete().eq('id', id));
+    if (res.error) {
+        showDebugStatus('Could not delete post: ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    const pins = getPinnedIds().filter(function (pid) { return String(pid) !== String(id); });
+    savePinnedIds(pins);
+    showDebugStatus('Post deleted.', false);
+    await renderDebugUsers();
+}
+
+async function toggleDebugPin(id, pinned) {
+    if (!debugGuard()) return;
+    if (typeof togglePin === 'function') {
+        await togglePin(id, pinned);
+    }
+    await renderDebugUsers();
+}
+
+async function deleteDebugScore(id) {
+    if (!debugGuard()) return;
+    if (!window.confirm('Delete this score permanently?')) return;
+    const res = await debugQuery(supabaseClient.from('scores').delete().eq('id', id));
+    if (res.error) {
+        showDebugStatus('Could not delete score: ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    showDebugStatus('Score deleted.', false);
+    await renderDebugUsers();
+}
+
+async function deleteDebugWallet(username) {
+    if (!debugGuard()) return;
+    if (username === 'TotallyMason') {
+        alert('The owner wallet is protected.');
+        return;
+    }
+    if (!window.confirm('Delete the Shells wallet for "' + username + '"? Their next game starts a fresh wallet.')) return;
+    const res = await debugQuery(supabaseClient.from('wallets').delete().eq('username', username));
+    if (res.error) {
+        showDebugStatus('Could not delete wallet: ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    showDebugStatus('Deleted wallet for ' + username + '.', false);
+    await refreshOwnWalletIfNeeded(username);
+    await renderDebugUsers();
+}
+
+function exportDebugData() {
+    if (!debugGuard()) return;
+    if (!window.confirm('This export contains every password in plain text. Download it?')) return;
+    const payload = {
+        exported_at: new Date().toISOString(),
+        users: debugData.users,
+        posts: debugData.posts,
+        wallets: debugData.wallets,
+        scores: debugData.scores
+    };
     try {
-        const postsRes = await supabaseClient.from('posts').select('*', { count: 'exact', head: true });
-        const postCount = document.getElementById('debugPostCount');
-        if (postCount && postsRes && typeof postsRes.count === 'number') postCount.textContent = postsRes.count;
-    } catch (e) {}
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'lessfun-owner-export-' + new Date().toISOString().slice(0, 10) + '.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        showDebugStatus('Export downloaded. Keep it private.', false);
+    } catch (e) {
+        showDebugStatus('Export failed: ' + (e.message || 'Unknown error'), true);
+    }
+}
+
+function clearDebugLocalData() {
+    if (!debugGuard()) return;
+    if (!window.confirm('Clear cached scores, pinned posts, and local Shells wallets on this browser?')) return;
+    try {
+        const keys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && (key.indexOf('lessfun_wallet_v1_') === 0 || key === 'lessfun_scores' || key === 'lessfun_pinned_posts')) {
+                keys.push(key);
+            }
+        }
+        keys.forEach(function (key) { localStorage.removeItem(key); });
+        showDebugStatus('Cleared ' + keys.length + ' local key' + (keys.length === 1 ? '' : 's') + '.', false);
+        if (typeof loadWallet === 'function') loadWallet();
+    } catch (e) {
+        showDebugStatus('Could not clear local data: ' + (e.message || 'Unknown error'), true);
+    }
+}
+
+async function purgeGuestWallets() {
+    if (!debugGuard()) return;
+    const accounts = {};
+    debugData.users.forEach(function (user) { accounts[String(user.username).toLowerCase()] = true; });
+    const guests = debugData.wallets.filter(function (w) {
+        return !accounts[String(w.username || '').toLowerCase()];
+    });
+    if (!guests.length) {
+        showDebugStatus('No orphan or guest wallets found.', false);
+        return;
+    }
+    if (!window.confirm('Delete ' + guests.length + ' wallet(s) without a matching account?')) return;
+    let removed = 0;
+    for (let i = 0; i < guests.length; i++) {
+        const res = await debugQuery(supabaseClient.from('wallets').delete().eq('username', guests[i].username));
+        if (!res.error) removed++;
+    }
+    showDebugStatus('Purged ' + removed + ' guest wallet' + (removed === 1 ? '' : 's') + '.', removed !== guests.length);
+    await renderDebugUsers();
+}
+
+async function deleteAllDebugPosts() {
+    if (!debugGuard()) return;
+    if (!window.confirm('Delete EVERY community post? This cannot be undone.')) return;
+    if (!window.confirm('Really delete all ' + debugData.posts.length + ' posts?')) return;
+    const res = await debugQuery(supabaseClient.from('posts').delete().neq('id', -1));
+    if (res.error) {
+        showDebugStatus('Could not delete posts: ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    savePinnedIds([]);
+    showDebugStatus('All posts deleted.', false);
+    await renderDebugUsers();
+}
+
+async function clearAllDebugScores() {
+    if (!debugGuard()) return;
+    if (!window.confirm('Delete EVERY score in the global table? This cannot be undone.')) return;
+    const res = await debugQuery(supabaseClient.from('scores').delete().neq('id', -1));
+    if (res.error) {
+        showDebugStatus('Could not clear scores: ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    showDebugStatus('All scores cleared.', false);
+    await renderDebugUsers();
+}
+
+async function resetAllDebugWallets() {
+    if (!debugGuard()) return;
+    if (!window.confirm('Reset EVERY wallet to ' + SHELLS_START + ' Shells and clear streaks?')) return;
+    const res = await debugQuery(supabaseClient.from('wallets').update({
+        shells: SHELLS_START,
+        streak: 0,
+        last_play_day: null,
+        streak_rewards: [],
+        updated_at: new Date().toISOString()
+    }).neq('username', '__never__'));
+    if (res.error) {
+        showDebugStatus('Could not reset wallets: ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    showDebugStatus('All wallets reset to ' + SHELLS_START + ' Shells.', false);
+    if (currentUser && currentUser.type === 'user') {
+        try { await loadWallet(); } catch (e) {}
+    }
+    await renderDebugUsers();
 }
 
 async function deleteUserAccount(id) {
-    if (!isOwner() || !ownerUnlocked) {
-        alert('Owner tools are locked.');
-        return;
-    }
+    if (!debugGuard()) return;
 
     let user = null;
     for (let i = 0; i < debugUsersCache.length; i++) {
@@ -350,6 +833,7 @@ async function deleteUserAccount(id) {
     // Best-effort cleanup for projects without a foreign key.
     try { await supabaseClient.from('posts').delete().eq('username', user.username); } catch (e) {}
     try { await supabaseClient.from('wallets').delete().eq('username', user.username); } catch (e) {}
+    try { await supabaseClient.from('scores').delete().eq('username', user.username); } catch (e) {}
 
     showDebugStatus('Deleted ' + user.username + '.', false);
     await renderDebugUsers();
@@ -760,12 +1244,15 @@ function dayNumber(key) {
     return Math.floor(Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])) / 86400000);
 }
 
-async function awardShells(score) {
+async function awardShells(seconds) {
     var result = { total: 0, base: 0, bonus: 0, messages: [] };
     if (!wallet) return result;
 
-    var points = Math.max(0, Math.floor(Number(score) || 0));
-    var base = points > 0 ? Math.max(1, Math.floor(points / 1000)) : 0;
+    // 1 Shell per full second of active play. Background tabs and paused
+    // frames are already clamped in the game loop, so they do not farm currency.
+    var played = Math.max(0, Number(seconds) || 0);
+    var base = Math.floor(played);
+    if (played > 0 && base < 1) base = 1;
     var bonus = 0;
     var messages = [];
     var today = dayKey();
@@ -805,20 +1292,20 @@ async function awardShells(score) {
     return result;
 }
 
-function handleGameOver(score) {
+function handleGameOver(score, seconds) {
     var over = document.getElementById('g3dOver');
     var fin = document.getElementById('g3dFinal');
     if (fin) fin.textContent = score;
     if (over) over.style.display = 'flex';
 
-    awardShells(score).then(function (result) {
+    awardShells(seconds).then(function (result) {
         var el = document.getElementById('g3dEarned');
         if (!el) return;
         if (!result || result.total <= 0) {
             el.style.display = 'none';
             return;
         }
-        var parts = ['score +' + result.base];
+        var parts = ['play +' + result.base];
         for (var i = 0; i < result.messages.length; i++) parts.push(result.messages[i]);
         el.innerHTML = shellIcon(14) + '<span>+' + result.total + ' Shells</span><small>' + parts.join(' · ') + '</small>';
         el.style.display = 'flex';

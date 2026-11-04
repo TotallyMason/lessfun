@@ -26,3 +26,34 @@ create policy "lessfun_wallets_delete"
     using (true);
 
 grant delete on public.wallets to anon, authenticated;
+
+-- Owner console moderation tools.
+alter table if exists public.posts enable row level security;
+
+drop policy if exists "lessfun_posts_update" on public.posts;
+create policy "lessfun_posts_update"
+    on public.posts for update
+    using (true)
+    with check (true);
+
+drop policy if exists "lessfun_posts_delete" on public.posts;
+create policy "lessfun_posts_delete"
+    on public.posts for delete
+    using (true);
+
+grant select, insert, update, delete on public.posts to anon, authenticated;
+
+drop policy if exists "lessfun_users_update" on public.users;
+create policy "lessfun_users_update"
+    on public.users for update
+    using (true)
+    with check (true);
+
+grant update on public.users to anon, authenticated;
+
+drop policy if exists "lessfun_scores_delete" on public.scores;
+create policy "lessfun_scores_delete"
+    on public.scores for delete
+    using (true);
+
+grant delete on public.scores to anon, authenticated;

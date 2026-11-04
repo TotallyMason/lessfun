@@ -44,23 +44,27 @@ body {
 .nav-left, .nav-center, .nav-right {
     display: flex;
     align-items: center;
-    flex: 1;
-}
-
-.nav-center {
-    justify-content: center;
-    gap: 32px;
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
 }
 
 .nav-left {
+    flex: 0 0 auto;
     justify-content: flex-start;
 }
 
 .nav-right {
+    flex: 0 0 auto;
     justify-content: flex-end;
+}
+
+/* The center links flow between the logo and the right actions instead of
+   being absolutely centered. Absolute centering overlapped the actions on
+   laptop widths once Shells and Debug were added. */
+.nav-center {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: center;
+    gap: clamp(8px, 1.4vw, 28px);
+    padding: 0 8px;
 }
 
 .logo {
@@ -487,7 +491,7 @@ h1 {
     justify-content: center;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
     .top-nav {
         overflow: hidden;
     }
@@ -2449,12 +2453,26 @@ body::before {
 
 /* Keep the owner-only nav item compact on tablet widths. */
 @media (max-width: 1120px) {
+    .nav-container {
+        padding: 0 16px;
+    }
+
     .nav-center {
-        gap: 14px;
+        gap: 6px;
+        padding: 0 4px;
     }
 
     .nav-right {
-        gap: 8px !important;
+        gap: 6px !important;
+    }
+
+    .nav-btn {
+        padding: 6px 8px;
+        font-size: 13px;
+    }
+
+    .nav-btn svg {
+        margin-right: 4px !important;
     }
 
     .nav-debug-label {
@@ -2463,5 +2481,313 @@ body::before {
 
     .nav-debug svg {
         margin-right: 0 !important;
+    }
+}
+
+/* ============================================================
+   Owner console tabs and tools
+   ============================================================ */
+
+.debug-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 20px;
+    padding: 5px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    backdrop-filter: blur(18px) saturate(150%);
+}
+
+.debug-tab {
+    padding: 9px 16px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.62);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.debug-tab:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.debug-tab.active {
+    color: #fff;
+    border-color: rgba(168, 85, 247, 0.4);
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(236, 72, 153, 0.18));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 6px 18px rgba(168, 85, 247, 0.15);
+}
+
+.debug-panel-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.debug-panel-head h3,
+.debug-section h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: rgba(255, 255, 255, 0.86);
+}
+
+.debug-search {
+    flex: 1;
+    min-width: 180px;
+    max-width: 320px;
+    margin-left: auto;
+    padding: 9px 13px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.debug-search:focus {
+    border-color: rgba(168, 85, 247, 0.55);
+    background: rgba(255, 255, 255, 0.09);
+}
+
+.debug-search::placeholder {
+    color: rgba(255, 255, 255, 0.38);
+}
+
+.debug-overview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 12px;
+    margin-bottom: 26px;
+}
+
+.debug-overview-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 18px 18px 16px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.02));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.debug-overview-card small {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.42);
+}
+
+.debug-overview-card strong {
+    overflow: hidden;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.15;
+    color: #fff;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.debug-overview-card span {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.debug-section {
+    margin-top: 24px;
+}
+
+.debug-section h3 {
+    margin-bottom: 12px;
+}
+
+.debug-rank {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.debug-score-value {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    color: #ffe29a;
+}
+
+.debug-post-text {
+    max-width: 340px;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.debug-action-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.debug-btn {
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.debug-btn:hover {
+    border-color: rgba(168, 85, 247, 0.45);
+    background: rgba(168, 85, 247, 0.16);
+    color: #fff;
+}
+
+.debug-btn:active {
+    transform: scale(0.96);
+}
+
+.debug-tools-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 14px;
+}
+
+.debug-tool-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 20px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.11);
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    backdrop-filter: blur(18px) saturate(150%);
+}
+
+.debug-tool-card h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+}
+
+.debug-tool-card p {
+    flex: 1;
+    margin: 0;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.52);
+}
+
+.debug-tool-btn {
+    margin-top: 4px;
+    padding: 8px 14px;
+    border-radius: 9px;
+    border: 1px solid rgba(168, 85, 247, 0.38);
+    background: rgba(168, 85, 247, 0.18);
+    color: #f3dcff;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.debug-tool-btn:hover {
+    border-color: rgba(168, 85, 247, 0.6);
+    background: rgba(168, 85, 247, 0.3);
+}
+
+.debug-tool-btn:active {
+    transform: scale(0.97);
+}
+
+.debug-tool-card.danger {
+    border-color: rgba(239, 68, 68, 0.2);
+    background: linear-gradient(160deg, rgba(239, 68, 68, 0.09), rgba(255, 255, 255, 0.02));
+}
+
+.debug-tool-btn.danger {
+    border-color: rgba(239, 68, 68, 0.4);
+    background: rgba(239, 68, 68, 0.14);
+    color: #ffc9c9;
+}
+
+.debug-tool-btn.danger:hover {
+    border-color: rgba(239, 68, 68, 0.6);
+    background: rgba(239, 68, 68, 0.26);
+}
+
+@media (max-width: 720px) {
+    .debug-toolbar {
+        gap: 8px;
+    }
+
+    .debug-stat {
+        flex: 1 1 calc(33% - 8px);
+        justify-content: center;
+    }
+
+    .debug-stat span {
+        font-size: 20px;
+    }
+
+    .debug-toolbar-actions {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .debug-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .debug-tabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    .debug-tab {
+        flex-shrink: 0;
+        padding: 8px 13px;
+    }
+
+    .debug-search {
+        max-width: none;
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .debug-overview-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .debug-tools-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .debug-post-text {
+        max-width: 180px;
     }
 }

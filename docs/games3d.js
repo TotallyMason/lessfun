@@ -14,6 +14,7 @@
     var cleanupFns = [];
     var gameMeta = { name: 'Game', onScore: null, onGameOver: null };
     var running = false;
+    var playedSeconds = 0;
 
     function addCleanup(fn) { cleanupFns.push(fn); }
 
@@ -54,8 +55,9 @@
         if (!active || active.over) return;
         active.over = true;
         var rounded = Math.round(score);
+        var seconds = Math.max(0, Math.floor(playedSeconds));
         try { if (gameMeta.onScore) gameMeta.onScore(gameMeta.name, rounded); } catch (e) {}
-        try { if (gameMeta.onGameOver) gameMeta.onGameOver(rounded); } catch (e) {}
+        try { if (gameMeta.onGameOver) gameMeta.onGameOver(rounded, seconds); } catch (e) {}
     }
 
     /* ---------------- Beach Racer ---------------- */
@@ -909,6 +911,7 @@
         raf = requestAnimationFrame(loop);
         var dt = Math.min(clock.getDelta(), 0.05);
         if (active && running && !active.over) {
+            playedSeconds += dt;
             active.update(dt);
         }
         if (renderer && scene && camera) renderer.render(scene, camera);
@@ -931,6 +934,7 @@
         input.left = false; input.right = false; input.up = false; input.down = false;
         input.brake = false;
         input.pointerActive = false; input.pointerX = 0; input.pointerY = 0; input.tapQueued = false;
+        playedSeconds = 0;
 
         resetScene();
         renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -960,6 +964,7 @@
 
     function stop() {
         running = false;
+        playedSeconds = 0;
         if (raf) { cancelAnimationFrame(raf); raf = 0; }
         for (var i = 0; i < cleanupFns.length; i++) {
             try { cleanupFns[i](); } catch (e) {}

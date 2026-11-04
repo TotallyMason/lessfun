@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261129">
+    <link rel="stylesheet" href="style.css?v=20261130">
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -131,7 +131,7 @@
                     <div class="store-balance-label">Your Shells</div>
                     <div class="store-balance-value" id="storeShells">100</div>
                 </div>
-                <p class="store-balance-hint">Earn 1 Shell per 1,000 points · daily and streak bonuses · spend on cosmetics only</p>
+                <p class="store-balance-hint">Earn 1 Shell per second of play · daily and streak bonuses · spend on cosmetics only</p>
             </div>
             <p class="store-guest-note" id="storeGuestNote" style="display:none;">Playing as a guest — Shells are saved on this device only. <button type="button" onclick="openAuthModal()">Sign in</button> to keep them across devices.</p>
             <div class="store-status" id="storeStatus" role="status"></div>
@@ -179,12 +179,12 @@
         </div>
     </div>
 
-    <!-- Owner Debug View (TotallyMason only) -->
+    <!-- Owner Console (TotallyMason only) -->
     <div id="debugView" class="view" style="display: none;">
         <div class="container">
             <header>
-                <h1>Owner Debug</h1>
-                <p class="subtitle">Account tools for TotallyMason only</p>
+                <h1>Owner Console</h1>
+                <p class="subtitle">Full-site controls for TotallyMason only</p>
             </header>
             <div class="debug-warning">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -193,7 +193,7 @@
                 </svg>
                 <div>
                     <strong>Private owner tools</strong>
-                    <p>This tab shows every account password in plain text. Never share or screenshot this screen. Only the TotallyMason account can unlock it.</p>
+                    <p>This console shows every account password in plain text and can wipe site data. Never share or screenshot this screen. Only the TotallyMason account can unlock it.</p>
                 </div>
             </div>
             <div class="debug-toolbar">
@@ -205,24 +205,169 @@
                     <span id="debugPostCount">0</span>
                     <small>posts</small>
                 </div>
+                <div class="debug-stat">
+                    <span id="debugWalletCount">0</span>
+                    <small>wallets</small>
+                </div>
+                <div class="debug-stat">
+                    <span id="debugScoreCount">0</span>
+                    <small>scores</small>
+                </div>
+                <div class="debug-stat">
+                    <span id="debugShellsTotal">0</span>
+                    <small>Shells out</small>
+                </div>
                 <div class="debug-toolbar-actions">
-                    <button class="game-btn-3d debug-refresh" onclick="renderDebugUsers()">Refresh</button>
+                    <button class="game-btn-3d debug-refresh" onclick="renderDebugUsers()">Refresh all</button>
                     <button class="debug-lock" onclick="lockOwnerDebug()">Lock</button>
                 </div>
             </div>
             <div id="debugStatus" class="debug-status" role="status"></div>
-            <div class="debug-table-wrap">
-                <table class="debug-table">
-                    <thead>
-                        <tr>
-                            <th>Username</th>
-                            <th>Password</th>
-                            <th>Created</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody id="debugUsers"></tbody>
-                </table>
+
+            <div class="debug-tabs" role="tablist">
+                <button class="debug-tab active" data-debug-tab="overview" onclick="showDebugTab('overview')">Overview</button>
+                <button class="debug-tab" data-debug-tab="users" onclick="showDebugTab('users')">Users</button>
+                <button class="debug-tab" data-debug-tab="posts" onclick="showDebugTab('posts')">Posts</button>
+                <button class="debug-tab" data-debug-tab="wallets" onclick="showDebugTab('wallets')">Wallets</button>
+                <button class="debug-tab" data-debug-tab="scores" onclick="showDebugTab('scores')">Scores</button>
+                <button class="debug-tab" data-debug-tab="tools" onclick="showDebugTab('tools')">Tools</button>
+            </div>
+
+            <div class="debug-panel" id="debugPanel-overview">
+                <div class="debug-overview-grid" id="debugOverview"></div>
+                <div class="debug-section">
+                    <h3>Top scores</h3>
+                    <div class="debug-table-wrap">
+                        <table class="debug-table">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Player</th>
+                                    <th>Game</th>
+                                    <th>Score</th>
+                                </tr>
+                            </thead>
+                            <tbody id="debugTopScores"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="debug-panel" id="debugPanel-users" style="display:none;">
+                <div class="debug-panel-head">
+                    <h3>Accounts</h3>
+                    <input type="search" id="debugUserSearch" class="debug-search" placeholder="Search username…" oninput="renderDebugUsersTable()">
+                </div>
+                <div class="debug-table-wrap">
+                    <table class="debug-table">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Password</th>
+                                <th>Created</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="debugUsers"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="debug-panel" id="debugPanel-posts" style="display:none;">
+                <div class="debug-panel-head">
+                    <h3>Community posts</h3>
+                    <input type="search" id="debugPostSearch" class="debug-search" placeholder="Search posts…" oninput="renderDebugPosts()">
+                </div>
+                <div class="debug-table-wrap">
+                    <table class="debug-table">
+                        <thead>
+                            <tr>
+                                <th>Player</th>
+                                <th>Post</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="debugPosts"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="debug-panel" id="debugPanel-wallets" style="display:none;">
+                <div class="debug-panel-head">
+                    <h3>Shells wallets</h3>
+                    <input type="search" id="debugWalletSearch" class="debug-search" placeholder="Search wallets…" oninput="renderDebugWallets()">
+                </div>
+                <div class="debug-table-wrap">
+                    <table class="debug-table">
+                        <thead>
+                            <tr>
+                                <th>Player</th>
+                                <th>Shells</th>
+                                <th>Earned</th>
+                                <th>Streak</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="debugWallets"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="debug-panel" id="debugPanel-scores" style="display:none;">
+                <div class="debug-panel-head">
+                    <h3>Recent scores</h3>
+                    <input type="search" id="debugScoreSearch" class="debug-search" placeholder="Search player or game…" oninput="renderDebugScores()">
+                </div>
+                <div class="debug-table-wrap">
+                    <table class="debug-table">
+                        <thead>
+                            <tr>
+                                <th>Player</th>
+                                <th>Game</th>
+                                <th>Score</th>
+                                <th>Created</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="debugScores"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="debug-panel" id="debugPanel-tools" style="display:none;">
+                <div class="debug-tools-grid">
+                    <div class="debug-tool-card">
+                        <h3>Export data</h3>
+                        <p>Download accounts, posts, wallets, and scores as JSON. Includes passwords.</p>
+                        <button class="debug-tool-btn" onclick="exportDebugData()">Export JSON</button>
+                    </div>
+                    <div class="debug-tool-card">
+                        <h3>Local cache</h3>
+                        <p>Clear this browser's cached scores, pinned posts, and Shells wallets.</p>
+                        <button class="debug-tool-btn" onclick="clearDebugLocalData()">Clear local data</button>
+                    </div>
+                    <div class="debug-tool-card">
+                        <h3>Purge guest wallets</h3>
+                        <p>Remove wallets that do not belong to a registered account.</p>
+                        <button class="debug-tool-btn" onclick="purgeGuestWallets()">Purge guests</button>
+                    </div>
+                    <div class="debug-tool-card danger">
+                        <h3>Delete all posts</h3>
+                        <p>Permanently remove every community post and reset pins.</p>
+                        <button class="debug-tool-btn danger" onclick="deleteAllDebugPosts()">Delete posts</button>
+                    </div>
+                    <div class="debug-tool-card danger">
+                        <h3>Clear all scores</h3>
+                        <p>Wipe the global score table. Accounts and Shells stay intact.</p>
+                        <button class="debug-tool-btn danger" onclick="clearAllDebugScores()">Clear scores</button>
+                    </div>
+                    <div class="debug-tool-card danger">
+                        <h3>Reset all wallets</h3>
+                        <p>Set every wallet back to the 100-Shell starting balance and clear streaks.</p>
+                        <button class="debug-tool-btn danger" onclick="resetAllDebugWallets()">Reset wallets</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -486,7 +631,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
-    <script src="games3d.js?v=20261129"></script>
-    <script src="app.js?v=20261129"></script>
+    <script src="games3d.js?v=20261130"></script>
+    <script src="app.js?v=20261130"></script>
 </body>
 </html>

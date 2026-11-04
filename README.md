@@ -42,7 +42,7 @@ only on cosmetics, so the shop never affects scores or speed.
 
 | Action | Shells |
 | --- | --- |
-| Every 1,000 points in a run | 1 (minimum 1 per scoring run) |
+| Every second of play | 1 (minimum 1 per run) |
 | First run of the day | +25 |
 | 3-day streak | +150 |
 | 7-day streak | +400 |
@@ -74,16 +74,24 @@ The migration is intentionally permissive because the beta signs users in
 against the public `users` table with the publishable key instead of Supabase
 Auth. Move to Supabase Auth before handling real payments.
 
-## Owner debug
+## Owner console
 
 The **Debug** nav item is only shown to the `TotallyMason` account. Opening it
-asks for the TotallyMason password again, then lists every account with its
-stored password, creation date, and a delete button.
+asks for the TotallyMason password again, then unlocks a six-tab console:
 
-- The owner account is protected and cannot be deleted.
-- Deleting an account also best-effort removes that user's posts and Shells
-  wallet.
-- Press **Lock** to close the tools and require the password again.
+- **Overview** — accounts, posts, wallets, scores, Shells in circulation, and
+  the global top scores.
+- **Users** — passwords, join dates, password resets, and account deletion.
+  The owner account is protected.
+- **Posts** — search every post, pin or unpin, and delete individual posts.
+- **Wallets** — balances and streaks, add or set Shells, and delete wallets.
+- **Scores** — recent runs with per-score deletion.
+- **Tools** — JSON export, local-cache clearing, guest-wallet cleanup, and
+  danger-zone actions to delete all posts, clear all scores, or reset every
+  wallet to the 100-Shell starting balance.
+
+Deleting an account also best-effort removes that user's posts, wallet, and
+scores. Press **Lock** to close the console and require the password again.
 
 This is a developer tool, not production authentication. The app still signs in
 against a public table with the publishable key, so move to Supabase Auth before
@@ -97,7 +105,8 @@ handling real user data or payments.
 - Shells wallet, daily and streak bonuses, and a cosmetics shop
 - Car paints and surfboards applied to the 3D beach buggy
 - Community posts with owner pinning
-- Password-unlocked owner debug tab for account management
+- Password-unlocked owner console for accounts, posts, wallets, scores, and
+  site-wide tools
 
 ## Notes
 

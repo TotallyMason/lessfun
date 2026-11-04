@@ -106,3 +106,38 @@ create policy "lessfun_scores_insert"
 
 grant select, insert on public.scores to anon, authenticated;
 grant usage, select on all sequences in schema public to anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Owner console writes (posts moderation, password resets, score cleanup)
+-- ---------------------------------------------------------------------------
+-- The UI requires the TotallyMason account plus its password before showing
+-- these actions. There is still no server-side owner role in this beta.
+alter table if exists public.posts enable row level security;
+
+drop policy if exists "lessfun_posts_update" on public.posts;
+create policy "lessfun_posts_update"
+    on public.posts for update
+    using (true)
+    with check (true);
+
+drop policy if exists "lessfun_posts_delete" on public.posts;
+create policy "lessfun_posts_delete"
+    on public.posts for delete
+    using (true);
+
+grant select, insert, update, delete on public.posts to anon, authenticated;
+
+drop policy if exists "lessfun_users_update" on public.users;
+create policy "lessfun_users_update"
+    on public.users for update
+    using (true)
+    with check (true);
+
+grant update on public.users to anon, authenticated;
+
+drop policy if exists "lessfun_scores_delete" on public.scores;
+create policy "lessfun_scores_delete"
+    on public.scores for delete
+    using (true);
+
+grant delete on public.scores to anon, authenticated;
