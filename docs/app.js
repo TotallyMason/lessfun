@@ -194,15 +194,37 @@ async function signUp(){
     const password=document.getElementById("signupPassword").value; 
     if(!username||!password){alert("Please fill in all fields");return;} 
     if(supabaseClient){ 
-        const {data:existing}=await supabaseClient.from('users').select('*').eq('username',username).maybeSingle(); 
-        if(existing){alert('Username taken');return;} 
-        const {error}=await supabaseClient.from('users').insert({username,password}); 
-        if(error){alert(error.message);return;} 
-        currentUser={type:'user',username, persistScores: true}; 
-        localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); 
-        closeAuthModal(); 
-        updateUserSection(); 
-        return; 
+        try {
+            const {data:existing}=await supabaseClient.from('users').select('*').eq('username',username).maybeSingle(); 
+            if(existing){alert('Username taken');return;} 
+            const {error}=await supabaseClient.from('users').insert({username,password}); 
+            if(error){
+                if(error.message && error.message.includes('row-level security')) {
+                    alert('Account creation unavailable due to database permissions. Using local account instead.');
+                    currentUser={type:'user',username, persistScores: true}; 
+                    localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); 
+                    localStorage.setItem('lessfun_pass_'+username,password);
+                    closeAuthModal(); 
+                    updateUserSection(); 
+                    return;
+                }
+                alert(error.message);
+                return;
+            } 
+            currentUser={type:'user',username, persistScores: true}; 
+            localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); 
+            closeAuthModal(); 
+            updateUserSection(); 
+            return;
+        } catch(e) {
+            alert('Account creation unavailable. Using local account instead.');
+            currentUser={type:'user',username, persistScores: true}; 
+            localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); 
+            localStorage.setItem('lessfun_pass_'+username,password);
+            closeAuthModal(); 
+            updateUserSection(); 
+            return;
+        }
     } else { 
         currentUser={type:'user',username, persistScores: true}; 
         localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); 
@@ -217,13 +239,36 @@ async function signIn(){
     const password=document.getElementById("signinPassword").value; 
     if(!username||!password){alert("Please fill in all fields");return;} 
     if(supabaseClient){ 
-        const {data}=await supabaseClient.from('users').select('*').eq('username',username).eq('password',password).maybeSingle(); 
-        if(!data){alert('Invalid username or password');return;} 
-        currentUser={type:'user',username:data.username, persistScores: true}; 
-        localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); 
-        closeAuthModal(); 
-        updateUserSection(); 
-        return; 
+        try {
+            const {data}=await supabaseClient.from('users').select('*').eq('username',username).eq('password',password).maybeSingle(); 
+            if(!data){
+                // Try localStorage fallback
+                const p = localStorage.getItem('lessfun_pass_'+username);
+                if(p === password) {
+                    currentUser={type:'user',username, persistScores: true}; 
+                    localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); 
+                    closeAuthModal(); 
+                    updateUserSection(); 
+                    return;
+                }
+                alert('Invalid username or password');return;
+            } 
+            currentUser={type:'user',username:data.username, persistScores: true}; 
+            localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); 
+            closeAuthModal(); 
+            updateUserSection(); 
+            return;
+        } catch(e) {
+            const p = localStorage.getItem('lessfun_pass_'+username);
+            if(p === password) {
+                currentUser={type:'user',username, persistScores: true}; 
+                localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); 
+                closeAuthModal(); 
+                updateUserSection(); 
+                return;
+            }
+            alert('Invalid username or password');return;
+        }
     } else { 
         const saved=localStorage.getItem('lessfun_user'); 
         if(saved){ 
