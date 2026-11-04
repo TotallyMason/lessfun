@@ -488,23 +488,70 @@ h1 {
 }
 
 @media (max-width: 768px) {
+    .top-nav {
+        overflow: hidden;
+    }
+
     .nav-container {
-        padding: 0 16px;
+        padding: 0 12px;
+        height: auto;
+        min-height: 52px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+        gap: 4px;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
     }
-    
+
+    .nav-container::-webkit-scrollbar {
+        display: none;
+    }
+
+    .nav-left,
+    .nav-center,
+    .nav-right {
+        flex: 0 0 auto;
+    }
+
     .nav-center {
-        gap: 16px;
+        position: static;
+        transform: none;
+        gap: 2px;
     }
-    
+
+    .nav-right {
+        margin-left: auto;
+    }
+
+    .logo-text {
+        display: none;
+    }
+
+    .logo svg {
+        width: 24px;
+        height: 24px;
+    }
+
     .nav-btn {
         font-size: 13px;
         padding: 6px 8px;
+        white-space: nowrap;
+        flex-shrink: 0;
     }
-    
+
+    .nav-btn svg {
+        margin-right: 4px !important;
+        width: 14px;
+        height: 14px;
+        flex-shrink: 0;
+    }
+
     .search-box {
         width: 140px;
     }
-    
+
     .container {
         padding: 40px 16px 60px;
     }
