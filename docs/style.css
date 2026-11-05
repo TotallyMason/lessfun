@@ -6150,3 +6150,130 @@ body::before {
     color: rgba(255, 255, 255, 0.38);
     font-size: 10px;
 }
+
+/* Human collision warning: red flash, no auto-brake */
+.game3d-warning {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    pointer-events: none;
+    opacity: 0;
+    border: 0 solid rgba(255, 40, 60, 0);
+    background: radial-gradient(circle at 50% 55%, transparent 42%, rgba(255, 20, 40, 0.42) 100%);
+}
+
+.game3d-warning.is-active {
+    animation: warningPulse 0.34s ease-in-out infinite;
+}
+
+@keyframes warningPulse {
+    0%, 100% { opacity: 0.15; }
+    50% { opacity: 0.95; }
+}
+
+.friend-activity-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 1px;
+}
+
+.friend-activity {
+    font-size: 10px;
+    line-height: 1.4;
+    color: #9fd8ff;
+}
+
+.friend-join {
+    padding: 2px 9px;
+    border-radius: 999px;
+    border: 1px solid rgba(109, 255, 192, 0.4);
+    background: rgba(109, 255, 192, 0.14);
+    color: #baffdf;
+    font-family: inherit;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+}
+
+.friend-join:hover {
+    background: rgba(109, 255, 192, 0.28);
+}
+
+/* Tunnel Rush / Star Dodger live score board */
+.game3d-arcade-board {
+    position: absolute;
+    top: 68px;
+    right: 18px;
+    z-index: 5;
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 172px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(8, 12, 20, 0.64);
+    color: #fff;
+    pointer-events: none;
+    -webkit-backdrop-filter: blur(14px) saturate(150%);
+    backdrop-filter: blur(14px) saturate(150%);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+}
+
+.arcade-board-title {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+    margin-bottom: 2px;
+}
+
+.arcade-board-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.arcade-board-row.is-me {
+    color: #c8ffe6;
+}
+
+.arcade-board-rank {
+    width: 13px;
+    color: rgba(255, 255, 255, 0.35);
+    font-variant-numeric: tabular-nums;
+}
+
+.arcade-board-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.arcade-board-row strong {
+    color: #9fe8ff;
+    font-variant-numeric: tabular-nums;
+}
+
+.arcade-player-score {
+    color: #9fe8ff;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+    .game3d-arcade-board {
+        top: auto;
+        bottom: 180px;
+        right: 12px;
+        min-width: 140px;
+        padding: 8px 10px;
+    }
+}

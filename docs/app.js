@@ -19,6 +19,22 @@ let debugStatusTimer = 0;
 const RACER_MP_MAX = 3;
 const RACER_MP_CODE_LENGTH = 5;
 const RACER_MP_PUBLIC_MAX = 50;
+const ARCADE_MP_MAX = 20;
+const ARCADE_MP_GAMES = {
+    2: { name: 'Tunnel Rush', channel: 'lessfun-arcade-tunnel-public' },
+    5: { name: 'Star Dodger', channel: 'lessfun-arcade-star-public' }
+};
+let arcadeMp = {
+    gameId: 0,
+    channel: null,
+    connected: false,
+    name: '',
+    id: '',
+    players: {},
+    timer: 0,
+    panelOpen: false,
+    status: ''
+};
 const RACER_MP_PUBLIC_LOBBIES = [
     { id: 'public-1', name: 'Sunset Highway', channel: 'lessfun-racer-public-1' },
     { id: 'public-2', name: 'Palm Coast', channel: 'lessfun-racer-public-2' },
@@ -76,7 +92,7 @@ let friendsAutoTimer = 0;
 let friendsStatusTimer = 0;
 let profileBanTarget = { username: '', banned: false };
 let profileGiftTarget = '';
-let friendData = { friendships: [], presence: {}, users: [] };
+let friendData = { friendships: [], presence: {}, users: [], activities: {} };
 
 const SITE_SETTINGS_DEFAULTS = {
     announcement: '',
@@ -304,6 +320,7 @@ function showView(view) {
     else if (view === 'settings') { document.getElementById('settingsView').style.display = 'block'; document.getElementById('nav-settings').classList.add('active'); }
     else if (view === 'debug') { document.getElementById('debugView').style.display = 'block'; document.getElementById('nav-debug').classList.add('active'); renderDebugUsers(); }
     currentView = view;
+    touchPresence();
 }
 
 function renderGames() {
@@ -357,6 +374,7 @@ let currentGameId = null;
 function openGame(id) {
     const game = games.find(g => g.id === id);
     if (!game) return;
+    if (arcadeMp.connected && arcadeMp.gameId && arcadeMp.gameId !== id) arcadeMpLeave(true);
     if (isGameDisabled(id)) {
         alert('This game is temporarily unavailable. Check back soon!');
         return;
@@ -444,7 +462,24 @@ function openGame(id) {
                         '<p class="game3d-mp-note">The race restarts for everyone when a room starts. Player cars never collide with each other.</p>' +
                     '</div>' +
                 '</div>' : '') +
-            '<div class="game3d-crash" id="g3dCrashFlash"><span>SLOW-MO CRASH</span></div>' +
+            ((game.id === 2 || game.id === 5) ?
+                '<button class="game3d-mp-btn" id="g3dArcadeMpBtn" type="button" onclick="openArcadeMpPanel()">Multiplayer</button>' +
+                '<div class="game3d-mp" id="g3dArcadeMpPanel" style="display:none;">' +
+                    '<div class="game3d-mp-card">' +
+                        '<div class="game3d-mp-head">' +
+                            '<h3 id="g3dArcadeTitle">Live multiplayer</h3>' +
+                            '<button type="button" class="game3d-mp-x" onclick="closeArcadeMpPanel()">×</button>' +
+                        '</div>' +
+                        '<p class="game3d-mp-sub">Public live lobby · no code · up to 20 players · everyone plays at once and scores update live</p>' +
+                        '<div class="game3d-mp-players" id="g3dArcadePlayers"></div>' +
+                        '<button class="game3d-mp-primary" type="button" id="g3dArcadeJoinBtn" onclick="arcadeMpToggle()">Join live lobby</button>' +
+                        '<button class="game3d-mp-leave" type="button" onclick="closeArcadeMpPanel()">Close</button>' +
+                        '<p class="game3d-mp-status" id="g3dArcadeStatus"></p>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="game3d-arcade-board" id="g3dArcadeBoard" style="display:none;"></div>' : '') +
+            '<div class="game3d-crash" id="g3dCrashFlash"></div>' +
+            '<div class="game3d-warning" id="g3dWarning"></div>' +
             '<div class="game3d-over" id="g3dOver" style="display:none;">' +
                 '<div class="game3d-over-card">' +
                     '<h3>Game Over</h3>' +
@@ -519,6 +554,7 @@ function restartGame3D() {
 function closeGame() {
     closeRacerMpPanel(true);
     racerMpLeave(true);
+    arcadeMpLeave(true);
     dmClose();
     if (window.Games3D) window.Games3D.stop();
     document.getElementById('gameModal').style.display = 'none';
@@ -832,6 +868,7 @@ function racerMpConnect(code, name, publicInfo) {
                 racerMpApplyToGame();
             }
             racerMpUpdateUi();
+            touchPresence();
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
             racerMp.connected = false;
             racerMpSetStatus(racerMp.public ? 'Could not join that public lobby. Try another one.' : 'Could not connect to that room. Check the code and try again.');
@@ -1058,6 +1095,7 @@ function racerMpLeave(quiet) {
     }
     if (!quiet) racerMpSetStatus('Left the room.');
     racerMpUpdateUi();
+    touchPresence();
 }
 
 function racerMpCopyCode() {
@@ -1088,8 +1126,233 @@ function racerMpCopyCode() {
 
 
 /* ============================================================
-   Private messages — ECDH + AES-GCM end-to-end encryption
+   Tunnel Rush / Star Dodger live public multiplayer
    ============================================================ */
+function arcadeMpConfig() {
+    return ARCADE_MP_GAMES[currentGameId] || null;
+}
+
+function arcadeMpDisplayName() {
+    if (currentUser && currentUser.type === 'user' && currentUser.username && currentUser.username !== 'Guest') {
+        return racerMpSanitizeName(currentUser.username);
+    }
+    return racerMpSanitizeName(racerMpSuggestedName()) || 'Player';
+}
+
+function arcadeMpSetStatus(text, isError) {
+    arcadeMp.status = text || '';
+    const panel = document.getElementById('g3dArcadeStatus');
+    if (panel) {
+        panel.textContent = arcadeMp.status;
+        panel.classList.toggle('is-error', !!isError);
+    }
+}
+
+function openArcadeMpPanel() {
+    const cfg = arcadeMpConfig();
+    if (!cfg) return;
+    arcadeMp.panelOpen = true;
+    const panel = document.getElementById('g3dArcadeMpPanel');
+    if (panel) panel.style.display = 'flex';
+    const title = document.getElementById('g3dArcadeTitle');
+    if (title) title.textContent = cfg.name + ' Live';
+    arcadeMpRenderUi();
+    if (window.Games3D) window.Games3D.setPaused(true);
+}
+
+function closeArcadeMpPanel(silent) {
+    arcadeMp.panelOpen = false;
+    const panel = document.getElementById('g3dArcadeMpPanel');
+    if (panel) panel.style.display = 'none';
+    if (!silent && window.Games3D) window.Games3D.setPaused(dmState.open);
+}
+
+function arcadeMpToggle() {
+    if (arcadeMp.connected && arcadeMp.gameId === currentGameId) arcadeMpLeave();
+    else arcadeMpJoin();
+}
+
+function arcadeMpJoin() {
+    const cfg = arcadeMpConfig();
+    if (!cfg) return;
+    if (!supabaseClient) {
+        arcadeMpSetStatus('Multiplayer needs an online connection.', true);
+        return;
+    }
+    arcadeMpLeave(true);
+    arcadeMp.id = racerMpMakeId();
+    arcadeMp.name = arcadeMpDisplayName();
+    arcadeMp.gameId = currentGameId;
+    arcadeMp.players = {};
+    arcadeMp.connected = false;
+    arcadeMpSetStatus('Joining ' + cfg.name + ' live…');
+
+    const channel = supabaseClient.channel(cfg.channel, { config: { presence: { key: arcadeMp.id } } });
+    arcadeMp.channel = channel;
+    channel.on('broadcast', { event: 'state' }, function (message) {
+        arcadeMpHandleState(message && message.payload);
+    });
+    channel.on('presence', { event: 'sync' }, arcadeMpSyncPresence);
+    channel.on('presence', { event: 'join' }, arcadeMpSyncPresence);
+    channel.on('presence', { event: 'leave' }, arcadeMpSyncPresence);
+    channel.subscribe(function (status) {
+        if (arcadeMp.channel !== channel) return;
+        if (status === 'SUBSCRIBED') {
+            arcadeMp.connected = true;
+            const tracked = channel.track({
+                id: arcadeMp.id,
+                name: arcadeMp.name,
+                score: window.Games3D && window.Games3D.getCurrentScore ? window.Games3D.getCurrentScore() : 0,
+                joinedAt: Date.now()
+            });
+            if (tracked && tracked.catch) tracked.catch(function () {});
+            if (arcadeMp.timer) clearInterval(arcadeMp.timer);
+            arcadeMp.timer = setInterval(arcadeMpTick, 800);
+            arcadeMpSetStatus('Live · scores update as everyone plays.');
+            closeArcadeMpPanel(true);
+            if (window.Games3D) window.Games3D.setPaused(false);
+            restartGame3D();
+            arcadeMpRenderUi();
+            touchPresence();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            arcadeMp.connected = false;
+            arcadeMpSetStatus('Could not join the live lobby. Try again.', true);
+            arcadeMpRenderUi();
+        }
+    });
+    arcadeMpRenderUi();
+}
+
+function arcadeMpHandleState(payload) {
+    if (!payload || !payload.id || String(payload.id) === arcadeMp.id) return;
+    const id = String(payload.id);
+    const existing = arcadeMp.players[id] || {};
+    arcadeMp.players[id] = {
+        id: id,
+        name: racerMpSanitizeName(payload.name) || existing.name || 'Player',
+        score: Math.max(Number(payload.score) || 0, Number(existing.score) || 0),
+        lastSeen: Date.now()
+    };
+    arcadeMpRenderBoard();
+    if (arcadeMp.panelOpen) arcadeMpRenderUi();
+}
+
+function arcadeMpSyncPresence() {
+    if (!arcadeMp.channel || !arcadeMp.connected) return;
+    const state = arcadeMp.channel.presenceState() || {};
+    const players = {};
+    Object.keys(state).forEach(function (key) {
+        const entries = state[key] || [];
+        for (let i = 0; i < entries.length; i++) {
+            const entry = entries[i];
+            if (!entry || !entry.id) continue;
+            const id = String(entry.id);
+            const previous = arcadeMp.players[id] || {};
+            players[id] = {
+                id: id,
+                name: racerMpSanitizeName(entry.name) || previous.name || 'Player',
+                score: Math.max(Number(entry.score) || 0, Number(previous.score) || 0),
+                lastSeen: Date.now()
+            };
+        }
+    });
+    arcadeMp.players = players;
+    arcadeMpRenderBoard();
+    if (arcadeMp.panelOpen) arcadeMpRenderUi();
+}
+
+function arcadeMpTick() {
+    if (!arcadeMp.connected || !arcadeMp.channel || arcadeMp.gameId !== currentGameId) return;
+    const score = window.Games3D && window.Games3D.getCurrentScore ? window.Games3D.getCurrentScore() : 0;
+    const me = arcadeMp.players[arcadeMp.id] || { id: arcadeMp.id, name: arcadeMp.name, score: 0 };
+    me.score = Math.max(Number(me.score) || 0, Number(score) || 0);
+    arcadeMp.players[arcadeMp.id] = me;
+    const sent = arcadeMp.channel.send({
+        type: 'broadcast',
+        event: 'state',
+        payload: { id: arcadeMp.id, name: arcadeMp.name, score: me.score }
+    });
+    if (sent && sent.catch) sent.catch(function () {});
+    arcadeMpRenderBoard();
+    if (arcadeMp.panelOpen) arcadeMpRenderUi();
+}
+
+function arcadeMpSortedPlayers() {
+    return Object.keys(arcadeMp.players).map(function (id) { return arcadeMp.players[id]; })
+        .sort(function (a, b) { return Number(b.score) - Number(a.score); });
+}
+
+function arcadeMpRenderBoard() {
+    const board = document.getElementById('g3dArcadeBoard');
+    if (!board) return;
+    const cfg = ARCADE_MP_GAMES[currentGameId];
+    if (!arcadeMp.connected || !cfg || arcadeMp.gameId !== currentGameId) {
+        board.style.display = 'none';
+        return;
+    }
+    const players = arcadeMpSortedPlayers().slice(0, 6);
+    board.innerHTML = '<span class="arcade-board-title">Live scores</span>' +
+        players.map(function (player, index) {
+            return '<span class="arcade-board-row' + (player.id === arcadeMp.id ? ' is-me' : '') + '">' +
+                '<span class="arcade-board-rank">' + (index + 1) + '</span>' +
+                '<span class="arcade-board-name">' + escapeHtml(player.name) + '</span>' +
+                '<strong>' + Math.round(player.score).toLocaleString() + '</strong>' +
+            '</span>';
+        }).join('');
+    board.style.display = 'flex';
+}
+
+function arcadeMpRenderUi() {
+    const btn = document.getElementById('g3dArcadeJoinBtn');
+    if (btn) {
+        btn.textContent = (arcadeMp.connected && arcadeMp.gameId === currentGameId) ? 'Leave live lobby' : 'Join live lobby';
+    }
+    const list = document.getElementById('g3dArcadePlayers');
+    if (list) {
+        const players = arcadeMpSortedPlayers();
+        list.innerHTML = players.length
+            ? players.map(function (player) {
+                return '<div class="game3d-mp-player' + (player.id === arcadeMp.id ? ' is-host' : '') + '">' +
+                    '<span class="game3d-mp-player-name">' + escapeHtml(player.name) + (player.id === arcadeMp.id ? ' (you)' : '') + '</span>' +
+                    '<strong class="arcade-player-score">' + Math.round(player.score).toLocaleString() + '</strong>' +
+                '</div>';
+            }).join('')
+            : '<p class="game3d-mp-sub" style="margin:0;">No one in this live lobby yet. Join to start it.</p>';
+    }
+    arcadeMpSetStatus(arcadeMp.status || (arcadeMp.connected ? 'Live · scores update in real time.' : 'Join the public lobby to play with everyone.'));
+    arcadeMpRenderBoard();
+}
+
+function arcadeMpLeave(quiet) {
+    if (arcadeMp.timer) {
+        clearInterval(arcadeMp.timer);
+        arcadeMp.timer = 0;
+    }
+    const channel = arcadeMp.channel;
+    arcadeMp.channel = null;
+    arcadeMp.connected = false;
+    if (channel) {
+        try {
+            const left = channel.untrack();
+            if (left && left.catch) left.catch(function () {});
+        } catch (e) {}
+        if (supabaseClient && supabaseClient.removeChannel) {
+            try {
+                const removed = supabaseClient.removeChannel(channel);
+                if (removed && removed.catch) removed.catch(function () {});
+            } catch (e) {}
+        }
+    }
+    arcadeMp.players = {};
+    arcadeMp.gameId = 0;
+    arcadeMp.panelOpen = false;
+    const panel = document.getElementById('g3dArcadeMpPanel');
+    if (panel) panel.style.display = 'none';
+    arcadeMpRenderBoard();
+    if (!quiet) arcadeMpSetStatus('Left the live lobby.');
+    touchPresence();
+}
+
 let dmState = {
     open: false,
     contact: '',
@@ -4690,8 +4953,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.21.7";
-const UPDATE_NOTES = "Gift Coins from the top menu, richer friend and profile details, no crash camera shake, a longer slow-motion crash with sparks, and touch buttons for NOS, drift, and gear shifts";
+const APP_VERSION = "LessFun Developer Beta 1.21.8";
+const UPDATE_NOTES = "See what friends are playing and join them, live 20-player multiplayer for Tunnel Rush and Star Dodger, smarter AI emergency braking, a red collision warning with sound for you, and more realistic crashes with no slow-mo label";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
@@ -5142,15 +5405,74 @@ function showFriendsStatus(message, isError) {
 
 let presenceUnavailable = false;
 
+function currentActivityInfo() {
+    if (typeof arcadeMp !== 'undefined' && arcadeMp && arcadeMp.connected && arcadeMp.gameId) {
+        const game = games.find(function (g) { return g.id === arcadeMp.gameId; });
+        return { activity: (game ? game.name : 'Game') + ' · Live', game: String(arcadeMp.gameId), room: 'arcade:' + arcadeMp.gameId };
+    }
+    if (racerMp.code && racerMp.public) {
+        let index = 0;
+        for (let i = 0; i < RACER_MP_PUBLIC_LOBBIES.length; i++) {
+            if (RACER_MP_PUBLIC_LOBBIES[i].channel === racerMp.publicChannel) index = i;
+        }
+        return { activity: 'Beach Racer · ' + (racerMp.publicName || 'Public'), game: '1', room: 'public:' + index };
+    }
+    if (racerMp.code) {
+        return { activity: 'Beach Racer · Private room', game: '1', room: '' };
+    }
+    if (currentGameId) {
+        const game = games.find(function (g) { return g.id === currentGameId; });
+        return { activity: 'Playing ' + (game ? game.name : 'a game'), game: String(currentGameId), room: '' };
+    }
+    if (currentView === 'store') return { activity: 'Browsing the Store', game: '', room: '' };
+    if (currentView === 'community') return { activity: 'In the Community', game: '', room: '' };
+    if (currentView === 'users') return { activity: 'Looking for friends', game: '', room: '' };
+    return { activity: 'Browsing LessFun', game: '', room: '' };
+}
+
+function joinFriendActivity(name) {
+    const info = friendData.activities[name] || friendData.activities[String(name || '').toLowerCase()];
+    if (!info || !info.game) return;
+    const gameId = Number(info.game);
+    const me = friendUsername();
+    if (!me) {
+        openAuthModal();
+        return;
+    }
+    openGame(gameId);
+    setTimeout(function () {
+        if (gameId === 1 && info.room && info.room.indexOf('public:') === 0) {
+            const idx = Number(info.room.split(':')[1]) || 0;
+            const lobby = RACER_MP_PUBLIC_LOBBIES[idx];
+            if (lobby) {
+                racerMp.name = racerMpSanitizeName(me);
+                racerMpConnect(lobby.id, racerMp.name, { id: lobby.id, name: lobby.name, channel: lobby.channel });
+            }
+        } else if ((gameId === 2 || gameId === 5) && info.room && info.room.indexOf('arcade:') === 0) {
+            arcadeMpJoin();
+        }
+    }, 450);
+}
+
 async function touchPresence() {
     const username = friendUsername();
     if (!username || !supabaseClient || presenceUnavailable) return;
     try {
-        const res = await supabaseClient.from('user_presence').upsert({
+        const info = currentActivityInfo();
+        let res = await supabaseClient.from('user_presence').upsert({
             username: username,
-            last_seen: new Date().toISOString()
+            last_seen: new Date().toISOString(),
+            activity: info.activity,
+            game: info.game,
+            room: info.room
         }, { onConflict: 'username' });
-        if (res && res.error && res.error.code === 'PGRST205') presenceUnavailable = true;
+        if (res && res.error) {
+            res = await supabaseClient.from('user_presence').upsert({
+                username: username,
+                last_seen: new Date().toISOString()
+            }, { onConflict: 'username' });
+            if (res && res.error && res.error.code === 'PGRST205') presenceUnavailable = true;
+        }
     } catch (e) {}
 }
 
@@ -5312,6 +5634,18 @@ async function renderFriends() {
         '</div>';
     }
 
+    function friendActivityHtml(name) {
+        const key = String(name || '').toLowerCase();
+        const info = friendData.activities[key] || friendData.activities[name];
+        if (!info || !info.activity) return '';
+        const gameId = Number(info.game) || 0;
+        const joinable = gameId === 1 || gameId === 2 || gameId === 5;
+        return '<div class="friend-activity-row">' +
+            '<span class="friend-activity">' + escapeHtml(info.activity) + '</span>' +
+            (joinable ? '<button type="button" class="friend-join" onclick="joinFriendActivity(\'' + debugArg(name) + '\')">Join</button>' : '') +
+        '</div>';
+    }
+
     const seen = {};
     const friendships = [];
     [results[1].data || [], results[2].data || []].forEach(function (list) {
@@ -5321,14 +5655,17 @@ async function renderFriends() {
     });
 
     const presence = {};
+    const activities = {};
     (results[3].data || []).forEach(function (row) {
         if (row.username) {
             presence[row.username] = row.last_seen;
             presence[String(row.username).toLowerCase()] = row.last_seen;
+            activities[row.username] = { activity: row.activity || '', game: row.game || '', room: row.room || '' };
+            activities[String(row.username).toLowerCase()] = activities[row.username];
         }
     });
 
-    friendData = { friendships: friendships, presence: presence, users: users };
+    friendData = { friendships: friendships, presence: presence, users: users, activities: activities };
     const rel = friendRelationMap(friendships, me);
     const friends = Object.keys(rel).filter(function (name) {
         return rel[name].status === 'accepted';
@@ -5364,6 +5701,7 @@ async function renderFriends() {
                 '<div class="friend-main">' +
                     '<span class="friend-name" onclick="openProfile(\'' + debugArg(name) + '\')">' + escapeHtml(name) + '</span>' +
                     friendPresenceHtml(name) +
+                    friendActivityHtml(name) +
                     friendDetailsHtml(name) +
                 '</div>' +
                 '<button class="friend-action remove" onclick="removeFriend(\'' + debugArg(String(row.id)) + '\',\'' + debugArg(name) + '\')">Remove</button>' +
@@ -5417,6 +5755,7 @@ async function renderFriends() {
             friendAvatar(name) +
             '<div class="friend-main">' +
                 '<span class="friend-name" onclick="openProfile(\'' + debugArg(name) + '\')">' + escapeHtml(name) + '</span>' +
+                friendActivityHtml(name) +
                 friendDetailsHtml(name) +
                 (relation && relation.status === 'accepted'
                     ? friendPresenceHtml(name)

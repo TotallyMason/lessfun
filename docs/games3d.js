@@ -1595,6 +1595,7 @@
             u.fromX = ROAD_W / 2 + 6.2;
             u.toX = LANES[lane];
             u.cruiseSpeed = 16 + Math.random() * 12;
+            u.normalCruiseSpeed = u.cruiseSpeed;
             u.signal = 1;
             u.signalT = 0;
             u.blinkT = 0;
@@ -1757,7 +1758,9 @@
         var crashStartMs = 0;
         var crashScore = 0;
         var crashVx = 0, crashSpinX = 0, crashSpinY = 0, crashSpinZ = 0;
+        var warningT = 0;
         var crashCar = null, crashCarVx = 0, crashCarVz = 0, crashCarSpin = 0;
+        var crashWheel = null, crashWheelVx = 0, crashWheelVy = 0, crashWheelVz = 0, crashWheelSpin = 0;
         var crashDebris = [];
         var debrisColors = [0xd9e2ec, 0xff4d5e, 0x2b2b2b, 0xffd166, 0x4cc9f0];        for (var cdi = 0; cdi < 26; cdi++) {
             var debrisMat = new THREE.MeshBasicMaterial({ color: debrisColors[cdi % debrisColors.length] });
@@ -1860,31 +1863,68 @@
             }
         }
 
+        function spawnCrashSmoke(x, z, count) {
+            for (var n = 0; n < count; n++) {
+                var entry = driftPuffs[driftPuffCursor % driftPuffs.length];
+                driftPuffCursor++;
+                entry.life = 0.9 + Math.random() * 0.4;
+                entry.sprite.position.set(x + (Math.random() - 0.5) * 1.8, 0.3 + Math.random() * 0.5, z + (Math.random() - 0.5) * 2);
+                entry.sprite.scale.set(1 + Math.random() * 0.8, 1 + Math.random() * 0.8, 1);
+            }
+        }
+
         function triggerCrash(car, halfWidth) {
             if (crashActive) return;
             crashActive = true;
             crashRealT = 0;
             crashStartMs = (global.performance && global.performance.now) ? global.performance.now() : Date.now();
             crashScore = distance + checkpointsPassed * CHECKPOINT_BONUS + driftScore;
+            var spec = car.userData && car.userData.spec ? car.userData.spec : {};
+            var mass = Math.max(0.8, Math.min(2.2, ((spec.width || 1.8) * (spec.len || 3.2)) / 8));
             var dir = player.position.x >= car.position.x ? 1 : -1;
-            crashVx = dir * (9 + Math.min(26, Math.abs(speed) * 0.11));
-            crashSpinX = (Math.random() - 0.5) * 2.6;
-            crashSpinY = dir * (1.8 + Math.random() * 2.4);
-            crashSpinZ = dir * (1.2 + Math.random() * 1.8);
-            vy = 7 + Math.min(14, Math.abs(speed) * 0.055);
-            playerY = 0.35;
-            speed *= 0.3;
+            crashVx = dir * (6 + Math.min(18, Math.abs(speed) * 0.08)) * mass;
+            crashSpinX = (Math.random() - 0.5) * 1.0;
+            crashSpinY = dir * (0.9 + Math.random() * 1.1);
+            crashSpinZ = dir * (0.5 + Math.random() * 0.9);
+            vy = 5 + Math.min(10, Math.abs(speed) * 0.045);
+            playerY = 0.3;
+            speed *= 0.25;
             crashCar = car;
-            crashCarVx = -dir * (6 + Math.random() * 8);
-            crashCarVz = 6 + Math.random() * 10;
-            crashCarSpin = -dir * (1.5 + Math.random() * 2);
+            crashCarVx = -dir * (4 + Math.random() * 6) * mass;
+            crashCarVz = 4 + Math.random() * 8;
+            crashCarSpin = -dir * (0.8 + Math.random() * 1.2);
             if (car.userData) car.userData.state = 'hit';
+
+            var body = player.userData.bodyGroup;
+            if (body) {
+                var crumple = Math.min(0.14, Math.abs(speed) * 0.0008 + 0.03);
+                body.scale.z = Math.max(0.86, 1 - crumple);
+                body.scale.x = 1 + crumple * 0.5;
+            }
+
+            if (Math.abs(speed) > 40) {
+                var pivots = player.userData.suspensionPivots || [];
+                var springs = player.userData.suspensionSprings || [];
+                if (pivots.length) {
+                    crashWheel = pivots.pop();
+                    springs.pop();
+                    scene.attach(crashWheel);
+                    crashWheelVx = dir * (6 + Math.random() * 8);
+                    crashWheelVy = 5 + Math.random() * 6;
+                    crashWheelVz = (Math.random() - 0.3) * 10;
+                    crashWheelSpin = (Math.random() - 0.5) * 8;
+                }
+            }
+
             spawnCrashDebris(car.position.x, car.position.z);
-            spawnSparks(car.position.x, 0.9, car.position.z, 95);
+            spawnSparks(car.position.x, 0.9, car.position.z, 110);
+            spawnCrashSmoke(car.position.x, car.position.z, 8);
             crashSound();
             tone(70, 0.8, 'sawtooth', 0.12, 30);
             var flash = document.getElementById('g3dCrashFlash');
             if (flash) flash.classList.add('is-active');
+            var warn = document.getElementById('g3dWarning');
+            if (warn) warn.classList.remove('is-active');
         }
 
         function updateCrash(dt) {
@@ -1901,12 +1941,16 @@
                     vy = -vy * 0.26;
                     suspensionImpulse = 0.9;
                     spawnSparks(player.position.x, 0.35, player.position.z, 26);
+                    spawnCrashSmoke(player.position.x, player.position.z, 3);
                 } else vy = 0;
             }
             player.position.y = playerY;
             player.rotation.x += crashSpinX * dt;
             player.rotation.y += crashSpinY * dt;
             player.rotation.z += crashSpinZ * dt;
+            crashSpinX *= Math.max(0, 1 - dt * 1.3);
+            crashSpinY *= Math.max(0, 1 - dt * 0.65);
+            crashSpinZ *= Math.max(0, 1 - dt * 1.0);
             speed = Math.max(0, speed - 40 * dt);
             animateSuspension(player, dt, speed, distance, player.rotation.z, 1, suspensionImpulse);
             suspensionImpulse *= Math.max(0, 1 - dt * 4);
@@ -1922,6 +1966,23 @@
             }
             updateCrashDebris(dt);
             updateSparks(dt);
+            updateDriftPuffs(dt, false);
+
+            if (crashWheel) {
+                crashWheel.position.x += crashWheelVx * dt;
+                crashWheel.position.y += crashWheelVy * dt;
+                crashWheel.position.z += crashWheelVz * dt;
+                crashWheelVy -= 24 * dt;
+                crashWheel.rotation.x += crashWheelSpin * dt;
+                crashWheel.rotation.z += crashWheelSpin * 0.7 * dt;
+                if (crashWheel.position.y < 0.33) {
+                    crashWheel.position.y = 0.33;
+                    crashWheelVy = Math.abs(crashWheelVy) * 0.35;
+                    crashWheelVx *= 0.7;
+                    crashWheelVz *= 0.7;
+                    crashWheelSpin *= 0.7;
+                }
+            }
 
             // Slow-motion crash camera (no shake).
             camera.position.x = player.position.x * 0.8;
@@ -1932,7 +1993,7 @@
             camera.updateProjectionMatrix();
 
             if (window.Games3D) { /* keeps HUD update cheap */ }
-            setHud(crashScore, 'CRASH · SLOW-MO', 'X');
+            setHud(crashScore, 'CRASH', 'X');
 
             if (crashRealT > 5.5) {
                 var flash = document.getElementById('g3dCrashFlash');
@@ -2193,6 +2254,7 @@
             // Normal traffic cruises at 60–120 mph. The rare mad car runs at
             // 500 mph, ignores lanes, and swerves across the whole highway.
             u.cruiseSpeed = (60 + Math.random() * 60) / 2.2369362920544;
+            u.normalCruiseSpeed = u.cruiseSpeed;
             if (isMad) {
                 u.mad = true;
                 u.madT = 0;
@@ -2204,6 +2266,7 @@
             if (isRamp) {
                 u.isRamp = true;
                 u.cruiseSpeed = 26 + Math.random() * 12;
+                u.normalCruiseSpeed = u.cruiseSpeed;
                 var rampMat = standard(0x2b3038, { metalness: 0.55, roughness: 0.4 });
                 var ramp = boxMesh(2.3, 0.14, 4.4, rampMat);
                 ramp.position.set(0, 1.0, 1.5);
@@ -2519,6 +2582,40 @@
                     }
                 }
 
+                // AI emergency braking: if the player or another car is close
+                // ahead in the same lane, the AI brakes instead of driving on.
+                var mustBrake = false;
+                var gapPlayer = c.position.z - player.position.z;
+                if (gapPlayer > 0 && gapPlayer < 30 && Math.abs(c.position.x - player.position.x) < 2.1) {
+                    mustBrake = true;
+                }
+                if (!mustBrake) {
+                    for (var oi2 = 0; oi2 < traffic.length; oi2++) {
+                        var other = traffic[oi2];
+                        if (other === c) continue;
+                        var gapOther = c.position.z - other.position.z;
+                        if (gapOther > 0 && gapOther < 20 && Math.abs(other.position.x - c.position.x) < 2.0) {
+                            mustBrake = true;
+                            break;
+                        }
+                    }
+                }
+                if (mustBrake && u.state !== 'mad') {
+                    u.emergency = true;
+                    u.cruiseSpeed = Math.max(0, (u.cruiseSpeed || 0) - 110 * dt);
+                    if (Math.random() < dt * 6) {
+                        var skidX = c.position.x + (Math.random() - 0.5) * 1.2;
+                        spawnSparks(skidX, 0.15, c.position.z + 2.4, 1);
+                    }
+                } else {
+                    u.emergency = false;
+                    var normalSpeed = u.normalCruiseSpeed != null ? u.normalCruiseSpeed : u.cruiseSpeed;
+                    u.cruiseSpeed += (normalSpeed - (u.cruiseSpeed || 0)) * Math.min(1, dt * 1.4);
+                }
+                if (c.userData.brakeMat) {
+                    c.userData.brakeMat.color.setHex((u.emergency || u.state === 'hit') ? 0xff2438 : 0x5a1018);
+                }
+
                 var prevZ = c.position.z;
                 c.position.z += (speed - u.cruiseSpeed) * dt;
                 var tw = c.userData.wheels || [];
@@ -2553,6 +2650,30 @@
                         return;
                     }
                 }
+            }
+
+            // Human warning only: no auto-brake, just a red flash and beep.
+            var collisionWarning = false;
+            if (!crashActive) {
+                for (var wk = 0; wk < traffic.length; wk++) {
+                    var wc = traffic[wk];
+                    var wgap = player.position.z - wc.position.z;
+                    if (wgap <= 0 || wgap > 34) continue;
+                    if (Math.abs(wc.position.x - player.position.x) > 2.15) continue;
+                    var closing = Math.abs(speed) - Math.abs(wc.userData.cruiseSpeed || 0);
+                    if (closing > 1 && (wgap / closing) < 0.95) { collisionWarning = true; break; }
+                }
+            }
+            var warnEl = document.getElementById('g3dWarning');
+            if (warnEl) warnEl.classList.toggle('is-active', collisionWarning);
+            if (collisionWarning) {
+                warningT -= dt;
+                if (warningT <= 0) {
+                    warningT = 0.34;
+                    tone(1240, 0.09, 'square', 0.05, 860);
+                }
+            } else {
+                warningT = 0;
             }
 
             var fov = 64 + Math.min(18, Math.abs(speed) * 0.13);
@@ -2754,7 +2875,7 @@
             setHud(elapsed * 10, Math.round(speed * 3.6) + ' km/h');
         }
 
-        return { over: false, update: update };
+        return { over: false, update: update, getScore: function () { return elapsed * 10; } };
     }
 
     /* ---------------- Cube Stack ---------------- */
@@ -2829,7 +2950,7 @@
             setHud(placed, 'Height ' + placed);
         }
 
-        return { over: false, update: update };
+        return { over: false, update: update, getScore: function () { return placed; } };
     }
 
     /* ---------------- Star Dodger ---------------- */
@@ -2931,7 +3052,7 @@
             setHud(score, '');
         }
 
-        return { over: false, update: update };
+        return { over: false, update: update, getScore: function () { return score; } };
     }
 
     var factories = {
@@ -3155,6 +3276,9 @@
     function getRacerInfo() {
         return active && active.getMultiplayerInfo ? active.getMultiplayerInfo() : null;
     }
+    function getCurrentScore() {
+        return active && active.getScore ? active.getScore() : 0;
+    }
     function teleportRacer(distance, x) {
         if (active && active.teleport) active.teleport(distance, x);
     }
@@ -3173,6 +3297,7 @@
         setRenderScale: setRenderScale,
         setSoundEnabled: setSoundEnabled,
         teleportRacer: teleportRacer,
+        getCurrentScore: getCurrentScore,
         getRacerState: getRacerState,
         getRacerInfo: getRacerInfo
     };

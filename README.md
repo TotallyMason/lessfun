@@ -88,6 +88,8 @@ full file:
   selectable admin powers, and profile picture storage.
 - [`supabase/messages.sql`](supabase/messages.sql) — encrypted direct messages
   and public messaging keys.
+- [`supabase/presence_activity.sql`](supabase/presence_activity.sql) — friend
+  activity, game, and joinable public-lobby presence.
 - [`supabase/owner_tools.sql`](supabase/owner_tools.sql) — ban flag and site
   settings.
 - [`supabase/community.sql`](supabase/community.sql) — post attachments, replies,
@@ -163,8 +165,11 @@ handling real user data or payments.
 - Liquid-glass HUD pills that expand and contract smoothly as values change
 - Expanded friend/profile stats: joined date, last seen, Coins, lifetime earnings, streak, posts, replies, friends, best runs, and admin status
 - Touch controls for NOS, drift, and gear shifts on phones and narrow screens
+- Friend activity presence with a Join button for their current game or public lobby
+- Live public multiplayer for Tunnel Rush and Star Dodger with real-time score boards
+- AI traffic emergency braking with brake lights; human players get a red flash and warning beep instead of auto-braking
 - Real 3D suspension on Beach Racer cars: coilover springs, control arms, independent wheel travel, body roll, brake dive, acceleration squat, and landing compression
-- Longer cinematic slow-motion crashes with tumbling, debris, sparks, bounced landings, and a delayed game-over sequence (no camera shake)
+- Longer cinematic crashes with tumbling, debris, sparks, smoke, wheel detachment, body crumple, bounced landings, and a delayed game-over sequence (no camera shake, no slow-mo label)
 - Always-on public Beach Racer lobbies for up to 50 players with no codes
 - Render-resolution setting (Auto/100/85/70/50%) for smoother 3D frame rates without lowering model quality
 - Owner-managed admins with selectable post, reply, and user-ban powers
