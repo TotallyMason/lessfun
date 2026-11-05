@@ -160,7 +160,7 @@ handling real user data or payments.
 - Beach Racer multiplayer for 2–3 players: create or join a five-character room code, race together, see each driver's name floating above their car, and pass through other players without collisions
 - Checkpoint gates every 500 m with a CP counter and a +250 score bonus per gate, plus a host-only start and restart button
 - Manual Q/E gear selector (P, R, N, D) with reverse and park in Beach Racer
-- Automatic drift detection from speed, steering, and braking, with tire smoke and drift scoring; 60–120 mph traffic, buses, a rare 500 mph mad car, ramp trucks, jump ramps, and highway entries/exits
+- Speed-scaled steering that locks at a standstill, automatic drift detection from speed/steering/braking, and an **F-key FSD** mode with blue lane visualization, safe lane changes, and automatic braking
 - Ignition bar, synthesized engine/tire/nitrous audio, and a drainable nitrous boost on **Shift** or **N**, with a NITRO SHIFT kick
 - Gold track coins that are collected during a run and paid into the Coins wallet at game over
 - Private messages with ECDH P-256 + AES-GCM end-to-end encryption, available from an in-game sidebar

@@ -1352,6 +1352,29 @@
         player.position.set(0, 0, 5);
         scene.add(player);
 
+        // FSD lane visualization.
+        var fsdLinesMat = new THREE.MeshBasicMaterial({
+            color: 0x2fd4ff, transparent: true, opacity: 0.6,
+            blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+        });
+        var fsdFillMat = new THREE.MeshBasicMaterial({
+            color: 0x1b9be0, transparent: true, opacity: 0.05,
+            blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+        });
+        var fsdGroup = new THREE.Group();
+        [-1.45, 1.45].forEach(function (side) {
+            var line = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 120), fsdLinesMat);
+            line.rotation.x = -Math.PI / 2;
+            line.position.set(side, 0.07, -55);
+            fsdGroup.add(line);
+        });
+        var fsdFill = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 120), fsdFillMat);
+        fsdFill.rotation.x = -Math.PI / 2;
+        fsdFill.position.set(0, 0.05, -55);
+        fsdGroup.add(fsdFill);
+        fsdGroup.visible = false;
+        scene.add(fsdGroup);
+
         // Surfboard and roof rack.
         var board = buildSurfboard(boardColor);
         board.position.set(0, player.userData.roofY, player.userData.spec.cabinZ || 0);
@@ -1953,6 +1976,9 @@
 
         function triggerCrash(car, halfWidth) {
             if (crashActive) return;
+            fsdActive = false;
+            var fsdOverlay = document.getElementById('g3dFsd');
+            if (fsdOverlay) fsdOverlay.classList.remove('is-active');
             crashActive = true;
             crashRealT = 0;
             crashStartMs = (global.performance && global.performance.now) ? global.performance.now() : Date.now();
@@ -2412,6 +2438,47 @@
         var hudT = 0;
         var maxX = ROAD_W / 2 - 1.3;
         var steerX = 0;
+        var fsdActive = false;
+        var fsdLane = 2;
+        var fsdThink = 0;
+        var fsdCooldown = 0;
+        var fsdSteerX = 0;
+
+        function laneIndexOf(x) {
+            var best = 0;
+            var bestDist = Infinity;
+            for (var i = 0; i < LANES.length; i++) {
+                var d = Math.abs(LANES[i] - x);
+                if (d < bestDist) { bestDist = d; best = i; }
+            }
+            return best;
+        }
+
+        function laneGapFor(laneIndex, range) {
+            var laneX = LANES[laneIndex];
+            var gap = range;
+            for (var i = 0; i < traffic.length; i++) {
+                var car = traffic[i];
+                if (!car || !car.userData) continue;
+                var lx = car.userData.logicalX != null ? car.userData.logicalX : car.position.x;
+                if (Math.abs(lx - laneX) > 2.05) continue;
+                var dz = player.position.z - car.position.z;
+                if (dz > 0 && dz < gap) gap = dz;
+            }
+            return gap;
+        }
+
+        function updateFsdVisual() {
+            var overlay = document.getElementById('g3dFsd');
+            if (overlay) overlay.classList.toggle('is-active', fsdActive);
+            if (!fsdGroup) return;
+            fsdGroup.visible = fsdActive;
+            if (!fsdActive) return;
+            fsdGroup.position.set(LANES[fsdLane], 0, player.position.z);
+            var pulse = 0.45 + Math.sin(elapsed * 6) * 0.18;
+            fsdLinesMat.opacity = pulse;
+            fsdFillMat.opacity = 0.04 + Math.sin(elapsed * 6) * 0.018;
+        }
 
         function gearFor(v) {
             var gear = 1;
@@ -2453,6 +2520,64 @@
                 gearMode = gearMode === 'P' ? 'R' : gearMode === 'R' ? 'N' : 'D';
             }
 
+            if (input.fsdToggle) {
+                input.fsdToggle = false;
+                fsdActive = !fsdActive;
+                if (fsdActive) {
+                    engineOn = true;
+                    ignition = 1;
+                    gearMode = 'D';
+                    fsdLane = laneIndexOf(player.position.x);
+                    fsdThink = 0;
+                    fsdCooldown = 2.5;
+                    tone(520, 0.14, 'sine', 0.05, 880);
+                } else {
+                    tone(280, 0.1, 'sine', 0.04, 220);
+                }
+            }
+            if (fsdActive && gearMode !== 'D') fsdActive = false;
+
+            var throttleCmd = input.up;
+            var brakeCmd = input.brake;
+            if (fsdActive) {
+                fsdThink -= dt;
+                fsdCooldown -= dt;
+                var curLane = laneIndexOf(player.position.x);
+                if (fsdThink <= 0) {
+                    fsdThink = 0.5;
+                    var curGap = laneGapFor(curLane, 200);
+                    var bestLane = curLane;
+                    var bestGap = curGap;
+                    for (var fl = Math.max(0, curLane - 1); fl <= Math.min(LANES.length - 1, curLane + 1); fl++) {
+                        if (fl === curLane) continue;
+                        var fg = laneGapFor(fl, 200);
+                        if (fg > bestGap + 20) { bestGap = fg; bestLane = fl; }
+                    }
+                    if (bestLane !== curLane && fsdCooldown <= 0) {
+                        fsdLane = bestLane;
+                        fsdCooldown = (curGap < 80 ? 2.5 : 6) + Math.random() * 3;
+                    } else if (fsdCooldown <= 0 && curGap > 140 && Math.random() < 0.14) {
+                        var options = [];
+                        if (curLane > 0) options.push(curLane - 1);
+                        if (curLane < LANES.length - 1) options.push(curLane + 1);
+                        if (options.length) {
+                            fsdLane = options[Math.floor(Math.random() * options.length)];
+                            fsdCooldown = 7 + Math.random() * 4;
+                        }
+                    } else if (laneGapFor(fsdLane, 200) < 45) {
+                        fsdLane = curLane;
+                    }
+                }
+                fsdLane = Math.max(0, Math.min(LANES.length - 1, fsdLane));
+                fsdSteerX = LANES[fsdLane];
+                var gapAhead = laneGapFor(fsdLane, 240);
+                var safeSpeed = Math.min(perf.topSpeed * 0.5, Math.max(10, gapAhead * 0.6));
+                if (gapAhead < 50) { brakeCmd = true; throttleCmd = false; }
+                else if (speed > safeSpeed + 5) { brakeCmd = true; throttleCmd = false; }
+                else if (speed < safeSpeed - 3) { brakeCmd = false; throttleCmd = true; }
+                else { brakeCmd = false; throttleCmd = false; }
+            }
+
             if (!engineOn) {
                 if (input.up && gearMode === 'D') {
                     ignition = Math.min(1, ignition + dt / 0.9);
@@ -2466,7 +2591,7 @@
                 }
             }
 
-            nitroActive = !!(input.nitro && input.up && engineOn && gearMode === 'D' && nitro > 0 && !input.brake);
+            nitroActive = !!(input.nitro && throttleCmd && engineOn && gearMode === 'D' && nitro > 0 && !brakeCmd && !fsdActive);
             if (nitroActive && !nitroWasActive) {
                 nitroShiftT = 0.9;
                 tone(300, 0.16, 'sawtooth', 0.06, 620);
@@ -2490,9 +2615,9 @@
                 }
             } else if (gearMode === 'N') {
                 speed += (0 - speed) * Math.min(1, dt * 1.4);
-            } else if (input.brake) {
+            } else if (brakeCmd) {
                 speed = Math.max(0, speed - 58 * dt);
-            } else if (input.up) {
+            } else if (throttleCmd) {
                 var topSpeedNow = perf.topSpeed * (nitroActive ? 1.32 : 1);
                 var pull = perf.accel * (nitroActive ? 2.35 : 1) * (1 - 0.55 * Math.min(1, speed / topSpeedNow));
                 speed = Math.min(topSpeedNow, speed + pull * dt);
@@ -2509,15 +2634,17 @@
             updateCoins(prevDistance);
             updateJumpRamps(prevDistance);
 
+            var speedSteerFactor = Math.min(1, Math.sqrt(Math.abs(speed) / 65));
+
             // Drift is detected automatically from speed, steering, and braking.
             var steeringIntent = (input.left ? -1 : 0) + (input.right ? 1 : 0);
-            var autoDrift = Math.abs(speed) > 26 && playerY < 0.25 && (
+            var autoDrift = !fsdActive && Math.abs(speed) > 26 && playerY < 0.25 && (
                 Math.abs(steerX) > maxX * 0.5 ||
                 (steeringIntent !== 0 && Math.abs(speed) > 48) ||
                 (input.brake && Math.abs(steerX) > maxX * 0.28)
             );
-            var driftIntent = autoDrift || (!!input.drift && Math.abs(speed) > 18 &&
-                (input.left || input.right || Math.abs(steerX) > 2.2) && playerY < 0.3);
+            var driftIntent = !fsdActive && (autoDrift || (!!input.drift && Math.abs(speed) > 18 &&
+                (input.left || input.right || Math.abs(steerX) > 2.2) && playerY < 0.3));
             if (driftIntent) {
                 speed -= Math.sign(speed) * Math.min(Math.abs(speed), 9 * dt);
                 driftScore += dt * 110;
@@ -2526,10 +2653,18 @@
             var steerInput = 0;
             if (input.left) steerInput -= 1;
             if (input.right) steerInput += 1;
-            if (input.pointerActive) {
-                steerX = Math.max(-maxX, Math.min(maxX, input.pointerX * maxX * 1.08));
+            if (fsdActive) {
+                steerX += (fsdSteerX - steerX) * Math.min(1, dt * (2.0 + speedSteerFactor * 3.5));
+                if (Math.abs(speed) < 1) steerX = player.position.x;
+            } else if (Math.abs(speed) < 1) {
+                steerInput = 0;
+                steerX = player.position.x;
+            } else if (input.pointerActive) {
+                var pointerTarget = Math.max(-maxX, Math.min(maxX, input.pointerX * maxX * 1.08));
+                steerX += (pointerTarget - steerX) * Math.min(1, dt * 8 * speedSteerFactor);
+                steerX = Math.max(-maxX, Math.min(maxX, steerX));
             } else {
-                steerX += steerInput * dt * 9.5 * perf.grip * (driftIntent ? 1.7 : 1);
+                steerX += steerInput * dt * 9.5 * perf.grip * speedSteerFactor * (driftIntent ? 1.7 : 1);
                 steerX = Math.max(-maxX, Math.min(maxX, steerX));
             }
 
@@ -2540,10 +2675,11 @@
 
             var yawLimit = driftIntent ? 0.78 : 0.42;
             var rollLimit = driftIntent ? 0.34 : 0.2;
-            player.rotation.y = Math.max(-yawLimit, Math.min(yawLimit, vx * 0.045 * (driftIntent ? 2.0 : 1))) - roadTangentAt(player.position.z);
+            var yawTarget = vx * 0.045 * (driftIntent ? 2.0 : 1) * (0.35 + speedSteerFactor * 0.65);
+            player.rotation.y = Math.max(-yawLimit, Math.min(yawLimit, yawTarget)) - roadTangentAt(player.position.z);
 
             player.rotation.z = Math.max(-rollLimit, Math.min(rollLimit, -vx * 0.022 * (driftIntent ? 1.7 : 1)));
-            player.rotation.x = (input.brake ? 0.035 : 0) + Math.max(-0.03, Math.min(0.03, -vx * 0.002));
+            player.rotation.x = (brakeCmd ? 0.035 : 0) + Math.max(-0.03, Math.min(0.03, -vx * 0.002));
             if (player.userData.brakeMat) player.userData.brakeMat.color.setHex(input.brake ? 0xff2438 : 0x5a1018);
 
             // Airborne physics from ramp cars.
@@ -2847,7 +2983,7 @@
                 var g = gearFor(Math.abs(speed));
                 gearText = (speed < 0.15 ? 1 : g) + '/6';
             }
-            var status = (input.brake ? 'BRAKE · ' : (input.up ? 'THROTTLE · ' : '')) +
+            var status = (fsdActive ? 'FSD · ' : (brakeCmd ? 'BRAKE · ' : (throttleCmd ? 'THROTTLE · ' : ''))) +
                 speedText(speed) +
                 (!engineOn ? ' · HOLD W TO START' : '') +
                 (nitroActive ? (nitroShiftT > 0 ? ' · NITRO SHIFT' : ' · NOS') : '') +
@@ -2860,6 +2996,7 @@
                 setHud(distance + checkpointsPassed * CHECKPOINT_BONUS + driftScore, status, gearText);
             }
             updateRaceHud();
+            updateFsdVisual();
             updateAudio();
         }
 
@@ -2904,6 +3041,7 @@
             getCoins: function () { return coinsCollected; },
             teleport: teleportRacer,
             setGarage: setGarageMode,
+            toggleFsd: function () { input.fsdToggle = true; },
             setRemotes: setRemoteRacers,
             setLocalName: setLocalRacerName,
             getState: function () {
@@ -2918,6 +3056,8 @@
                     nitro: Math.round(nitro),
                     engineOn: engineOn,
                     coins: coinsCollected,
+                    fsd: fsdActive,
+                    fsdLane: fsdLane,
                     suspension: player.userData.bodyGroup ? player.userData.bodyGroup.position.y : 0,
                     wheelTravel: (player.userData.suspensionPivots || []).reduce(function (maxTravel, pv) {
                         return Math.max(maxTravel, Math.abs(pv.userData.travel || 0));
@@ -3251,6 +3391,7 @@
         var KEY_GEAR_UP = ['e', 'E'];
         var KEY_DRIFT = []; // Drifting is automatic; the mobile Drift button still forces it.
         var KEY_NITRO = ['n', 'N', 'Shift', 'ShiftLeft', 'ShiftRight'];
+        var KEY_FSD = ['f', 'F'];
 
         function down(e) {
             if (isTypingTarget(e)) return;
@@ -3265,6 +3406,7 @@
             if (KEY_GEAR_UP.indexOf(e.key) >= 0) { if (!e.repeat) input.gearUp = true; }
             if (KEY_DRIFT.indexOf(e.key) >= 0) input.drift = true;
             if (KEY_NITRO.indexOf(e.key) >= 0) input.nitro = true;
+            if (KEY_FSD.indexOf(e.key) >= 0) { if (!e.repeat) input.fsdToggle = true; e.preventDefault(); }
             if (e.key === ' ' || e.key === 'Enter') { input.tapQueued = true; e.preventDefault(); }
             if (KEY_LEFT.indexOf(e.key) >= 0 || KEY_RIGHT.indexOf(e.key) >= 0 || KEY_UP.indexOf(e.key) >= 0 || KEY_DOWN.indexOf(e.key) >= 0 || KEY_GEAR_DOWN.indexOf(e.key) >= 0 || KEY_GEAR_UP.indexOf(e.key) >= 0) e.preventDefault();
         }
@@ -3293,6 +3435,7 @@
             input.gearDown = false; input.gearUp = false;
             input.drift = false;
             input.nitro = false;
+            input.fsdToggle = false;
             input.pointerActive = false; input.tapQueued = false;
         }
         listen(global, 'keydown', down);
@@ -3486,6 +3629,9 @@
     function setGarageMode(on) {
         if (active && active.setGarage) active.setGarage(on);
     }
+    function toggleFsd() {
+        if (active && active.toggleFsd) active.toggleFsd();
+    }
 
     global.Games3D = {
         start: start,
@@ -3503,6 +3649,7 @@
         setUnitSystem: setUnitSystem,
         teleportRacer: teleportRacer,
         setGarageMode: setGarageMode,
+        toggleFsd: toggleFsd,
         getCurrentScore: getCurrentScore,
         getRacerState: getRacerState,
         getRacerInfo: getRacerInfo

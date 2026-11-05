@@ -4,7 +4,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_Ev9umZevWcT-AwVHTPQLnw_DHdpDHWR";
 const supabaseClient = (typeof window !== 'undefined' && window.supabase) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 const games = [
-    { id: 1, name: "Beach Racer", description: "Outrun traffic on a five-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · ← → steer · drift is automatic · Shift / N nitrous · Q/E gears · right lane exits" },
+    { id: 1, name: "Beach Racer", description: "Outrun traffic on a five-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · ← → steer · drift is automatic · Shift / N nitrous · F FSD · Q/E gears · right lane exits" },
     { id: 2, name: "Tunnel Rush", description: "Thread the neon tunnel at warp speed", icon: "tunnel", controls: "Left / Right or drag to rotate" },
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
     { id: 5, name: "Star Dodger", description: "Weave through an asteroid storm", icon: "rocket", controls: "Arrow keys or drag to fly" }
@@ -519,6 +519,10 @@ function mobileShift(direction) {
     if (window.Games3D && window.Games3D.shiftGear) window.Games3D.shiftGear(direction > 0 ? 1 : -1);
 }
 
+function mobileFsd() {
+    if (window.Games3D && window.Games3D.toggleFsd) window.Games3D.toggleFsd();
+}
+
 let currentGameId = null;
 let garageSuppressed = false;
 let startMenuSuppressed = false;
@@ -557,6 +561,7 @@ function openGame(id) {
                 '<div class="game3d-touch-controls">' +
                     '<button type="button" class="game3d-touch-btn is-nitro" onpointerdown="event.preventDefault();mobileHold(\'nitro\',true)" onpointerup="mobileHold(\'nitro\',false)" onpointercancel="mobileHold(\'nitro\',false)" onpointerleave="mobileHold(\'nitro\',false)">NOS</button>' +
                     '<button type="button" class="game3d-touch-btn is-drift" onpointerdown="event.preventDefault();mobileHold(\'drift\',true)" onpointerup="mobileHold(\'drift\',false)" onpointercancel="mobileHold(\'drift\',false)" onpointerleave="mobileHold(\'drift\',false)">Drift</button>' +
+                    '<button type="button" class="game3d-touch-btn is-fsd" onpointerdown="event.preventDefault();mobileFsd()">FSD</button>' +
                     '<button type="button" class="game3d-touch-btn is-gear" onpointerdown="event.preventDefault();mobileShift(1)">▲</button>' +
                     '<button type="button" class="game3d-touch-btn is-gear is-down" onpointerdown="event.preventDefault();mobileShift(-1)">▼</button>' +
                 '</div>' : '') +
@@ -674,6 +679,7 @@ function openGame(id) {
                     '</div>' +
                 '</div>' : '') +
             '<div class="game3d-crash" id="g3dCrashFlash"></div>' +
+            (game.hasThrottle ? '<div class="game3d-fsd" id="g3dFsd"><span>FSD ACTIVE</span></div>' : '') +
             '<div class="game3d-warning" id="g3dWarning"></div>' +
             '<div class="game3d-over" id="g3dOver" style="display:none;">' +
                 '<div class="game3d-over-card">' +
@@ -5389,8 +5395,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.22.8";
-const UPDATE_NOTES = "Added free downgrade parts, more premium bodies/engines/aero/kits with new models, and moved the Beach Racer garage shop inside the game so it no longer kicks you out";
+const APP_VERSION = "LessFun Developer Beta 1.22.9";
+const UPDATE_NOTES = "Steering now scales with speed and locks at a standstill, and F toggles FSD: a blue lane visualization with safe automatic lane changes and braking";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');

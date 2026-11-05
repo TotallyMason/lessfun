@@ -6951,3 +6951,51 @@ body.has-avatar-frame .friend-avatar {
         font-size: 19px;
     }
 }
+
+/* FSD active overlay and blue lane visualization label */
+.game3d-fsd {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 19%;
+    pointer-events: none;
+    opacity: 0;
+    background: radial-gradient(circle at 50% 60%, transparent 42%, rgba(20, 140, 255, 0.2) 100%);
+    transition: opacity 0.25s ease;
+}
+
+.game3d-fsd.is-active {
+    opacity: 1;
+}
+
+.game3d-fsd span {
+    padding: 5px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(80, 210, 255, 0.55);
+    background: rgba(4, 32, 54, 0.6);
+    color: #9fe8ff;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    text-shadow: 0 0 16px rgba(60, 200, 255, 0.85);
+    box-shadow: 0 0 22px rgba(40, 170, 255, 0.3);
+}
+
+.game3d-touch-btn.is-fsd {
+    right: 150px;
+    bottom: 48px;
+    width: 54px;
+    height: 54px;
+    border-color: rgba(60, 200, 255, 0.55);
+    background: linear-gradient(145deg, rgba(20, 90, 140, 0.7), rgba(6, 30, 50, 0.8));
+    color: #bdefff;
+    font-size: 9px;
+}
+
+.game3d-touch-btn.is-fsd:active {
+    box-shadow: 0 0 26px rgba(50, 190, 255, 0.6);
+}
