@@ -4,7 +4,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_Ev9umZevWcT-AwVHTPQLnw_DHdpDHWR";
 const supabaseClient = (typeof window !== 'undefined' && window.supabase) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 const games = [
-    { id: 1, name: "Beach Racer", description: "Outrun traffic on a five-lane coastal highway", icon: "beach", hasBrake: true, controls: "Steer across five lanes with ← → or drag · hold ↓ / S or BRAKE to slow" },
+    { id: 1, name: "Beach Racer", description: "Outrun traffic on a five-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "Hold W / ↑ or THROTTLE to accelerate · ← → steer · ↓ / S or BRAKE to slow" },
     { id: 2, name: "Tunnel Rush", description: "Thread the neon tunnel at warp speed", icon: "tunnel", controls: "Left / Right or drag to rotate" },
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
     { id: 4, name: "Helix Drop", description: "Fall through the rotating helix", icon: "helix", controls: "Left / Right or drag to rotate" },
@@ -251,9 +251,11 @@ function openGame(id) {
             '<div class="game3d-hud">' +
                 '<div class="game3d-pill"><span>Score</span><strong id="g3dScore">0</strong></div>' +
                 '<div class="game3d-pill"><span>Status</span><strong id="g3dExtra">-</strong></div>' +
+                (game.hasThrottle ? '<div class="game3d-pill game3d-gear-pill"><span>Gear</span><strong id="g3dGear">1</strong></div>' : '') +
             '</div>' +
             '<div id="g3dCanvas" class="game3d-canvas"></div>' +
             '<div class="game3d-hint">' + (game.controls || '') + '</div>' +
+            (game.hasThrottle ? '<button class="game3d-throttle" id="g3dThrottle" type="button">Throttle</button>' : '') +
             (game.hasBrake ? '<button class="game3d-brake" id="g3dBrake" type="button">Brake</button>' : '') +
             '<div class="game3d-over" id="g3dOver" style="display:none;">' +
                 '<div class="game3d-over-card">' +
@@ -291,6 +293,24 @@ function openGame(id) {
         brakeBtn.addEventListener('pointerup', releaseBrake);
         brakeBtn.addEventListener('pointercancel', releaseBrake);
         brakeBtn.addEventListener('pointerleave', releaseBrake);
+    }
+
+    var throttleBtn = document.getElementById('g3dThrottle');
+    if (throttleBtn && window.Games3D && window.Games3D.setThrottle) {
+        var pressThrottle = function (e) {
+            e.preventDefault();
+            window.Games3D.setThrottle(true);
+            throttleBtn.classList.add('is-throttling');
+        };
+        var releaseThrottle = function (e) {
+            if (e) e.preventDefault();
+            window.Games3D.setThrottle(false);
+            throttleBtn.classList.remove('is-throttling');
+        };
+        throttleBtn.addEventListener('pointerdown', pressThrottle);
+        throttleBtn.addEventListener('pointerup', releaseThrottle);
+        throttleBtn.addEventListener('pointercancel', releaseThrottle);
+        throttleBtn.addEventListener('pointerleave', releaseThrottle);
     }
 }
 
@@ -2156,10 +2176,44 @@ const COSMETICS = [
     { id: 'umbrella_sunset', type: 'umbrella', name: 'Sunset Stripes', cost: 720, color: '#ff7b00', threeColor: 0xff7b00 }
 ];
 
+// Bodies and engines are real performance parts. Values are multipliers applied
+// on top of the racer's 120 m/s stock top speed and 18 m/s² stock acceleration.
+const BODY_PERF = {
+    classic:  { top: 1.00, accel: 1.00, grip: 1.00 },
+    buggy:    { top: 0.98, accel: 1.14, grip: 1.18 },
+    wagon:    { top: 1.02, accel: 1.00, grip: 1.06 },
+    truck:    { top: 0.96, accel: 1.04, grip: 1.12 },
+    racer:    { top: 1.16, accel: 1.14, grip: 1.18 },
+    van:      { top: 0.94, accel: 1.02, grip: 1.08 },
+    roadster: { top: 1.08, accel: 1.06, grip: 1.10 },
+    muscle:   { top: 1.10, accel: 1.22, grip: 0.98 },
+    limo:     { top: 0.98, accel: 1.06, grip: 1.10 },
+    cyber:    { top: 1.22, accel: 1.28, grip: 1.12 },
+    retro:    { top: 1.04, accel: 1.10, grip: 1.06 },
+    taxi:     { top: 1.02, accel: 1.04, grip: 1.10 },
+    monster:  { top: 0.96, accel: 1.10, grip: 1.24 },
+    phantom:  { top: 1.32, accel: 1.34, grip: 1.20 }
+};
+
+const ENGINE_PERF = {
+    stock:    { top: 1.00, accel: 1.00 },
+    v8:       { top: 1.08, accel: 1.16 },
+    turbo:    { top: 1.12, accel: 1.10 },
+    electric: { top: 1.10, accel: 1.30 },
+    diesel:   { top: 1.06, accel: 1.14 },
+    twin:     { top: 1.10, accel: 1.12 },
+    hybrid:   { top: 1.08, accel: 1.14 },
+    jet:      { top: 1.24, accel: 1.30 },
+    rocket:   { top: 1.34, accel: 1.40 },
+    quantum:  { top: 1.44, accel: 1.50 },
+    solar:    { top: 1.28, accel: 1.16 },
+    nitro:    { top: 1.50, accel: 1.55 }
+};
+
 const COSMETIC_CATEGORIES = [
     { type: 'paint', label: 'Car Paints', blurb: 'Body colours for your beach buggy.' },
-    { type: 'body', label: 'Car Bodies', blurb: 'Change the whole silhouette. Cosmetic only — never speed or handling.' },
-    { type: 'engine', label: 'Engines', blurb: 'Exhaust, turbines, and glow. Visual upgrades only.' },
+    { type: 'body', label: 'Car Bodies', blurb: 'Real handling parts. Every body changes top speed, acceleration, and grip.' },
+    { type: 'engine', label: 'Engines', blurb: 'Real power. Every engine changes top speed and acceleration.' },
     { type: 'board', label: 'Surfboards', blurb: 'Roof boards that ride along with you.' },
     { type: 'glow', label: 'Underglow', blurb: 'Neon light pools under the car.' },
     { type: 'wheel', label: 'Wheels', blurb: 'Rims that pop against the sand.' },
@@ -2348,6 +2402,8 @@ function getEquippedCosmetics() {
     var wheel = chosen('wheel');
     var trail = chosen('trail');
     var umbrella = chosen('umbrella');
+    var bodyPerf = BODY_PERF[body ? body.style : 'classic'] || BODY_PERF.classic;
+    var enginePerf = ENGINE_PERF[engine ? engine.style : 'stock'] || ENGINE_PERF.stock;
     return {
         paint: paint ? paint.threeColor : 0xef476f,
         body: body ? body.style : 'classic',
@@ -2361,7 +2417,12 @@ function getEquippedCosmetics() {
         wheelRainbow: !!(wheel && wheel.rainbow),
         trail: trail && !trail.none ? trail.threeColor : null,
         trailRainbow: !!(trail && trail.rainbow),
-        umbrella: umbrella && !umbrella.none ? umbrella.threeColor : null
+        umbrella: umbrella && !umbrella.none ? umbrella.threeColor : null,
+        performance: {
+            topSpeed: bodyPerf.top * enginePerf.top,
+            accel: bodyPerf.accel * enginePerf.accel,
+            grip: bodyPerf.grip
+        }
     };
 }
 
@@ -2379,6 +2440,20 @@ function cosmeticPreview(item) {
     if (item.rainbow) cls += ' is-rainbow';
     if (item.none) cls += ' is-none';
     return '<div class="' + cls + '" style="--swatch:' + item.color + '"></div>';
+}
+
+function performanceBadges(item) {
+    var perf = item.type === 'body' ? BODY_PERF[item.style]
+        : item.type === 'engine' ? ENGINE_PERF[item.style] : null;
+    if (!perf) return '';
+    var parts = [['Top', perf.top], ['Accel', perf.accel]];
+    if (item.type === 'body') parts.push(['Grip', perf.grip]);
+    return '<div class="cosmetic-perf">' + parts.map(function (part) {
+        var pct = Math.round((part[1] - 1) * 100);
+        var cls = pct > 0 ? 'is-up' : (pct < 0 ? 'is-down' : 'is-zero');
+        return '<span class="cosmetic-perf-tag ' + cls + '">' + part[0] + ' ' +
+            (pct > 0 ? '+' : '') + pct + '%</span>';
+    }).join('') + '</div>';
 }
 
 function cosmeticCards(type) {
@@ -2406,6 +2481,7 @@ function cosmeticCards(type) {
         return '<div class="cosmetic-card' + (equipped ? ' is-equipped' : '') + '">' +
             '<div class="cosmetic-preview">' + cosmeticPreview(item) + '</div>' +
             '<h3 class="cosmetic-name">' + escapeHtml(item.name) + '</h3>' +
+            performanceBadges(item) +
             '<div class="cosmetic-price">' + (owned ? (equipped ? 'In use' : 'Owned') : shellIcon(13) + ' ' + item.cost.toLocaleString()) + '</div>' +
             '<button class="cosmetic-btn ' + cls + '"' + disabled + ' onclick="handleCosmetic(\'' + item.id + '\')">' + action + '</button>' +
         '</div>';
@@ -2467,7 +2543,7 @@ function renderStore(refocusSearch) {
             '<input type="search" id="storeSearch" class="store-search" placeholder="Search cosmetics…" value="' + escapeHtml(storeSearch) + '" oninput="updateStoreSearch(this.value)">' +
         '</div>' +
         (sections || '<p class="store-empty">No cosmetics match that search.</p>') +
-        '<p class="store-note">Cosmetics only — nothing in the shop changes your score or speed. Shells are earned by playing.</p>';
+        '<p class="store-note">Car bodies and engines change real top speed, acceleration, and grip. Paints, boards, glow, wheels, trails, and umbrellas are visual. Shells are earned by playing.</p>';
 
     if (refocusSearch) {
         var input = document.getElementById('storeSearch');
@@ -3226,8 +3302,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.20.4";
-const UPDATE_NOTES = "Beach Racer is now a five-lane coastal highway with guardrails, streetlights, and overhead signs";
+const APP_VERSION = "LessFun Developer Beta 1.20.5";
+const UPDATE_NOTES = "Beach Racer now has real body and engine performance, manual W throttle, a 7 mph creep, a visible 6-speed automatic, and much higher top speed";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');

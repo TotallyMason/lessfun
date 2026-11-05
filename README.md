@@ -7,7 +7,7 @@ A 3D arcade with a liquid-glass interface. Play it at
 
 | Game | What it is |
 | --- | --- |
-| Beach Racer | Outrun traffic on a five-lane coastal highway. Steer freely and brake through the pack. |
+| Beach Racer | Outrun traffic on a five-lane coastal highway. Hold W / ↑ for throttle, steer freely, and brake through the pack in a 6-speed automatic. |
 | Tunnel Rush | Thread an endless neon tunnel and rotate through the gaps. |
 | Cube Stack | Stack the tower as high as you can before the blocks drift away. |
 | Helix Drop | Fall through a rotating helix and slip through the openings. |
@@ -38,7 +38,8 @@ Then open <http://localhost:8765>.
 ## Shells
 
 Shells are LessFun's single soft currency. They are earned by playing and spent
-only on cosmetics, so the shop never affects scores or speed.
+on car performance parts and cosmetics. Bodies and engines change real top
+speed, acceleration, and grip; the other categories are visual.
 
 | Action | Shells |
 | --- | --- |
@@ -55,18 +56,19 @@ eight categories:
 | Category | Items | What changes in Beach Racer |
 | --- | --- | --- |
 | Car paints | 20 | Body colour of the beach buggy |
-| Car bodies | 14 | Full silhouette: buggy, wagon, truck, racer, van, limo, monster, and more |
-| Engines | 12 | Exhaust pipes, turbines, battery glow, rocket flames, and engine detail |
+| Car bodies | 14 | Real performance: top speed, acceleration, and grip |
+| Engines | 12 | Real power: top speed and acceleration |
 | Surfboards | 15 | Roof board colour and shape detailing |
 | Underglow | 11 | Neon light pool and point light under the car |
 | Wheels | 12 | Rim colour, spokes, and emissive shine |
 | Exhaust trails | 12 | Pulsing additive strips behind the bumper |
 | Beach umbrellas | 10 | Striped canopy colour across the shoreline |
 
-Body and engine cosmetics are **visual only** — they never change speed,
-handling, collision size, or Shells earned. Rainbow variants cycle hue over
-time. A Shells multiplier event can be enabled from the Owner Console for
-double-Shells weekends.
+Car bodies and engines are **real performance parts** — each shop card shows
+its Top, Accel, and Grip deltas. Paints, boards, glow, wheels, trails, and
+umbrellas stay visual only. Rainbow variants cycle hue over time. A Shells
+multiplier event can be enabled from the Owner Console for double-Shells
+weekends.
 
 ## Supabase setup
 
@@ -143,9 +145,9 @@ handling real user data or payments.
 ## Features
 
 - Five real-time 3D arcade games powered by Three.js
-- Five-lane coastal highway with guardrails, streetlights, overhead signs, and free steering in Beach Racer
+- Five-lane coastal highway with guardrails, streetlights, overhead signs, manual throttle, 7 mph creep, and a visible 6-speed automatic in Beach Racer
 - Guest and account authentication options
-- Shells wallet, daily and streak bonuses, and a 106-item cosmetics shop
+- Shells wallet, daily and streak bonuses, and a 106-item performance and cosmetics shop
 - Car paints, 14 body styles, 12 engines, surfboards, underglow, wheels,
   exhaust trails, and umbrella colours applied to the 3D beach scene
 - Community posts with photo/file attachments, replies, and emoji reactions

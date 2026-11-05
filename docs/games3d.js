@@ -44,11 +44,18 @@
         });
     }
 
-    function setHud(score, extra) {
+    function setHud(score, extra, gear) {
         var s = document.getElementById('g3dScore');
         if (s) s.textContent = Math.round(score);
         var e = document.getElementById('g3dExtra');
         if (e && extra !== undefined) e.textContent = extra;
+        var g = document.getElementById('g3dGear');
+        if (g && gear !== undefined && String(gear) !== g.textContent) {
+            g.textContent = gear;
+            g.classList.remove('is-shifting');
+            void g.offsetWidth;
+            g.classList.add('is-shifting');
+        }
     }
 
     function endGame(score) {
@@ -76,6 +83,18 @@
         var bodyStyle = cosmetics.body || 'classic';
         var engineStyle = cosmetics.engine || 'stock';
         var engineColor = cosmetics.engineColor != null ? cosmetics.engineColor : null;
+
+        // Real performance from the equipped body + engine. Multipliers are the
+        // values shown in the shop; the stock car is 120 m/s and 18 m/s².
+        var equippedPerf = cosmetics.performance || {};
+        var perf = {
+            topSpeed: 120 * (equippedPerf.topSpeed || 1),
+            accel: 18 * (equippedPerf.accel || 1),
+            grip: equippedPerf.grip || 1
+        };
+        // 7 mph idle creep, in metres per second.
+        var CREEP_SPEED = 7 / 2.2369362920544;
+        var GEAR_FRACTIONS = [0.16, 0.31, 0.47, 0.64, 0.83];
 
         scene.background = new THREE.Color(0x9bd7f2);
         scene.fog = new THREE.FogExp2(0xffe0bd, 0.0055);
@@ -1034,7 +1053,7 @@
         }
 
         function spawnTraffic(forceZ) {
-            var z = forceZ != null ? forceZ : (-230 - Math.random() * 70);
+            var z = forceZ != null ? forceZ : (-360 - Math.random() * 180);
             var order = [];
             for (var oi = 0; oi < LANES.length; oi++) order.push(oi);
             order.sort(function () { return Math.random() - 0.5; });
@@ -1064,12 +1083,12 @@
             u.fromX = LANES[lane];
             u.toX = LANES[lane];
             u.decisionT = 1.5 + Math.random() * 3.5;
-            u.approach = 0.9 + Math.random() * 0.25;
+            u.cruiseSpeed = 20 + Math.random() * 24;
             scene.add(car);
             traffic.push(car);
         }
 
-        for (var t = 0; t < 9; t++) spawnTraffic(-52 - t * 22);
+        for (var t = 0; t < 9; t++) spawnTraffic(-90 - t * 40);
 
         function blink(car, side) {
             var u = car.userData;
@@ -1083,16 +1102,33 @@
             car.userData.rightLamp.visible = false;
         }
 
-        var distance = 0, speed = 42, elapsed = 0, spawnT = 0;
+        var distance = 0, speed = CREEP_SPEED, elapsed = 0, spawnT = 0;
         var maxX = ROAD_W / 2 - 1.3;
         var steerX = 0;
+
+        function gearFor(v) {
+            var gear = 1;
+            for (var g = 0; g < GEAR_FRACTIONS.length; g++) {
+                if (v >= perf.topSpeed * GEAR_FRACTIONS[g]) gear = g + 2;
+            }
+            return gear;
+        }
 
         function update(dt) {
             elapsed += dt;
 
-            var baseSpeed = Math.min(42 + elapsed * 1.3, 98);
-            if (input.brake) speed = Math.max(10, speed - 72 * dt);
-            else speed = Math.min(baseSpeed, speed + 10 * dt);
+            // Manual throttle. W / ↑ / THROTTLE accelerates; with no input the
+            // car settles to a 7 mph creep; the brake can stop it completely.
+            if (input.brake) {
+                speed = Math.max(0, speed - 58 * dt);
+            } else if (input.up) {
+                var pull = perf.accel * (1 - 0.55 * Math.min(1, speed / perf.topSpeed));
+                speed = Math.min(perf.topSpeed, speed + pull * dt);
+            } else if (speed > CREEP_SPEED) {
+                speed = Math.max(CREEP_SPEED, speed - 11 * dt);
+            } else {
+                speed = Math.min(CREEP_SPEED, speed + 5 * dt);
+            }
             distance += speed * dt;
 
             var steerInput = 0;
@@ -1101,7 +1137,7 @@
             if (input.pointerActive) {
                 steerX = Math.max(-maxX, Math.min(maxX, input.pointerX * maxX * 1.08));
             } else {
-                steerX += steerInput * dt * 9.5;
+                steerX += steerInput * dt * 9.5 * perf.grip;
                 steerX = Math.max(-maxX, Math.min(maxX, steerX));
             }
 
@@ -1180,8 +1216,6 @@
             spawnT += dt;
             if (spawnT > Math.max(0.55, 1.2 - elapsed * 0.01)) { spawnT = 0; spawnTraffic(); }
 
-            var relative = Math.min(0.42 + elapsed * 0.0045, 0.74);
-
             for (var k = traffic.length - 1; k >= 0; k--) {
                 var c = traffic[k];
                 var u = c.userData;
@@ -1235,16 +1269,24 @@
                     }
                 }
 
-                c.position.z += speed * relative * dt * u.approach;
+                var prevZ = c.position.z;
+                c.position.z += (speed - u.cruiseSpeed) * dt;
                 var tw = c.userData.wheels || [];
-                for (var twi = 0; twi < tw.length; twi++) tw[twi].rotation.x += speed * relative * dt * 1.2;
+                var wheelSpeed = Math.abs(speed - u.cruiseSpeed) + 8;
+                for (var twi = 0; twi < tw.length; twi++) tw[twi].rotation.x += wheelSpeed * dt * 1.2;
 
-                if (c.position.z > 14) {
+                if (c.position.z > 14 || c.position.z < -760) {
                     scene.remove(c); disposeObject(c); traffic.splice(k, 1); continue;
                 }
-                if (Math.abs(c.position.x - player.position.x) < 1.55 && Math.abs(c.position.z - player.position.z) < 2.75) {
-                    endGame(distance);
-                    return;
+                // Swept collision: at 200 m/s a car can cross the player in a
+                // single frame, so test the whole segment travelled this frame.
+                if (Math.abs(c.position.x - player.position.x) < 1.55) {
+                    var carBack = Math.min(prevZ, c.position.z) - 2.75;
+                    var carFront = Math.max(prevZ, c.position.z) + 2.75;
+                    if (carBack < player.position.z + 2.75 && carFront > player.position.z - 2.75) {
+                        endGame(distance);
+                        return;
+                    }
                 }
             }
 
@@ -1257,7 +1299,10 @@
             camera.position.x += (player.position.x * 0.42 - camera.position.x) * Math.min(1, dt * 5);
             camera.position.y = 4.35 + Math.sin(elapsed * 1.4) * 0.035;
             camera.lookAt(player.position.x * 0.5 + vx * 0.22, 1.05, -20);
-            setHud(distance, (input.brake ? 'BRAKE · ' : '') + Math.round(speed * 3.6) + ' km/h');
+            var gear = speed < 0.15 ? 'N' : gearFor(speed);
+            setHud(distance,
+                (input.brake ? 'BRAKE · ' : (input.up ? 'THROTTLE · ' : '')) + Math.round(speed * 2.23694) + ' mph',
+                gear === 'N' ? 'N' : gear + '/6');
         }
 
         camera.position.set(0, 4.35, 10.8);
@@ -1777,6 +1822,7 @@
     }
 
     function setBrake(on) { input.brake = !!on; }
+    function setThrottle(on) { input.up = !!on; }
 
-    global.Games3D = { start: start, stop: stop, setBrake: setBrake };
+    global.Games3D = { start: start, stop: stop, setBrake: setBrake, setThrottle: setThrottle };
 })(window);
