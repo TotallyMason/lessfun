@@ -66,6 +66,12 @@
         var cosmetics = (ctx.options && ctx.options.cosmetics) || {};
         var paintColor = cosmetics.paint != null ? cosmetics.paint : 0xef476f;
         var boardColor = cosmetics.board != null ? cosmetics.board : 0x06d6a0;
+        var glowColor = cosmetics.glow != null ? cosmetics.glow : null;
+        var glowRainbow = !!cosmetics.glowRainbow;
+        var wheelColor = cosmetics.wheel != null ? cosmetics.wheel : null;
+        var trailColor = cosmetics.trail != null ? cosmetics.trail : null;
+        var trailRainbow = !!cosmetics.trailRainbow;
+        var umbrellaColor = cosmetics.umbrella != null ? cosmetics.umbrella : null;
         scene.background = new THREE.Color(0x9bd7f2);
         scene.fog = new THREE.FogExp2(0xffe0bd, 0.0065);
         camera.position.set(0, 4.2, 10.5);
@@ -214,6 +220,7 @@
                 new THREE.ConeGeometry(1.9, 0.75, 10),
                 new THREE.MeshStandardMaterial({ color: umbColors[ui % umbColors.length], roughness: 0.55 })
             );
+            if (umbrellaColor != null) top.material.color.setHex(umbrellaColor);
             top.position.y = 2.9; umb.add(top);
             umb.position.set(15 + Math.random() * 4, 0, -6 - ui * 52);
             addScroller(umb, 364);
@@ -240,7 +247,7 @@
             addScroller(foam, 320, 0.55);
         }
 
-        function buildCar(bodyColor) {
+        function buildCar(bodyColor, rimColor) {
             var g = new THREE.Group();
             var body = new THREE.Mesh(
                 new THREE.BoxGeometry(1.7, 0.5, 3.0),
@@ -254,7 +261,13 @@
             );
             cabin.position.set(0, 1.0, -0.1); g.add(cabin);
 
-            var wheelMat = new THREE.MeshStandardMaterial({ color: 0x2b2b2b, roughness: 0.9 });
+            var wheelMat = new THREE.MeshStandardMaterial({
+                color: rimColor != null ? rimColor : 0x2b2b2b,
+                emissive: rimColor != null ? rimColor : 0x000000,
+                emissiveIntensity: rimColor != null ? 0.45 : 0,
+                metalness: rimColor != null ? 0.85 : 0.1,
+                roughness: rimColor != null ? 0.25 : 0.9
+            });
             [[-0.9, 0.95], [0.9, 0.95], [-0.9, -0.95], [0.9, -0.95]].forEach(function (p) {
                 var w = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.26, 14), wheelMat);
                 w.rotation.z = Math.PI / 2; w.position.set(p[0], 0.35, p[1]); g.add(w);
@@ -278,7 +291,7 @@
             return g;
         }
 
-        var player = buildCar(paintColor);
+        var player = buildCar(paintColor, wheelColor);
         player.position.set(0, 0, 5);
         scene.add(player);
 
@@ -298,6 +311,43 @@
             lamp.position.set(lx, 0.78, 1.52);
             player.add(lamp);
         });
+
+        // Underglow: a soft additive pool plus a real point light.
+        var glowLight = null, glowPool = null;
+        if (glowColor != null) {
+            glowPool = new THREE.Mesh(
+                new THREE.PlaneGeometry(2.9, 4.2),
+                new THREE.MeshBasicMaterial({
+                    color: glowColor, transparent: true, opacity: 0.32,
+                    blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+                })
+            );
+            glowPool.rotation.x = -Math.PI / 2;
+            glowPool.position.y = 0.09;
+            player.add(glowPool);
+
+            glowLight = new THREE.PointLight(glowColor, 1.6, 8, 2);
+            glowLight.position.set(0, 0.45, 0);
+            player.add(glowLight);
+        }
+
+        // Exhaust trail strips behind the bumper.
+        var trailBits = [];
+        if (trailColor != null) {
+            for (var tb = 0; tb < 9; tb++) {
+                var bit = new THREE.Mesh(
+                    new THREE.PlaneGeometry(0.18, 0.72),
+                    new THREE.MeshBasicMaterial({
+                        color: trailColor, transparent: true, opacity: 0.42,
+                        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+                    })
+                );
+                bit.position.set(tb % 2 ? 0.42 : -0.42, 0.5 + tb * 0.008, 1.72 + tb * 0.5);
+                bit.rotation.x = -0.28;
+                player.add(bit);
+                trailBits.push(bit);
+            }
+        }
 
         var traffic = [];
         var colors = [0xef476f, 0xffd166, 0x06d6a0, 0x118ab2, 0xf78c6b, 0xf7f3e8];
@@ -386,6 +436,23 @@
             player.rotation.z = Math.max(-0.2, Math.min(0.2, -vx * 0.022));
             player.rotation.x = (input.brake ? 0.035 : 0) + Math.max(-0.03, Math.min(0.03, -vx * 0.002));
             brakeMat.color.setHex(input.brake ? 0xff2438 : 0x5a1018);
+
+            if (glowLight && glowPool) {
+                if (glowRainbow) {
+                    glowLight.color.setHSL((elapsed * 0.18) % 1, 1, 0.6);
+                    glowPool.material.color.copy(glowLight.color);
+                }
+                glowLight.intensity = 1.35 + Math.sin(elapsed * 6) * 0.28;
+            }
+            if (trailBits.length) {
+                for (var tbi = 0; tbi < trailBits.length; tbi++) {
+                    var tbit = trailBits[tbi];
+                    var pulse = 0.24 + 0.22 * Math.sin(elapsed * 9 - tbi * 0.7);
+                    tbit.material.opacity = Math.max(0.08, pulse);
+                    tbit.scale.x = 0.8 + 0.35 * Math.sin(elapsed * 7 - tbi * 0.5);
+                    if (trailRainbow) tbit.material.color.setHSL((elapsed * 0.22 - tbi * 0.05) % 1, 1, 0.6);
+                }
+            }
 
             for (var si = 0; si < scrollers.length; si++) {
                 var sc = scrollers[si];

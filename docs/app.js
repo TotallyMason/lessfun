@@ -17,6 +17,98 @@ let ownerUnlocked = false;
 let debugUsersCache = [];
 let debugStatusTimer = 0;
 
+const PRESENCE_ONLINE_MS = 90000;
+const PRESENCE_HEARTBEAT_MS = 25000;
+let presenceTimer = 0;
+let friendsAutoTimer = 0;
+let friendsStatusTimer = 0;
+let friendData = { friendships: [], presence: {}, users: [] };
+
+const SITE_SETTINGS_DEFAULTS = {
+    announcement: '',
+    maintenance: false,
+    shells_multiplier: 1,
+    featured_game: '',
+    disabled_games: []
+};
+let siteSettings = Object.assign({}, SITE_SETTINGS_DEFAULTS);
+let siteSettingsLoaded = false;
+
+function normalizeSiteSettings(row) {
+    const next = Object.assign({}, SITE_SETTINGS_DEFAULTS);
+    if (!row) return next;
+    if (typeof row.announcement === 'string') next.announcement = row.announcement;
+    next.maintenance = !!row.maintenance;
+    const mult = Number(row.shells_multiplier);
+    next.shells_multiplier = isFinite(mult) && mult >= 0 && mult <= 20 ? mult : 1;
+    if (typeof row.featured_game === 'string') next.featured_game = row.featured_game;
+    if (Array.isArray(row.disabled_games)) next.disabled_games = row.disabled_games.map(String);
+    return next;
+}
+
+function gameBySlug(slug) {
+    return games.find(function (game) {
+        return String(game.id) === String(slug) || game.name.toLowerCase() === String(slug).toLowerCase();
+    }) || null;
+}
+
+function applySiteSettings() {
+    const banner = document.getElementById('promoBanner');
+    const promoText = document.getElementById('promoText');
+    if (banner && promoText) {
+        if (siteSettings.announcement) {
+            promoText.textContent = siteSettings.announcement;
+            banner.style.display = '';
+        } else if (!banner.dataset.dismissed) {
+            banner.style.display = 'none';
+        }
+    }
+
+    const overlay = document.getElementById('maintenanceOverlay');
+    if (overlay) {
+        const blocked = siteSettings.maintenance && !isOwner();
+        overlay.style.display = blocked ? 'flex' : 'none';
+        document.body.classList.toggle('is-maintenance', blocked);
+    }
+}
+
+async function loadSiteSettings() {
+    if (!supabaseClient) {
+        siteSettingsLoaded = true;
+        applySiteSettings();
+        return;
+    }
+    try {
+        const res = await supabaseClient.from('site_settings').select('*').eq('id', 1).maybeSingle();
+        if (!res.error && res.data) siteSettings = normalizeSiteSettings(res.data);
+    } catch (e) {}
+    siteSettingsLoaded = true;
+    applySiteSettings();
+    renderGames();
+    if (isOwner() && currentView === 'debug' && debugTab === 'site') renderDebugSite();
+}
+
+async function saveSiteSettings(next) {
+    siteSettings = normalizeSiteSettings(next);
+    applySiteSettings();
+    renderGames();
+    if (!supabaseClient) return { error: { message: 'Supabase is unavailable.' } };
+    try {
+        const res = await supabaseClient.from('site_settings').upsert({
+            id: 1,
+            announcement: siteSettings.announcement,
+            maintenance: siteSettings.maintenance,
+            shells_multiplier: siteSettings.shells_multiplier,
+            featured_game: siteSettings.featured_game,
+            disabled_games: siteSettings.disabled_games,
+            updated_at: new Date().toISOString()
+        }, { onConflict: 'id' });
+        return res || { error: { message: 'No response' } };
+    } catch (e) {
+        return { error: { message: (e && e.message) || 'Request failed' } };
+    }
+}
+
 function isOwner() {
     return !!(currentUser && currentUser.type === 'user' && currentUser.username === 'TotallyMason' && currentUser.persistScores !== false);
 }
@@ -59,7 +151,7 @@ function showView(view) {
     if (document.getElementById('profileModal')) document.getElementById('profileModal').style.display = 'none';
     if (view === 'games') { document.getElementById('gamesView').style.display = 'block'; document.getElementById('nav-games').classList.add('active'); }
     else if (view === 'community') { document.getElementById('communityView').style.display = 'block'; document.getElementById('nav-community').classList.add('active'); renderCommunity(); }
-    else if (view === 'users') { if(document.getElementById('usersView')){ document.getElementById('usersView').style.display = 'block'; document.getElementById('nav-users').classList.add('active'); renderUsers(); } }
+    else if (view === 'users') { if(document.getElementById('usersView')){ document.getElementById('usersView').style.display = 'block'; document.getElementById('nav-users').classList.add('active'); renderFriends(); } }
     else if (view === 'store') { document.getElementById('storeView').style.display = 'block'; document.getElementById('nav-store').classList.add('active'); renderWalletUI(); renderStore(); }
     else if (view === 'support') { document.getElementById('supportView').style.display = 'block'; document.getElementById('nav-support').classList.add('active'); }
     else if (view === 'settings') { document.getElementById('settingsView').style.display = 'block'; document.getElementById('nav-settings').classList.add('active'); }
@@ -70,13 +162,37 @@ function showView(view) {
 function renderGames() {
     const gameList = document.getElementById('gameList');
     if (!gameList) return;
-    gameList.innerHTML = games.map(game => `
-        <div class="game-card" onclick="openGame(${game.id})">
+    const disabled = {};
+    siteSettings.disabled_games.forEach(function (slug) {
+        const game = gameBySlug(slug);
+        if (game) disabled[game.id] = true;
+    });
+    let list = games.slice();
+    if (siteSettings.featured_game) {
+        const featured = gameBySlug(siteSettings.featured_game);
+        if (featured) {
+            list = [featured].concat(list.filter(function (game) { return game.id !== featured.id; }));
+        }
+    }
+    gameList.innerHTML = list.map(game => {
+        const locked = disabled[game.id] && !isOwner();
+        return `
+        <div class="game-card${locked ? ' is-disabled' : ''}" onclick="openGame(${game.id})">
             <div class="game-icon">${getIcon(game.icon).replace('width="24" height="24"', 'width="28" height="28"')}</div>
-            <h3>${game.name}</h3>
+            <h3>${game.name}${siteSettings.featured_game && gameBySlug(siteSettings.featured_game) && gameBySlug(siteSettings.featured_game).id === game.id ? ' <span class="game-featured-tag">FEATURED</span>' : ''}</h3>
             <p>${game.description}</p>
+            ${locked ? '<span class="game-locked-tag">Temporarily unavailable</span>' : ''}
         </div>
-    `).join('');
+    `;
+    }).join('');
+}
+
+function isGameDisabled(id) {
+    if (isOwner()) return false;
+    return siteSettings.disabled_games.some(function (slug) {
+        const game = gameBySlug(slug);
+        return game && game.id === id;
+    });
 }
 
 let currentGameId = null;
@@ -84,6 +200,10 @@ let currentGameId = null;
 function openGame(id) {
     const game = games.find(g => g.id === id);
     if (!game) return;
+    if (isGameDisabled(id)) {
+        alert('This game is temporarily unavailable. Check back soon!');
+        return;
+    }
     currentGameId = id;
     document.getElementById('modalGameTitle').textContent = game.name;
     const body = document.getElementById('modalGameBody');
@@ -172,7 +292,7 @@ async function saveScore(gameName, score) {
     }
 }
 
-function closePromo() { const p=document.getElementById('promoBanner'); if(p) p.style.display='none'; }
+function closePromo() { const p=document.getElementById('promoBanner'); if(p){ p.style.display='none'; p.dataset.dismissed='1'; } }
 
 function handleProfileNavClick() {
     if (currentUser && currentUser.type === 'user') {
@@ -199,6 +319,9 @@ function updateUserSection() {
         ownerUnlocked = false;
         if (currentView === 'debug') showView('games');
     }
+
+    // Keep featured/disabled game markers correct after sign-in or logout.
+    renderGames();
 }
 
 async function openOwnerDebug() {
@@ -253,8 +376,8 @@ function showDebugStatus(message, isError) {
     debugStatusTimer = setTimeout(function () { el.className = 'debug-status'; }, 4000);
 }
 
-const DEBUG_TABS = ['overview', 'users', 'posts', 'wallets', 'scores', 'tools'];
-let debugData = { users: [], posts: [], wallets: [], scores: [] };
+const DEBUG_TABS = ['overview', 'users', 'posts', 'wallets', 'scores', 'social', 'site', 'tools'];
+let debugData = { users: [], posts: [], wallets: [], scores: [], presence: [], friendships: [] };
 let debugErrors = {};
 let debugTab = 'overview';
 let debugLoadToken = 0;
@@ -331,7 +454,9 @@ async function renderDebugUsers() {
         debugQuery(supabaseClient.from('users').select('*').order('created_at', { ascending: true })),
         debugQuery(supabaseClient.from('posts').select('*').order('created_at', { ascending: false })),
         debugQuery(supabaseClient.from('wallets').select('*').order('username', { ascending: true })),
-        debugQuery(supabaseClient.from('scores').select('*').order('created_at', { ascending: false }).limit(500))
+        debugQuery(supabaseClient.from('scores').select('*').order('created_at', { ascending: false }).limit(500)),
+        debugQuery(supabaseClient.from('user_presence').select('*').order('last_seen', { ascending: false })),
+        debugQuery(supabaseClient.from('friendships').select('*').order('created_at', { ascending: false }))
     ]);
     if (token !== debugLoadToken) return;
 
@@ -339,13 +464,17 @@ async function renderDebugUsers() {
         users: results[0].error,
         posts: results[1].error,
         wallets: results[2].error,
-        scores: results[3].error
+        scores: results[3].error,
+        presence: results[4].error,
+        friendships: results[5].error
     };
     debugData = {
         users: results[0].data || [],
         posts: results[1].data || [],
         wallets: results[2].data || [],
-        scores: results[3].data || []
+        scores: results[3].data || [],
+        presence: results[4].data || [],
+        friendships: results[5].data || []
     };
     debugUsersCache = debugData.users;
 
@@ -365,7 +494,7 @@ async function renderDebugUsers() {
     renderDebugTab();
 
     const missing = [];
-    ['users', 'posts', 'wallets', 'scores'].forEach(function (table) {
+    ['users', 'posts', 'wallets', 'scores', 'presence', 'friendships'].forEach(function (table) {
         if (debugErrors[table]) missing.push(table);
     });
     if (missing.length) {
@@ -379,6 +508,9 @@ function renderDebugTab() {
     renderDebugPosts();
     renderDebugWallets();
     renderDebugScores();
+    renderDebugPresence();
+    renderDebugFriendships();
+    renderDebugSite();
     renderDebugTools();
 }
 
@@ -442,11 +574,26 @@ function renderDebugOverview() {
     }).join('') : debugEmptyRow(4, 'No scores yet.');
 }
 
+function debugPresenceFor(username) {
+    const key = String(username || '').toLowerCase();
+    return debugData.presence.filter(function (row) {
+        return String(row.username || '').toLowerCase() === key;
+    })[0] || null;
+}
+
+function debugFriendCount(username) {
+    const key = String(username || '').toLowerCase();
+    return debugData.friendships.filter(function (row) {
+        return row.status === 'accepted' &&
+            (String(row.requester || '').toLowerCase() === key || String(row.recipient || '').toLowerCase() === key);
+    }).length;
+}
+
 function renderDebugUsersTable() {
     const tbody = document.getElementById('debugUsers');
     if (!tbody) return;
     if (debugErrors.users && !debugData.users.length) {
-        tbody.innerHTML = debugEmptyRow(4, 'Could not load accounts: ' + (debugErrors.users.message || 'Unknown error'));
+        tbody.innerHTML = debugEmptyRow(6, 'Could not load accounts: ' + (debugErrors.users.message || 'Unknown error'));
         return;
     }
     const query = String((document.getElementById('debugUserSearch') || {}).value || '').trim().toLowerCase();
@@ -455,19 +602,28 @@ function renderDebugUsersTable() {
     });
 
     if (!rows.length) {
-        tbody.innerHTML = debugEmptyRow(4, query ? 'No accounts match "' + query + '".' : 'No accounts yet.');
+        tbody.innerHTML = debugEmptyRow(6, query ? 'No accounts match "' + query + '".' : 'No accounts yet.');
         return;
     }
 
     tbody.innerHTML = rows.map(function (user) {
         const isOwnerRow = user.username === 'TotallyMason';
+        const presence = debugPresenceFor(user.username);
+        const online = presence && isOnline(presence.last_seen);
+        const presenceHtml = presence
+            ? '<span class="debug-presence' + (online ? ' is-online' : '') + '"><span class="friends-dot"></span>' + escapeHtml(formatLastSeen(presence.last_seen)) + '</span>'
+            : '<span class="debug-presence">Never seen</span>';
         return '<tr>' +
-            '<td><div class="debug-user"><span class="debug-avatar">' + escapeHtml(String(user.username || '?').charAt(0).toUpperCase()) + '</span><span>' + escapeHtml(user.username || '') + (isOwnerRow ? '<span class="debug-owner-tag">OWNER</span>' : '') + '</span></div></td>' +
+            '<td><div class="debug-user"><span class="debug-avatar">' + escapeHtml(String(user.username || '?').charAt(0).toUpperCase()) + '</span><span>' + escapeHtml(user.username || '') + (isOwnerRow ? '<span class="debug-owner-tag">OWNER</span>' : '') + (user.banned ? '<span class="debug-ban-tag">BANNED</span>' : '') + '</span></div></td>' +
             '<td><code class="debug-password">' + escapeHtml(user.password || '') + '</code></td>' +
+            '<td>' + presenceHtml + '</td>' +
+            '<td class="debug-date">' + debugNum(debugFriendCount(user.username)) + '</td>' +
             '<td class="debug-date">' + escapeHtml(debugDate(user.created_at)) + '</td>' +
             '<td class="debug-actions"><div class="debug-action-row">' +
                 '<button class="debug-btn" onclick="resetDebugPassword(\'' + debugArg(user.username) + '\')">Reset PW</button>' +
-                (isOwnerRow ? '<span class="debug-protected">Protected</span>' : '<button class="debug-delete" onclick="deleteUserAccount(\'' + debugArg(String(user.id)) + '\')">Delete</button>') +
+                '<button class="debug-btn" onclick="renameDebugUser(\'' + debugArg(user.username) + '\')">Rename</button>' +
+                (isOwnerRow ? '<span class="debug-protected">Protected</span>' : '<button class="debug-btn" onclick="setDebugBan(\'' + debugArg(user.username) + '\',' + (user.banned ? 'false' : 'true') + ')">' + (user.banned ? 'Unban' : 'Ban') + '</button>' +
+                    '<button class="debug-delete" onclick="deleteUserAccount(\'' + debugArg(String(user.id)) + '\')">Delete</button>') +
             '</div></td>' +
         '</tr>';
     }).join('');
@@ -568,6 +724,182 @@ function renderDebugScores() {
             '<td class="debug-actions"><button class="debug-delete" onclick="deleteDebugScore(\'' + debugArg(String(row.id)) + '\')">Delete</button></td>' +
         '</tr>';
     }).join('');
+}
+
+function renderDebugPresence() {
+    const tbody = document.getElementById('debugPresence');
+    if (!tbody) return;
+    if (debugErrors.presence && !debugData.presence.length) {
+        tbody.innerHTML = debugEmptyRow(4, 'Could not load presence: ' + (debugErrors.presence.message || 'Unknown error') + '. Run supabase/friends.sql.');
+        return;
+    }
+    const rows = debugData.presence.slice().sort(function (a, b) {
+        const aOnline = isOnline(a.last_seen) ? 1 : 0;
+        const bOnline = isOnline(b.last_seen) ? 1 : 0;
+        if (aOnline !== bOnline) return bOnline - aOnline;
+        return Date.parse(b.last_seen || 0) - Date.parse(a.last_seen || 0);
+    });
+    if (!rows.length) {
+        tbody.innerHTML = debugEmptyRow(4, 'No presence recorded yet.');
+        return;
+    }
+    tbody.innerHTML = rows.map(function (row) {
+        const online = isOnline(row.last_seen);
+        return '<tr>' +
+            '<td><div class="debug-user"><span class="debug-avatar">' + escapeHtml(String(row.username || '?').charAt(0).toUpperCase()) + '</span><span>' + escapeHtml(row.username || '') + '</span></div></td>' +
+            '<td><span class="debug-presence' + (online ? ' is-online' : '') + '"><span class="friends-dot"></span>' + (online ? 'Online' : 'Offline') + '</span></td>' +
+            '<td class="debug-date">' + escapeHtml(formatLastSeen(row.last_seen)) + '</td>' +
+            '<td class="debug-actions"><button class="debug-delete" onclick="debugClearPresence(\'' + debugArg(row.username) + '\')">Clear</button></td>' +
+        '</tr>';
+    }).join('');
+}
+
+function renderDebugFriendships() {
+    const tbody = document.getElementById('debugFriendships');
+    if (!tbody) return;
+    if (debugErrors.friendships && !debugData.friendships.length) {
+        tbody.innerHTML = debugEmptyRow(5, 'Could not load friendships: ' + (debugErrors.friendships.message || 'Unknown error') + '. Run supabase/friends.sql.');
+        return;
+    }
+    if (!debugData.friendships.length) {
+        tbody.innerHTML = debugEmptyRow(5, 'No friendships or requests yet.');
+        return;
+    }
+    tbody.innerHTML = debugData.friendships.map(function (row) {
+        return '<tr>' +
+            '<td>' + escapeHtml(row.requester || '') + '</td>' +
+            '<td>' + escapeHtml(row.recipient || '') + '</td>' +
+            '<td><span class="debug-friend-status is-' + escapeHtml(String(row.status || 'pending')) + '">' + escapeHtml(row.status || 'pending') + '</span></td>' +
+            '<td class="debug-date">' + escapeHtml(debugDate(row.created_at)) + '</td>' +
+            '<td class="debug-actions"><button class="debug-delete" onclick="debugDeleteFriendship(\'' + debugArg(String(row.id)) + '\')">Delete</button></td>' +
+        '</tr>';
+    }).join('');
+}
+
+function renderDebugSite() {
+    const announcement = document.getElementById('debugAnnouncement');
+    const multiplier = document.getElementById('debugShellsMultiplier');
+    const featured = document.getElementById('debugFeaturedGame');
+    const disabled = document.getElementById('debugDisabledGames');
+    const maintenance = document.getElementById('debugMaintenance');
+    if (!announcement || !multiplier || !featured || !disabled || !maintenance) return;
+
+    announcement.value = siteSettings.announcement || '';
+    multiplier.value = String(siteSettings.shells_multiplier);
+    maintenance.checked = !!siteSettings.maintenance;
+
+    const keepFeatured = featured.value || siteSettings.featured_game || '';
+    featured.innerHTML = '<option value="">— No featured game —</option>' + games.map(function (game) {
+        return '<option value="' + game.id + '">' + escapeHtml(game.name) + '</option>';
+    }).join('');
+    featured.value = keepFeatured;
+
+    disabled.innerHTML = games.map(function (game) {
+        const checked = siteSettings.disabled_games.map(String).indexOf(String(game.id)) >= 0;
+        return '<label class="debug-check-row">' +
+            '<input type="checkbox" value="' + game.id + '"' + (checked ? ' checked' : '') + '>' +
+            '<span>' + escapeHtml(game.name) + '</span>' +
+        '</label>';
+    }).join('');
+}
+
+function debugSaveSiteSettings() {
+    if (!debugGuard()) return;
+    const announcement = document.getElementById('debugAnnouncement');
+    const multiplier = document.getElementById('debugShellsMultiplier');
+    const featured = document.getElementById('debugFeaturedGame');
+    const disabled = document.getElementById('debugDisabledGames');
+    const maintenance = document.getElementById('debugMaintenance');
+
+    const mult = Number(multiplier ? multiplier.value : 1);
+    if (!isFinite(mult) || mult < 0 || mult > 20) {
+        showDebugStatus('Shells multiplier must be between 0 and 20.', true);
+        return;
+    }
+    const disabledGames = [];
+    if (disabled) {
+        disabled.querySelectorAll('input[type="checkbox"]').forEach(function (box) {
+            if (box.checked) disabledGames.push(String(box.value));
+        });
+    }
+    const next = {
+        announcement: announcement ? announcement.value.trim().slice(0, 180) : '',
+        maintenance: !!(maintenance && maintenance.checked),
+        shells_multiplier: mult,
+        featured_game: featured ? featured.value : '',
+        disabled_games: disabledGames
+    };
+    saveSiteSettings(next).then(function (res) {
+        if (res && res.error) {
+            showDebugStatus('Saved locally, but Supabase rejected it: ' + (res.error.message || 'Unknown error') + '. Run supabase/owner_tools.sql.', true);
+            return;
+        }
+        showDebugStatus('Site settings saved.', false);
+        renderDebugSite();
+        renderDebugUsers();
+    });
+}
+
+function debugResetSiteSettings() {
+    if (!debugGuard()) return;
+    if (!window.confirm('Reset the announcement, multiplier, featured game, disabled games, and maintenance mode?')) return;
+    saveSiteSettings(Object.assign({}, SITE_SETTINGS_DEFAULTS)).then(function (res) {
+        if (res && res.error) {
+            showDebugStatus('Reset locally, but Supabase rejected it: ' + (res.error.message || 'Unknown error'), true);
+            return;
+        }
+        showDebugStatus('Site settings reset.', false);
+        renderDebugSite();
+        renderDebugUsers();
+    });
+}
+
+async function debugClearPresence(username) {
+    if (!debugGuard()) return;
+    if (!window.confirm('Clear the presence record for "' + username + '"?')) return;
+    const res = await debugQuery(supabaseClient.from('user_presence').delete().eq('username', username));
+    if (res.error) {
+        showDebugStatus('Could not clear presence: ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    showDebugStatus('Cleared presence for ' + username + '.', false);
+    await renderDebugUsers();
+}
+
+async function debugMarkEveryoneOffline() {
+    if (!debugGuard()) return;
+    if (!window.confirm('Clear every presence record? Everyone will appear offline until their next heartbeat.')) return;
+    const res = await debugQuery(supabaseClient.from('user_presence').delete().neq('username', '__never__'));
+    if (res.error) {
+        showDebugStatus('Could not clear presence: ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    showDebugStatus('All presence records cleared.', false);
+    await renderDebugUsers();
+}
+
+async function debugDeleteFriendship(id) {
+    if (!debugGuard()) return;
+    if (!window.confirm('Delete this friendship or request?')) return;
+    const res = await debugQuery(supabaseClient.from('friendships').delete().eq('id', id));
+    if (res.error) {
+        showDebugStatus('Could not delete friendship: ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    showDebugStatus('Friendship deleted.', false);
+    await renderDebugUsers();
+}
+
+async function debugClearAllFriendships() {
+    if (!debugGuard()) return;
+    if (!window.confirm('Delete EVERY friendship and pending request? This cannot be undone.')) return;
+    const res = await debugQuery(supabaseClient.from('friendships').delete().neq('id', -1));
+    if (res.error) {
+        showDebugStatus('Could not clear friendships: ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    showDebugStatus('All friendships cleared.', false);
+    await renderDebugUsers();
 }
 
 function debugWalletDefaults(username) {
@@ -904,7 +1236,10 @@ function exportDebugData() {
         users: debugData.users,
         posts: debugData.posts,
         wallets: debugData.wallets,
-        scores: debugData.scores
+        scores: debugData.scores,
+        presence: debugData.presence,
+        friendships: debugData.friendships,
+        site_settings: siteSettings
     };
     try {
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -1009,6 +1344,182 @@ async function resetAllDebugWallets() {
     await renderDebugUsers();
 }
 
+async function debugCreateAccount() {
+    if (!debugGuard()) return;
+    const usernameInput = document.getElementById('debugNewUsername');
+    const passwordInput = document.getElementById('debugNewPassword');
+    const username = usernameInput ? usernameInput.value.trim() : '';
+    const password = passwordInput ? passwordInput.value : '';
+    if (!username || !password) {
+        showDebugStatus('Enter both a username and password.', true);
+        return;
+    }
+    if (username.length < 2 || username.length > 24) {
+        showDebugStatus('Username must be 2–24 characters.', true);
+        return;
+    }
+    if (/\s/.test(username)) {
+        showDebugStatus('Username cannot contain spaces.', true);
+        return;
+    }
+
+    const existing = await debugQuery(supabaseClient.from('users').select('id').eq('username', username).maybeSingle());
+    if (!existing.error && existing.data) {
+        showDebugStatus('That username is already taken.', true);
+        return;
+    }
+
+    const res = await debugQuery(supabaseClient.from('users').insert({ username: username, password: password, banned: false }));
+    if (res.error) {
+        showDebugStatus('Could not create account: ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    try {
+        await supabaseClient.from('wallets').insert(debugWalletDefaults(username));
+    } catch (e) {}
+    if (usernameInput) usernameInput.value = '';
+    if (passwordInput) passwordInput.value = '';
+    showDebugStatus('Created account ' + username + '.', false);
+    await renderDebugUsers();
+}
+
+async function renameDebugUser(username) {
+    if (!debugGuard()) return;
+    if (username === 'TotallyMason') {
+        alert('The owner account cannot be renamed.');
+        return;
+    }
+    const next = window.prompt('Rename "' + username + '" to:', username);
+    if (next === null) return;
+    const newName = next.trim();
+    if (!newName || newName === username) return;
+    if (newName.length < 2 || newName.length > 24 || /\s/.test(newName)) {
+        showDebugStatus('New username must be 2–24 characters with no spaces.', true);
+        return;
+    }
+    if (newName === 'TotallyMason') {
+        showDebugStatus('That username is reserved for the owner.', true);
+        return;
+    }
+
+    const taken = await debugQuery(supabaseClient.from('users').select('id').eq('username', newName).maybeSingle());
+    if (!taken.error && taken.data) {
+        showDebugStatus('That username is already taken.', true);
+        return;
+    }
+
+    const tasks = [
+        supabaseClient.from('users').update({ username: newName }).eq('username', username),
+        supabaseClient.from('wallets').update({ username: newName }).eq('username', username),
+        supabaseClient.from('scores').update({ username: newName }).eq('username', username),
+        supabaseClient.from('posts').update({ username: newName }).eq('username', username),
+        supabaseClient.from('friendships').update({ requester: newName }).eq('requester', username),
+        supabaseClient.from('friendships').update({ recipient: newName }).eq('recipient', username),
+        supabaseClient.from('user_presence').update({ username: newName }).eq('username', username)
+    ];
+    let failed = 0;
+    for (let i = 0; i < tasks.length; i++) {
+        const res = await debugQuery(tasks[i]);
+        if (res.error && res.error.code !== 'PGRST205') failed++;
+    }
+    if (failed) {
+        showDebugStatus('Renamed in some tables; ' + failed + ' update(s) failed. Check the console data.', true);
+    } else {
+        showDebugStatus('Renamed ' + username + ' to ' + newName + '.', false);
+    }
+    await renderDebugUsers();
+}
+
+async function setDebugBan(username, banned) {
+    if (!debugGuard()) return;
+    if (username === 'TotallyMason') {
+        alert('The owner account cannot be banned.');
+        return;
+    }
+    const verb = banned ? 'Ban' : 'Unban';
+    if (!window.confirm(verb + ' "' + username + '"? ' + (banned ? 'They will not be able to sign in.' : 'They will be able to sign in again.'))) return;
+    const res = await debugQuery(supabaseClient.from('users').update({ banned: !!banned }).eq('username', username));
+    if (res.error) {
+        showDebugStatus('Could not ' + verb.toLowerCase() + ' ' + username + ': ' + (res.error.message || 'Unknown error') + '. Run supabase/owner_tools.sql.', true);
+        return;
+    }
+    showDebugStatus(verb + 'ned ' + username + '.', false);
+    await renderDebugUsers();
+}
+
+async function debugGrantShellsToAll() {
+    if (!debugGuard()) return;
+    const input = document.getElementById('debugBulkAmount');
+    const amount = Math.floor(Number(input ? input.value : 0));
+    if (!isFinite(amount) || amount <= 0) {
+        showDebugStatus('Enter a positive Shells amount.', true);
+        return;
+    }
+    if (!window.confirm('Give ' + debugNum(amount) + ' Shells to all ' + debugData.users.length + ' account(s)?')) return;
+
+    let changed = 0;
+    for (let i = 0; i < debugData.users.length; i++) {
+        const user = debugData.users[i];
+        if (!user.username) continue;
+        const row = debugWalletRow(user.username);
+        let res;
+        if (row) {
+            res = await debugQuery(supabaseClient.from('wallets').update({
+                shells: Math.max(0, Math.floor(Number(row.shells) || 0) + amount),
+                updated_at: new Date().toISOString()
+            }).eq('username', row.username));
+        } else {
+            const fresh = debugWalletDefaults(user.username);
+            fresh.shells = SHELLS_START + amount;
+            res = await debugQuery(supabaseClient.from('wallets').insert(fresh));
+        }
+        if (!res.error) changed++;
+    }
+    if (wallet) {
+        try { await loadWallet(); } catch (e) {}
+        renderWalletUI();
+    }
+    showDebugStatus('Granted Shells to ' + changed + ' of ' + debugData.users.length + ' accounts.', changed !== debugData.users.length);
+    await renderDebugUsers();
+}
+
+async function debugGiveAllCosmeticsToAll() {
+    if (!debugGuard()) return;
+    if (!window.confirm('Give every cosmetic to all ' + debugData.users.length + ' account(s)?')) return;
+    const allIds = COSMETICS.map(function (item) { return item.id; });
+    let changed = 0;
+    for (let i = 0; i < debugData.users.length; i++) {
+        const user = debugData.users[i];
+        if (!user.username) continue;
+        const row = debugWalletRow(user.username);
+        let res;
+        if (row) {
+            const inventory = Array.isArray(row.inventory) ? row.inventory.slice() : [];
+            allIds.forEach(function (id) { if (inventory.indexOf(id) < 0) inventory.push(id); });
+            const equipped = Object.assign({}, row.equipped || {});
+            COSMETICS.forEach(function (item) {
+                if (item.default && !equipped[item.type]) equipped[item.type] = item.id;
+            });
+            res = await debugQuery(supabaseClient.from('wallets').update({
+                inventory: inventory,
+                equipped: equipped,
+                updated_at: new Date().toISOString()
+            }).eq('username', row.username));
+        } else {
+            const fresh = debugWalletDefaults(user.username);
+            allIds.forEach(function (id) { if (fresh.inventory.indexOf(id) < 0) fresh.inventory.push(id); });
+            res = await debugQuery(supabaseClient.from('wallets').insert(fresh));
+        }
+        if (!res.error) changed++;
+    }
+    if (wallet) {
+        try { await loadWallet(); } catch (e) {}
+        renderWalletUI();
+    }
+    showDebugStatus('Gave all cosmetics to ' + changed + ' of ' + debugData.users.length + ' accounts.', changed !== debugData.users.length);
+    await renderDebugUsers();
+}
+
 async function deleteUserAccount(id) {
     if (!debugGuard()) return;
 
@@ -1048,6 +1559,9 @@ async function deleteUserAccount(id) {
     try { await supabaseClient.from('posts').delete().eq('username', user.username); } catch (e) {}
     try { await supabaseClient.from('wallets').delete().eq('username', user.username); } catch (e) {}
     try { await supabaseClient.from('scores').delete().eq('username', user.username); } catch (e) {}
+    try { await supabaseClient.from('friendships').delete().eq('requester', user.username); } catch (e) {}
+    try { await supabaseClient.from('friendships').delete().eq('recipient', user.username); } catch (e) {}
+    try { await supabaseClient.from('user_presence').delete().eq('username', user.username); } catch (e) {}
 
     showDebugStatus('Deleted ' + user.username + '.', false);
     await renderDebugUsers();
@@ -1105,6 +1619,8 @@ async function signUp(){
             closeAuthModal(); 
             updateUserSection(); 
             loadWallet();
+            startPresence();
+            if (currentView === 'users') renderFriends();
             return;
         } catch(e) {
             alert(e.message || 'Error');
@@ -1123,11 +1639,14 @@ async function signIn(){
         try {
             const {data}=await supabaseClient.from('users').select('*').eq('username',username).eq('password',password).maybeSingle(); 
             if(!data){alert('Invalid username or password');return;} 
+            if(data.banned){alert('This account has been banned.');return;}
             currentUser={type:'user',username:data.username, persistScores: true}; 
             localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); 
             closeAuthModal(); 
             updateUserSection(); 
             loadWallet();
+            startPresence();
+            if (currentView === 'users') renderFriends();
             return;
         } catch(e) {
             alert('Invalid username or password');
@@ -1143,14 +1662,17 @@ function continueAsGuest(){
     localStorage.removeItem('lessfun_user'); 
     closeAuthModal(); 
     updateUserSection(); 
+    stopPresence();
     loadWallet();
 }
 async function logout(){ 
     if(supabaseClient){ 
         try {
+            await touchPresence();
             await supabaseClient.auth.signOut(); 
         } catch(e) {}
     } 
+    stopPresence();
     currentUser={type:'guest',username:'Guest', persistScores: false}; 
     localStorage.removeItem('lessfun_user'); 
     updateUserSection(); 
@@ -1169,18 +1691,81 @@ const DAILY_BONUS = 25;
 const STREAK_BONUSES = { 3: 150, 7: 400, 14: 1000 };
 
 const COSMETICS = [
+    // Car paints
     { id: 'paint_coral', type: 'paint', name: 'Coral Cruiser', cost: 0, default: true, color: '#ef476f', threeColor: 0xef476f },
     { id: 'paint_sunset', type: 'paint', name: 'Sunset Amber', cost: 250, color: '#ffa94d', threeColor: 0xffa94d },
     { id: 'paint_lagoon', type: 'paint', name: 'Lagoon Teal', cost: 350, color: '#2ec4b6', threeColor: 0x2ec4b6 },
     { id: 'paint_grape', type: 'paint', name: 'Grape Soda', cost: 500, color: '#9b5de5', threeColor: 0x9b5de5 },
     { id: 'paint_midnight', type: 'paint', name: 'Midnight', cost: 650, color: '#1b263b', threeColor: 0x1b263b },
     { id: 'paint_gold', type: 'paint', name: 'Gold Rush', cost: 1200, color: '#ffd166', threeColor: 0xffd166 },
+    { id: 'paint_rose', type: 'paint', name: 'Rosé Rush', cost: 700, color: '#ff5d8f', threeColor: 0xff5d8f },
+    { id: 'paint_ocean', type: 'paint', name: 'Deep Ocean', cost: 750, color: '#0077b6', threeColor: 0x0077b6 },
+    { id: 'paint_ember', type: 'paint', name: 'Ember', cost: 800, color: '#e85d04', threeColor: 0xe85d04 },
+    { id: 'paint_pearl', type: 'paint', name: 'Pearl White', cost: 950, color: '#f1faee', threeColor: 0xf1faee },
+    { id: 'paint_royal', type: 'paint', name: 'Royal Purple', cost: 1100, color: '#5a189a', threeColor: 0x5a189a },
+    { id: 'paint_chrome', type: 'paint', name: 'Chrome', cost: 1600, color: '#c0c7d1', threeColor: 0xc0c7d1 },
+    { id: 'paint_neon', type: 'paint', name: 'Neon Lime', cost: 1800, color: '#c6ff00', threeColor: 0xc6ff00 },
+    { id: 'paint_toxic', type: 'paint', name: 'Toxic Green', cost: 2000, color: '#39ff14', threeColor: 0x39ff14 },
+
+    // Surfboards
     { id: 'board_teal', type: 'board', name: 'Teal Board', cost: 0, default: true, color: '#06d6a0', threeColor: 0x06d6a0 },
     { id: 'board_flame', type: 'board', name: 'Flame Board', cost: 300, color: '#ff6b35', threeColor: 0xff6b35 },
     { id: 'board_ice', type: 'board', name: 'Ice Board', cost: 450, color: '#9be7ff', threeColor: 0x9be7ff },
     { id: 'board_rainbow', type: 'board', name: 'Rainbow Board', cost: 900, color: '#ff70a6', threeColor: 0xff70a6 },
-    { id: 'board_void', type: 'board', name: 'Void Board', cost: 1500, color: '#2b2d42', threeColor: 0x2b2d42 }
+    { id: 'board_void', type: 'board', name: 'Void Board', cost: 1500, color: '#2b2d42', threeColor: 0x2b2d42 },
+    { id: 'board_sunset', type: 'board', name: 'Sunset Board', cost: 500, color: '#ff9f1c', threeColor: 0xff9f1c },
+    { id: 'board_mint', type: 'board', name: 'Mint Board', cost: 550, color: '#b8f2e6', threeColor: 0xb8f2e6 },
+    { id: 'board_tiger', type: 'board', name: 'Tiger Board', cost: 800, color: '#ffb703', threeColor: 0xffb703 },
+    { id: 'board_pearl', type: 'board', name: 'Pearl Board', cost: 1100, color: '#f8f9fa', threeColor: 0xf8f9fa },
+    { id: 'board_galaxy', type: 'board', name: 'Galaxy Board', cost: 1300, color: '#3a0ca3', threeColor: 0x3a0ca3 },
+    { id: 'board_lava', type: 'board', name: 'Lava Board', cost: 1400, color: '#d00000', threeColor: 0xd00000 },
+
+    // Underglow
+    { id: 'glow_off', type: 'glow', name: 'No Underglow', cost: 0, default: true, none: true, color: '#555a63', threeColor: 0x555a63 },
+    { id: 'glow_pink', type: 'glow', name: 'Pink Haze', cost: 400, color: '#ff4d9d', threeColor: 0xff4d9d },
+    { id: 'glow_cyan', type: 'glow', name: 'Cyan Pulse', cost: 450, color: '#22e6ff', threeColor: 0x22e6ff },
+    { id: 'glow_lime', type: 'glow', name: 'Lime Glow', cost: 500, color: '#9dff00', threeColor: 0x9dff00 },
+    { id: 'glow_purple', type: 'glow', name: 'Violet Glow', cost: 600, color: '#b14dff', threeColor: 0xb14dff },
+    { id: 'glow_gold', type: 'glow', name: 'Golden Glow', cost: 900, color: '#ffcf4d', threeColor: 0xffcf4d },
+    { id: 'glow_rainbow', type: 'glow', name: 'Rainbow Glow', cost: 1600, rainbow: true, color: '#ff70a6', threeColor: 0xff70a6 },
+
+    // Wheels
+    { id: 'wheel_stock', type: 'wheel', name: 'Stock Wheels', cost: 0, default: true, none: true, color: '#2b2b2b', threeColor: 0x2b2b2b },
+    { id: 'wheel_white', type: 'wheel', name: 'White Walls', cost: 450, color: '#f8f9fa', threeColor: 0xf8f9fa },
+    { id: 'wheel_gold', type: 'wheel', name: 'Gold Rims', cost: 500, color: '#ffd166', threeColor: 0xffd166 },
+    { id: 'wheel_teal', type: 'wheel', name: 'Teal Rims', cost: 550, color: '#06d6a0', threeColor: 0x06d6a0 },
+    { id: 'wheel_red', type: 'wheel', name: 'Red Rims', cost: 600, color: '#ff3b3b', threeColor: 0xff3b3b },
+    { id: 'wheel_chrome', type: 'wheel', name: 'Chrome Rims', cost: 700, color: '#d9e2ec', threeColor: 0xd9e2ec },
+    { id: 'wheel_violet', type: 'wheel', name: 'Violet Rims', cost: 800, color: '#9b5de5', threeColor: 0x9b5de5 },
+
+    // Exhaust trails
+    { id: 'trail_none', type: 'trail', name: 'No Trail', cost: 0, default: true, none: true, color: '#555a63', threeColor: 0x555a63 },
+    { id: 'trail_flame', type: 'trail', name: 'Flame Trail', cost: 450, color: '#ff6b35', threeColor: 0xff6b35 },
+    { id: 'trail_ice', type: 'trail', name: 'Ice Trail', cost: 550, color: '#9be7ff', threeColor: 0x9be7ff },
+    { id: 'trail_toxic', type: 'trail', name: 'Toxic Trail', cost: 650, color: '#39ff14', threeColor: 0x39ff14 },
+    { id: 'trail_royal', type: 'trail', name: 'Royal Trail', cost: 750, color: '#9b5de5', threeColor: 0x9b5de5 },
+    { id: 'trail_gold', type: 'trail', name: 'Gold Trail', cost: 1000, color: '#ffd166', threeColor: 0xffd166 },
+    { id: 'trail_rainbow', type: 'trail', name: 'Rainbow Trail', cost: 1400, rainbow: true, color: '#ff70a6', threeColor: 0xff70a6 },
+
+    // Beach umbrellas
+    { id: 'umbrella_classic', type: 'umbrella', name: 'Classic Mix', cost: 0, default: true, none: true, color: '#ef476f', threeColor: 0xef476f },
+    { id: 'umbrella_coral', type: 'umbrella', name: 'Coral Beach', cost: 300, color: '#ef476f', threeColor: 0xef476f },
+    { id: 'umbrella_yellow', type: 'umbrella', name: 'Sunny Beach', cost: 300, color: '#ffd166', threeColor: 0xffd166 },
+    { id: 'umbrella_mint', type: 'umbrella', name: 'Mint Beach', cost: 350, color: '#06d6a0', threeColor: 0x06d6a0 },
+    { id: 'umbrella_ocean', type: 'umbrella', name: 'Ocean Beach', cost: 400, color: '#118ab2', threeColor: 0x118ab2 },
+    { id: 'umbrella_rainbow', type: 'umbrella', name: 'Rainbow Beach', cost: 900, color: '#ff70a6', threeColor: 0xff70a6 }
 ];
+
+const COSMETIC_CATEGORIES = [
+    { type: 'paint', label: 'Car Paints', blurb: 'Body colours for your beach buggy.' },
+    { type: 'board', label: 'Surfboards', blurb: 'Roof boards that ride along with you.' },
+    { type: 'glow', label: 'Underglow', blurb: 'Neon light pools under the car.' },
+    { type: 'wheel', label: 'Wheels', blurb: 'Rims that pop against the sand.' },
+    { type: 'trail', label: 'Exhaust Trails', blurb: 'Glowing streaks behind the rear bumper.' },
+    { type: 'umbrella', label: 'Beach Umbrellas', blurb: 'Dress the whole shoreline in one colour.' }
+];
+
+const COSMETIC_TYPES = COSMETIC_CATEGORIES.map(function (category) { return category.type; });
 
 let wallet = null;
 let walletLoadToken = 0;
@@ -1226,7 +1811,7 @@ function normalizeWallet(raw, username) {
         }
     });
 
-    ['paint', 'board'].forEach(function (type) {
+    COSMETIC_TYPES.forEach(function (type) {
         var current = equipped[type];
         var valid = COSMETICS.some(function (item) {
             return item.id === current && item.type === type && inventory.indexOf(item.id) >= 0;
@@ -1350,23 +1935,45 @@ function renderWalletUI() {
 
 function getEquippedCosmetics() {
     var equipped = wallet ? wallet.equipped : {};
-    var paint = COSMETICS.find(function (c) { return c.id === equipped.paint; });
-    var board = COSMETICS.find(function (c) { return c.id === equipped.board; });
+    function chosen(type) {
+        return COSMETICS.find(function (c) { return c.id === equipped[type]; }) || null;
+    }
+    var paint = chosen('paint');
+    var board = chosen('board');
+    var glow = chosen('glow');
+    var wheel = chosen('wheel');
+    var trail = chosen('trail');
+    var umbrella = chosen('umbrella');
     return {
         paint: paint ? paint.threeColor : 0xef476f,
-        board: board ? board.threeColor : 0x06d6a0
+        board: board ? board.threeColor : 0x06d6a0,
+        glow: glow && !glow.none ? glow.threeColor : null,
+        glowRainbow: !!(glow && glow.rainbow),
+        wheel: wheel && !wheel.none ? wheel.threeColor : null,
+        trail: trail && !trail.none ? trail.threeColor : null,
+        trailRainbow: !!(trail && trail.rainbow),
+        umbrella: umbrella && !umbrella.none ? umbrella.threeColor : null
     };
 }
 
+let storeFilter = 'all';
+let storeSearch = '';
+
+function cosmeticPreview(item) {
+    var cls = 'cosmetic-' + item.type;
+    if (item.rainbow) cls += ' is-rainbow';
+    if (item.none) cls += ' is-none';
+    return '<div class="' + cls + '" style="--swatch:' + item.color + '"></div>';
+}
+
 function cosmeticCards(type) {
-    return COSMETICS.filter(function (item) { return item.type === type; }).map(function (item) {
+    var query = String(storeSearch || '').trim().toLowerCase();
+    return COSMETICS.filter(function (item) {
+        return item.type === type && (!query || item.name.toLowerCase().indexOf(query) >= 0);
+    }).map(function (item) {
         var owned = wallet.inventory.indexOf(item.id) >= 0;
         var equipped = wallet.equipped[item.type] === item.id;
         var affordable = wallet.shells >= item.cost;
-
-        var preview = type === 'paint'
-            ? '<div class="cosmetic-car" style="--swatch:' + item.color + '"></div>'
-            : '<div class="cosmetic-board" style="--swatch:' + item.color + '"></div>';
 
         var action, cls, disabled = '';
         if (equipped) {
@@ -1382,7 +1989,7 @@ function cosmeticCards(type) {
         }
 
         return '<div class="cosmetic-card' + (equipped ? ' is-equipped' : '') + '">' +
-            '<div class="cosmetic-preview">' + preview + '</div>' +
+            '<div class="cosmetic-preview">' + cosmeticPreview(item) + '</div>' +
             '<h3 class="cosmetic-name">' + escapeHtml(item.name) + '</h3>' +
             '<div class="cosmetic-price">' + (owned ? (equipped ? 'In use' : 'Owned') : shellIcon(13) + ' ' + item.cost.toLocaleString()) + '</div>' +
             '<button class="cosmetic-btn ' + cls + '"' + disabled + ' onclick="handleCosmetic(\'' + item.id + '\')">' + action + '</button>' +
@@ -1390,19 +1997,70 @@ function cosmeticCards(type) {
     }).join('');
 }
 
-function renderStore() {
+function setStoreFilter(type) {
+    storeFilter = type;
+    renderStore();
+}
+
+function updateStoreSearch(value) {
+    storeSearch = value;
+    renderStore(true);
+}
+
+function storeOwnedCount(type) {
+    var items = type === 'all' ? COSMETICS.slice() : COSMETICS.filter(function (item) { return item.type === type; });
+    var owned = items.filter(function (item) { return wallet.inventory.indexOf(item.id) >= 0; }).length;
+    return { owned: owned, total: items.length };
+}
+
+function renderStore(refocusSearch) {
     var content = document.getElementById('storeContent');
     if (!content) return;
     if (!wallet) {
         content.innerHTML = '<p class="store-loading">Loading shop…</p>';
         return;
     }
+
+    var allCount = storeOwnedCount('all');
+    var tabs = '<button class="store-tab' + (storeFilter === 'all' ? ' active' : '') + '" onclick="setStoreFilter(\'all\')">' +
+        'All <span>' + allCount.owned + '/' + allCount.total + '</span></button>';
+    tabs += COSMETIC_CATEGORIES.map(function (category) {
+        var counts = storeOwnedCount(category.type);
+        return '<button class="store-tab' + (storeFilter === category.type ? ' active' : '') + '" onclick="setStoreFilter(\'' + category.type + '\')">' +
+            escapeHtml(category.label) + ' <span>' + counts.owned + '/' + counts.total + '</span></button>';
+    }).join('');
+
+    var categories = COSMETIC_CATEGORIES.filter(function (category) {
+        return storeFilter === 'all' || category.type === storeFilter;
+    });
+
+    var sections = categories.map(function (category) {
+        var cards = cosmeticCards(category.type);
+        if (!cards) return '';
+        return '<section class="store-section">' +
+            '<div class="store-section-head">' +
+                '<h2 class="store-heading">' + escapeHtml(category.label) + '</h2>' +
+                '<p class="store-blurb">' + escapeHtml(category.blurb) + '</p>' +
+            '</div>' +
+            '<div class="cosmetic-grid">' + cards + '</div>' +
+        '</section>';
+    }).join('');
+
     content.innerHTML =
-        '<h2 class="store-heading">Car Paints</h2>' +
-        '<div class="cosmetic-grid">' + cosmeticCards('paint') + '</div>' +
-        '<h2 class="store-heading">Surfboards</h2>' +
-        '<div class="cosmetic-grid">' + cosmeticCards('board') + '</div>' +
+        '<div class="store-toolbar">' +
+            '<div class="store-tabs">' + tabs + '</div>' +
+            '<input type="search" id="storeSearch" class="store-search" placeholder="Search cosmetics…" value="' + escapeHtml(storeSearch) + '" oninput="updateStoreSearch(this.value)">' +
+        '</div>' +
+        (sections || '<p class="store-empty">No cosmetics match that search.</p>') +
         '<p class="store-note">Cosmetics only — nothing in the shop changes your score or speed. Shells are earned by playing.</p>';
+
+    if (refocusSearch) {
+        var input = document.getElementById('storeSearch');
+        if (input) {
+            input.focus();
+            try { input.setSelectionRange(input.value.length, input.value.length); } catch (e) {}
+        }
+    }
 }
 
 function flashStoreStatus(message, isError) {
@@ -1467,8 +2125,15 @@ async function awardShells(seconds) {
     var played = Math.max(0, Number(seconds) || 0);
     var base = Math.floor(played);
     if (played > 0 && base < 1) base = 1;
+    var multiplier = Number(siteSettings.shells_multiplier);
+    if (!isFinite(multiplier) || multiplier < 0) multiplier = 1;
+    if (multiplier !== 1) {
+        base = Math.floor(base * multiplier);
+        if (played > 0 && base < 1 && multiplier > 0) base = 1;
+    }
     var bonus = 0;
     var messages = [];
+    if (multiplier !== 1) messages.push(multiplier + '× Shells event');
     var today = dayKey();
 
     if (wallet.lastPlayDay !== today) {
@@ -1691,6 +2356,18 @@ function loadUser(){
         currentUser={type:'guest',username:'Guest', persistScores: false}; 
     } 
     updateUserSection(); 
+    startPresence();
+}
+
+async function verifyAccountState() {
+    if (!supabaseClient || !currentUser || currentUser.type !== 'user') return;
+    try {
+        const res = await supabaseClient.from('users').select('banned').eq('username', currentUser.username).maybeSingle();
+        if (!res.error && res.data && res.data.banned) {
+            alert('This account has been banned.');
+            await logout();
+        }
+    } catch (e) {}
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
@@ -1728,12 +2405,19 @@ function checkForUpdates() {
 }
 
 document.addEventListener('DOMContentLoaded', ()=>{
+    loadSiteSettings();
     renderGames();
     loadUser();
+    verifyAccountState();
     initViewCounter();
     updateUserSection();
     loadWallet();
+    startPresence();
     checkForUpdates();
+});
+
+document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) touchPresence();
 });
 
 function openProfile(username) {
@@ -1814,31 +2498,342 @@ async function loadProfilePosts(username) {
     container.innerHTML = '<p style="color:rgba(255,255,255,0.5);text-align:center;">No posts yet</p>';
 }
 
-async function renderUsers() {
-    const container = document.getElementById('usersList');
-    if (!container) return;
-    container.innerHTML = '<p style="color:rgba(255,255,255,0.5);text-align:center;">Loading...</p>';
-    const search = document.getElementById('userSearch') ? document.getElementById('userSearch').value.toLowerCase() : '';
-    let users = new Set();
-    if (supabaseClient) {
-        const { data: posts } = await supabaseClient.from('posts').select('username');
-        if (posts) {
-            posts.forEach(p => { if (p.username) users.add(p.username); });
-        }
+async function socialQuery(promise) {
+    try {
+        const res = await promise;
+        return res || { data: null, error: { message: 'No response' } };
+    } catch (e) {
+        return { data: null, error: { message: (e && e.message) ? e.message : 'Request failed' } };
     }
-    users.add('TotallyMason');
-    const userList = Array.from(users).filter(u => !search || u.toLowerCase().includes(search));
-    if (userList.length === 0) {
-        container.innerHTML = '<p style="color:rgba(255,255,255,0.5);text-align:center;">No users found</p>';
+}
+
+function friendUsername() {
+    return (currentUser && currentUser.type === 'user' && currentUser.username && currentUser.persistScores !== false)
+        ? currentUser.username
+        : null;
+}
+
+function isOnline(lastSeen) {
+    if (!lastSeen) return false;
+    const ts = Date.parse(lastSeen);
+    if (!isFinite(ts)) return false;
+    return (Date.now() - ts) < PRESENCE_ONLINE_MS;
+}
+
+function formatLastSeen(lastSeen) {
+    if (!lastSeen) return 'Last seen unknown';
+    const ts = Date.parse(lastSeen);
+    if (!isFinite(ts)) return 'Last seen unknown';
+    const diff = Math.max(0, Date.now() - ts);
+    if (diff < PRESENCE_ONLINE_MS) return 'Online now';
+    if (diff < 3600000) return 'Last seen ' + Math.max(1, Math.round(diff / 60000)) + 'm ago';
+    if (diff < 86400000) return 'Last seen ' + Math.round(diff / 3600000) + 'h ago';
+    if (diff < 604800000) return 'Last seen ' + Math.round(diff / 86400000) + 'd ago';
+    const d = new Date(ts);
+    return 'Last seen ' + d.toLocaleDateString();
+}
+
+function showFriendsStatus(message, isError) {
+    const el = document.getElementById('friendsStatus');
+    if (!el) return;
+    el.textContent = message;
+    el.className = 'friends-status is-visible ' + (isError ? 'is-error' : 'is-success');
+    if (friendsStatusTimer) clearTimeout(friendsStatusTimer);
+    friendsStatusTimer = setTimeout(function () { el.className = 'friends-status'; }, 3500);
+}
+
+let presenceUnavailable = false;
+
+async function touchPresence() {
+    const username = friendUsername();
+    if (!username || !supabaseClient || presenceUnavailable) return;
+    try {
+        const res = await supabaseClient.from('user_presence').upsert({
+            username: username,
+            last_seen: new Date().toISOString()
+        }, { onConflict: 'username' });
+        if (res && res.error && res.error.code === 'PGRST205') presenceUnavailable = true;
+    } catch (e) {}
+}
+
+function startPresence() {
+    if (!friendUsername() || !supabaseClient) return;
+    touchPresence();
+    if (!presenceTimer) {
+        presenceTimer = setInterval(touchPresence, PRESENCE_HEARTBEAT_MS);
+    }
+    if (!friendsAutoTimer) {
+        friendsAutoTimer = setInterval(function () {
+            if (currentView === 'users') renderFriends();
+        }, 30000);
+    }
+}
+
+function stopPresence() {
+    if (presenceTimer) { clearInterval(presenceTimer); presenceTimer = 0; }
+    if (friendsAutoTimer) { clearInterval(friendsAutoTimer); friendsAutoTimer = 0; }
+}
+
+function friendRelationMap(friendships, me) {
+    const rel = {};
+    friendships.forEach(function (row) {
+        const other = row.requester === me ? row.recipient : row.requester;
+        if (!other) return;
+        if (!rel[other] || row.status === 'accepted') rel[other] = row;
+    });
+    return rel;
+}
+
+function friendAvatar(name) {
+    return '<span class="friend-avatar">' + escapeHtml(String(name || '?').charAt(0).toUpperCase()) + '</span>';
+}
+
+function friendPresenceHtml(name) {
+    const lastSeen = friendData.presence[name] || friendData.presence[String(name).toLowerCase()];
+    const online = isOnline(lastSeen);
+    return '<span class="friend-presence' + (online ? ' is-online' : '') + '">' +
+        '<span class="friends-dot"></span>' + escapeHtml(formatLastSeen(lastSeen)) +
+    '</span>';
+}
+
+async function renderFriends() {
+    const friendsList = document.getElementById('friendsList');
+    const usersList = document.getElementById('usersList');
+    const requestsList = document.getElementById('friendRequests');
+    const guestNote = document.getElementById('friendsGuestNote');
+    const summary = document.getElementById('friendsSummaryText');
+    const onlineCount = document.getElementById('friendsOnlineCount');
+    const friendsCount = document.getElementById('friendsCount');
+    if (!friendsList || !usersList) return;
+
+    const me = friendUsername();
+    if (!me) {
+        friendsList.innerHTML = '<p class="friends-empty">Sign in to build your friends list.</p>';
+        usersList.innerHTML = '<p class="friends-empty">Sign in to find players.</p>';
+        if (requestsList) requestsList.innerHTML = '';
+        if (guestNote) guestNote.style.display = 'block';
+        if (summary) summary.textContent = 'Sign in to add friends';
+        if (onlineCount) onlineCount.textContent = '0';
+        if (friendsCount) friendsCount.textContent = '0';
         return;
     }
-    container.innerHTML = userList.map(u => `
-        <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;background:linear-gradient(145deg,rgba(40,40,45,0.8),rgba(25,25,30,0.8));border:1px solid rgba(255,255,255,0.08);border-radius:12px;cursor:pointer;" onclick="openProfile('${escapeHtml(u).replace(/'/g,"\\'")}')">
-            <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#a855f7,#ec4899);display:flex;align-items:center;justify-content:center;font-weight:600;">${escapeHtml(u).charAt(0).toUpperCase()}</div>
-            <div style="flex:1;">
-                <div style="font-weight:600;">${escapeHtml(u)}${u==='TotallyMason'?' <span style="font-size:9px;padding:2px 5px;background:linear-gradient(90deg,#a855f7,#ec4899);border-radius:4px;">OWNER</span>':''}</div>
-            </div>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="rgba(255,255,255,0.5)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
-    `).join('');
+
+    if (guestNote) guestNote.style.display = 'none';
+    if (!supabaseClient) {
+        friendsList.innerHTML = '<p class="friends-empty">Friends need a connection to Supabase.</p>';
+        usersList.innerHTML = '';
+        showFriendsStatus('Supabase is unavailable.', true);
+        return;
+    }
+
+    friendsList.innerHTML = '<p class="friends-empty">Loading friends…</p>';
+    usersList.innerHTML = '<p class="friends-empty">Loading players…</p>';
+    if (requestsList) requestsList.innerHTML = '';
+
+    const results = await Promise.all([
+        socialQuery(supabaseClient.from('users').select('username, created_at').order('username', { ascending: true })),
+        socialQuery(supabaseClient.from('friendships').select('*').eq('requester', me)),
+        socialQuery(supabaseClient.from('friendships').select('*').eq('recipient', me)),
+        socialQuery(supabaseClient.from('user_presence').select('*'))
+    ]);
+
+    if (!friendUsername()) return;
+
+    let users = results[0].data || [];
+    if (results[0].error) {
+        const postsRes = await socialQuery(supabaseClient.from('posts').select('username'));
+        const names = [];
+        (postsRes.data || []).forEach(function (row) {
+            if (row.username && names.indexOf(row.username) < 0) names.push(row.username);
+        });
+        users = names.map(function (name) { return { username: name }; });
+    }
+    if (!users.some(function (u) { return u.username === 'TotallyMason'; })) {
+        users.push({ username: 'TotallyMason' });
+    }
+
+    const seen = {};
+    const friendships = [];
+    [results[1].data || [], results[2].data || []].forEach(function (list) {
+        list.forEach(function (row) {
+            if (!seen[row.id]) { seen[row.id] = true; friendships.push(row); }
+        });
+    });
+
+    const presence = {};
+    (results[3].data || []).forEach(function (row) {
+        if (row.username) {
+            presence[row.username] = row.last_seen;
+            presence[String(row.username).toLowerCase()] = row.last_seen;
+        }
+    });
+
+    friendData = { friendships: friendships, presence: presence, users: users };
+    const rel = friendRelationMap(friendships, me);
+    const friends = Object.keys(rel).filter(function (name) {
+        return rel[name].status === 'accepted';
+    }).sort(function (a, b) {
+        const aOnline = isOnline(presence[a]) ? 1 : 0;
+        const bOnline = isOnline(presence[b]) ? 1 : 0;
+        if (aOnline !== bOnline) return bOnline - aOnline;
+        return a.localeCompare(b);
+    });
+    const incoming = friendships.filter(function (row) {
+        return row.status === 'pending' && row.recipient === me;
+    });
+    const outgoing = friendships.filter(function (row) {
+        return row.status === 'pending' && row.requester === me;
+    });
+
+    const onlineFriends = friends.filter(function (name) { return isOnline(presence[name]); }).length;
+    if (onlineCount) onlineCount.textContent = onlineFriends;
+    if (friendsCount) friendsCount.textContent = friends.length;
+    if (summary) {
+        summary.textContent = friends.length + (friends.length === 1 ? ' friend' : ' friends') +
+            ' · ' + incoming.length + ' request' + (incoming.length === 1 ? '' : 's') +
+            ' · updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    if (!friends.length) {
+        friendsList.innerHTML = '<p class="friends-empty">No friends yet. Add someone from Find players below.</p>';
+    } else {
+        friendsList.innerHTML = friends.map(function (name) {
+            const row = rel[name];
+            return '<div class="friend-row">' +
+                friendAvatar(name) +
+                '<div class="friend-main">' +
+                    '<span class="friend-name" onclick="openProfile(\'' + debugArg(name) + '\')">' + escapeHtml(name) + '</span>' +
+                    friendPresenceHtml(name) +
+                '</div>' +
+                '<button class="friend-action remove" onclick="removeFriend(\'' + debugArg(String(row.id)) + '\',\'' + debugArg(name) + '\')">Remove</button>' +
+            '</div>';
+        }).join('');
+    }
+
+    if (requestsList) {
+        requestsList.innerHTML = incoming.length ? '<h3 class="friends-subhead">Friend requests</h3>' + incoming.map(function (row) {
+            return '<div class="friend-row is-request">' +
+                friendAvatar(row.requester) +
+                '<div class="friend-main">' +
+                    '<span class="friend-name">' + escapeHtml(row.requester) + '</span>' +
+                    '<span class="friend-presence">wants to be friends</span>' +
+                '</div>' +
+                '<div class="friend-row-actions">' +
+                    '<button class="friend-action accept" onclick="respondFriendRequest(\'' + debugArg(String(row.id)) + '\',true)">Accept</button>' +
+                    '<button class="friend-action decline" onclick="respondFriendRequest(\'' + debugArg(String(row.id)) + '\',false)">Decline</button>' +
+                '</div>' +
+            '</div>';
+        }).join('') : '';
+    }
+
+    const search = String((document.getElementById('userSearch') || {}).value || '').trim().toLowerCase();
+    const discover = users.filter(function (user) {
+        if (!user.username || user.username === me) return false;
+        return !search || String(user.username).toLowerCase().indexOf(search) >= 0;
+    }).sort(function (a, b) {
+        return String(a.username).localeCompare(String(b.username));
+    });
+
+    if (!discover.length) {
+        usersList.innerHTML = '<p class="friends-empty">' + (search ? 'No players match that search.' : 'No other players yet.') + '</p>';
+        return;
+    }
+
+    usersList.innerHTML = discover.map(function (user) {
+        const name = user.username;
+        const relation = rel[name];
+        let action = '<button class="friend-action add" onclick="sendFriendRequest(\'' + debugArg(name) + '\')">Add friend</button>';
+        if (relation && relation.status === 'accepted') {
+            action = '<span class="friend-tag is-friend">Friends</span>';
+        } else if (relation && relation.status === 'pending' && relation.recipient === me) {
+            action = '<button class="friend-action accept" onclick="respondFriendRequest(\'' + debugArg(String(relation.id)) + '\',true)">Accept</button>' +
+                '<button class="friend-action decline" onclick="respondFriendRequest(\'' + debugArg(String(relation.id)) + '\',false)">Decline</button>';
+        } else if (relation && relation.status === 'pending') {
+            action = '<span class="friend-tag is-pending">Requested</span>' +
+                '<button class="friend-action decline" onclick="cancelFriendRequest(\'' + debugArg(String(relation.id)) + '\')">Cancel</button>';
+        }
+        return '<div class="friend-row">' +
+            friendAvatar(name) +
+            '<div class="friend-main">' +
+                '<span class="friend-name" onclick="openProfile(\'' + debugArg(name) + '\')">' + escapeHtml(name) + '</span>' +
+                (relation && relation.status === 'accepted'
+                    ? friendPresenceHtml(name)
+                    : (relation && relation.status === 'pending' && relation.recipient === me
+                        ? '<span class="friend-presence">Wants to be your friend</span>'
+                        : (relation && relation.status === 'pending'
+                            ? '<span class="friend-presence">Friend request sent</span>'
+                            : '<span class="friend-presence">Not on your friends list</span>'))) +
+            '</div>' +
+            '<div class="friend-row-actions">' + action + '</div>' +
+        '</div>';
+    }).join('');
+}
+
+async function sendFriendRequest(username) {
+    const me = friendUsername();
+    if (!me) {
+        showFriendsStatus('Sign in to add friends.', true);
+        return;
+    }
+    if (!username || username === me) return;
+    const res = await socialQuery(supabaseClient.from('friendships').insert({
+        requester: me,
+        recipient: username,
+        status: 'pending'
+    }));
+    if (res.error) {
+        if (String(res.error.code) === '23505') {
+            showFriendsStatus('A request with ' + username + ' already exists.', true);
+        } else {
+            showFriendsStatus('Could not add friend: ' + (res.error.message || 'Unknown error'), true);
+        }
+        return;
+    }
+    showFriendsStatus('Friend request sent to ' + username + '.', false);
+    await renderFriends();
+}
+
+async function respondFriendRequest(id, accept) {
+    if (!friendUsername()) return;
+    let res;
+    if (accept) {
+        res = await socialQuery(supabaseClient.from('friendships').update({
+            status: 'accepted',
+            updated_at: new Date().toISOString()
+        }).eq('id', id));
+    } else {
+        res = await socialQuery(supabaseClient.from('friendships').delete().eq('id', id));
+    }
+    if (res.error) {
+        showFriendsStatus('Could not update request: ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    showFriendsStatus(accept ? 'Friend request accepted.' : 'Friend request declined.', false);
+    await renderFriends();
+}
+
+async function cancelFriendRequest(id) {
+    const res = await socialQuery(supabaseClient.from('friendships').delete().eq('id', id));
+    if (res.error) {
+        showFriendsStatus('Could not cancel request: ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    showFriendsStatus('Friend request cancelled.', false);
+    await renderFriends();
+}
+
+async function removeFriend(id, username) {
+    if (!window.confirm('Remove ' + username + ' from your friends?')) return;
+    const res = await socialQuery(supabaseClient.from('friendships').delete().eq('id', id));
+    if (res.error) {
+        showFriendsStatus('Could not remove friend: ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    showFriendsStatus('Removed ' + username + '.', false);
+    await renderFriends();
+}
+
+// Kept as an alias for older inline handlers.
+async function renderUsers() {
+    return renderFriends();
 }

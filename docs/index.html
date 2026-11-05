@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261131">
+    <link rel="stylesheet" href="style.css?v=20261132">
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -45,6 +45,14 @@
                         <path d="M1 13c0-2.21 1.79-4 4-4s4 1.79 4 4M7 13c0-2.21 1.79-4 4-4s4 1.79 4 4" stroke="currentColor" stroke-width="1.5"/>
                     </svg>
                     Community
+                </button>
+                <button class="nav-btn" onclick="showView('users')" id="nav-users">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-right:6px;">
+                        <circle cx="6" cy="5.5" r="2.5" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M1.5 13c0-2.49 2.01-4.5 4.5-4.5s4.5 2.01 4.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        <path d="M11 3.2a2.4 2.4 0 0 1 0 4.6M12.2 8.8c1.4.6 2.3 2 2.3 3.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    Friends
                 </button>
                 <button class="nav-btn" onclick="showView('store')" id="nav-store">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-right:6px;">
@@ -98,7 +106,7 @@
     <div id="gamesView" class="view">
         <div class="container">
             <div class="promo-banner halloween" id="promoBanner">
-                <p>🎃 Happy Halloween! Enjoy spooky games this season! 👻</p>
+                <p id="promoText">🎃 Happy Halloween! Enjoy spooky games this season! 👻</p>
                 <button class="promo-close" onclick="closePromo()">
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                         <path d="M9 3L3 9M3 3L9 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -159,22 +167,50 @@
         </div>
     </div>
 
-    <!-- Users View -->
+    <!-- Friends View -->
     <div id="usersView" class="view" style="display: none;">
         <div class="container">
             <header>
-                <h1>Users</h1>
-                <p class="subtitle">Find people</p>
+                <h1>Friends</h1>
+                <p class="subtitle">See who's online and add new friends</p>
             </header>
-            <div style="max-width:600px;margin:0 auto;">
-                <div class="search-box" style="margin-bottom:20px;width:100%;">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <circle cx="7" cy="7" r="5" stroke="#666" stroke-width="1.5"/>
-                        <path d="M11 11L14 14" stroke="#666" stroke-width="1.5" stroke-linecap="round"/>
-                    </svg>
-                    <input type="text" id="userSearch" placeholder="Search users..." oninput="renderUsers()">
+            <div class="friends-shell">
+                <div class="friends-toolbar">
+                    <div class="friends-summary">
+                        <span class="friends-online-pill"><span class="friends-dot"></span><strong id="friendsOnlineCount">0</strong> online</span>
+                        <small id="friendsSummaryText">Sign in to add friends</small>
+                    </div>
+                    <div class="friends-toolbar-actions">
+                        <button class="friends-refresh" onclick="renderFriends()">Refresh</button>
+                    </div>
                 </div>
-                <div id="usersList" style="display:flex;flex-direction:column;gap:10px;"></div>
+                <div id="friendsStatus" class="friends-status" role="status"></div>
+                <div id="friendsGuestNote" class="friends-guest-note" style="display:none;">
+                    Sign in to add friends and see when they were last online.
+                    <button type="button" onclick="openAuthModal()">Sign in</button>
+                </div>
+
+                <section class="friends-section">
+                    <div class="friends-section-head">
+                        <h2>Your friends <span id="friendsCount" class="friends-count">0</span></h2>
+                    </div>
+                    <div id="friendsList" class="friends-list"></div>
+                    <div id="friendRequests" class="friends-requests"></div>
+                </section>
+
+                <section class="friends-section">
+                    <div class="friends-section-head">
+                        <h2>Find players</h2>
+                        <div class="search-box friends-search">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <circle cx="7" cy="7" r="5" stroke="#666" stroke-width="1.5"/>
+                                <path d="M11 11L14 14" stroke="#666" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            <input type="text" id="userSearch" placeholder="Search players..." oninput="renderFriends()">
+                        </div>
+                    </div>
+                    <div id="usersList" class="friends-list"></div>
+                </section>
             </div>
         </div>
     </div>
@@ -230,6 +266,8 @@
                 <button class="debug-tab" data-debug-tab="posts" onclick="showDebugTab('posts')">Posts</button>
                 <button class="debug-tab" data-debug-tab="wallets" onclick="showDebugTab('wallets')">Wallets</button>
                 <button class="debug-tab" data-debug-tab="scores" onclick="showDebugTab('scores')">Scores</button>
+                <button class="debug-tab" data-debug-tab="social" onclick="showDebugTab('social')">Friends</button>
+                <button class="debug-tab" data-debug-tab="site" onclick="showDebugTab('site')">Site</button>
                 <button class="debug-tab" data-debug-tab="tools" onclick="showDebugTab('tools')">Tools</button>
             </div>
 
@@ -264,8 +302,10 @@
                             <tr>
                                 <th>Username</th>
                                 <th>Password</th>
+                                <th>Presence</th>
+                                <th>Friends</th>
                                 <th>Created</th>
-                                <th></th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="debugUsers"></tbody>
@@ -335,8 +375,143 @@
                 </div>
             </div>
 
+            <div class="debug-panel" id="debugPanel-social" style="display:none;">
+                <div class="debug-panel-head">
+                    <h3>Presence &amp; last seen</h3>
+                    <div class="debug-action-row">
+                        <button class="debug-btn" onclick="renderDebugUsers()">Refresh</button>
+                        <button class="debug-btn" onclick="debugMarkEveryoneOffline()">Mark all offline</button>
+                    </div>
+                </div>
+                <div class="debug-table-wrap">
+                    <table class="debug-table">
+                        <thead>
+                            <tr>
+                                <th>Player</th>
+                                <th>Status</th>
+                                <th>Last seen</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="debugPresence"></tbody>
+                    </table>
+                </div>
+
+                <div class="debug-panel-head" style="margin-top:26px;">
+                    <h3>Friendships</h3>
+                    <button class="debug-delete" onclick="debugClearAllFriendships()">Clear all friendships</button>
+                </div>
+                <div class="debug-table-wrap">
+                    <table class="debug-table">
+                        <thead>
+                            <tr>
+                                <th>Requester</th>
+                                <th>Recipient</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="debugFriendships"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="debug-panel" id="debugPanel-site" style="display:none;">
+                <div class="debug-tools-grid">
+                    <div class="debug-tool-card debug-grant-card">
+                        <h3>Announcement banner</h3>
+                        <p>Shown above the game grid for everyone. Leave empty to hide the banner.</p>
+                        <div class="debug-grant-form">
+                            <label class="debug-grant-field debug-grant-wide">
+                                <span>Message</span>
+                                <input type="text" id="debugAnnouncement" maxlength="180" placeholder="Double Shells weekend!">
+                            </label>
+                            <button class="debug-tool-btn" onclick="debugSaveSiteSettings()">Save announcement</button>
+                        </div>
+                    </div>
+
+                    <div class="debug-tool-card debug-grant-card">
+                        <h3>Economy &amp; featured game</h3>
+                        <p>Multiplier applies to Shells earned from play. Featured game is pinned first in the grid.</p>
+                        <div class="debug-grant-form">
+                            <label class="debug-grant-field">
+                                <span>Shells multiplier</span>
+                                <input type="number" id="debugShellsMultiplier" min="0" max="20" step="0.25" value="1">
+                            </label>
+                            <label class="debug-grant-field debug-grant-wide">
+                                <span>Featured game</span>
+                                <select id="debugFeaturedGame"></select>
+                            </label>
+                            <button class="debug-tool-btn" onclick="debugSaveSiteSettings()">Save economy</button>
+                        </div>
+                    </div>
+
+                    <div class="debug-tool-card debug-grant-card">
+                        <h3>Disabled games</h3>
+                        <p>Unchecked games stay visible but cannot be started by regular players.</p>
+                        <div class="debug-check-grid" id="debugDisabledGames"></div>
+                        <button class="debug-tool-btn" onclick="debugSaveSiteSettings()">Save game access</button>
+                    </div>
+
+                    <div class="debug-tool-card danger">
+                        <h3>Maintenance mode</h3>
+                        <p>Blocks regular players behind a maintenance screen. TotallyMason keeps full access.</p>
+                        <label class="debug-switch-row">
+                            <input type="checkbox" id="debugMaintenance">
+                            <span>Enable maintenance mode</span>
+                        </label>
+                        <button class="debug-tool-btn" onclick="debugSaveSiteSettings()">Save maintenance</button>
+                    </div>
+
+                    <div class="debug-tool-card">
+                        <h3>Reset site settings</h3>
+                        <p>Restore the default banner, multiplier (1×), featured game, and game access.</p>
+                        <button class="debug-tool-btn danger" onclick="debugResetSiteSettings()">Reset site settings</button>
+                    </div>
+                </div>
+            </div>
+
             <div class="debug-panel" id="debugPanel-tools" style="display:none;">
                 <div class="debug-tools-grid">
+                    <div class="debug-tool-card debug-grant-card">
+                        <h3>Create account</h3>
+                        <p>Make a new account instantly. The username must be unique.</p>
+                        <div class="debug-grant-form">
+                            <label class="debug-grant-field">
+                                <span>Username</span>
+                                <input type="text" id="debugNewUsername" maxlength="24" placeholder="new_player">
+                            </label>
+                            <label class="debug-grant-field">
+                                <span>Password</span>
+                                <input type="text" id="debugNewPassword" maxlength="64" placeholder="password">
+                            </label>
+                            <button class="debug-tool-btn" onclick="debugCreateAccount()">Create account</button>
+                        </div>
+                    </div>
+
+                    <div class="debug-tool-card debug-grant-card">
+                        <h3>Bulk grants</h3>
+                        <p>Apply a grant to every registered account at once.</p>
+                        <div class="debug-grant-form">
+                            <label class="debug-grant-field">
+                                <span>Shells each</span>
+                                <input type="number" id="debugBulkAmount" min="0" step="1" value="100">
+                            </label>
+                            <button class="debug-tool-btn" onclick="debugGrantShellsToAll()">Give to all</button>
+                            <button class="debug-btn" onclick="debugGiveAllCosmeticsToAll()">All cosmetics to all</button>
+                        </div>
+                    </div>
+
+                    <div class="debug-tool-card">
+                        <h3>Social cleanup</h3>
+                        <p>Reset presence timestamps or wipe every friendship and pending request.</p>
+                        <div class="debug-action-row">
+                            <button class="debug-tool-btn" onclick="debugMarkEveryoneOffline()">Mark all offline</button>
+                            <button class="debug-tool-btn danger" onclick="debugClearAllFriendships()">Clear friendships</button>
+                        </div>
+                    </div>
+
                     <div class="debug-tool-card debug-grant-card">
                         <h3>Give Shells or cosmetics</h3>
                         <p>Send currency or items to any account, including yourself. Grants apply instantly.</p>
@@ -361,7 +536,7 @@
                     </div>
                     <div class="debug-tool-card">
                         <h3>Export data</h3>
-                        <p>Download accounts, posts, wallets, and scores as JSON. Includes passwords.</p>
+                        <p>Download accounts, posts, wallets, scores, presence, friendships, and settings as JSON. Includes passwords.</p>
                         <button class="debug-tool-btn" onclick="exportDebugData()">Export JSON</button>
                     </div>
                     <div class="debug-tool-card">
@@ -651,9 +826,17 @@
         </div>
     </div>
 
+    <div id="maintenanceOverlay" class="maintenance-overlay" style="display:none;">
+        <div class="maintenance-card">
+            <h1>LessFun is under maintenance</h1>
+            <p>We're tuning the arcade. Please check back shortly.</p>
+            <button class="game-btn-3d" onclick="location.reload()">Retry</button>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
-    <script src="games3d.js?v=20261131"></script>
-    <script src="app.js?v=20261131"></script>
+    <script src="games3d.js?v=20261132"></script>
+    <script src="app.js?v=20261132"></script>
 </body>
 </html>
