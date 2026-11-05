@@ -1751,6 +1751,139 @@
             if (coinEl) setPillText('g3dRunCoins', coinsCollected);
         }
 
+        /* ---------------- Crash physics and debris ---------------- */
+        var crashActive = false;
+        var crashRealT = 0;
+        var crashStartMs = 0;
+        var crashScore = 0;
+        var crashVx = 0, crashSpinX = 0, crashSpinY = 0, crashSpinZ = 0;
+        var crashCar = null, crashCarVx = 0, crashCarVz = 0, crashCarSpin = 0;
+        var crashDebris = [];
+        var debrisColors = [0xd9e2ec, 0xff4d5e, 0x2b2b2b, 0xffd166, 0x4cc9f0];
+        for (var cdi = 0; cdi < 26; cdi++) {
+            var debrisMat = new THREE.MeshBasicMaterial({ color: debrisColors[cdi % debrisColors.length] });
+            var debrisMesh = new THREE.Mesh(new THREE.BoxGeometry(0.09 + Math.random() * 0.12, 0.06 + Math.random() * 0.1, 0.05 + Math.random() * 0.1), debrisMat);
+            debrisMesh.visible = false;
+            scene.add(debrisMesh);
+            crashDebris.push({
+                mesh: debrisMesh, vx: 0, vy: 0, vz: 0,
+                spinX: 0, spinY: 0, spinZ: 0, life: 0
+            });
+        }
+
+        function spawnCrashDebris(x, z) {
+            for (var di = 0; di < crashDebris.length; di++) {
+                var d = crashDebris[di];
+                d.mesh.visible = true;
+                d.mesh.position.set(x + (Math.random() - 0.5) * 1.2, 0.7 + Math.random() * 0.5, z);
+                d.mesh.scale.setScalar(1);
+                d.vx = (Math.random() - 0.5) * 16;
+                d.vy = 4 + Math.random() * 12;
+                d.vz = (Math.random() - 0.5) * 12 - 2;
+                d.spinX = (Math.random() - 0.5) * 14;
+                d.spinY = (Math.random() - 0.5) * 14;
+                d.spinZ = (Math.random() - 0.5) * 14;
+                d.life = 1.7 + Math.random() * 0.6;
+            }
+        }
+
+        function updateCrashDebris(dt) {
+            for (var ui = 0; ui < crashDebris.length; ui++) {
+                var d = crashDebris[ui];
+                if (d.life <= 0) { d.mesh.visible = false; continue; }
+                d.life -= dt;
+                d.mesh.position.x += d.vx * dt;
+                d.mesh.position.y += d.vy * dt;
+                d.mesh.position.z += d.vz * dt;
+                d.vy -= 24 * dt;
+                d.mesh.rotation.x += d.spinX * dt;
+                d.mesh.rotation.y += d.spinY * dt;
+                d.mesh.rotation.z += d.spinZ * dt;
+                d.mesh.scale.setScalar(Math.max(0.05, Math.min(1, d.life)));
+                if (d.mesh.position.y < 0.05) { d.mesh.position.y = 0.05; d.vy = Math.abs(d.vy) * 0.3; }
+                if (d.life <= 0) d.mesh.visible = false;
+            }
+        }
+
+        function triggerCrash(car, halfWidth) {
+            if (crashActive) return;
+            crashActive = true;
+            crashRealT = 0;
+            crashStartMs = (global.performance && global.performance.now) ? global.performance.now() : Date.now();
+            crashScore = distance + checkpointsPassed * CHECKPOINT_BONUS + driftScore;
+            var dir = player.position.x >= car.position.x ? 1 : -1;
+            crashVx = dir * (9 + Math.min(26, Math.abs(speed) * 0.11));
+            crashSpinX = (Math.random() - 0.5) * 2.6;
+            crashSpinY = dir * (1.8 + Math.random() * 2.4);
+            crashSpinZ = dir * (1.2 + Math.random() * 1.8);
+            vy = 7 + Math.min(14, Math.abs(speed) * 0.055);
+            playerY = 0.35;
+            speed *= 0.3;
+            crashCar = car;
+            crashCarVx = -dir * (6 + Math.random() * 8);
+            crashCarVz = 6 + Math.random() * 10;
+            crashCarSpin = -dir * (1.5 + Math.random() * 2);
+            if (car.userData) car.userData.state = 'hit';
+            spawnCrashDebris(car.position.x, car.position.z);
+            crashSound();
+            tone(70, 0.8, 'sawtooth', 0.12, 30);
+            var flash = document.getElementById('g3dCrashFlash');
+            if (flash) flash.classList.add('is-active');
+        }
+
+        function updateCrash(dt) {
+            var nowMs = (global.performance && global.performance.now) ? global.performance.now() : Date.now();
+            crashRealT = (nowMs - crashStartMs) / 1000;
+            // Tumble and slide the player car.
+            player.position.x += crashVx * dt;
+            crashVx *= Math.max(0, 1 - dt * 0.7);
+            playerY += vy * dt;
+            vy -= 26 * dt;
+            if (playerY <= 0) {
+                playerY = 0;
+                if (vy < -2) { vy = -vy * 0.26; suspensionImpulse = 0.9; }
+                else vy = 0;
+            }
+            player.position.y = playerY;
+            player.rotation.x += crashSpinX * dt;
+            player.rotation.y += crashSpinY * dt;
+            player.rotation.z += crashSpinZ * dt;
+            speed = Math.max(0, speed - 40 * dt);
+            animateSuspension(player, dt, speed, distance, player.rotation.z, 1, suspensionImpulse);
+            suspensionImpulse *= Math.max(0, 1 - dt * 4);
+
+            // The struck car gets knocked aside.
+            if (crashCar) {
+                crashCar.position.x += crashCarVx * dt;
+                crashCar.position.z += crashCarVz * dt;
+                crashCar.rotation.y += crashCarSpin * dt;
+                crashCar.rotation.z += crashCarSpin * 0.6 * dt;
+                crashCarVx *= Math.max(0, 1 - dt * 0.8);
+                crashCarVz *= Math.max(0, 1 - dt * 0.8);
+            }
+            updateCrashDebris(dt);
+
+            // Slow-motion crash camera.
+            var shake = Math.sin(crashRealT * 42) * 0.075;
+            camera.position.x = player.position.x * 0.8 + shake * 0.8;
+            camera.position.y = 4.1 + playerY * 0.7 + Math.sin(crashRealT * 9) * 0.06;
+            camera.lookAt(player.position.x, 0.8 + playerY * 0.9, player.position.z - 6);
+            camera.rotateZ(shake);
+            var fov = 56 + Math.min(10, crashRealT * 4);
+            camera.fov = fov;
+            camera.updateProjectionMatrix();
+
+            if (window.Games3D) { /* keeps HUD update cheap */ }
+            setHud(crashScore, 'CRASH · SLOW-MO', 'X');
+
+            if (crashRealT > 2.8) {
+                var flash = document.getElementById('g3dCrashFlash');
+                if (flash) flash.classList.remove('is-active');
+                crashActive = false;
+                endGame(crashScore);
+            }
+        }
+
         /* ---------------- Drift smoke ---------------- */
         var driftPuffTex = makeCanvasTexture(64, 64, function (g, w, h) {
             var grad = g.createRadialGradient(w / 2, h / 2, 2, w / 2, h / 2, w / 2);
@@ -2059,6 +2192,13 @@
         }
 
         function update(dt) {
+            var realDt = dt;
+            if (crashActive) {
+                dt *= 0.22;
+                elapsed += dt;
+                updateCrash(dt);
+                return;
+            }
             elapsed += dt;
 
             // Gear selector: Q shifts down (D → N → R → P), E shifts up
@@ -2351,8 +2491,7 @@
                     var carBack = Math.min(prevZ, c.position.z) - carHalfL;
                     var carFront = Math.max(prevZ, c.position.z) + carHalfL;
                     if (carBack < player.position.z + 2.75 && carFront > player.position.z - 2.75) {
-                        crashSound();
-                        endGame(distance + checkpointsPassed * CHECKPOINT_BONUS + driftScore);
+                        triggerCrash(c, carHalfW);
                         return;
                     }
                 }
@@ -2413,6 +2552,8 @@
 
         camera.position.set(0, 5.3, 13);
         camera.lookAt(0, 0.5, -12);
+        var crashFlash = document.getElementById('g3dCrashFlash');
+        if (crashFlash) crashFlash.classList.remove('is-active');
         initAudio();
         updateRaceHud();
         return {
@@ -2440,7 +2581,8 @@
                     }, 0),
                     bodyMeshes: player.userData.bodyGroup ? player.userData.bodyGroup.children.length : 0,
                     bodyRoll: player.userData.bodyGroup ? player.userData.bodyGroup.rotation.z : 0,
-                    bodyPitch: player.userData.bodyGroup ? player.userData.bodyGroup.rotation.x : 0
+                    bodyPitch: player.userData.bodyGroup ? player.userData.bodyGroup.rotation.x : 0,
+                    crashing: crashActive
                 };
             },
             getMultiplayerInfo: function () {

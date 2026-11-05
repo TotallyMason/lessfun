@@ -427,6 +427,7 @@ function openGame(id) {
                         '<p class="game3d-mp-note">The race restarts for everyone when a room starts. Player cars never collide with each other.</p>' +
                     '</div>' +
                 '</div>' : '') +
+            '<div class="game3d-crash" id="g3dCrashFlash"><span>SLOW-MO CRASH</span></div>' +
             '<div class="game3d-over" id="g3dOver" style="display:none;">' +
                 '<div class="game3d-over-card">' +
                     '<h3>Game Over</h3>' +
@@ -4672,8 +4673,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.21.5";
-const UPDATE_NOTES = "Suspension is now clearly visible: stronger wheel travel, body squat under throttle, brake dive, cornering roll, landing compression, and a camera framing that shows the whole car. The ignition bar moved out of the way";
+const APP_VERSION = "LessFun Developer Beta 1.21.6";
+const UPDATE_NOTES = "Crashes now play out in cinematic slow motion: the car tumbles and hops, debris flies, the struck car is knocked aside, the camera shakes and zooms, and the run ends after the sequence";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
