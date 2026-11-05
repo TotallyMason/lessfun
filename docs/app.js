@@ -360,11 +360,36 @@ function openGame(id) {
                 '<div class="game3d-pill"><span>Status</span><strong id="g3dExtra">-</strong></div>' +
                 (game.hasThrottle ? '<div class="game3d-pill game3d-gear-pill"><span>Gear</span><strong id="g3dGear">1</strong></div>' : '') +
                 (game.hasThrottle ? '<div class="game3d-pill game3d-cp-pill"><span>CP</span><strong id="g3dCheckpoint">0</strong></div>' : '') +
+                (game.hasThrottle ? '<div class="game3d-pill game3d-coin-pill"><span>Coins</span><strong id="g3dRunCoins">0</strong></div>' : '') +
             '</div>' +
             '<div id="g3dCanvas" class="game3d-canvas"></div>' +
             '<div class="game3d-hint">' + (game.controls || '') + '</div>' +
             (game.hasThrottle ? '<button class="game3d-throttle" id="g3dThrottle" type="button">Throttle</button>' : '') +
             (game.hasBrake ? '<button class="game3d-brake" id="g3dBrake" type="button">Brake</button>' : '') +
+            (game.hasThrottle ? '<div class="game3d-ignition" id="g3dIgnition"><span>Ignition</span><div class="game3d-bar-track"><div class="game3d-bar-fill" id="g3dIgnitionFill"></div></div></div>' : '') +
+            (game.hasThrottle ? '<div class="game3d-nitro" id="g3dNitro"><span>NOS</span><div class="game3d-bar-track"><div class="game3d-bar-fill" id="g3dNitroFill"></div></div></div>' : '') +
+            '<button class="game3d-msg-btn" id="g3dMsgBtn" type="button" onclick="toggleDmSidebar()">Messages</button>' +
+            '<aside class="game3d-dm" id="g3dDmSidebar">' +
+                '<div class="game3d-dm-head">' +
+                    '<div><h3>Private messages</h3><p class="game3d-dm-secure">End-to-end encrypted</p></div>' +
+                    '<button type="button" class="game3d-dm-x" onclick="toggleDmSidebar(false)">×</button>' +
+                '</div>' +
+                '<div class="game3d-dm-new">' +
+                    '<input class="game3d-mp-input" id="g3dDmNewUser" type="text" maxlength="24" placeholder="Username">' +
+                    '<button type="button" class="game3d-mp-secondary" onclick="dmStartConversation()">Open</button>' +
+                '</div>' +
+                '<div class="game3d-dm-body">' +
+                    '<div class="game3d-dm-list" id="g3dDmList"></div>' +
+                    '<div class="game3d-dm-thread-wrap">' +
+                        '<div class="game3d-dm-thread" id="g3dDmThread"><p class="game3d-dm-empty">Pick a conversation.</p></div>' +
+                        '<div class="game3d-dm-compose">' +
+                            '<input class="game3d-mp-input" id="g3dDmInput" type="text" maxlength="500" placeholder="Write a message…" onkeydown="if(event.key===\'Enter\'){event.preventDefault();dmSend();}">' +
+                            '<button type="button" class="game3d-mp-primary" onclick="dmSend()">Send</button>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+                '<p class="game3d-dm-status" id="g3dDmStatus"></p>' +
+            '</aside>' +
             (game.hasThrottle ?
                 '<button class="game3d-mp-btn" id="g3dMpBtn" type="button" onclick="openRacerMpPanel()">Multiplayer</button>' +
                 '<div class="game3d-mp" id="g3dMpPanel" style="display:none;">' +
@@ -413,10 +438,13 @@ function openGame(id) {
             name: game.name,
             cosmetics: getEquippedCosmetics(),
             onScore: function (name, score) { saveScore(name, score); },
+            onCoins: function (amount) { awardRunCoins(amount); },
             onGameOver: function (score, seconds) { handleGameOver(score, seconds); }
         });
         applyRenderScaleSetting();
+        applySoundSetting();
     }
+    lastRunCoins = 0;
 
     if (game.hasThrottle) {
         racerMpApplyToGame();
@@ -468,6 +496,7 @@ function restartGame3D() {
 function closeGame() {
     closeRacerMpPanel(true);
     racerMpLeave(true);
+    dmClose();
     if (window.Games3D) window.Games3D.stop();
     document.getElementById('gameModal').style.display = 'none';
     currentGameId = null;
@@ -1016,6 +1045,326 @@ function racerMpCopyCode() {
 }
 
 
+/* ============================================================
+   Private messages — ECDH + AES-GCM end-to-end encryption
+   ============================================================ */
+let dmState = {
+    open: false,
+    contact: '',
+    rows: [],
+    poll: 0,
+    myKeys: null,
+    keyCache: {},
+    publicCache: {}
+};
+
+function dmSetStatus(text, isError) {
+    const el = document.getElementById('g3dDmStatus');
+    if (!el) return;
+    el.textContent = text || '';
+    el.classList.toggle('is-error', !!isError);
+}
+
+function dmB64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+}
+
+function dmUnb64(text) {
+    const binary = atob(text);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+}
+
+function dmCryptoAvailable() {
+    return !!(window.crypto && window.crypto.subtle && window.TextEncoder && window.TextDecoder);
+}
+
+async function dmEnsureKeys() {
+    if (!currentUser || currentUser.type !== 'user') throw new Error('Sign in to use private messages.');
+    if (!dmCryptoAvailable()) throw new Error('This browser does not support encrypted messaging.');
+    if (!supabaseClient) throw new Error('Private messages need an online connection.');
+    if (dmState.myKeys) return dmState.myKeys;
+    const storageKey = 'lessfun_dm_keys_' + currentUser.username;
+    let keys = null;
+    try {
+        const raw = localStorage.getItem(storageKey);
+        if (raw) keys = JSON.parse(raw);
+    } catch (e) {}
+    if (!keys || !keys.privateJwk || !keys.publicJwk) {
+        const pair = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveKey']);
+        keys = {
+            privateJwk: await crypto.subtle.exportKey('jwk', pair.privateKey),
+            publicJwk: await crypto.subtle.exportKey('jwk', pair.publicKey)
+        };
+        try { localStorage.setItem(storageKey, JSON.stringify(keys)); } catch (e) {}
+    }
+    const res = await socialQuery(supabaseClient.from('users').update({
+        public_key: JSON.stringify(keys.publicJwk)
+    }).eq('username', currentUser.username));
+    if (res.error) throw new Error('Run supabase/messages.sql to enable encrypted messages.');
+    dmState.myKeys = keys;
+    dmState.publicCache[currentUser.username.toLowerCase()] = keys.publicJwk;
+    return keys;
+}
+
+async function dmGetPublicKey(username) {
+    const key = String(username || '').toLowerCase();
+    if (dmState.publicCache[key]) return dmState.publicCache[key];
+    const res = await socialQuery(supabaseClient.from('users').select('public_key').eq('username', username).maybeSingle());
+    if (res.error) throw new Error('Run supabase/messages.sql to enable encrypted messages.');
+    if (!res.data || !res.data.public_key) throw new Error(username + ' has not opened private messages yet.');
+    let jwk = null;
+    try { jwk = JSON.parse(res.data.public_key); } catch (e) {}
+    if (!jwk) throw new Error(username + ' has an invalid messaging key.');
+    dmState.publicCache[key] = jwk;
+    return jwk;
+}
+
+async function dmDeriveKey(username) {
+    const cacheKey = String(username || '').toLowerCase();
+    if (dmState.keyCache[cacheKey]) return dmState.keyCache[cacheKey];
+    const mine = await dmEnsureKeys();
+    const theirJwk = await dmGetPublicKey(username);
+    const privateKey = await crypto.subtle.importKey('jwk', mine.privateJwk, { name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveKey']);
+    const publicKey = await crypto.subtle.importKey('jwk', theirJwk, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+    const key = await crypto.subtle.deriveKey(
+        { name: 'ECDH', public: publicKey },
+        privateKey,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt']
+    );
+    dmState.keyCache[cacheKey] = key;
+    return key;
+}
+
+async function dmFetchRows() {
+    const me = currentUser && currentUser.username;
+    if (!me || !supabaseClient) return [];
+    const [sent, received] = await Promise.all([
+        socialQuery(supabaseClient.from('direct_messages').select('*').eq('sender', me).order('created_at', { ascending: false }).limit(200)),
+        socialQuery(supabaseClient.from('direct_messages').select('*').eq('recipient', me).order('created_at', { ascending: false }).limit(200))
+    ]);
+    if (sent.error || received.error) throw new Error('Run supabase/messages.sql to enable private messages.');
+    const seen = {};
+    const rows = [];
+    (sent.data || []).concat(received.data || []).forEach(function (row) {
+        if (!row || seen[row.id]) return;
+        seen[row.id] = true;
+        rows.push(row);
+    });
+    rows.sort(function (a, b) { return new Date(a.created_at) - new Date(b.created_at); });
+    dmState.rows = rows;
+    return rows;
+}
+
+function dmPartners() {
+    const me = currentUser && currentUser.username;
+    const partners = [];
+    const seen = {};
+    dmState.rows.forEach(function (row) {
+        const other = row.sender === me ? row.recipient : row.sender;
+        if (!other || other === me || seen[other]) return;
+        seen[other] = true;
+        partners.push(other);
+    });
+    if (dmState.contact && !seen[dmState.contact]) partners.unshift(dmState.contact);
+    return partners;
+}
+
+function dmRenderList() {
+    const list = document.getElementById('g3dDmList');
+    if (!list) return;
+    const partners = dmPartners();
+    if (!partners.length) {
+        list.innerHTML = '<p class="game3d-dm-empty">No conversations yet.</p>';
+        return;
+    }
+    list.innerHTML = partners.map(function (name) {
+        return '<button type="button" class="game3d-dm-contact' + (name === dmState.contact ? ' is-active' : '') + '" onclick="dmOpenConversation(\'' + debugArg(name) + '\')">' +
+            '<span class="game3d-dm-contact-dot"></span>' + escapeHtml(name) +
+        '</button>';
+    }).join('');
+}
+
+function dmRenderThread() {
+    const thread = document.getElementById('g3dDmThread');
+    if (!thread) return;
+    if (!dmState.contact) {
+        thread.innerHTML = '<p class="game3d-dm-empty">Pick a conversation or enter a username.</p>';
+        return;
+    }
+    const me = currentUser ? currentUser.username : '';
+    const rows = dmState.thread || [];
+    if (!rows.length) {
+        thread.innerHTML = '<p class="game3d-dm-empty">No messages with ' + escapeHtml(dmState.contact) + ' yet.</p>';
+        return;
+    }
+    thread.innerHTML = rows.map(function (row) {
+        const mine = row.sender === me;
+        return '<div class="game3d-dm-msg' + (mine ? ' is-mine' : '') + '">' +
+            '<span class="game3d-dm-msg-text">' + escapeHtml(row.text) + '</span>' +
+            '<span class="game3d-dm-msg-time">' + escapeHtml(new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) + '</span>' +
+        '</div>';
+    }).join('');
+    thread.scrollTop = thread.scrollHeight;
+}
+
+async function dmLoadInbox() {
+    if (!currentUser || currentUser.type !== 'user') {
+        dmSetStatus('Sign in to use private messages.', true);
+        return;
+    }
+    try {
+        await dmEnsureKeys();
+        await dmFetchRows();
+        dmRenderList();
+        if (dmState.contact) await dmRefreshThread(true);
+        else dmRenderThread();
+        dmSetStatus('Encrypted on this device.', false);
+    } catch (e) {
+        dmSetStatus(e.message || 'Could not open messages.', true);
+    }
+}
+
+async function dmOpenConversation(username) {
+    const name = String(username || '').trim();
+    if (!name) return;
+    dmState.contact = name;
+    localStorage.setItem('lessfun_dm_contact', name);
+    dmRenderList();
+    await dmRefreshThread();
+    const input = document.getElementById('g3dDmInput');
+    if (input) input.focus();
+}
+
+async function dmRefreshThread(quiet) {
+    if (!dmState.contact || !currentUser || currentUser.type !== 'user') return;
+    try {
+        const rows = await dmFetchRows();
+        const me = currentUser.username;
+        const contact = dmState.contact;
+        const pair = rows.filter(function (row) {
+            return (row.sender === me && row.recipient === contact) || (row.sender === contact && row.recipient === me);
+        });
+        let key = null;
+        try { key = await dmDeriveKey(contact); } catch (e) { key = null; }
+        const decoded = [];
+        for (let i = 0; i < pair.length; i++) {
+            const row = pair[i];
+            let text = null;
+            if (key && row.ciphertext && row.iv) {
+                try {
+                    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: dmUnb64(row.iv) }, key, dmUnb64(row.ciphertext));
+                    text = new TextDecoder().decode(plain);
+                } catch (e) {}
+            }
+            decoded.push({
+                sender: row.sender,
+                recipient: row.recipient,
+                created_at: row.created_at,
+                text: text == null ? '🔒 Encrypted message — key unavailable' : text
+            });
+        }
+        dmState.thread = decoded;
+        dmRenderList();
+        dmRenderThread();
+        if (!quiet) dmSetStatus(key ? 'End-to-end encrypted.' : 'Waiting for ' + contact + ' to open messages once.', !key);
+    } catch (e) {
+        if (!quiet) dmSetStatus(e.message || 'Could not load messages.', true);
+    }
+}
+
+async function dmSend() {
+    if (!currentUser || currentUser.type !== 'user') {
+        dmSetStatus('Sign in to send private messages.', true);
+        return;
+    }
+    if (!dmState.contact) {
+        dmSetStatus('Choose who to message first.', true);
+        return;
+    }
+    const input = document.getElementById('g3dDmInput');
+    const text = String(input ? input.value : '').trim();
+    if (!text) return;
+    if (text.length > 500) {
+        dmSetStatus('Messages are limited to 500 characters.', true);
+        return;
+    }
+    try {
+        const key = await dmDeriveKey(dmState.contact);
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, new TextEncoder().encode(text));
+        const res = await socialQuery(supabaseClient.from('direct_messages').insert({
+            sender: currentUser.username,
+            recipient: dmState.contact,
+            ciphertext: dmB64(cipher),
+            iv: dmB64(iv)
+        }));
+        if (res.error) {
+            dmSetStatus('Could not send: ' + (res.error.message || 'run supabase/messages.sql'), true);
+            return;
+        }
+        if (input) input.value = '';
+        dmState.thread = (dmState.thread || []).concat([{
+            sender: currentUser.username,
+            recipient: dmState.contact,
+            created_at: new Date().toISOString(),
+            text: text
+        }]);
+        dmRenderThread();
+        dmSetStatus('Sent encrypted.', false);
+    } catch (e) {
+        dmSetStatus(e.message || 'Could not encrypt that message.', true);
+    }
+}
+
+function dmStartConversation() {
+    const input = document.getElementById('g3dDmNewUser');
+    const name = String(input ? input.value : '').trim();
+    if (!name) {
+        dmSetStatus('Enter the username to message.', true);
+        return;
+    }
+    if (input) input.value = '';
+    dmOpenConversation(name);
+}
+
+function toggleDmSidebar(force) {
+    const wantOpen = force === false ? false : (force === true ? true : !dmState.open);
+    dmState.open = wantOpen;
+    const panel = document.getElementById('g3dDmSidebar');
+    const btn = document.getElementById('g3dMsgBtn');
+    if (panel) panel.style.display = wantOpen ? 'flex' : 'none';
+    if (btn) btn.classList.toggle('is-open', wantOpen);
+    if (wantOpen) {
+        dmSetStatus('');
+        dmLoadInbox();
+        if (dmState.poll) clearInterval(dmState.poll);
+        dmState.poll = setInterval(function () {
+            if (dmState.open && dmState.contact) dmRefreshThread(true);
+        }, 5000);
+    } else if (dmState.poll) {
+        clearInterval(dmState.poll);
+        dmState.poll = 0;
+    }
+    if (window.Games3D) window.Games3D.setPaused(wantOpen || racerMp.panelOpen);
+}
+
+function dmClose() {
+    if (dmState.poll) { clearInterval(dmState.poll); dmState.poll = 0; }
+    dmState.open = false;
+    const panel = document.getElementById('g3dDmSidebar');
+    const btn = document.getElementById('g3dMsgBtn');
+    if (panel) panel.style.display = 'none';
+    if (btn) btn.classList.remove('is-open');
+}
+
+
 async function saveScore(gameName, score) {
     if (!currentUser || currentUser.type === 'guest' || !currentUser.persistScores) return;
     var entry = {
@@ -1051,6 +1400,28 @@ function handleProfileNavClick() {
     } else {
         openAuthModal();
     }
+}
+
+function applySoundSetting() {
+    if (window.Games3D && window.Games3D.setSoundEnabled) window.Games3D.setSoundEnabled(soundSetting);
+    const toggle = document.getElementById('soundToggle');
+    if (toggle) toggle.checked = soundSetting;
+}
+
+function setSoundSetting(on) {
+    soundSetting = !!on;
+    try { localStorage.setItem('lessfun_sound', soundSetting ? 'true' : 'false'); } catch (e) {}
+    applySoundSetting();
+}
+
+function awardRunCoins(amount) {
+    const earned = Math.max(0, Math.floor(Number(amount) || 0));
+    lastRunCoins = earned;
+    if (!earned || !wallet) return;
+    wallet.shells = Math.max(0, (Number(wallet.shells) || 0) + earned);
+    wallet.totalEarned = Math.max(0, (Number(wallet.totalEarned) || 0) + earned);
+    saveWallet();
+    renderWalletUI();
 }
 
 function updateUserSection() {
@@ -1247,7 +1618,7 @@ async function renderDebugUsers() {
     if (walletCount) walletCount.textContent = debugNum(debugData.wallets.length);
     const scoreCount = document.getElementById('debugScoreCount');
     if (scoreCount) scoreCount.textContent = debugNum(debugData.scores.length);
-    const shellsTotal = document.getElementById('debugShellsTotal');
+    const shellsTotal = document.getElementById('debugCoinsTotal');
     if (shellsTotal) shellsTotal.textContent = debugNum(debugData.wallets.reduce(function (sum, w) {
         return sum + (Number(w.shells) || 0);
     }, 0));
@@ -1298,11 +1669,11 @@ function renderDebugOverview() {
         const cards = [
             ['Accounts', debugNum(users.length), 'registered players'],
             ['Posts', debugNum(debugData.posts.length), pinned + ' pinned'],
-            ['Wallets', debugNum(wallets.length), 'Shells balances'],
+            ['Wallets', debugNum(wallets.length), 'Coins balances'],
             ['Scores', debugNum(scores.length), 'recent runs loaded'],
             ['Replies', debugNum(debugData.replies.length), debugNum(debugData.postReactions.length + debugData.replyReactions.length) + ' reactions'],
             ['Uploads', debugNum(debugData.posts.filter(function (post) { return !!post.media_url; }).length), 'posts with media'],
-            ['Shells in circulation', debugNum(shells), debugNum(totalEarned) + ' earned all-time'],
+            ['Coins in circulation', debugNum(shells), debugNum(totalEarned) + ' earned all-time'],
             ['Newest account', newest ? newest.username : '—', newest ? debugDate(newest.created_at) : 'No accounts yet']
         ];
         grid.innerHTML = cards.map(function (card) {
@@ -1517,8 +1888,8 @@ function renderDebugWallets() {
             '<td class="debug-date">' + debugNum(w.total_earned) + '</td>' +
             '<td class="debug-date">' + debugNum(w.streak) + '</td>' +
             '<td class="debug-actions"><div class="debug-action-row">' +
-                '<button class="debug-btn" onclick="grantDebugShells(\'' + debugArg(w.username) + '\')">+ Shells</button>' +
-                '<button class="debug-btn" onclick="setDebugShells(\'' + debugArg(w.username) + '\')">Set</button>' +
+                '<button class="debug-btn" onclick="grantDebugCoins(\'' + debugArg(w.username) + '\')">+ Coins</button>' +
+                '<button class="debug-btn" onclick="setDebugCoins(\'' + debugArg(w.username) + '\')">Set</button>' +
                 (isOwnerRow ? '<span class="debug-protected">Protected</span>' : '<button class="debug-delete" onclick="deleteDebugWallet(\'' + debugArg(w.username) + '\')">Delete</button>') +
             '</div></td>' +
         '</tr>';
@@ -1701,7 +2072,7 @@ async function saveAdminPowers(username) {
 
 function renderDebugSite() {
     const announcement = document.getElementById('debugAnnouncement');
-    const multiplier = document.getElementById('debugShellsMultiplier');
+    const multiplier = document.getElementById('debugCoinsMultiplier');
     const featured = document.getElementById('debugFeaturedGame');
     const disabled = document.getElementById('debugDisabledGames');
     const maintenance = document.getElementById('debugMaintenance');
@@ -1743,7 +2114,7 @@ function renderDebugSite() {
 function debugSaveSiteSettings() {
     if (!debugGuard()) return;
     const announcement = document.getElementById('debugAnnouncement');
-    const multiplier = document.getElementById('debugShellsMultiplier');
+    const multiplier = document.getElementById('debugCoinsMultiplier');
     const featured = document.getElementById('debugFeaturedGame');
     const disabled = document.getElementById('debugDisabledGames');
     const maintenance = document.getElementById('debugMaintenance');
@@ -1751,7 +2122,7 @@ function debugSaveSiteSettings() {
 
     const mult = Number(multiplier ? multiplier.value : 1);
     if (!isFinite(mult) || mult < 0 || mult > 20) {
-        showDebugStatus('Shells multiplier must be between 0 and 20.', true);
+        showDebugStatus('Coins multiplier must be between 0 and 20.', true);
         return;
     }
     const uploadLimit = Number(uploadLimitInput ? uploadLimitInput.value : 2);
@@ -1916,7 +2287,7 @@ function debugSelectMyself() {
     showDebugStatus('Recipient set to ' + currentUser.username + '.', false);
 }
 
-async function debugGiveShells() {
+async function debugGiveCoins() {
     if (!debugGuard()) return;
     if (!supabaseClient) {
         showDebugStatus('Supabase is unavailable.', true);
@@ -1932,7 +2303,7 @@ async function debugGiveShells() {
         return;
     }
     if (!isFinite(amount) || amount <= 0) {
-        showDebugStatus('Enter a positive number of Shells.', true);
+        showDebugStatus('Enter a positive number of Coins.', true);
         return;
     }
 
@@ -1945,19 +2316,19 @@ async function debugGiveShells() {
             updated_at: new Date().toISOString()
         }).eq('username', row.username));
         if (!res.error) {
-            showDebugStatus('Gave ' + debugNum(amount) + ' Shells to ' + username + ' (' + debugNum(next) + ' total).', false);
+            showDebugStatus('Gave ' + debugNum(amount) + ' Coins to ' + username + ' (' + debugNum(next) + ' total).', false);
         }
     } else {
         const fresh = debugWalletDefaults(username);
         fresh.shells = SHELLS_START + amount;
         res = await debugQuery(supabaseClient.from('wallets').insert(fresh));
         if (!res.error) {
-            showDebugStatus('Created ' + username + "'s wallet with " + debugNum(fresh.shells) + ' Shells.', false);
+            showDebugStatus('Created ' + username + "'s wallet with " + debugNum(fresh.shells) + ' Coins.', false);
         }
     }
 
     if (res.error) {
-        showDebugStatus('Could not give Shells: ' + (res.error.message || 'Unknown error'), true);
+        showDebugStatus('Could not give Coins: ' + (res.error.message || 'Unknown error'), true);
         return;
     }
     await refreshOwnWalletIfNeeded(username);
@@ -2081,10 +2452,10 @@ async function resetDebugPassword(username) {
     await renderDebugUsers();
 }
 
-async function grantDebugShells(username) {
+async function grantDebugCoins(username) {
     if (!debugGuard()) return;
     const walletRow = debugData.wallets.filter(function (w) { return String(w.username) === String(username); })[0];
-    const amount = Number(window.prompt('Shells to add to "' + username + '" (use a negative number to remove):', '100'));
+    const amount = Number(window.prompt('Coins to add to "' + username + '" (use a negative number to remove):', '100'));
     if (!isFinite(amount) || amount === 0) return;
     const current = walletRow ? Number(walletRow.shells) || 0 : SHELLS_START;
     const next = Math.max(0, Math.floor(current + amount));
@@ -2096,14 +2467,14 @@ async function grantDebugShells(username) {
         showDebugStatus('Could not update ' + username + ': ' + (res.error.message || 'Unknown error'), true);
         return;
     }
-    showDebugStatus(username + ' now has ' + debugNum(next) + ' Shells.', false);
+    showDebugStatus(username + ' now has ' + debugNum(next) + ' Coins.', false);
     await refreshOwnWalletIfNeeded(username);
     await renderDebugUsers();
 }
 
-async function setDebugShells(username) {
+async function setDebugCoins(username) {
     if (!debugGuard()) return;
-    const value = Number(window.prompt('Set "' + username + '" to how many Shells?', '100'));
+    const value = Number(window.prompt('Set "' + username + '" to how many Coins?', '100'));
     if (!isFinite(value) || value < 0) return;
     const next = Math.floor(value);
     const res = await debugQuery(supabaseClient.from('wallets').update({
@@ -2114,7 +2485,7 @@ async function setDebugShells(username) {
         showDebugStatus('Could not update ' + username + ': ' + (res.error.message || 'Unknown error'), true);
         return;
     }
-    showDebugStatus(username + ' set to ' + debugNum(next) + ' Shells.', false);
+    showDebugStatus(username + ' set to ' + debugNum(next) + ' Coins.', false);
     await refreshOwnWalletIfNeeded(username);
     await renderDebugUsers();
 }
@@ -2255,7 +2626,7 @@ async function deleteDebugWallet(username) {
         alert('The owner wallet is protected.');
         return;
     }
-    if (!window.confirm('Delete the Shells wallet for "' + username + '"? Their next game starts a fresh wallet.')) return;
+    if (!window.confirm('Delete the Coins wallet for "' + username + '"? Their next game starts a fresh wallet.')) return;
     const res = await debugQuery(supabaseClient.from('wallets').delete().eq('username', username));
     if (res.error) {
         showDebugStatus('Could not delete wallet: ' + (res.error.message || 'Unknown error'), true);
@@ -2300,7 +2671,7 @@ function exportDebugData() {
 
 function clearDebugLocalData() {
     if (!debugGuard()) return;
-    if (!window.confirm('Clear cached scores, pinned posts, and local Shells wallets on this browser?')) return;
+    if (!window.confirm('Clear cached scores, pinned posts, and local Coins wallets on this browser?')) return;
     try {
         const keys = [];
         for (let i = 0; i < localStorage.length; i++) {
@@ -2436,7 +2807,7 @@ async function debugClearAllPins() {
 
 async function debugResetAllStreaks() {
     if (!debugGuard()) return;
-    if (!window.confirm('Clear streak progress for every wallet? Shells are untouched.')) return;
+    if (!window.confirm('Clear streak progress for every wallet? Coins are untouched.')) return;
     const res = await debugQuery(supabaseClient.from('wallets').update({
         streak: 0,
         last_play_day: null,
@@ -2467,7 +2838,7 @@ async function clearAllDebugScores() {    if (!debugGuard()) return;
 
 async function resetAllDebugWallets() {
     if (!debugGuard()) return;
-    if (!window.confirm('Reset EVERY wallet to ' + SHELLS_START + ' Shells and clear streaks?')) return;
+    if (!window.confirm('Reset EVERY wallet to ' + SHELLS_START + ' Coins and clear streaks?')) return;
     const res = await debugQuery(supabaseClient.from('wallets').update({
         shells: SHELLS_START,
         streak: 0,
@@ -2479,7 +2850,7 @@ async function resetAllDebugWallets() {
         showDebugStatus('Could not reset wallets: ' + (res.error.message || 'Unknown error'), true);
         return;
     }
-    showDebugStatus('All wallets reset to ' + SHELLS_START + ' Shells.', false);
+    showDebugStatus('All wallets reset to ' + SHELLS_START + ' Coins.', false);
     if (currentUser && currentUser.type === 'user') {
         try { await loadWallet(); } catch (e) {}
     }
@@ -2589,15 +2960,15 @@ async function setDebugBan(username, banned) {
     await renderDebugUsers();
 }
 
-async function debugGrantShellsToAll() {
+async function debugGrantCoinsToAll() {
     if (!debugGuard()) return;
     const input = document.getElementById('debugBulkAmount');
     const amount = Math.floor(Number(input ? input.value : 0));
     if (!isFinite(amount) || amount <= 0) {
-        showDebugStatus('Enter a positive Shells amount.', true);
+        showDebugStatus('Enter a positive Coins amount.', true);
         return;
     }
-    if (!window.confirm('Give ' + debugNum(amount) + ' Shells to all ' + debugData.users.length + ' account(s)?')) return;
+    if (!window.confirm('Give ' + debugNum(amount) + ' Coins to all ' + debugData.users.length + ' account(s)?')) return;
 
     let changed = 0;
     for (let i = 0; i < debugData.users.length; i++) {
@@ -2621,7 +2992,7 @@ async function debugGrantShellsToAll() {
         try { await loadWallet(); } catch (e) {}
         renderWalletUI();
     }
-    showDebugStatus('Granted Shells to ' + changed + ' of ' + debugData.users.length + ' accounts.', changed !== debugData.users.length);
+    showDebugStatus('Granted Coins to ' + changed + ' of ' + debugData.users.length + ' accounts.', changed !== debugData.users.length);
     await renderDebugUsers();
 }
 
@@ -2674,7 +3045,7 @@ async function deleteUserAccount(id) {
         alert('The owner account cannot be deleted.');
         return;
     }
-    if (!window.confirm('Delete "' + user.username + '"?\n\nThis permanently removes the account. Their posts and Shells wallet will also be cleaned up.')) return;
+    if (!window.confirm('Delete "' + user.username + '"?\n\nThis permanently removes the account. Their posts and Coins wallet will also be cleaned up.')) return;
     if (!supabaseClient) {
         alert('Supabase is unavailable.');
         return;
@@ -2835,7 +3206,7 @@ function escapeHtml(t){ const d=document.createElement('div'); d.textContent=t; 
 function escapeAttr(t){ return String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 /* ============================================================
-   Shells wallet + cosmetics shop
+   Coins wallet + cosmetics shop
    ============================================================ */
 
 const SHELLS_START = 100;
@@ -2882,6 +3253,7 @@ const COSMETICS = [
     { id: 'body_monster', type: 'body', name: 'Monster Truck', cost: 2200, style: 'monster', color: '#9b5de5', threeColor: 0x9b5de5 },
     { id: 'body_phantom', type: 'body', name: 'Phantom GT', cost: 2800, style: 'phantom', color: '#5a189a', threeColor: 0x5a189a },
     { id: 'body_f1', type: 'body', name: 'F1 Open-Wheel', cost: 4500, style: 'f1', color: '#e63946', threeColor: 0xe63946 },
+    { id: 'body_bus', type: 'body', name: 'City Bus', cost: 2600, style: 'bus', color: '#ffc400', threeColor: 0xffc400 },
 
     // Engines (visual exhaust and glow only — never changes speed)
     { id: 'engine_stock', type: 'engine', name: 'Stock Engine', cost: 0, default: true, style: 'stock', color: '#8d99ae', threeColor: 0x8d99ae },
@@ -3001,7 +3373,8 @@ const BODY_PERF = {
     taxi:     { top: 1.02, accel: 1.04, grip: 1.10 },
     monster:  { top: 0.96, accel: 1.10, grip: 1.24 },
     phantom:  { top: 1.32, accel: 1.34, grip: 1.20 },
-    f1:       { top: 1.48, accel: 1.52, grip: 1.34 }
+    f1:       { top: 1.48, accel: 1.52, grip: 1.34 },
+    bus:      { top: 0.90, accel: 0.92, grip: 0.96 }
 };
 
 const AERO_PERF = {
@@ -3056,6 +3429,9 @@ let wallet = null;
 let walletLoadToken = 0;
 let walletMutated = false;
 let storeStatusTimer = 0;
+let lastRunCoins = 0;
+let soundSetting = true;
+try { soundSetting = localStorage.getItem('lessfun_sound') !== 'false'; } catch (e) {}
 
 function shellIcon(size) {
     var s = size || 16;
@@ -3202,14 +3578,14 @@ async function saveWallet() {
 
 function renderWalletUI() {
     var shells = wallet ? wallet.shells : SHELLS_START;
-    ['navShells', 'storeShells'].forEach(function (id) {
+    ['navCoins', 'storeCoins'].forEach(function (id) {
         var el = document.getElementById(id);
         if (el) el.textContent = shells.toLocaleString();
     });
 
-    var profileShells = document.getElementById('profileShells');
-    if (profileShells && wallet && currentUser && currentUser.type === 'user' && currentUser.username === wallet.username) {
-        profileShells.innerHTML = shellIcon(14) + ' <span>' + shells.toLocaleString() + ' Shells</span>';
+    var profileCoins = document.getElementById('profileCoins');
+    if (profileCoins && wallet && currentUser && currentUser.type === 'user' && currentUser.username === wallet.username) {
+        profileCoins.innerHTML = shellIcon(14) + ' <span>' + shells.toLocaleString() + ' Coins</span>';
     }
 
     var guestNote = document.getElementById('storeGuestNote');
@@ -3386,7 +3762,7 @@ function renderStore(refocusSearch) {
             '<input type="search" id="storeSearch" class="store-search" placeholder="Search cosmetics…" value="' + escapeHtml(storeSearch) + '" oninput="updateStoreSearch(this.value)">' +
         '</div>' +
         (sections || '<p class="store-empty">No cosmetics match that search.</p>') +
-        '<p class="store-note">Car bodies and engines change real top speed, acceleration, and grip. Paints, boards, glow, wheels, trails, and umbrellas are visual. Shells are earned by playing.</p>';
+        '<p class="store-note">Car bodies and engines change real top speed, acceleration, and grip. Paints, boards, glow, wheels, trails, and umbrellas are visual. Coins are earned by playing.</p>';
 
     if (refocusSearch) {
         var input = document.getElementById('storeSearch');
@@ -3408,7 +3784,7 @@ function flashStoreStatus(message, isError) {
     }, 3200);
 }
 
-async function creditOwnerShells(amount) {
+async function creditOwnerCoins(amount) {
     var value = Math.max(0, Math.floor(Number(amount) || 0));
     if (!value || !supabaseClient || !currentUser || currentUser.type !== 'user') return false;
     if (currentUser.username === 'TotallyMason') return false;
@@ -3430,19 +3806,19 @@ async function handleCosmetic(id) {
     var owned = wallet.inventory.indexOf(item.id) >= 0;
     if (!owned) {
         if (wallet.shells < item.cost) {
-            flashStoreStatus('Not enough Shells. You need ' + (item.cost - wallet.shells).toLocaleString() + ' more.', true);
+            flashStoreStatus('Not enough Coins. You need ' + (item.cost - wallet.shells).toLocaleString() + ' more.', true);
             return;
         }
-        if (!window.confirm('Buy ' + item.name + ' for ' + item.cost.toLocaleString() + ' Shells?')) return;
+        if (!window.confirm('Buy ' + item.name + ' for ' + item.cost.toLocaleString() + ' Coins?')) return;
 
         wallet.shells -= item.cost;
         wallet.inventory.push(item.id);
         wallet.equipped[item.type] = item.id;
         await saveWallet();
-        const credited = await creditOwnerShells(item.cost);
+        const credited = await creditOwnerCoins(item.cost);
         renderStore();
         flashStoreStatus('Purchased ' + item.name + ' and equipped it.' +
-            (credited ? ' ' + item.cost.toLocaleString() + ' Shells went to TotallyMason.' : ''));
+            (credited ? ' ' + item.cost.toLocaleString() + ' Coins went to TotallyMason.' : ''));
         return;
     }
 
@@ -3467,7 +3843,7 @@ function dayNumber(key) {
     return Math.floor(Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])) / 86400000);
 }
 
-async function awardShells(seconds) {
+async function awardCoins(seconds) {
     var result = { total: 0, base: 0, bonus: 0, messages: [] };
     if (!wallet) return result;
 
@@ -3484,7 +3860,7 @@ async function awardShells(seconds) {
     }
     var bonus = 0;
     var messages = [];
-    if (multiplier !== 1) messages.push(multiplier + '× Shells event');
+    if (multiplier !== 1) messages.push(multiplier + '× Coins event');
     var today = dayKey();
 
     if (wallet.lastPlayDay !== today) {
@@ -3528,16 +3904,22 @@ function handleGameOver(score, seconds) {
     if (fin) fin.textContent = score;
     if (over) over.style.display = 'flex';
 
-    awardShells(seconds).then(function (result) {
+    var trackCoins = lastRunCoins;
+    awardCoins(seconds).then(function (result) {
         var el = document.getElementById('g3dEarned');
         if (!el) return;
-        if (!result || result.total <= 0) {
+        var playTotal = (result && result.total > 0) ? result.total : 0;
+        if (playTotal <= 0 && trackCoins <= 0) {
             el.style.display = 'none';
             return;
         }
-        var parts = ['play +' + result.base];
-        for (var i = 0; i < result.messages.length; i++) parts.push(result.messages[i]);
-        el.innerHTML = shellIcon(14) + '<span>+' + result.total + ' Shells</span><small>' + parts.join(' · ') + '</small>';
+        var parts = [];
+        if (playTotal > 0) parts.push('play +' + playTotal);
+        if (trackCoins > 0) parts.push('track coins +' + trackCoins);
+        if (result && result.messages) {
+            for (var i = 0; i < result.messages.length; i++) parts.push(result.messages[i]);
+        }
+        el.innerHTML = shellIcon(14) + '<span>+' + (playTotal + trackCoins) + ' Coins</span><small>' + parts.join(' · ') + '</small>';
         el.style.display = 'flex';
     });
 }
@@ -4189,8 +4571,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.21.1";
-const UPDATE_NOTES = "Faster 60–120 mph traffic, a rare 500 mph mad car, drifting, ramp jumps, F1 and aero/body-kit parts, Shells paid to TotallyMason on purchases, 50-player public lobbies, and a render-resolution setting. Support and the blue speed strips are gone";
+const APP_VERSION = "LessFun Developer Beta 1.21.2";
+const UPDATE_NOTES = "Encrypted private messages in a game sidebar, ignition bars, synthesized engine/tire/nitrous sounds, nitrous boost, buses, jump ramps, and track coins that pay out at game over. The currency is now called Coins";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
@@ -4214,6 +4596,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     loadAvatarCache();
     checkForUpdates();
     applyRenderScaleSetting();
+    applySoundSetting();
 });
 
 document.addEventListener('visibilitychange', function () {
@@ -4237,13 +4620,13 @@ function openProfile(username) {
     if (photoActions) photoActions.style.display = isSelfAccount ? 'flex' : 'none';
     const photoInput = document.getElementById('profilePhotoInput');
     if (photoInput) photoInput.value = '';
-    const profileShells = document.getElementById('profileShells');
-    if (profileShells) {
+    const profileCoins = document.getElementById('profileCoins');
+    if (profileCoins) {
         if (currentUser && currentUser.type === 'user' && currentUser.username === username) {
-            profileShells.style.display = 'block';
-            profileShells.innerHTML = shellIcon(14) + ' <span>' + (wallet ? wallet.shells.toLocaleString() : SHELLS_START.toLocaleString()) + ' Shells</span>';
+            profileCoins.style.display = 'block';
+            profileCoins.innerHTML = shellIcon(14) + ' <span>' + (wallet ? wallet.shells.toLocaleString() : SHELLS_START.toLocaleString()) + ' Coins</span>';
         } else {
-            profileShells.style.display = 'none';
+            profileCoins.style.display = 'none';
         }
     }
     const logoutBtn = document.getElementById('profileLogoutBtn');
@@ -4647,7 +5030,7 @@ async function renderFriends() {
         const best = bestRuns[key];
         return '<div class="friend-details">' +
             '<span class="friend-detail">' + escapeHtml(joinedText) + '</span>' +
-            '<span class="friend-detail">' + (shells != null ? escapeHtml(shells.toLocaleString()) + ' Shells' : 'No wallet') + '</span>' +
+            '<span class="friend-detail">' + (shells != null ? escapeHtml(shells.toLocaleString()) + ' Coins' : 'No wallet') + '</span>' +
             (best
                 ? '<span class="friend-detail">Best <strong>' + escapeHtml(best.score.toLocaleString()) + '</strong> · ' + escapeHtml(best.game) + '</span>'
                 : '<span class="friend-detail">No scored runs</span>') +

@@ -19,7 +19,7 @@ All four games are real-time 3D scenes rendered with Three.js.
 Visit the live site at [https://totallymason.github.io/lessfun/](https://totallymason.github.io/lessfun/).
 
 Guests can play without an account, but guest scores and posts are not saved.
-Account mode keeps scores, posts, and Shells across devices once the Supabase
+Account mode keeps scores, posts, and Coins across devices once the Supabase
 tables below are created.
 
 ## Run locally
@@ -34,13 +34,13 @@ python3 -m http.server 8765
 
 Then open <http://localhost:8765>.
 
-## Shells
+## Coins
 
-Shells are LessFun's single soft currency. They are earned by playing and spent
+Coins are LessFun's single soft currency. They are earned by playing and spent
 on car performance parts and cosmetics. Bodies and engines change real top
 speed, acceleration, and grip; the other categories are visual.
 
-| Action | Shells |
+| Action | Coins |
 | --- | --- |
 | Every second of play | 1 (minimum 1 per run) |
 | First run of the day | +25 |
@@ -48,14 +48,14 @@ speed, acceleration, and grip; the other categories are visual.
 | 7-day streak | +400 |
 | 14-day streak | +1,000 |
 
-New players start with **100 Shells**. Purchases are equipped immediately, and
-any owned cosmetic can be re-equipped for free. The shop has **119 cosmetics** in
+New players start with **100 Coins**. Purchases are equipped immediately, and
+any owned cosmetic can be re-equipped for free. The shop has **120 cosmetics** in
 ten categories:
 
 | Category | Items | What changes in Beach Racer |
 | --- | --- | --- |
 | Car paints | 20 | Body colour of the beach buggy |
-| Car bodies | 15 | Real performance: top speed, acceleration, and grip (includes an F1 car) |
+| Car bodies | 16 | Real performance: top speed, acceleration, and grip (includes an F1 car and a city bus) |
 | Engines | 14 | Real power: top speed and acceleration |
 | Aero parts | 5 | Real grip and top speed: splitters, wings, diffusers |
 | Body kits | 5 | Real acceleration and grip: widebody, track, rally, hyper |
@@ -67,8 +67,8 @@ ten categories:
 
 Car bodies, engines, aero parts, and body kits are **real performance parts** — each shop card shows
 its Top, Accel, and Grip deltas. Paints, boards, glow, wheels, trails, and
-umbrellas stay visual only. Rainbow variants cycle hue over time. A Shells
-multiplier event can be enabled from the Owner Console for double-Shells
+umbrellas stay visual only. Rainbow variants cycle hue over time. A Coins
+multiplier event can be enabled from the Owner Console for double-Coins
 weekends.
 
 ## Supabase setup
@@ -86,6 +86,8 @@ full file:
 - [`supabase/friends.sql`](supabase/friends.sql) — friendships and presence.
 - [`supabase/admins_avatars.sql`](supabase/admins_avatars.sql) — admin flags,
   selectable admin powers, and profile picture storage.
+- [`supabase/messages.sql`](supabase/messages.sql) — encrypted direct messages
+  and public messaging keys.
 - [`supabase/owner_tools.sql`](supabase/owner_tools.sql) — ban flag and site
   settings.
 - [`supabase/community.sql`](supabase/community.sql) — post attachments, replies,
@@ -96,7 +98,7 @@ full file:
 Until migrations are run:
 
 - Scores fall back to `localStorage` on the device.
-- Shells fall back to a per-user `localStorage` wallet.
+- Coins fall back to a per-user `localStorage` wallet.
 - Account codes still sign in, but nothing syncs between devices.
 - Friends, presence, bans, replies, reactions, uploads, and site-wide owner
   settings stay unavailable and the Owner Console reports which tables are
@@ -112,7 +114,7 @@ The **Debug** nav item is only shown to the `TotallyMason` account. Opening it
 asks for the TotallyMason password again, then unlocks a nine-tab console:
 
 - **Overview** — accounts, posts, replies, reactions, uploads, wallets, scores,
-  Shells in circulation, and the global top scores.
+  Coins in circulation, and the global top scores.
 - **Users** — passwords, online/last-seen status, friend counts, join dates,
   password resets, renaming, banning/unbanning, and account deletion. The owner
   account is protected.
@@ -120,20 +122,20 @@ asks for the TotallyMason password again, then unlocks a nine-tab console:
   individual posts.
 - **Community** — every reply and reaction with per-row removal, clear-all
   actions for replies and reactions, and a button to strip every attachment.
-- **Wallets** — balances and streaks, add or set Shells, and delete wallets.
+- **Wallets** — balances and streaks, add or set Coins, and delete wallets.
 - **Scores** — recent runs with per-score deletion.
 - **Friends** — every presence record (online/offline and last seen) plus all
   friendships and pending requests. Clear one record, mark everyone offline, or
   wipe every friendship.
-- **Site** — announcement banner, Shells multiplier (0–20×), featured game,
+- **Site** — announcement banner, Coins multiplier (0–20×), featured game,
   disabled games, maintenance mode, community open/closed, replies, reactions,
   uploads, registration, and the maximum upload size. TotallyMason keeps access
   while maintenance mode blocks regular players.
 - **Tools** — create accounts; moderate one account's posts, streak, or presence;
-  clear pins and streaks; bulk-grant Shells or all cosmetics to every account;
-  give Shells or cosmetics to one account (including yourself); JSON export;
+  clear pins and streaks; bulk-grant Coins or all cosmetics to every account;
+  give Coins or cosmetics to one account (including yourself); JSON export;
   local-cache clearing; guest-wallet cleanup; and danger-zone actions to delete
-  all posts, clear all scores, or reset every wallet to the 100-Shell starting
+  all posts, clear all scores, or reset every wallet to the 100-Coin starting
   balance.
 
 Deleting an account also best-effort removes that user's posts, replies,
@@ -152,14 +154,17 @@ handling real user data or payments.
 - Beach Racer multiplayer for 2–3 players: create or join a five-character room code, race together, see each driver's name floating above their car, and pass through other players without collisions
 - Checkpoint gates every 500 m with a CP counter and a +250 score bonus per gate, plus a host-only start and restart button
 - Manual Q/E gear selector (P, R, N, D) with reverse and park in Beach Racer
-- Shift drifting with tire smoke, 60–120 mph traffic, a rare 500 mph lane-ignoring mad car, ramp trucks you can jump from, and highway entries/exits
+- Shift drifting with tire smoke, 60–120 mph traffic, buses, a rare 500 mph lane-ignoring mad car, ramp trucks, static jump ramps, and highway entries/exits
+- Ignition bar, synthesized engine/tire/nitrous audio, and a drainable nitrous boost on N
+- Gold track coins that are collected during a run and paid into the Coins wallet at game over
+- Private messages with ECDH P-256 + AES-GCM end-to-end encryption, available from an in-game sidebar
 - Always-on public Beach Racer lobbies for up to 50 players with no codes
 - Render-resolution setting (Auto/100/85/70/50%) for smoother 3D frame rates without lowering model quality
 - Owner-managed admins with selectable post, reply, and user-ban powers
-- Profile pictures with upload/crop, plus richer friend cards showing joined date, Shells, best run, and presence
+- Profile pictures with upload/crop, plus richer friend cards showing joined date, Coins, best run, and presence
 - Guest and account authentication options
-- Shells wallet, daily and streak bonuses, and a 119-item performance and cosmetics shop
-- Purchases transfer the spent Shells into the TotallyMason wallet, keeping currency circulating
+- Coins wallet, daily and streak bonuses, and a 119-item performance and cosmetics shop
+- Purchases transfer the spent Coins into the TotallyMason wallet, keeping currency circulating
 - Car paints, 14 body styles, 12 engines, surfboards, underglow, wheels,
   exhaust trails, and umbrella colours applied to the 3D beach scene
 - Community posts with photo/file attachments, replies, and emoji reactions

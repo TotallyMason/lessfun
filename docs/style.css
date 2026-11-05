@@ -5538,3 +5538,308 @@ body::before {
     opacity: 0.45;
     cursor: default;
 }
+
+/* ============================================================
+   Beach Racer ignition, nitrous, coins, and messages
+   ============================================================ */
+.game3d-coin-pill strong {
+    color: #ffd166;
+    text-shadow: 0 0 14px rgba(255, 200, 80, 0.7);
+}
+
+.game3d-bar-track {
+    flex: 1;
+    height: 8px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.game3d-bar-fill {
+    width: 0;
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.08s linear;
+}
+
+.game3d-ignition,
+.game3d-nitro {
+    position: absolute;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: rgba(8, 12, 20, 0.66);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+}
+
+.game3d-ignition {
+    left: 50%;
+    bottom: 54px;
+    transform: translateX(-50%);
+    width: min(300px, 58%);
+}
+
+.game3d-ignition span,
+.game3d-nitro span {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.62);
+}
+
+.game3d-ignition .game3d-bar-fill {
+    background: linear-gradient(90deg, #ffd166, #ff7b00);
+    box-shadow: 0 0 14px rgba(255, 170, 60, 0.7);
+}
+
+.game3d-nitro {
+    right: 18px;
+    bottom: 150px;
+    width: 126px;
+}
+
+.game3d-nitro .game3d-bar-fill {
+    background: linear-gradient(90deg, #4cc9f0, #22e6ff);
+    box-shadow: 0 0 14px rgba(60, 220, 255, 0.7);
+}
+
+.game3d-nitro.is-active {
+    border-color: rgba(80, 230, 255, 0.6);
+    box-shadow: 0 0 26px rgba(60, 220, 255, 0.4);
+}
+
+@media (max-width: 640px) {
+    .game3d-ignition { bottom: 118px; width: 64%; }
+    .game3d-nitro { right: 12px; bottom: 124px; width: 96px; }
+}
+
+.game3d-msg-btn {
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    z-index: 6;
+    padding: 8px 15px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background: rgba(14, 18, 28, 0.62);
+    color: rgba(255, 255, 255, 0.92);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.game3d-msg-btn:hover,
+.game3d-msg-btn.is-open {
+    border-color: rgba(180, 140, 255, 0.6);
+    background: rgba(60, 40, 100, 0.75);
+}
+
+.game3d-dm {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    width: min(390px, 94%);
+    display: none;
+    flex-direction: column;
+    gap: 9px;
+    padding: 14px;
+    background: linear-gradient(160deg, rgba(24, 28, 40, 0.98), rgba(10, 12, 20, 0.99));
+    border-left: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: -24px 0 60px rgba(0, 0, 0, 0.5);
+    color: #fff;
+}
+
+.game3d-dm-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.game3d-dm-head h3 {
+    font-size: 15px;
+    margin: 0;
+}
+
+.game3d-dm-secure {
+    margin-top: 2px;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    color: #8affd0;
+}
+
+.game3d-dm-x {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.07);
+    color: #fff;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.game3d-dm-new {
+    display: flex;
+    gap: 6px;
+}
+
+.game3d-dm-new .game3d-mp-secondary {
+    padding: 0 14px;
+    font-size: 11px;
+}
+
+.game3d-dm-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.game3d-dm-list {
+    display: flex;
+    gap: 5px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    flex: 0 0 auto;
+}
+
+.game3d-dm-contact {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.75);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.game3d-dm-contact.is-active {
+    border-color: rgba(160, 120, 255, 0.6);
+    background: rgba(120, 80, 220, 0.25);
+    color: #fff;
+}
+
+.game3d-dm-contact-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #8affd0;
+    box-shadow: 0 0 8px rgba(120, 255, 200, 0.7);
+}
+
+.game3d-dm-thread-wrap {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.game3d-dm-thread {
+    flex: 1;
+    min-height: 90px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 9px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.28);
+}
+
+.game3d-dm-msg {
+    max-width: 86%;
+    align-self: flex-start;
+    padding: 7px 10px;
+    border-radius: 12px 12px 12px 4px;
+    background: rgba(255, 255, 255, 0.08);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.game3d-dm-msg.is-mine {
+    align-self: flex-end;
+    border-radius: 12px 12px 4px 12px;
+    background: linear-gradient(145deg, rgba(120, 80, 220, 0.5), rgba(70, 40, 150, 0.55));
+}
+
+.game3d-dm-msg-text {
+    display: block;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+
+.game3d-dm-msg-time {
+    display: block;
+    margin-top: 3px;
+    font-size: 9px;
+    opacity: 0.5;
+    text-align: right;
+}
+
+.game3d-dm-compose {
+    display: flex;
+    gap: 6px;
+}
+
+.game3d-dm-compose .game3d-mp-primary {
+    width: auto;
+    margin: 0;
+    padding: 10px 15px;
+    font-size: 11px;
+}
+
+.game3d-dm-empty {
+    margin: auto;
+    padding: 16px;
+    font-size: 11px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.game3d-dm-status {
+    min-height: 14px;
+    font-size: 10px;
+    color: #8affd0;
+}
+
+.game3d-dm-status.is-error {
+    color: #ff9aa8;
+}
+
+@media (max-width: 640px) {
+    .game3d-msg-btn {
+        top: auto;
+        bottom: 210px;
+        left: 12px;
+        padding: 7px 12px;
+        font-size: 11px;
+    }
+
+    .game3d-dm {
+        width: 100%;
+    }
+}

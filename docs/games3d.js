@@ -9,11 +9,14 @@
 
     var renderer = null, scene = null, camera = null;
     var renderScale = 0; // 0 = auto cap, otherwise a multiplier on the device pixel ratio.
+    var soundEnabled = true;
+    var audioMuteHandler = null;
+    var audioCleanup = null;
     var container = null, resizeObs = null;
     var raf = 0, clock = null;
     var active = null;
     var cleanupFns = [];
-    var gameMeta = { name: 'Game', onScore: null, onGameOver: null };
+    var gameMeta = { name: 'Game', onScore: null, onGameOver: null, onCoins: null };
     var running = false;
     var playedSeconds = 0;
     var paused = false;
@@ -65,6 +68,12 @@
         active.over = true;
         var rounded = Math.round(score);
         var seconds = Math.max(0, Math.floor(playedSeconds));
+        try {
+            if (active.getCoins) {
+                var runCoins = active.getCoins();
+                if (runCoins > 0 && gameMeta.onCoins) gameMeta.onCoins(runCoins);
+            }
+        } catch (e) {}
         try { if (gameMeta.onScore) gameMeta.onScore(gameMeta.name, rounded); } catch (e) {}
         try { if (gameMeta.onGameOver) gameMeta.onGameOver(rounded, seconds); } catch (e) {}
     }
@@ -101,6 +110,124 @@
         var CREEP_SPEED = 7 / 2.2369362920544;
         var REVERSE_MAX = 16;
         var GEAR_FRACTIONS = [0.16, 0.31, 0.47, 0.64, 0.83];
+
+        /* ---------------- Synthesized car audio ---------------- */
+        var audioCtx = null, audioMaster = null;
+        var engineOsc = null, engineSub = null, engineGain = null, engineFilter = null;
+        var windGain = null, nitroGain = null;
+
+        function initAudio() {
+            if (audioCtx || !soundEnabled) return;
+            var AC = global.AudioContext || global.webkitAudioContext;
+            if (!AC) return;
+            try {
+                audioCtx = new AC();
+                audioMaster = audioCtx.createGain();
+                audioMaster.gain.value = soundEnabled ? 0.28 : 0;
+                audioMaster.connect(audioCtx.destination);
+                audioMuteHandler = function (on) {
+                    try { if (audioMaster) audioMaster.gain.value = on ? 0.28 : 0; } catch (e) {}
+                };
+                audioCleanup = function () {
+                    audioMuteHandler = null;
+                    try { audioCtx.close(); } catch (e) {}
+                    audioCtx = null;
+                };
+                engineFilter = audioCtx.createBiquadFilter();
+                engineFilter.type = 'lowpass';
+                engineFilter.frequency.value = 800;
+                engineGain = audioCtx.createGain();
+                engineGain.gain.value = 0;
+                engineFilter.connect(engineGain);
+                engineGain.connect(audioMaster);
+                engineOsc = audioCtx.createOscillator();
+                engineOsc.type = 'sawtooth';
+                engineOsc.frequency.value = 55;
+                engineOsc.connect(engineFilter);
+                engineOsc.start();
+                engineSub = audioCtx.createOscillator();
+                engineSub.type = 'square';
+                engineSub.frequency.value = 27;
+                engineSub.connect(engineFilter);
+                engineSub.start();
+
+                var length = Math.floor(audioCtx.sampleRate * 1.2);
+                var buffer = audioCtx.createBuffer(1, length, audioCtx.sampleRate);
+                var data = buffer.getChannelData(0);
+                for (var ai = 0; ai < length; ai++) data[ai] = Math.random() * 2 - 1;
+
+                var windFilter = audioCtx.createBiquadFilter();
+                windFilter.type = 'bandpass';
+                windFilter.frequency.value = 700;
+                windFilter.Q.value = 0.6;
+                windGain = audioCtx.createGain();
+                windGain.gain.value = 0;
+                var windSrc = audioCtx.createBufferSource();
+                windSrc.buffer = buffer;
+                windSrc.loop = true;
+                windSrc.connect(windFilter);
+                windFilter.connect(windGain);
+                windGain.connect(audioMaster);
+                windSrc.start();
+
+                var nitroFilter = audioCtx.createBiquadFilter();
+                nitroFilter.type = 'bandpass';
+                nitroFilter.frequency.value = 1900;
+                nitroFilter.Q.value = 0.8;
+                nitroGain = audioCtx.createGain();
+                nitroGain.gain.value = 0;
+                var nitroSrc = audioCtx.createBufferSource();
+                nitroSrc.buffer = buffer;
+                nitroSrc.loop = true;
+                nitroSrc.connect(nitroFilter);
+                nitroFilter.connect(nitroGain);
+                nitroGain.connect(audioMaster);
+                nitroSrc.start();
+
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+            } catch (e) {
+                audioCtx = null;
+            }
+        }
+
+        function tone(freq, duration, type, volume, endFreq) {
+            if (!soundEnabled || !audioCtx) return;
+            try {
+                var osc = audioCtx.createOscillator();
+                var gain = audioCtx.createGain();
+                var now = audioCtx.currentTime;
+                osc.type = type || 'sine';
+                osc.frequency.setValueAtTime(freq, now);
+                if (endFreq) osc.frequency.exponentialRampToValueAtTime(Math.max(30, endFreq), now + duration);
+                gain.gain.setValueAtTime(Math.max(0.0001, volume || 0.05), now);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+                osc.connect(gain);
+                gain.connect(audioMaster);
+                osc.start(now);
+                osc.stop(now + duration + 0.02);
+            } catch (e) {}
+        }
+
+        function crashSound() {
+            tone(90, 0.35, 'sawtooth', 0.16, 35);
+            tone(180, 0.22, 'square', 0.09, 60);
+        }
+
+        function updateAudio() {
+            if (!audioCtx) return;
+            try {
+                var now = audioCtx.currentTime;
+                var running = engineOn ? 1 : 0;
+                var absSpeed = Math.abs(speed);
+                var rpm = 52 + absSpeed * 1.05 + (nitroActive ? 55 : 0);
+                engineGain.gain.setTargetAtTime(running ? 0.055 + Math.min(0.045, absSpeed / 2600) : 0, now, 0.08);
+                engineOsc.frequency.setTargetAtTime(rpm, now, 0.06);
+                engineSub.frequency.setTargetAtTime(rpm * 0.5, now, 0.06);
+                engineFilter.frequency.setTargetAtTime(520 + absSpeed * 9, now, 0.1);
+                windGain.gain.setTargetAtTime(Math.min(0.09, absSpeed / 1500), now, 0.15);
+                nitroGain.gain.setTargetAtTime(nitroActive ? 0.055 : 0, now, 0.1);
+            } catch (e) {}
+        }
 
         scene.background = new THREE.Color(0x9bd7f2);
         scene.fog = new THREE.FogExp2(0xffe0bd, 0.0055);
@@ -595,7 +722,8 @@
             suv: { len: 3.9, width: 2.02, ride: 0.3, hood: 0.6, deck: 0.52, cabinZ: 0.02, cabinLen: 2.2, cabinH: 0.8, cabinW: 1.58, roof: true, rack: true, spoiler: false },
             monster: { len: 3.45, width: 2.06, ride: 0.62, hood: 0.56, deck: 0.5, cabinZ: -0.05, cabinLen: 1.25, cabinH: 0.5, cabinW: 1.5, roof: true, fenders: true, bigWheels: true, spoiler: false },
             phantom: { len: 3.8, width: 1.96, ride: 0.07, hood: 0.4, deck: 0.38, cabinZ: 0.16, cabinLen: 1.5, cabinH: 0.38, cabinW: 1.24, roof: true, wedge: true, spoiler: true, stripe: true },
-            f1: { len: 4.7, width: 1.55, ride: 0.05, hood: 0.22, deck: 0.24, cabinZ: 0.05, cabinLen: 0.95, cabinH: 0.26, cabinW: 0.72, roof: false, windshield: true, spoiler: true, f1: true }
+            f1: { len: 4.7, width: 1.55, ride: 0.05, hood: 0.22, deck: 0.24, cabinZ: 0.05, cabinLen: 0.95, cabinH: 0.26, cabinW: 0.72, roof: false, windshield: true, spoiler: true, f1: true },
+            bus: { len: 6.6, width: 2.3, ride: 0.28, hood: 0.8, deck: 0.72, cabinZ: 0.45, cabinLen: 4.6, cabinH: 1.5, cabinW: 2.08, roof: true, bus: true }
         };
 
         function makeBodyMesh(spec, material) {
@@ -903,6 +1031,22 @@
                 halo.rotation.y = Math.PI / 2;
                 g.add(halo);
             }
+            if (spec.bus) {
+                var busGlass = new THREE.MeshStandardMaterial({
+                    color: 0x0b2733, metalness: 0.7, roughness: 0.12,
+                    transparent: true, opacity: 0.88
+                });
+                var windowBand = boxMesh(spec.width * 0.96, 0.62, spec.cabinLen * 0.78, busGlass);
+                windowBand.position.set(0, spec.ride + spec.hood + spec.cabinH * 0.62, spec.cabinZ + spec.cabinLen * 0.02);
+                g.add(windowBand);
+                var door = boxMesh(0.06, 1.2, 0.9, busGlass);
+                door.position.set(spec.width / 2 + 0.01, spec.ride + 0.92, -spec.cabinLen * 0.28);
+                g.add(door);
+                var stripeMat = new THREE.MeshBasicMaterial({ color: 0xffc400 });
+                var stripe = boxMesh(spec.width + 0.02, 0.16, spec.len * 0.72, stripeMat);
+                stripe.position.set(0, spec.ride + 0.72, 0);
+                g.add(stripe);
+            }
             if (spec.stripe) {
                 var stripe = boxMesh(0.34, 0.02, spec.len * 0.75, new THREE.MeshBasicMaterial({ color: 0xfff3d6 }));
                 stripe.position.set(0, spec.ride + spec.hood + 0.035, -0.04); g.add(stripe);
@@ -1200,6 +1344,7 @@
         }
 
         function flashCheckpointHud() {
+            tone(1046, 0.18, 'sine', 0.055, 1568);
             var el = document.getElementById('g3dCheckpoint');
             if (!el) return;
             el.textContent = checkpointsPassed;
@@ -1364,10 +1509,124 @@
                 }
             }
             if (exitEnded) {
+                tone(660, 0.3, 'triangle', 0.07, 990);
                 endGame(distance + checkpointsPassed * CHECKPOINT_BONUS + driftScore + EXIT_BONUS);
                 return true;
             }
             return false;
+        }
+
+        /* ---------------- Coins and jump ramps ---------------- */
+        var coinGeo = new THREE.TorusGeometry(0.34, 0.1, 8, 18);
+        var coinMat = new THREE.MeshStandardMaterial({
+            color: 0xffcf4d, emissive: 0xffb703, emissiveIntensity: 0.85,
+            metalness: 0.85, roughness: 0.22
+        });
+        var trackCoins = [];
+        for (var tci = 0; tci < 16; tci++) {
+            var coinMesh = new THREE.Mesh(coinGeo, coinMat);
+            coinMesh.position.y = 1.15;
+            coinMesh.userData.distance = 180 + tci * 75;
+            coinMesh.userData.laneX = LANES[tci % LANES.length];
+            coinMesh.userData.collected = false;
+            scene.add(coinMesh);
+            trackCoins.push(coinMesh);
+        }
+
+        function updateCoins(prevDistance) {
+            for (var ci = 0; ci < trackCoins.length; ci++) {
+                var coin = trackCoins[ci];
+                if (coin.userData.distance + 60 < distance) {
+                    coin.userData.distance += trackCoins.length * 75;
+                    coin.userData.laneX = LANES[Math.floor(Math.random() * LANES.length)];
+                    coin.userData.collected = false;
+                }
+                var rel = coin.userData.distance - distance;
+                coin.position.set(coin.userData.laneX, 1.15, player.position.z - rel);
+                coin.rotation.z += 0.055;
+                coin.visible = !coin.userData.collected && rel > -12 && rel < 340;
+                if (!coin.userData.collected &&
+                    coin.userData.distance > prevDistance - 2 && coin.userData.distance <= distance + 2 &&
+                    Math.abs(coin.userData.laneX - player.position.x) < 1.4) {
+                    coin.userData.collected = true;
+                    coin.visible = false;
+                    coinsCollected++;
+                    tone(880, 0.12, 'square', 0.05, 1320);
+                    updateRaceHud();
+                }
+            }
+        }
+
+        var JUMP_RAMP_SPACING = 720;
+        var jumpRamps = [];
+
+        function buildJumpRamp() {
+            var group = new THREE.Group();
+            var deckMat = standard(0x3a4049, { metalness: 0.5, roughness: 0.55 });
+            var deck = boxMesh(3.3, 0.24, 8.8, deckMat);
+            deck.rotation.x = 0.26;
+            deck.position.set(0, 0.85, 0);
+            group.add(deck);
+            var brace = boxMesh(3.4, 0.32, 2.2, standard(0x23272e, { metalness: 0.6 }));
+            brace.position.set(0, 0.16, 3.1);
+            group.add(brace);
+            [-1, 1].forEach(function (side) {
+                var stripe = boxMesh(0.16, 0.06, 8.7, new THREE.MeshBasicMaterial({ color: 0xffc400 }));
+                stripe.rotation.x = 0.26;
+                stripe.position.set(side * 1.55, 0.9, 0);
+                group.add(stripe);
+            });
+            var signTex = rampSignTexture('JUMP ▲', '#7a4a00');
+            var sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.9), new THREE.MeshBasicMaterial({ map: signTex, transparent: true }));
+            sign.position.set(0, 2.9, 3.4);
+            group.add(sign);
+            return group;
+        }
+
+        for (var jri = 0; jri < 3; jri++) {
+            var jumpGroup = buildJumpRamp();
+            var jumpLane = LANES[jri % LANES.length];
+            jumpGroup.userData.distance = 420 + jri * JUMP_RAMP_SPACING;
+            jumpGroup.userData.laneX = jumpLane;
+            jumpGroup.position.set(jumpLane, 0, player.position.z - jumpGroup.userData.distance);
+            scene.add(jumpGroup);
+            jumpRamps.push(jumpGroup);
+        }
+
+        function updateJumpRamps(prevDistance) {
+            for (var ji = 0; ji < jumpRamps.length; ji++) {
+                var ramp = jumpRamps[ji];
+                if (ramp.userData.distance + 80 < distance) {
+                    ramp.userData.distance += jumpRamps.length * JUMP_RAMP_SPACING;
+                    ramp.userData.laneX = LANES[Math.floor(Math.random() * LANES.length)];
+                }
+                var rel = ramp.userData.distance - distance;
+                ramp.position.set(ramp.userData.laneX, 0, player.position.z - rel);
+                ramp.visible = rel > -45 && rel < 480;
+                if (playerY < 0.2 && Math.abs(speed) > 25 && Math.abs(ramp.userData.laneX - player.position.x) < 1.8 &&
+                    ramp.userData.distance > prevDistance && ramp.userData.distance <= distance + 2) {
+                    vy = Math.min(34, 12 + Math.abs(speed) * 0.11);
+                    playerY = 0.3;
+                    tone(160, 0.28, 'sawtooth', 0.07, 320);
+                }
+            }
+        }
+
+        function updateRaceHud() {
+            var ign = document.getElementById('g3dIgnition');
+            if (ign) {
+                ign.style.display = engineOn ? 'none' : 'flex';
+                var fill = document.getElementById('g3dIgnitionFill');
+                if (fill) fill.style.width = Math.round(ignition * 100) + '%';
+            }
+            var nitroWrap = document.getElementById('g3dNitro');
+            if (nitroWrap) {
+                nitroWrap.classList.toggle('is-active', nitroActive);
+                var nitroFill = document.getElementById('g3dNitroFill');
+                if (nitroFill) nitroFill.style.width = Math.round(nitro) + '%';
+            }
+            var coinEl = document.getElementById('g3dRunCoins');
+            if (coinEl) coinEl.textContent = coinsCollected;
         }
 
         /* ---------------- Drift smoke ---------------- */
@@ -1570,7 +1829,7 @@
 
         var traffic = [];
         var colors = [0xef476f, 0xffd166, 0x06d6a0, 0x118ab2, 0xf78c6b, 0xf7f3e8, 0x7f8c8d, 0x9b5de5];
-        var trafficStyles = ['classic', 'buggy', 'wagon', 'truck', 'suv', 'racer', 'van', 'roadster', 'muscle', 'retro', 'taxi', 'cyber', 'suv', 'truck'];
+        var trafficStyles = ['classic', 'buggy', 'wagon', 'truck', 'suv', 'racer', 'van', 'roadster', 'muscle', 'retro', 'taxi', 'cyber', 'suv', 'truck', 'bus', 'bus'];
         var trafficEngines = ['stock', 'stock', 'v8', 'turbo', 'electric', 'diesel', 'twin'];
 
         function laneBusy(lane, self, z, range) {
@@ -1661,6 +1920,9 @@
         var distance = 0, speed = CREEP_SPEED, elapsed = 0, spawnT = 0;
         var gearMode = 'D';
         var playerY = 0, vy = 0, driftScore = 0;
+        var ignition = 0, engineOn = false;
+        var nitro = 100, nitroActive = false;
+        var coinsCollected = 0;
         var maxX = ROAD_W / 2 - 1.3;
         var steerX = 0;
 
@@ -1686,7 +1948,26 @@
                 gearMode = gearMode === 'P' ? 'R' : gearMode === 'R' ? 'N' : 'D';
             }
 
-            if (gearMode === 'P') {
+            if (!engineOn) {
+                if (input.up && gearMode === 'D') {
+                    ignition = Math.min(1, ignition + dt / 0.9);
+                    if (ignition >= 1) {
+                        engineOn = true;
+                        tone(120, 0.35, 'sawtooth', 0.09, 230);
+                        tone(220, 0.28, 'square', 0.045, 360);
+                    }
+                } else {
+                    ignition = Math.max(0, ignition - dt * 1.6);
+                }
+            }
+
+            nitroActive = !!(input.nitro && input.up && engineOn && gearMode === 'D' && nitro > 0 && !input.brake);
+            if (nitroActive) nitro = Math.max(0, nitro - 26 * dt);
+            else nitro = Math.min(100, nitro + (engineOn ? 7 : 14) * dt);
+
+            if (!engineOn) {
+                speed = Math.max(0, speed - 45 * dt);
+            } else if (gearMode === 'P') {
                 speed = Math.max(0, speed - 80 * dt);
             } else if (gearMode === 'R') {
                 if (input.up) {
@@ -1701,17 +1982,21 @@
             } else if (input.brake) {
                 speed = Math.max(0, speed - 58 * dt);
             } else if (input.up) {
-                var pull = perf.accel * (1 - 0.55 * Math.min(1, speed / perf.topSpeed));
-                speed = Math.min(perf.topSpeed, speed + pull * dt);
+                var topSpeedNow = perf.topSpeed * (nitroActive ? 1.32 : 1);
+                var pull = perf.accel * (nitroActive ? 2.35 : 1) * (1 - 0.55 * Math.min(1, speed / topSpeedNow));
+                speed = Math.min(topSpeedNow, speed + pull * dt);
             } else if (speed > CREEP_SPEED) {
                 speed = Math.max(CREEP_SPEED, speed - 11 * dt);
             } else {
                 speed = Math.min(CREEP_SPEED, speed + 5 * dt);
             }
+            var prevDistance = distance;
             distance += speed * dt;
             if (distance < 0) distance = 0;
             updateCheckpoints();
             if (updateRamps()) return;
+            updateCoins(prevDistance);
+            updateJumpRamps(prevDistance);
 
             var driftIntent = !!input.drift && Math.abs(speed) > 18 &&
                 (input.left || input.right || Math.abs(steerX) > 2.2) && playerY < 0.3;
@@ -1925,6 +2210,7 @@
                     var carBack = Math.min(prevZ, c.position.z) - carHalfL;
                     var carFront = Math.max(prevZ, c.position.z) + carHalfL;
                     if (carBack < player.position.z + 2.75 && carFront > player.position.z - 2.75) {
+                        crashSound();
                         endGame(distance + checkpointsPassed * CHECKPOINT_BONUS + driftScore);
                         return;
                     }
@@ -1941,7 +2227,9 @@
             camera.position.y = 4.35 + playerY * 0.78 + Math.sin(elapsed * 1.4) * 0.035;
             camera.lookAt(player.position.x * 0.5 + vx * 0.22, 1.05 + playerY * 0.9, -20);
             var gearText;
-            if (gearMode === 'P' || gearMode === 'R' || gearMode === 'N') {
+            if (!engineOn) {
+                gearText = 'OFF';
+            } else if (gearMode === 'P' || gearMode === 'R' || gearMode === 'N') {
                 gearText = gearMode;
             } else {
                 var g = gearFor(Math.abs(speed));
@@ -1949,17 +2237,24 @@
             }
             var status = (input.brake ? 'BRAKE · ' : (input.up ? 'THROTTLE · ' : '')) +
                 Math.round(Math.abs(speed) * 2.23694) + ' mph' +
+                (!engineOn ? ' · HOLD W TO START' : '') +
+                (nitroActive ? ' · NOS' : '') +
                 (driftIntent ? ' · DRIFT' : '') +
                 (playerY > 0.4 ? ' · JUMP' : '') +
                 (exitHintText ? ' · ' + exitHintText : '');
             setHud(distance + checkpointsPassed * CHECKPOINT_BONUS + driftScore, status, gearText);
+            updateRaceHud();
+            updateAudio();
         }
 
         camera.position.set(0, 4.35, 10.8);
         camera.lookAt(0, 1.05, -20);
+        initAudio();
+        updateRaceHud();
         return {
             over: false,
             update: update,
+            getCoins: function () { return coinsCollected; },
             setRemotes: setRemoteRacers,
             setLocalName: setLocalRacerName,
             getState: function () {
@@ -1970,7 +2265,10 @@
                     gear: gearMode === 'D' ? (speed < 0.15 ? 1 : gearFor(Math.abs(speed))) : gearMode,
                     checkpoints: checkpointsPassed,
                     driftScore: Math.round(driftScore),
-                    airborne: playerY > 0.2
+                    airborne: playerY > 0.2,
+                    nitro: Math.round(nitro),
+                    engineOn: engineOn,
+                    coins: coinsCollected
                 };
             },
             getMultiplayerInfo: function () {
@@ -2295,6 +2593,7 @@
         var KEY_GEAR_DOWN = ['q', 'Q'];
         var KEY_GEAR_UP = ['e', 'E'];
         var KEY_DRIFT = ['Shift', 'ShiftLeft', 'ShiftRight'];
+        var KEY_NITRO = ['n', 'N'];
 
         function down(e) {
             if (isTypingTarget(e)) return;
@@ -2308,6 +2607,7 @@
             if (KEY_GEAR_DOWN.indexOf(e.key) >= 0) { if (!e.repeat) input.gearDown = true; }
             if (KEY_GEAR_UP.indexOf(e.key) >= 0) { if (!e.repeat) input.gearUp = true; }
             if (KEY_DRIFT.indexOf(e.key) >= 0) input.drift = true;
+            if (KEY_NITRO.indexOf(e.key) >= 0) input.nitro = true;
             if (e.key === ' ' || e.key === 'Enter') { input.tapQueued = true; e.preventDefault(); }
             if (KEY_LEFT.indexOf(e.key) >= 0 || KEY_RIGHT.indexOf(e.key) >= 0 || KEY_UP.indexOf(e.key) >= 0 || KEY_DOWN.indexOf(e.key) >= 0 || KEY_GEAR_DOWN.indexOf(e.key) >= 0 || KEY_GEAR_UP.indexOf(e.key) >= 0) e.preventDefault();
         }
@@ -2320,6 +2620,7 @@
                 input.brake = false;
             }
             if (KEY_DRIFT.indexOf(e.key) >= 0) input.drift = false;
+            if (KEY_NITRO.indexOf(e.key) >= 0) input.nitro = false;
             // Gear shifts are consumed by the game loop; a quick tap must still
             // register, so keyup does not clear the queued shift.
         }
@@ -2334,6 +2635,7 @@
             input.up = false; input.down = false; input.brake = false;
             input.gearDown = false; input.gearUp = false;
             input.drift = false;
+            input.nitro = false;
             input.pointerActive = false; input.tapQueued = false;
         }
         listen(global, 'keydown', down);
@@ -2377,11 +2679,12 @@
             return;
         }
         container = containerEl;
-        gameMeta = { name: 'Game', onScore: null, onGameOver: null };
+        gameMeta = { name: 'Game', onScore: null, onGameOver: null, onCoins: null };
         if (opts) {
             if (opts.name) gameMeta.name = opts.name;
             if (opts.onScore) gameMeta.onScore = opts.onScore;
             if (opts.onGameOver) gameMeta.onGameOver = opts.onGameOver;
+            if (opts.onCoins) gameMeta.onCoins = opts.onCoins;
         }
 
         input.left = false; input.right = false; input.up = false; input.down = false;
@@ -2425,6 +2728,7 @@
         }
         cleanupFns = [];
         if (resizeObs) { try { resizeObs.disconnect(); } catch (e) {} resizeObs = null; }
+        if (audioCleanup) { try { audioCleanup(); } catch (e) {} audioCleanup = null; }
         active = null;
         if (renderer) {
             try { if (renderer.forceContextLoss) renderer.forceContextLoss(); } catch (e) {}
@@ -2456,6 +2760,10 @@
             resize();
         }
     }
+    function setSoundEnabled(on) {
+        soundEnabled = !!on;
+        if (audioMuteHandler) audioMuteHandler(soundEnabled);
+    }
     function setPaused(on) { paused = !!on; }
     function setRemoteRacers(list) {
         if (active && active.setRemotes) active.setRemotes(list || []);
@@ -2479,6 +2787,7 @@
         setRemoteRacers: setRemoteRacers,
         setLocalRacerName: setLocalRacerName,
         setRenderScale: setRenderScale,
+        setSoundEnabled: setSoundEnabled,
         getRacerState: getRacerState,
         getRacerInfo: getRacerInfo
     };

@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261142">
+    <link rel="stylesheet" href="style.css?v=20261143">
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -63,12 +63,12 @@
                 </button>
             </div>
             <div class="nav-right" style="gap:12px;">
-                <button class="nav-btn nav-shells" onclick="showView('store')" id="nav-shells" title="Your Shells">
+                <button class="nav-btn nav-shells" onclick="showView('store')" id="nav-shells" title="Your Coins">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;">
                         <path d="M12 3c5.2 0 9 3.4 9 7.6 0 2.1-1.8 3.9-3.9 3.9H6.9C4.8 14.5 3 12.7 3 10.6 3 6.4 6.8 3 12 3Z"/>
                         <path d="M12 3v11.5M6.6 5.2 9.2 14M17.4 5.2 14.8 14"/>
                     </svg>
-                    <span class="shells-amount" id="navShells">100</span>
+                    <span class="shells-amount" id="navCoins">100</span>
                 </button>
                 <button class="nav-btn" onclick="handleProfileNavClick()" id="nav-profile">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-right:6px;">
@@ -129,12 +129,12 @@
                     </svg>
                 </div>
                 <div>
-                    <div class="store-balance-label">Your Shells</div>
-                    <div class="store-balance-value" id="storeShells">100</div>
+                    <div class="store-balance-label">Your Coins</div>
+                    <div class="store-balance-value" id="storeCoins">100</div>
                 </div>
-                <p class="store-balance-hint">Earn 1 Shell per second of play · daily and streak bonuses · bodies and engines add real speed</p>
+                <p class="store-balance-hint">Earn 1 Coin per second of play · daily and streak bonuses · bodies and engines add real speed</p>
             </div>
-            <p class="store-guest-note" id="storeGuestNote" style="display:none;">Playing as a guest — Shells are saved on this device only. <button type="button" onclick="openAuthModal()">Sign in</button> to keep them across devices.</p>
+            <p class="store-guest-note" id="storeGuestNote" style="display:none;">Playing as a guest — Coins are saved on this device only. <button type="button" onclick="openAuthModal()">Sign in</button> to keep them across devices.</p>
             <div class="store-status" id="storeStatus" role="status"></div>
             <div id="storeContent">
                 <p class="store-loading">Loading shop…</p>
@@ -253,8 +253,8 @@
                     <small>scores</small>
                 </div>
                 <div class="debug-stat">
-                    <span id="debugShellsTotal">0</span>
-                    <small>Shells out</small>
+                    <span id="debugCoinsTotal">0</span>
+                    <small>Coins out</small>
                 </div>
                 <div class="debug-toolbar-actions">
                     <button class="game-btn-3d debug-refresh" onclick="renderDebugUsers()">Refresh all</button>
@@ -391,7 +391,7 @@
 
             <div class="debug-panel" id="debugPanel-wallets" style="display:none;">
                 <div class="debug-panel-head">
-                    <h3>Shells wallets</h3>
+                    <h3>Coins wallets</h3>
                     <input type="search" id="debugWalletSearch" class="debug-search" placeholder="Search wallets…" oninput="renderDebugWallets()">
                 </div>
                 <div class="debug-table-wrap">
@@ -399,7 +399,7 @@
                         <thead>
                             <tr>
                                 <th>Player</th>
-                                <th>Shells</th>
+                                <th>Coins</th>
                                 <th>Earned</th>
                                 <th>Streak</th>
                                 <th>Actions</th>
@@ -481,7 +481,7 @@
                         <div class="debug-grant-form">
                             <label class="debug-grant-field debug-grant-wide">
                                 <span>Message</span>
-                                <input type="text" id="debugAnnouncement" maxlength="180" placeholder="Double Shells weekend!">
+                                <input type="text" id="debugAnnouncement" maxlength="180" placeholder="Double Coins weekend!">
                             </label>
                             <button class="debug-tool-btn" onclick="debugSaveSiteSettings()">Save announcement</button>
                         </div>
@@ -489,11 +489,11 @@
 
                     <div class="debug-tool-card debug-grant-card">
                         <h3>Economy &amp; featured game</h3>
-                        <p>Multiplier applies to Shells earned from play. Featured game is pinned first in the grid.</p>
+                        <p>Multiplier applies to Coins earned from play. Featured game is pinned first in the grid.</p>
                         <div class="debug-grant-form">
                             <label class="debug-grant-field">
-                                <span>Shells multiplier</span>
-                                <input type="number" id="debugShellsMultiplier" min="0" max="20" step="0.25" value="1">
+                                <span>Coins multiplier</span>
+                                <input type="number" id="debugCoinsMultiplier" min="0" max="20" step="0.25" value="1">
                             </label>
                             <label class="debug-grant-field debug-grant-wide">
                                 <span>Featured game</span>
@@ -605,17 +605,17 @@
                         <p>Apply a grant to every registered account at once.</p>
                         <div class="debug-grant-form">
                             <label class="debug-grant-field">
-                                <span>Shells each</span>
+                                <span>Coins each</span>
                                 <input type="number" id="debugBulkAmount" min="0" step="1" value="100">
                             </label>
-                            <button class="debug-tool-btn" onclick="debugGrantShellsToAll()">Give to all</button>
+                            <button class="debug-tool-btn" onclick="debugGrantCoinsToAll()">Give to all</button>
                             <button class="debug-btn" onclick="debugGiveAllCosmeticsToAll()">All cosmetics to all</button>
                         </div>
                     </div>
 
                     <div class="debug-tool-card">
                         <h3>Pins &amp; streaks</h3>
-                        <p>Remove every pin marker from posts, or clear all daily streak progress without touching Shells.</p>
+                        <p>Remove every pin marker from posts, or clear all daily streak progress without touching Coins.</p>
                         <div class="debug-action-row">
                             <button class="debug-btn" onclick="debugClearAllPins()">Clear all pins</button>
                             <button class="debug-btn" onclick="debugResetAllStreaks()">Reset all streaks</button>
@@ -632,7 +632,7 @@
                     </div>
 
                     <div class="debug-tool-card debug-grant-card">
-                        <h3>Give Shells or cosmetics</h3>
+                        <h3>Give Coins or cosmetics</h3>
                         <p>Send currency or items to any account, including yourself. Grants apply instantly.</p>
                         <div class="debug-grant-form">
                             <label class="debug-grant-field">
@@ -640,10 +640,10 @@
                                 <select id="debugGrantRecipient"></select>
                             </label>
                             <label class="debug-grant-field">
-                                <span>Shells</span>
+                                <span>Coins</span>
                                 <input type="number" id="debugGrantAmount" min="0" step="1" value="100">
                             </label>
-                            <button class="debug-tool-btn" onclick="debugGiveShells()">Give Shells</button>
+                            <button class="debug-tool-btn" onclick="debugGiveCoins()">Give Coins</button>
                             <button class="debug-btn" onclick="debugSelectMyself()">Select myself</button>
                             <label class="debug-grant-field debug-grant-wide">
                                 <span>Cosmetic</span>
@@ -660,7 +660,7 @@
                     </div>
                     <div class="debug-tool-card">
                         <h3>Local cache</h3>
-                        <p>Clear this browser's cached scores, pinned posts, and Shells wallets.</p>
+                        <p>Clear this browser's cached scores, pinned posts, and Coins wallets.</p>
                         <button class="debug-tool-btn" onclick="clearDebugLocalData()">Clear local data</button>
                     </div>
                     <div class="debug-tool-card">
@@ -675,12 +675,12 @@
                     </div>
                     <div class="debug-tool-card danger">
                         <h3>Clear all scores</h3>
-                        <p>Wipe the global score table. Accounts and Shells stay intact.</p>
+                        <p>Wipe the global score table. Accounts and Coins stay intact.</p>
                         <button class="debug-tool-btn danger" onclick="clearAllDebugScores()">Clear scores</button>
                     </div>
                     <div class="debug-tool-card danger">
                         <h3>Reset all wallets</h3>
-                        <p>Set every wallet back to the 100-Shell starting balance and clear streaks.</p>
+                        <p>Set every wallet back to the 100-Coin starting balance and clear streaks.</p>
                         <button class="debug-tool-btn danger" onclick="resetAllDebugWallets()">Reset wallets</button>
                     </div>
                 </div>
@@ -751,10 +751,10 @@
                     <div class="settings-item">
                         <div>
                             <h3>Sound Effects</h3>
-                            <p>Play sounds on interactions</p>
+                            <p>Engine, tires, nitrous, and coin sounds</p>
                         </div>
                         <label class="toggle">
-                            <input type="checkbox">
+                            <input type="checkbox" id="soundToggle" checked onchange="setSoundSetting(this.checked)">
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
@@ -784,7 +784,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Developer Beta 1.21.1</p>
+                            <p>LessFun Developer Beta 1.21.2</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -913,7 +913,7 @@
                     <h3 id="profileUsername" style="font-size:24px;margin-bottom:4px;"></h3>
                     <p id="profileJoined" style="color:rgba(255,255,255,0.6);font-size:13px;"></p>
                     <p id="profileStats" class="profile-stats"></p>
-                    <p id="profileShells" class="profile-shells" style="display:none;"></p>
+                    <p id="profileCoins" class="profile-shells" style="display:none;"></p>
                     <button id="profileLogoutBtn" class="game-btn-3d" style="display:none;margin:16px auto 0;padding:8px 24px;">Log Out</button>
                     <button id="profileBanBtn" class="profile-ban-btn" style="display:none;" onclick="banProfileUser()">Ban user</button>
                 </div>
@@ -935,7 +935,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
-    <script src="games3d.js?v=20261142"></script>
-    <script src="app.js?v=20261142"></script>
+    <script src="games3d.js?v=20261143"></script>
+    <script src="app.js?v=20261143"></script>
 </body>
 </html>
