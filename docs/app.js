@@ -4672,8 +4672,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.21.3";
-const UPDATE_NOTES = "Smooth morphing glass HUD, curving highway lanes, a teleport button for public racers, coin gifting, sellable cosmetics, user search in private messages, and a clearer N nitrous key";
+const APP_VERSION = "LessFun Developer Beta 1.21.4";
+const UPDATE_NOTES = "Beach Racer cars now have real 3D suspension: visible coilovers and control arms, independent wheel travel, body roll, brake dive, acceleration squat, road-bump movement, and landing compression";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');

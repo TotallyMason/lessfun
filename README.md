@@ -161,6 +161,7 @@ handling real user data or payments.
 - Private-message user search, coin gifting from profiles, and 50% cosmetic resale
 - Teleport to any racer in a public lobby, and curving highway lane markings for a more dynamic road
 - Liquid-glass HUD pills that expand and contract smoothly as values change
+- Real 3D suspension on Beach Racer cars: coilover springs, control arms, independent wheel travel, body roll, brake dive, acceleration squat, and landing compression
 - Always-on public Beach Racer lobbies for up to 50 players with no codes
 - Render-resolution setting (Auto/100/85/70/50%) for smoother 3D frame rates without lowering model quality
 - Owner-managed admins with selectable post, reply, and user-ban powers

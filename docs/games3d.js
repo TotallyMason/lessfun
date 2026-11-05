@@ -1120,16 +1120,59 @@
             var wheelRadius = spec.bigWheels ? 0.48 : 0.35;
             if (styleName === 'monster') wheelRadius = 0.58;
             var wheels = [];
+            var suspensionPivots = [];
+            var suspensionSprings = [];
             var wheelWidth = spec.bigWheels ? 0.34 : 0.27;
-            [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (p) {
+
+            function makeCoilSpring() {
+                var springGroup = new THREE.Group();
+                var coilMat = standard(0xc3ccd6, { metalness: 0.88, roughness: 0.22 });
+                for (var ci = 0; ci < 7; ci++) {
+                    var ring = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.018, 6, 14), coilMat);
+                    ring.rotation.x = Math.PI / 2;
+                    ring.position.y = ci * 0.058;
+                    springGroup.add(ring);
+                }
+                var shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.42, 8), standard(0x22262c, { metalness: 0.7, roughness: 0.35 }));
+                shaft.position.y = 0.19;
+                springGroup.add(shaft);
+                return springGroup;
+            }
+
+            [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (p, wi) {
+                var wheelX = p[0] * (spec.width / 2 - 0.03);
+                var wheelZ = p[1] * spec.len * 0.31;
+                var pivot = new THREE.Group();
+                pivot.position.set(wheelX, wheelRadius, wheelZ);
+                pivot.userData.isSuspensionPivot = true;
+                pivot.userData.restY = wheelRadius;
+                pivot.userData.travel = 0;
+                pivot.userData.side = p[0];
+                pivot.userData.front = p[1] < 0;
                 var wheel = makeWheel(wheelRadius, wheelWidth, rimColor, wheelRainbow && isPlayer);
-                wheel.position.set(p[0] * (spec.width / 2 - 0.03), wheelRadius, p[1] * spec.len * 0.31);
-                g.add(wheel); wheels.push(wheel);
+                wheel.position.set(0, 0, 0);
+                pivot.add(wheel);
+                g.add(pivot);
+                wheels.push(wheel);
+                suspensionPivots.push(pivot);
+
+                if (isPlayer) {
+                    var spring = makeCoilSpring();
+                    spring.position.set(wheelX * 0.94, wheelRadius - 0.04, wheelZ);
+                    g.add(spring);
+                    suspensionSprings.push(spring);
+                    var arm = boxMesh(0.46, 0.07, 0.11, standard(0x2a2f36, { metalness: 0.65, roughness: 0.4 }));
+                    arm.position.set(wheelX * 0.55, 0.16, wheelZ);
+                    g.add(arm);
+                } else {
+                    suspensionSprings.push(null);
+                }
+
                 if (spec.fenders) {
                     var fender = new THREE.Mesh(new THREE.TorusGeometry(wheelRadius + 0.07, 0.06, 8, 16, Math.PI), bodyMat);
                     fender.rotation.y = Math.PI / 2;
                     fender.rotation.z = Math.PI;
-                    fender.position.set(p[0] * (spec.width / 2 + 0.02), wheelRadius + 0.03, p[1] * spec.len * 0.31);
+                    fender.position.set(p[0] * (spec.width / 2 + 0.02), wheelRadius + 0.03, wheelZ);
                     g.add(fender);
                 }
             });
@@ -1161,7 +1204,55 @@
 
             g.userData.spec = spec;
             g.userData.roofY = spec.ride + spec.hood + (spec.roof ? spec.cabinH : 0) + 0.06;
+
+            // Keep the body separate from the wheel pivots so the shell can
+            // pitch, roll, and squat while the wheels stay planted.
+            var bodyGroup = new THREE.Group();
+            var directChildren = g.children.slice();
+            directChildren.forEach(function (child) {
+                if (child.userData && child.userData.isSuspensionPivot) return;
+                g.remove(child);
+                bodyGroup.add(child);
+            });
+            g.add(bodyGroup);
+            g.userData.bodyGroup = bodyGroup;
+            g.userData.suspensionPivots = suspensionPivots;
+            g.userData.suspensionSprings = suspensionSprings;
             return g;
+        }
+
+        function animateSuspension(car, dt, spd, travelDistance, roll, pitch, impulse) {
+            var pivots = car.userData.suspensionPivots;
+            if (!pivots) return;
+            var springs = car.userData.suspensionSprings || [];
+            var body = car.userData.bodyGroup;
+            var speedFrac = Math.min(1, Math.abs(spd || 0) / 190);
+            var avg = 0;
+            for (var si = 0; si < pivots.length; si++) {
+                var pivot = pivots[si];
+                var side = pivot.userData.side || 1;
+                var front = pivot.userData.front;
+                var rough = Math.sin((travelDistance || 0) * 0.42 + si * 1.9) * 0.5 +
+                    Math.sin((travelDistance || 0) * 0.11 + si * 0.7) * 0.5;
+                var target = rough * (0.03 + speedFrac * 0.11);
+                target += (roll || 0) * side * 0.09;
+                target += (pitch || 0) * (front ? -1 : 1) * 0.07;
+                target -= (impulse || 0) * 0.3;
+                var current = pivot.userData.travel || 0;
+                current += (target - current) * Math.min(1, dt * 10);
+                current = Math.max(-0.16, Math.min(0.16, current));
+                pivot.userData.travel = current;
+                pivot.position.y = pivot.userData.restY + current;
+                if (springs[si]) springs[si].scale.y = Math.max(0.55, 1 + current * 2.2);
+                avg += current;
+            }
+            if (body) {
+                avg /= pivots.length;
+                var bodyTargetY = avg * 1.15;
+                body.position.y += (bodyTargetY - body.position.y) * Math.min(1, dt * 8);
+                body.rotation.z += ((roll || 0) * 0.045 - body.rotation.z) * Math.min(1, dt * 6);
+                body.rotation.x += ((pitch || 0) * 0.035 - body.rotation.x) * Math.min(1, dt * 6);
+            }
         }
 
         function buildSurfboard(color) {
@@ -1202,7 +1293,8 @@
         board.position.set(0, player.userData.roofY, player.userData.spec.cabinZ || 0);
         board.rotation.y = 0.04;
         if (player.userData.spec.bed) board.position.z += 0.5;
-        player.add(board);
+        var bodyAttach = player.userData.bodyGroup || player;
+        bodyAttach.add(board);
 
         // Aero parts and body kits add real visual hardware (and performance
         // multipliers are supplied by the store).
@@ -1211,13 +1303,13 @@
         if (kitStyle === 'widebody' || kitStyle === 'track' || kitStyle === 'rally' || kitStyle === 'hyper') {
             var skirt = boxMesh(carSpec.width + 0.16, 0.13, carSpec.len * 0.68, carbonMat);
             skirt.position.set(0, carSpec.ride + 0.2, 0);
-            player.add(skirt);
+            bodyAttach.add(skirt);
             if (kitStyle === 'widebody' || kitStyle === 'hyper') {
                 [-1, 1].forEach(function (side) {
                     [-1, 1].forEach(function (end) {
                         var flare = boxMesh(0.16, 0.2, 0.72, carbonMat);
                         flare.position.set(side * (carSpec.width / 2 + 0.04), carSpec.ride + 0.33, end * carSpec.len * 0.31);
-                        player.add(flare);
+                        bodyAttach.add(flare);
                     });
                 });
             }
@@ -1225,23 +1317,23 @@
         if (aeroStyle === 'splitter' || aeroStyle === 'active') {
             var splitter = boxMesh(carSpec.width + 0.52, 0.055, 0.5, carbonMat);
             splitter.position.set(0, 0.2, -carSpec.len / 2 - 0.08);
-            player.add(splitter);
+            bodyAttach.add(splitter);
         }
         if (aeroStyle === 'wing' || aeroStyle === 'active') {
             var wing = boxMesh(carSpec.width * 0.94, 0.065, 0.44, carbonMat);
             wing.position.set(0, player.userData.roofY + 0.34, carSpec.len / 2 - 0.12);
-            player.add(wing);
+            bodyAttach.add(wing);
             [-1, 1].forEach(function (side) {
                 var support = boxMesh(0.06, 0.34, 0.06, carbonMat);
                 support.position.set(side * carSpec.width * 0.34, player.userData.roofY + 0.16, carSpec.len / 2 - 0.12);
-                player.add(support);
+                bodyAttach.add(support);
             });
         }
         if (aeroStyle === 'diffuser' || aeroStyle === 'active') {
             [-0.7, -0.25, 0.25, 0.7].forEach(function (fx) {
                 var fin = boxMesh(0.05, 0.2, 0.42, carbonMat);
                 fin.position.set(fx * carSpec.width * 0.4, 0.26, carSpec.len / 2 - 0.02);
-                player.add(fin);
+                bodyAttach.add(fin);
             });
         }
 
@@ -1841,13 +1933,14 @@
                 entry.car.rotation.z = Math.max(-0.12, Math.min(0.12, dx * 0.45));
 
                 var remoteSpeed = typeof data.speed === 'number' ? data.speed : 0;
+                var z = entry.car.position.z;
                 var wheels = entry.car.userData.wheels || [];
-                for (var wi = 0; wi < wheels.length; wi++) {
-                    wheels[wi].rotation.x += Math.max(1, remoteSpeed) * dt * 1.2;
+                for (var wi2 = 0; wi2 < wheels.length; wi2++) {
+                    wheels[wi2].rotation.x += Math.max(1, remoteSpeed) * dt * 1.2;
                 }
+                animateSuspension(entry.car, dt, remoteSpeed, distance - z, 0, 0, 0);
 
                 // Behind the chase camera or far out of the fog: hide the ghost.
-                var z = entry.car.position.z;
                 entry.car.visible = z > -520 && z < 8.8;
             }
         }
@@ -1945,6 +2038,7 @@
         var distance = 0, speed = CREEP_SPEED, elapsed = 0, spawnT = 0;
         var gearMode = 'D';
         var playerY = 0, vy = 0, driftScore = 0;
+        var suspensionImpulse = 0;
         var ignition = 0, engineOn = false;
         var nitro = 100, nitroActive = false;
         var coinsCollected = 0;
@@ -2056,9 +2150,15 @@
             if (playerY > 0 || vy !== 0) {
                 playerY += vy * dt;
                 vy -= 28 * dt;
-                if (playerY <= 0) { playerY = 0; vy = 0; }
+                if (playerY <= 0) {
+                    if (vy < -5) suspensionImpulse = Math.min(1, -vy / 26);
+                    playerY = 0;
+                    vy = 0;
+                }
                 player.position.y = playerY;
             }
+            animateSuspension(player, dt, speed, distance, player.rotation.z, player.rotation.x, suspensionImpulse);
+            suspensionImpulse *= Math.max(0, 1 - dt * 5);
             updateDriftPuffs(dt, driftIntent);
 
             updateRemoteRacers(dt);
@@ -2214,6 +2314,7 @@
                 var tw = c.userData.wheels || [];
                 var wheelSpeed = Math.abs(speed - u.cruiseSpeed) + 8;
                 for (var twi = 0; twi < tw.length; twi++) tw[twi].rotation.x += wheelSpeed * dt * 1.2;
+                animateSuspension(c, dt, speed - u.cruiseSpeed, distance - c.position.z, 0, 0, 0);
 
                 if (c.position.z > 14 || c.position.z < -760) {
                     scene.remove(c); disposeObject(c); traffic.splice(k, 1); continue;
@@ -2252,7 +2353,7 @@
             }
 
             camera.position.x += (player.position.x * 0.42 - camera.position.x) * Math.min(1, dt * 5);
-            camera.position.y = 4.35 + playerY * 0.78 + Math.sin(elapsed * 1.4) * 0.035;
+            camera.position.y = 4.35 + playerY * 0.78 + (player.userData.bodyGroup ? player.userData.bodyGroup.position.y * 1.5 : 0) + Math.sin(elapsed * 1.4) * 0.035;
             var curveAhead = roadCurveOffset(-80) - roadCurveOffset(0);
             camera.lookAt(player.position.x * 0.5 + vx * 0.22 + curveAhead * 0.22, 1.05 + playerY * 0.9, -20);
             camera.rotateZ(-curveAhead * 0.0016);
@@ -2319,7 +2420,8 @@
                     airborne: playerY > 0.2,
                     nitro: Math.round(nitro),
                     engineOn: engineOn,
-                    coins: coinsCollected
+                    coins: coinsCollected,
+                    suspension: player.userData.bodyGroup ? player.userData.bodyGroup.position.y : 0
                 };
             },
             getMultiplayerInfo: function () {
