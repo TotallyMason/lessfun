@@ -1759,8 +1759,7 @@
         var crashVx = 0, crashSpinX = 0, crashSpinY = 0, crashSpinZ = 0;
         var crashCar = null, crashCarVx = 0, crashCarVz = 0, crashCarSpin = 0;
         var crashDebris = [];
-        var debrisColors = [0xd9e2ec, 0xff4d5e, 0x2b2b2b, 0xffd166, 0x4cc9f0];
-        for (var cdi = 0; cdi < 26; cdi++) {
+        var debrisColors = [0xd9e2ec, 0xff4d5e, 0x2b2b2b, 0xffd166, 0x4cc9f0];        for (var cdi = 0; cdi < 26; cdi++) {
             var debrisMat = new THREE.MeshBasicMaterial({ color: debrisColors[cdi % debrisColors.length] });
             var debrisMesh = new THREE.Mesh(new THREE.BoxGeometry(0.09 + Math.random() * 0.12, 0.06 + Math.random() * 0.1, 0.05 + Math.random() * 0.1), debrisMat);
             debrisMesh.visible = false;
@@ -1769,6 +1768,62 @@
                 mesh: debrisMesh, vx: 0, vy: 0, vz: 0,
                 spinX: 0, spinY: 0, spinZ: 0, life: 0
             });
+        }
+
+        /* Sparks: cheap additive points that burst on impact and bounces. */
+        var SPARK_COUNT = 160;
+        var sparkGeometry = new THREE.BufferGeometry();
+        var sparkPositions = new Float32Array(SPARK_COUNT * 3);
+        var sparkVelocities = new Float32Array(SPARK_COUNT * 3);
+        var sparkLives = new Float32Array(SPARK_COUNT);
+        for (var spi = 0; spi < SPARK_COUNT; spi++) {
+            sparkPositions[spi * 3 + 1] = -999;
+        }
+        sparkGeometry.setAttribute('position', new THREE.BufferAttribute(sparkPositions, 3));
+        var sparkMaterial = new THREE.PointsMaterial({
+            color: 0xffc24a, size: 0.16, transparent: true, opacity: 0.95,
+            blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true
+        });
+        var sparkPoints = new THREE.Points(sparkGeometry, sparkMaterial);
+        sparkPoints.frustumCulled = false;
+        scene.add(sparkPoints);
+        var sparkCursor = 0;
+
+        function spawnSparks(x, y, z, count) {
+            for (var n = 0; n < count; n++) {
+                var i = sparkCursor % SPARK_COUNT;
+                sparkCursor++;
+                sparkPositions[i * 3] = x + (Math.random() - 0.5) * 1.2;
+                sparkPositions[i * 3 + 1] = y + Math.random() * 0.6;
+                sparkPositions[i * 3 + 2] = z + (Math.random() - 0.5) * 1.2;
+                sparkVelocities[i * 3] = (Math.random() - 0.5) * 26;
+                sparkVelocities[i * 3 + 1] = 6 + Math.random() * 20;
+                sparkVelocities[i * 3 + 2] = (Math.random() - 0.5) * 20;
+                sparkLives[i] = 0.5 + Math.random() * 0.9;
+            }
+            sparkGeometry.attributes.position.needsUpdate = true;
+        }
+
+        function updateSparks(dt) {
+            var changed = false;
+            for (var i = 0; i < SPARK_COUNT; i++) {
+                if (sparkLives[i] <= 0) continue;
+                sparkLives[i] -= dt;
+                var ix = i * 3;
+                sparkPositions[ix] += sparkVelocities[ix] * dt;
+                sparkPositions[ix + 1] += sparkVelocities[ix + 1] * dt;
+                sparkPositions[ix + 2] += sparkVelocities[ix + 2] * dt;
+                sparkVelocities[ix + 1] -= 32 * dt;
+                if (sparkPositions[ix + 1] < 0.06) {
+                    sparkPositions[ix + 1] = 0.06;
+                    sparkVelocities[ix + 1] = Math.abs(sparkVelocities[ix + 1]) * 0.32;
+                    sparkVelocities[ix] *= 0.6;
+                    sparkVelocities[ix + 2] *= 0.6;
+                }
+                if (sparkLives[i] <= 0) sparkPositions[ix + 1] = -999;
+                changed = true;
+            }
+            if (changed) sparkGeometry.attributes.position.needsUpdate = true;
         }
 
         function spawnCrashDebris(x, z) {
@@ -1825,6 +1880,7 @@
             crashCarSpin = -dir * (1.5 + Math.random() * 2);
             if (car.userData) car.userData.state = 'hit';
             spawnCrashDebris(car.position.x, car.position.z);
+            spawnSparks(car.position.x, 0.9, car.position.z, 95);
             crashSound();
             tone(70, 0.8, 'sawtooth', 0.12, 30);
             var flash = document.getElementById('g3dCrashFlash');
@@ -1841,8 +1897,11 @@
             vy -= 26 * dt;
             if (playerY <= 0) {
                 playerY = 0;
-                if (vy < -2) { vy = -vy * 0.26; suspensionImpulse = 0.9; }
-                else vy = 0;
+                if (vy < -2) {
+                    vy = -vy * 0.26;
+                    suspensionImpulse = 0.9;
+                    spawnSparks(player.position.x, 0.35, player.position.z, 26);
+                } else vy = 0;
             }
             player.position.y = playerY;
             player.rotation.x += crashSpinX * dt;
@@ -1862,13 +1921,12 @@
                 crashCarVz *= Math.max(0, 1 - dt * 0.8);
             }
             updateCrashDebris(dt);
+            updateSparks(dt);
 
-            // Slow-motion crash camera.
-            var shake = Math.sin(crashRealT * 42) * 0.075;
-            camera.position.x = player.position.x * 0.8 + shake * 0.8;
-            camera.position.y = 4.1 + playerY * 0.7 + Math.sin(crashRealT * 9) * 0.06;
+            // Slow-motion crash camera (no shake).
+            camera.position.x = player.position.x * 0.8;
+            camera.position.y = 4.1 + playerY * 0.7;
             camera.lookAt(player.position.x, 0.8 + playerY * 0.9, player.position.z - 6);
-            camera.rotateZ(shake);
             var fov = 56 + Math.min(10, crashRealT * 4);
             camera.fov = fov;
             camera.updateProjectionMatrix();
@@ -1876,7 +1934,7 @@
             if (window.Games3D) { /* keeps HUD update cheap */ }
             setHud(crashScore, 'CRASH · SLOW-MO', 'X');
 
-            if (crashRealT > 2.8) {
+            if (crashRealT > 5.5) {
                 var flash = document.getElementById('g3dCrashFlash');
                 if (flash) flash.classList.remove('is-active');
                 crashActive = false;
@@ -3061,6 +3119,12 @@
 
     function setBrake(on) { input.brake = !!on; }
     function setThrottle(on) { input.up = !!on; }
+    function setDrift(on) { input.drift = !!on; }
+    function setNitro(on) { input.nitro = !!on; }
+    function shiftGear(direction) {
+        if (direction > 0) input.gearUp = true;
+        else input.gearDown = true;
+    }
     function effectivePixelRatio() {
         var base = Math.min(global.devicePixelRatio || 1, 2);
         if (renderScale > 0) return Math.max(0.5, base * renderScale);
@@ -3100,6 +3164,9 @@
         stop: stop,
         setBrake: setBrake,
         setThrottle: setThrottle,
+        setDrift: setDrift,
+        setNitro: setNitro,
+        shiftGear: shiftGear,
         setPaused: setPaused,
         setRemoteRacers: setRemoteRacers,
         setLocalRacerName: setLocalRacerName,

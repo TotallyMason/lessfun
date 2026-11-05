@@ -6007,3 +6007,146 @@ body::before {
     35% { opacity: 1; }
     100% { opacity: 1; }
 }
+
+/* Extra touch controls for Beach Racer */
+.game3d-touch-controls {
+    display: none;
+}
+
+.game3d-touch-btn {
+    position: absolute;
+    z-index: 6;
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.26);
+    background: rgba(10, 16, 26, 0.62);
+    color: #fff;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 8px 22px rgba(0, 0, 0, 0.4);
+}
+
+.game3d-touch-btn:active {
+    transform: scale(0.94);
+}
+
+.game3d-touch-btn.is-nitro {
+    left: 12px;
+    bottom: 132px;
+    border-color: rgba(80, 220, 255, 0.55);
+    background: linear-gradient(145deg, rgba(20, 120, 160, 0.65), rgba(6, 40, 60, 0.75));
+    color: #c8f6ff;
+}
+
+.game3d-touch-btn.is-drift {
+    right: 12px;
+    bottom: 132px;
+    border-color: rgba(255, 180, 70, 0.55);
+    background: linear-gradient(145deg, rgba(150, 90, 20, 0.65), rgba(60, 30, 6, 0.75));
+    color: #ffe0b0;
+}
+
+.game3d-touch-btn.is-gear {
+    width: 46px;
+    height: 46px;
+    right: 92px;
+    bottom: 48px;
+    font-size: 14px;
+    border-radius: 14px;
+}
+
+.game3d-touch-btn.is-gear.is-down {
+    bottom: 102px;
+}
+
+@media (pointer: coarse), (max-width: 820px) {
+    .game3d-touch-controls {
+        display: block;
+    }
+}
+
+/* Gift Coins modal */
+.gift-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.gift-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.gift-field span {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.gift-field input {
+    width: 100%;
+    padding: 11px 13px;
+    border-radius: 11px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(0, 0, 0, 0.4);
+    color: #fff;
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+}
+
+.gift-field input:focus {
+    border-color: rgba(255, 209, 102, 0.65);
+}
+
+.gift-balance {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 209, 102, 0.22);
+    background: rgba(255, 209, 102, 0.08);
+    color: #ffe29a;
+    font-size: 12px;
+}
+
+.gift-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.gift-actions .game3d-mp-primary {
+    margin-top: 0;
+}
+
+.gift-status {
+    min-height: 16px;
+    font-size: 12px;
+    color: #ff9aa8;
+}
+
+.gift-status.is-success {
+    color: #8affd0;
+}
+
+.profile-stat.is-private {
+    border-color: rgba(255, 255, 255, 0.07);
+    color: rgba(255, 255, 255, 0.38);
+    font-size: 10px;
+}

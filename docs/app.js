@@ -342,6 +342,16 @@ function isGameDisabled(id) {
     });
 }
 
+function mobileHold(control, on) {
+    if (!window.Games3D) return;
+    if (control === 'nitro' && window.Games3D.setNitro) window.Games3D.setNitro(!!on);
+    if (control === 'drift' && window.Games3D.setDrift) window.Games3D.setDrift(!!on);
+}
+
+function mobileShift(direction) {
+    if (window.Games3D && window.Games3D.shiftGear) window.Games3D.shiftGear(direction > 0 ? 1 : -1);
+}
+
 let currentGameId = null;
 
 function openGame(id) {
@@ -369,6 +379,13 @@ function openGame(id) {
             (game.hasBrake ? '<button class="game3d-brake" id="g3dBrake" type="button">Brake</button>' : '') +
             (game.hasThrottle ? '<div class="game3d-ignition" id="g3dIgnition"><span>Ignition</span><div class="game3d-bar-track"><div class="game3d-bar-fill" id="g3dIgnitionFill"></div></div></div>' : '') +
             (game.hasThrottle ? '<div class="game3d-nitro" id="g3dNitro"><span>N · NOS</span><div class="game3d-bar-track"><div class="game3d-bar-fill" id="g3dNitroFill"></div></div></div>' : '') +
+            (game.hasThrottle ?
+                '<div class="game3d-touch-controls">' +
+                    '<button type="button" class="game3d-touch-btn is-nitro" onpointerdown="event.preventDefault();mobileHold(\'nitro\',true)" onpointerup="mobileHold(\'nitro\',false)" onpointercancel="mobileHold(\'nitro\',false)" onpointerleave="mobileHold(\'nitro\',false)">NOS</button>' +
+                    '<button type="button" class="game3d-touch-btn is-drift" onpointerdown="event.preventDefault();mobileHold(\'drift\',true)" onpointerup="mobileHold(\'drift\',false)" onpointercancel="mobileHold(\'drift\',false)" onpointerleave="mobileHold(\'drift\',false)">Drift</button>' +
+                    '<button type="button" class="game3d-touch-btn is-gear" onpointerdown="event.preventDefault();mobileShift(1)">▲</button>' +
+                    '<button type="button" class="game3d-touch-btn is-gear is-down" onpointerdown="event.preventDefault();mobileShift(-1)">▼</button>' +
+                '</div>' : '') +
             '<button class="game3d-msg-btn" id="g3dMsgBtn" type="button" onclick="toggleDmSidebar()">Messages</button>' +
             '<aside class="game3d-dm" id="g3dDmSidebar">' +
                 '<div class="game3d-dm-head">' +
@@ -4673,8 +4690,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.21.6";
-const UPDATE_NOTES = "Crashes now play out in cinematic slow motion: the car tumbles and hops, debris flies, the struck car is knocked aside, the camera shakes and zooms, and the run ends after the sequence";
+const APP_VERSION = "LessFun Developer Beta 1.21.7";
+const UPDATE_NOTES = "Gift Coins from the top menu, richer friend and profile details, no crash camera shake, a longer slow-motion crash with sparks, and touch buttons for NOS, drift, and gear shifts";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
@@ -4767,7 +4784,7 @@ async function loadProfileDetails(username) {
     const statsEl = document.getElementById('profileStats');
     if (!supabaseClient) return;
     try {
-        let userRes = await supabaseClient.from('users').select('created_at, avatar, banned').eq('username', username).maybeSingle();
+        let userRes = await supabaseClient.from('users').select('created_at, avatar, banned, is_admin').eq('username', username).maybeSingle();
         if (userRes && userRes.error) {
             userRes = await supabaseClient.from('users').select('created_at, banned').eq('username', username).maybeSingle();
         }
@@ -4795,19 +4812,50 @@ async function loadProfileDetails(username) {
                 }
             }
         }
-        const scoreRes = await supabaseClient.from('scores').select('game, score').eq('username', username).order('score', { ascending: false }).limit(100);
-        if (statsEl && scoreRes && !scoreRes.error) {
+        const extras = await Promise.all([
+            socialQuery(supabaseClient.from('scores').select('game, score').eq('username', username).order('score', { ascending: false }).limit(100)),
+            socialQuery(supabaseClient.from('wallets').select('shells, total_earned, streak').eq('username', username).maybeSingle()),
+            socialQuery(supabaseClient.from('user_presence').select('last_seen').eq('username', username).maybeSingle()),
+            socialQuery(supabaseClient.from('posts').select('id', { count: 'exact', head: true }).eq('username', username)),
+            socialQuery(supabaseClient.from('post_replies').select('id', { count: 'exact', head: true }).eq('username', username)),
+            socialQuery(supabaseClient.from('friendships').select('id', { count: 'exact', head: true }).eq('requester', username).eq('status', 'accepted')),
+            socialQuery(supabaseClient.from('friendships').select('id', { count: 'exact', head: true }).eq('recipient', username).eq('status', 'accepted'))
+        ]);
+        if (statsEl) {
+            const chips = [];
+            const scoreRes = extras[0];
             const best = {};
             (scoreRes.data || []).forEach(function (row) {
                 const game = row.game || 'Game';
                 if (!best[game] || Number(row.score) > Number(best[game])) best[game] = Number(row.score) || 0;
             });
-            const entries = Object.keys(best).sort(function (a, b) { return best[b] - best[a]; }).slice(0, 3);
-            statsEl.innerHTML = entries.length
-                ? '<span class="profile-stats-label">Best runs</span>' + entries.map(function (game) {
-                    return '<span class="profile-stat"><strong>' + escapeHtml(game) + '</strong> ' + escapeHtml(best[game].toLocaleString()) + '</span>';
-                }).join('')
-                : '<span class="profile-stats-label">No scored runs yet</span>';
+            const entries = Object.keys(best).sort(function (a, b) { return best[b] - best[a]; });
+            entries.forEach(function (game) {
+                chips.push('<span class="profile-stat"><strong>' + escapeHtml(game) + '</strong> ' + escapeHtml(best[game].toLocaleString()) + '</span>');
+            });
+            const walletRes = extras[1];
+            if (walletRes && !walletRes.error && walletRes.data) {
+                chips.push('<span class="profile-stat"><strong>Coins</strong> ' + escapeHtml((Number(walletRes.data.shells) || 0).toLocaleString()) + '</span>');
+                chips.push('<span class="profile-stat"><strong>Earned</strong> ' + escapeHtml((Number(walletRes.data.total_earned) || 0).toLocaleString()) + '</span>');
+                if (Number(walletRes.data.streak) > 0) chips.push('<span class="profile-stat"><strong>Streak</strong> ' + escapeHtml(String(walletRes.data.streak)) + ' days</span>');
+            }
+            const presenceRes = extras[2];
+            if (presenceRes && !presenceRes.error && presenceRes.data && presenceRes.data.last_seen) {
+                chips.push('<span class="profile-stat"><strong>Last seen</strong> ' + escapeHtml(formatLastSeen(presenceRes.data.last_seen)) + '</span>');
+            }
+            if (extras[3] && !extras[3].error && typeof extras[3].count === 'number') {
+                chips.push('<span class="profile-stat"><strong>Posts</strong> ' + escapeHtml(String(extras[3].count)) + '</span>');
+            }
+            if (extras[4] && !extras[4].error && typeof extras[4].count === 'number') {
+                chips.push('<span class="profile-stat"><strong>Replies</strong> ' + escapeHtml(String(extras[4].count)) + '</span>');
+            }
+            const friendCount = ((extras[5] && extras[5].count) || 0) + ((extras[6] && extras[6].count) || 0);
+            chips.push('<span class="profile-stat"><strong>Friends</strong> ' + escapeHtml(String(friendCount)) + '</span>');
+            if (userRes && userRes.data && userRes.data.is_admin) {
+                chips.push('<span class="profile-stat"><strong>ADMIN</strong></span>');
+            }
+            chips.push('<span class="profile-stat is-private"><strong>Network</strong> IP hidden by browser</span>');
+            statsEl.innerHTML = '<span class="profile-stats-label">Player details</span>' + chips.join('');
         }
     } catch (e) {}
 }
@@ -4880,29 +4928,53 @@ function removeProfilePhoto() {
     saveAvatarDataUrl('');
 }
 
-async function openGiftCoins() {
+function openGiftCoins() {
+    openGiftModal(profileGiftTarget);
+}
+
+function openGiftModal(username) {
+    const modal = document.getElementById('giftModal');
+    if (!modal) return;
+    const recipient = document.getElementById('giftRecipient');
+    const amount = document.getElementById('giftAmount');
+    const balance = document.getElementById('giftBalance');
+    const status = document.getElementById('giftStatus');
+    if (recipient) recipient.value = username || '';
+    if (amount) amount.value = '25';
+    if (balance) {
+        balance.textContent = (wallet && currentUser && currentUser.type === 'user')
+            ? 'Your balance: ' + wallet.shells.toLocaleString() + ' Coins'
+            : 'Sign in to send Coins.';
+    }
+    if (status) {
+        status.textContent = (!currentUser || currentUser.type !== 'user') ? 'Sign in to gift Coins.' : '';
+        status.classList.remove('is-success');
+    }
+    modal.style.display = 'flex';
+    if (recipient && !username) setTimeout(function () { try { recipient.focus(); } catch (e) {} }, 80);
+}
+
+function closeGiftModal() {
+    const modal = document.getElementById('giftModal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function sendCoinsGift(target, amount) {
     if (!currentUser || currentUser.type !== 'user') {
-        openAuthModal();
-        return;
+        return { ok: false, message: 'Sign in to gift Coins.' };
     }
     if (!wallet) {
-        alert('Your wallet is still loading. Try again in a moment.');
-        return;
+        return { ok: false, message: 'Your wallet is still loading.' };
     }
-    const target = profileGiftTarget;
-    if (!target || target === currentUser.username) return;
-    const raw = window.prompt('How many Coins do you want to gift to ' + target + '?\n\nYou have ' + wallet.shells.toLocaleString() + ' Coins.', '25');
-    if (raw === null) return;
-    const amount = Math.floor(Number(raw));
+    if (!target || target === currentUser.username) {
+        return { ok: false, message: 'Enter another player’s username.' };
+    }
     if (!isFinite(amount) || amount <= 0) {
-        alert('Enter a whole number of Coins.');
-        return;
+        return { ok: false, message: 'Enter a whole number of Coins.' };
     }
     if (amount > wallet.shells) {
-        alert('You do not have that many Coins.');
-        return;
+        return { ok: false, message: 'You do not have that many Coins.' };
     }
-    if (!window.confirm('Gift ' + amount.toLocaleString() + ' Coins to ' + target + '?')) return;
 
     wallet.shells -= amount;
     await saveWallet();
@@ -4933,12 +5005,31 @@ async function openGiftCoins() {
     if (!delivered) {
         wallet.shells += amount;
         await saveWallet();
-        alert('Could not send those Coins. Your balance was restored.');
-        return;
+        return { ok: false, message: 'Could not send those Coins. Your balance was restored.' };
     }
     renderWalletUI();
-    flashStoreStatus('Gifted ' + amount.toLocaleString() + ' Coins to ' + target + '.');
-    alert('Gifted ' + amount.toLocaleString() + ' Coins to ' + target + '.');
+    return { ok: true, message: 'Gifted ' + amount.toLocaleString() + ' Coins to ' + target + '.' };
+}
+
+async function submitGiftCoins() {
+    const recipientEl = document.getElementById('giftRecipient');
+    const amountEl = document.getElementById('giftAmount');
+    const status = document.getElementById('giftStatus');
+    const target = String(recipientEl ? recipientEl.value : '').trim();
+    const amount = Math.floor(Number(amountEl ? amountEl.value : 0));
+    if (status) {
+        status.textContent = 'Sending…';
+        status.classList.remove('is-success');
+    }
+    const result = await sendCoinsGift(target, amount);
+    if (status) {
+        status.textContent = result.message;
+        status.classList.toggle('is-success', !!result.ok);
+    }
+    if (result.ok) {
+        flashStoreStatus(result.message);
+        setTimeout(closeGiftModal, 900);
+    }
 }
 
 async function banProfileUser() {
@@ -5142,7 +5233,7 @@ async function renderFriends() {
         socialQuery(supabaseClient.from('friendships').select('*').eq('requester', me)),
         socialQuery(supabaseClient.from('friendships').select('*').eq('recipient', me)),
         socialQuery(supabaseClient.from('user_presence').select('*')),
-        socialQuery(supabaseClient.from('wallets').select('username, shells')),
+        socialQuery(supabaseClient.from('wallets').select('username, shells, total_earned, streak')),
         socialQuery(supabaseClient.from('scores').select('username, game, score').order('score', { ascending: false }).limit(2000))
     ]);
 
@@ -5173,15 +5264,25 @@ async function renderFriends() {
     });
     const wallets = {};
     (results[4].data || []).forEach(function (row) {
-        if (row.username) wallets[String(row.username).toLowerCase()] = Number(row.shells) || 0;
+        if (row.username) {
+            wallets[String(row.username).toLowerCase()] = {
+                shells: Number(row.shells) || 0,
+                earned: Number(row.total_earned) || 0,
+                streak: Number(row.streak) || 0
+            };
+        }
     });
     const bestRuns = {};
+    const runsByUser = {};
     (results[5].data || []).forEach(function (row) {
         const key = String(row.username || '').toLowerCase();
         if (!key) return;
         const score = Number(row.score) || 0;
+        const game = row.game || 'Game';
+        if (!runsByUser[key]) runsByUser[key] = {};
+        if (!runsByUser[key][game] || score > runsByUser[key][game]) runsByUser[key][game] = score;
         if (!bestRuns[key] || score > bestRuns[key].score) {
-            bestRuns[key] = { score: score, game: row.game || 'Game' };
+            bestRuns[key] = { score: score, game: game };
         }
     });
 
@@ -5192,14 +5293,22 @@ async function renderFriends() {
         const joinedText = joined && !isNaN(joined.getTime())
             ? 'Joined ' + joined.toLocaleDateString([], { month: 'short', year: 'numeric' })
             : 'Joined recently';
-        const shells = wallets[key];
+        const walletInfo = wallets[key];
         const best = bestRuns[key];
+        const runs = runsByUser[key] || {};
+        const bestGames = Object.keys(runs)
+            .sort(function (a, b) { return runs[b] - runs[a]; })
+            .slice(0, 2)
+            .map(function (game) { return game + ' ' + runs[game].toLocaleString(); })
+            .join(' · ');
         return '<div class="friend-details">' +
             '<span class="friend-detail">' + escapeHtml(joinedText) + '</span>' +
-            '<span class="friend-detail">' + (shells != null ? escapeHtml(shells.toLocaleString()) + ' Coins' : 'No wallet') + '</span>' +
-            (best
-                ? '<span class="friend-detail">Best <strong>' + escapeHtml(best.score.toLocaleString()) + '</strong> · ' + escapeHtml(best.game) + '</span>'
-                : '<span class="friend-detail">No scored runs</span>') +
+            '<span class="friend-detail">' + (walletInfo ? escapeHtml(walletInfo.shells.toLocaleString()) + ' Coins' : 'No wallet') + '</span>' +
+            (walletInfo ? '<span class="friend-detail">Earned ' + escapeHtml(walletInfo.earned.toLocaleString()) + '</span>' : '') +
+            (walletInfo && walletInfo.streak > 0 ? '<span class="friend-detail">' + walletInfo.streak + '-day streak</span>' : '') +
+            (bestGames
+                ? '<span class="friend-detail">Best ' + escapeHtml(bestGames) + '</span>'
+                : (best ? '<span class="friend-detail">Best <strong>' + escapeHtml(best.score.toLocaleString()) + '</strong> · ' + escapeHtml(best.game) + '</span>' : '<span class="friend-detail">No scored runs</span>')) +
         '</div>';
     }
 
