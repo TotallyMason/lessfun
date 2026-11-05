@@ -150,8 +150,9 @@
         var rimLight = new THREE.DirectionalLight(0xffc38a, 0.32);
         rimLight.position.set(-22, 16, -18); scene.add(rimLight);
 
-        var LANES = [-3.2, 0, 3.2];
-        var ROAD_W = 11.4;
+        // Five-lane coastal highway.
+        var LANES = [-6.4, -3.2, 0, 3.2, 6.4];
+        var ROAD_W = 17.6;
         var scrollers = [];
         function addScroller(obj, wrap, factor) {
             scrollers.push({ obj: obj, wrap: wrap, factor: factor == null ? 1 : factor });
@@ -175,29 +176,43 @@
         sand.rotation.x = -Math.PI / 2;
         sand.position.set(0, -0.33, -250); scene.add(sand);
 
-        var trackTex = makeCanvasTexture(128, 512, function (g, w, h) {
-            g.fillStyle = '#cfa163'; g.fillRect(0, 0, w, h);
-            for (var i = 0; i < 900; i++) {
-                g.fillStyle = 'rgba(122,86,44,' + (0.05 + Math.random() * 0.12) + ')';
-                g.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 3, 1 + Math.random() * 4);
+        var trackTex = makeCanvasTexture(256, 512, function (g, w, h) {
+            g.fillStyle = '#3a3e45'; g.fillRect(0, 0, w, h);
+            for (var i = 0; i < 4800; i++) {
+                var shade = 42 + Math.floor(Math.random() * 48);
+                g.fillStyle = 'rgba(' + shade + ',' + (shade + 2) + ',' + (shade + 6) + ',' + (0.05 + Math.random() * 0.2) + ')';
+                g.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 3, 1 + Math.random() * 3);
             }
-            g.fillStyle = 'rgba(92,64,32,0.16)';
-            g.fillRect(w * 0.17, 0, w * 0.11, h);
-            g.fillRect(w * 0.72, 0, w * 0.11, h);
-        }, 2, 22);
+            // Faint tyre polish down the middle of every lane.
+            g.fillStyle = 'rgba(18,20,24,0.2)';
+            for (var lane = 0; lane < 5; lane++) {
+                var cx = (lane + 0.5) * w / 5;
+                g.fillRect(cx - 15, 0, 9, h);
+                g.fillRect(cx + 6, 0, 9, h);
+            }
+        }, 1, 26);
         var track = new THREE.Mesh(
             new THREE.PlaneGeometry(ROAD_W, 500),
-            standard(0xffffff, { map: trackTex, roughness: 0.94 })
+            standard(0xffffff, { map: trackTex, roughness: 0.96, metalness: 0.03 })
         );
         track.rotation.x = -Math.PI / 2;
         track.position.set(0, -0.025, -235); scene.add(track);
+
+        // Concrete shoulders outside the asphalt.
+        var shoulderMat = standard(0x9aa0a6, { roughness: 0.92 });
+        [-1, 1].forEach(function (side) {
+            var shoulder = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 500), shoulderMat);
+            shoulder.rotation.x = -Math.PI / 2;
+            shoulder.position.set(side * (ROAD_W / 2 + 0.5), -0.02, -235);
+            scene.add(shoulder);
+        });
 
         var wetSand = new THREE.Mesh(
             new THREE.PlaneGeometry(6.2, 500),
             standard(0xb9915f, { roughness: 0.62, metalness: 0.08 })
         );
         wetSand.rotation.x = -Math.PI / 2;
-        wetSand.position.set(-9.2, -0.08, -235); scene.add(wetSand);
+        wetSand.position.set(-13.0, -0.08, -235); scene.add(wetSand);
 
         // Ocean: a gently animated wave mesh plus foam and sun glints.
         var oceanGeo = new THREE.PlaneGeometry(160, 660, 34, 90);
@@ -206,7 +221,7 @@
             metalness: 0.42, roughness: 0.17, transparent: true, opacity: 0.94
         }));
         ocean.rotation.x = -Math.PI / 2;
-        ocean.position.set(-91, -0.28, -245); scene.add(ocean);
+        ocean.position.set(-96, -0.28, -245); scene.add(ocean);
 
         var glintMat = new THREE.MeshBasicMaterial({ color: 0xffe6b0, transparent: true, opacity: 0.13, blending: THREE.AdditiveBlending, depthWrite: false });
         for (var gl = 0; gl < 9; gl++) {
@@ -220,36 +235,127 @@
         for (var fo = 0; fo < 36; fo++) {
             var foam = new THREE.Mesh(new THREE.PlaneGeometry(2.5 + Math.random() * 6, 0.32 + Math.random() * 0.35), foamMat);
             foam.rotation.x = -Math.PI / 2;
-            foam.position.set(-10.5 - Math.random() * 14, -0.02, -Math.random() * 340);
+            foam.position.set(-16.5 - Math.random() * 12, -0.02, -Math.random() * 340);
             addScroller(foam, 340, 0.6);
         }
 
-        // Rope fence along both sides of the sand track.
-        var postMat = standard(0x9c6b3f, { roughness: 0.9 });
-        var ropeMat = standard(0xdcb98a, { roughness: 0.92 });
+        // Metal guardrails along both shoulders of the highway.
+        var railMat = standard(0xc3c9cf, { metalness: 0.35, roughness: 0.45 });
+        var railPostMat = standard(0x8d949c, { metalness: 0.3, roughness: 0.5 });
         [-1, 1].forEach(function (side) {
-            var rope = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 500, 6), ropeMat);
-            rope.rotation.x = Math.PI / 2;
-            rope.position.set(side * (ROAD_W / 2 + 0.65), 0.86, -235); scene.add(rope);
-            var rope2 = rope.clone(); rope2.position.y = 0.5; scene.add(rope2);
+            var railX = side * (ROAD_W / 2 + 0.85);
+            var rail = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.3, 500), railMat);
+            rail.position.set(railX, 0.72, -235); scene.add(rail);
+            var rail2 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.16, 500), railMat);
+            rail2.position.set(railX, 0.42, -235); scene.add(rail2);
+
+            for (var pi = 0; pi < 26; pi++) {
+                var guardPost = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.9, 0.12), railPostMat);
+                guardPost.position.set(railX, 0.45, 10 - pi * 10);
+                var reflector = boxMesh(0.06, 0.1, 0.05, new THREE.MeshBasicMaterial({ color: 0xfff0b8 }));
+                reflector.position.set(-side * 0.08, 0.32, 0);
+                guardPost.add(reflector);
+                addScroller(guardPost, 260);
+            }
         });
 
-        var postGeo = new THREE.CylinderGeometry(0.075, 0.1, 1.2, 8);
-        for (var side2 = -1; side2 <= 1; side2 += 2) {
-            for (var pi = 0; pi < 16; pi++) {
-                var fencePost = new THREE.Mesh(postGeo, postMat);
-                fencePost.position.set(side2 * (ROAD_W / 2 + 0.65), 0.5, 10 - pi * 15);
-                addScroller(fencePost, 240);
+        // Five-lane markings: four dashed dividers and solid edge lines.
+        var laneLineMat = new THREE.MeshBasicMaterial({ color: 0xf8f8f4, transparent: true, opacity: 0.82 });
+        var edgeLineMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
+        [-1, 1].forEach(function (side) {
+            var edge = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 500), edgeLineMat);
+            edge.rotation.x = -Math.PI / 2;
+            edge.position.set(side * (ROAD_W / 2 - 0.42), 0.006, -235);
+            scene.add(edge);
+        });
+        [-4.8, -1.6, 1.6, 4.8].forEach(function (x) {
+            for (var da = 0; da < 30; da++) {
+                var dash = new THREE.Mesh(new THREE.PlaneGeometry(0.14, 3.2), laneLineMat);
+                dash.rotation.x = -Math.PI / 2;
+                dash.position.set(x, 0.006, 8 - da * 17);
+                addScroller(dash, 500);
             }
+        });
+
+        // Highway lighting, overhead signs, and billboards.
+        function makeStreetLight(side) {
+            var g = new THREE.Group();
+            var poleMat = standard(0xa8afb7, { metalness: 0.35, roughness: 0.45 });
+            var pole = cylinderMesh(0.1, 0.14, 7.2, 8, poleMat);
+            pole.position.y = 3.6; g.add(pole);
+            var arm = boxMesh(2.0, 0.1, 0.1, poleMat);
+            arm.position.set(-side * 0.95, 7.1, 0); g.add(arm);
+            var lamp = boxMesh(0.62, 0.12, 0.28, new THREE.MeshBasicMaterial({ color: 0xfff04d }));
+            lamp.position.set(-side * 1.9, 7.02, 0); g.add(lamp);
+            return g;
+        }
+        for (var li = 0; li < 9; li++) {
+            [-1, 1].forEach(function (side) {
+                var lightPost = makeStreetLight(side);
+                lightPost.position.set(side * (ROAD_W / 2 + 1.4), 0, 6 - li * 36);
+                addScroller(lightPost, 324);
+            });
         }
 
-        // Dashed centre line gives a clear speed cue.
-        var dashMat = new THREE.MeshBasicMaterial({ color: 0xfff3d6, transparent: true, opacity: 0.5 });
-        for (var da = 0; da < 26; da++) {
-            var dash = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 2.6), dashMat);
-            dash.rotation.x = -Math.PI / 2;
-            dash.position.set(0, 0.005, 8 - da * 19);
-            addScroller(dash, 494);
+        function makeSignTexture(lines, bg, accent) {
+            return makeCanvasTexture(512, 192, function (g, w, h) {
+                g.fillStyle = bg; g.fillRect(0, 0, w, h);
+                g.strokeStyle = '#f8f8f4'; g.lineWidth = 10; g.strokeRect(8, 8, w - 16, h - 16);
+                g.fillStyle = '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+                g.font = 'bold 58px Arial, sans-serif';
+                g.fillText(lines[0], w / 2, lines[1] ? 72 : h / 2);
+                if (lines[1]) {
+                    g.font = 'bold 36px Arial, sans-serif';
+                    g.fillStyle = accent || '#d8f5d0';
+                    g.fillText(lines[1], w / 2, 140);
+                }
+            });
+        }
+
+        function makeGantrySign() {
+            var g = new THREE.Group();
+            var beamMat = standard(0xa8afb7, { metalness: 0.35, roughness: 0.45 });
+            [-1, 1].forEach(function (side) {
+                var leg = cylinderMesh(0.16, 0.2, 8.4, 10, beamMat);
+                leg.position.set(side * (ROAD_W / 2 + 1.35), 4.2, 0); g.add(leg);
+            });
+            var beam = boxMesh(ROAD_W + 3.2, 0.22, 0.22, beamMat);
+            beam.position.set(0, 8.3, 0); g.add(beam);
+            var panel = new THREE.Mesh(new THREE.PlaneGeometry(7.6, 2.1), new THREE.MeshStandardMaterial({
+                map: makeSignTexture(['BEACH 5', 'SUNSET COAST'], '#1f6b45'),
+                roughness: 0.7, side: THREE.DoubleSide
+            }));
+            panel.position.set(0, 7.0, 0.06); g.add(panel);
+            return g;
+        }
+        for (var gi = 0; gi < 2; gi++) {
+            var gantry = makeGantrySign();
+            gantry.position.set(0, 0, -64 - gi * 210);
+            addScroller(gantry, 500);
+        }
+
+        function makeBillboard(text) {
+            var g = new THREE.Group();
+            var frameMat = standard(0x7a828a, { metalness: 0.3, roughness: 0.5 });
+            [-1, 1].forEach(function (side) {
+                var leg = boxMesh(0.18, 4.4, 0.18, frameMat);
+                leg.position.set(side * 1.9, 2.2, 0); g.add(leg);
+            });
+            var back = boxMesh(5.6, 2.8, 0.14, frameMat);
+            back.position.set(0, 4.1, -0.06); g.add(back);
+            var board = new THREE.Mesh(new THREE.PlaneGeometry(5.4, 2.6), new THREE.MeshStandardMaterial({
+                map: makeSignTexture([text, 'LESSFUN'], '#b3121b', '#ffe6a7'),
+                roughness: 0.7, side: THREE.DoubleSide
+            }));
+            board.position.set(0, 4.1, 0.04); g.add(board);
+            return g;
+        }
+        var billboardTexts = ['SURF CO.', 'BEACH 5', 'COAST HWY'];
+        for (var bi2 = 0; bi2 < 3; bi2++) {
+            var billboard = makeBillboard(billboardTexts[bi2]);
+            billboard.position.set(ROAD_W / 2 + 4.8, 0, -118 - bi2 * 140);
+            billboard.rotation.y = 0.2;
+            addScroller(billboard, 480);
         }
 
         function makePalm() {
@@ -436,7 +542,10 @@
         var starMat = standard(0xff8fa3, { roughness: 0.6 });
         for (var sh = 0; sh < 80; sh++) {
             var shell = new THREE.Mesh(sh < 64 ? shellGeo : starGeo, sh < 64 ? shellMat : starMat);
-            shell.position.set((Math.random() - 0.5) * 10, 0.06, -Math.random() * 480);
+            var shellX = sh % 3 === 0
+                ? (-11.6 - Math.random() * 3.2)
+                : (ROAD_W / 2 + 1.8 + Math.random() * 7.2);
+            shell.position.set(shellX, 0.06, -Math.random() * 480);
             var ss = 0.7 + Math.random() * 0.8;
             shell.scale.set(ss, ss, ss);
             addScroller(shell, 480);
@@ -926,7 +1035,8 @@
 
         function spawnTraffic(forceZ) {
             var z = forceZ != null ? forceZ : (-230 - Math.random() * 70);
-            var order = [0, 1, 2];
+            var order = [];
+            for (var oi = 0; oi < LANES.length; oi++) order.push(oi);
             order.sort(function () { return Math.random() - 0.5; });
             var lane = order[0];
             for (var i = 0; i < order.length; i++) {
@@ -959,7 +1069,7 @@
             traffic.push(car);
         }
 
-        for (var t = 0; t < 6; t++) spawnTraffic(-58 - t * 26);
+        for (var t = 0; t < 9; t++) spawnTraffic(-52 - t * 22);
 
         function blink(car, side) {
             var u = car.userData;
@@ -1068,7 +1178,7 @@
             }
 
             spawnT += dt;
-            if (spawnT > Math.max(0.62, 1.35 - elapsed * 0.01)) { spawnT = 0; spawnTraffic(); }
+            if (spawnT > Math.max(0.55, 1.2 - elapsed * 0.01)) { spawnT = 0; spawnTraffic(); }
 
             var relative = Math.min(0.42 + elapsed * 0.0045, 0.74);
 
@@ -1132,7 +1242,7 @@
                 if (c.position.z > 14) {
                     scene.remove(c); disposeObject(c); traffic.splice(k, 1); continue;
                 }
-                if (Math.abs(c.position.x - player.position.x) < 1.45 && Math.abs(c.position.z - player.position.z) < 2.75) {
+                if (Math.abs(c.position.x - player.position.x) < 1.55 && Math.abs(c.position.z - player.position.z) < 2.75) {
                     endGame(distance);
                     return;
                 }

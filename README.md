@@ -7,7 +7,7 @@ A 3D arcade with a liquid-glass interface. Play it at
 
 | Game | What it is |
 | --- | --- |
-| Beach Racer | Outrun traffic along a sunset coast. Steer freely and brake through the pack. |
+| Beach Racer | Outrun traffic on a five-lane coastal highway. Steer freely and brake through the pack. |
 | Tunnel Rush | Thread an endless neon tunnel and rotate through the gaps. |
 | Cube Stack | Stack the tower as high as you can before the blocks drift away. |
 | Helix Drop | Fall through a rotating helix and slip through the openings. |
@@ -143,7 +143,7 @@ handling real user data or payments.
 ## Features
 
 - Five real-time 3D arcade games powered by Three.js
-- Free steering, braking, and brake lights in Beach Racer
+- Five-lane coastal highway with guardrails, streetlights, overhead signs, and free steering in Beach Racer
 - Guest and account authentication options
 - Shells wallet, daily and streak bonuses, and a 106-item cosmetics shop
 - Car paints, 14 body styles, 12 engines, surfboards, underglow, wheels,

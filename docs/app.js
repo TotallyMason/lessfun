@@ -4,7 +4,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_Ev9umZevWcT-AwVHTPQLnw_DHdpDHWR";
 const supabaseClient = (typeof window !== 'undefined' && window.supabase) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 const games = [
-    { id: 1, name: "Beach Racer", description: "Outrun traffic along the sunset coast", icon: "beach", hasBrake: true, controls: "Steer freely with ← → or drag · hold ↓ / S or BRAKE to slow" },
+    { id: 1, name: "Beach Racer", description: "Outrun traffic on a five-lane coastal highway", icon: "beach", hasBrake: true, controls: "Steer across five lanes with ← → or drag · hold ↓ / S or BRAKE to slow" },
     { id: 2, name: "Tunnel Rush", description: "Thread the neon tunnel at warp speed", icon: "tunnel", controls: "Left / Right or drag to rotate" },
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
     { id: 4, name: "Helix Drop", description: "Fall through the rotating helix", icon: "helix", controls: "Left / Right or drag to rotate" },
@@ -3226,8 +3226,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.20.3";
-const UPDATE_NOTES = "Community replies, reactions, photo posts, new car bodies and engines, and a rebuilt 3D beach";
+const APP_VERSION = "LessFun Developer Beta 1.20.4";
+const UPDATE_NOTES = "Beach Racer is now a five-lane coastal highway with guardrails, streetlights, and overhead signs";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
