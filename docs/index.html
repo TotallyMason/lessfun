@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261132">
+    <link rel="stylesheet" href="style.css?v=20261135">
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -157,10 +157,20 @@
                 <p class="subtitle">Share and connect</p>
             </header>
             <div class="community-section">
-                <div class="community-post-form">
+                <div class="community-post-form" id="communityPostForm">
                     <h2>Create Post</h2>
                     <textarea id="postContent" class="post-input" placeholder="What's on your mind?" maxlength="280"></textarea>
-                    <button class="game-btn-3d" onclick="createPost()" style="margin:12px 0 0 0;">Post</button>
+                    <div class="post-composer-row">
+                        <label class="post-attach-btn" for="postMediaInput">
+                            <span class="post-attach-icon">📎</span>
+                            <span>Photo or file</span>
+                            <input type="file" id="postMediaInput" accept="image/*,.pdf,.txt,.csv,.zip,.doc,.docx,.json" onchange="handlePostMedia(this)">
+                        </label>
+                        <span class="post-media-hint" id="postMediaHint">Images are compressed automatically.</span>
+                        <button class="game-btn-3d post-submit-btn" id="postSubmitBtn" onclick="createPost()">Post</button>
+                    </div>
+                    <div id="postMediaPreview" class="post-media-preview" style="display:none;"></div>
+                    <p id="communityClosedNote" class="community-closed-note" style="display:none;">The community is temporarily closed by the owner. You can still browse posts.</p>
                 </div>
                 <div class="community-posts" id="communityPosts"></div>
             </div>
@@ -264,6 +274,7 @@
                 <button class="debug-tab active" data-debug-tab="overview" onclick="showDebugTab('overview')">Overview</button>
                 <button class="debug-tab" data-debug-tab="users" onclick="showDebugTab('users')">Users</button>
                 <button class="debug-tab" data-debug-tab="posts" onclick="showDebugTab('posts')">Posts</button>
+                <button class="debug-tab" data-debug-tab="community" onclick="showDebugTab('community')">Community</button>
                 <button class="debug-tab" data-debug-tab="wallets" onclick="showDebugTab('wallets')">Wallets</button>
                 <button class="debug-tab" data-debug-tab="scores" onclick="showDebugTab('scores')">Scores</button>
                 <button class="debug-tab" data-debug-tab="social" onclick="showDebugTab('social')">Friends</button>
@@ -331,6 +342,57 @@
                         <tbody id="debugPosts"></tbody>
                     </table>
                 </div>
+            </div>
+
+            <div class="debug-panel" id="debugPanel-community" style="display:none;">
+                <div class="debug-panel-head">
+                    <h3>Replies</h3>
+                    <div class="debug-action-row">
+                        <input type="search" id="debugReplySearch" class="debug-search" placeholder="Search replies…" oninput="renderDebugCommunity()">
+                        <button class="debug-btn" onclick="renderDebugUsers()">Refresh</button>
+                        <button class="debug-delete" onclick="clearDebugReplies()">Clear replies</button>
+                    </div>
+                </div>
+                <div class="debug-table-wrap">
+                    <table class="debug-table">
+                        <thead>
+                            <tr>
+                                <th>Player</th>
+                                <th>Reply</th>
+                                <th>On post</th>
+                                <th>Created</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="debugReplies"></tbody>
+                    </table>
+                </div>
+
+                <div class="debug-panel-head" style="margin-top:26px;">
+                    <h3>Reactions</h3>
+                    <div class="debug-action-row">
+                        <button class="debug-delete" onclick="clearDebugReactions()">Clear all reactions</button>
+                    </div>
+                </div>
+                <div class="debug-table-wrap">
+                    <table class="debug-table">
+                        <thead>
+                            <tr>
+                                <th>Target</th>
+                                <th>Player</th>
+                                <th>Created</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="debugReactions"></tbody>
+                    </table>
+                </div>
+
+                <div class="debug-panel-head" style="margin-top:26px;">
+                    <h3>Attachments</h3>
+                    <button class="debug-delete" onclick="stripAllDebugMedia()">Strip every attachment</button>
+                </div>
+                <p class="debug-help">Attachments are stored inline on posts. Stripping them removes the file data but keeps the post text.</p>
             </div>
 
             <div class="debug-panel" id="debugPanel-wallets" style="display:none;">
@@ -454,6 +516,36 @@
                         <button class="debug-tool-btn" onclick="debugSaveSiteSettings()">Save game access</button>
                     </div>
 
+                    <div class="debug-tool-card debug-grant-card">
+                        <h3>Community controls</h3>
+                        <p>Close the community, pause replies or reactions, disable uploads, or stop new registrations.</p>
+                        <label class="debug-switch-row">
+                            <input type="checkbox" id="debugCommunityOpen">
+                            <span>Community open</span>
+                        </label>
+                        <label class="debug-switch-row">
+                            <input type="checkbox" id="debugAllowReplies">
+                            <span>Allow replies</span>
+                        </label>
+                        <label class="debug-switch-row">
+                            <input type="checkbox" id="debugAllowReactions">
+                            <span>Allow reactions</span>
+                        </label>
+                        <label class="debug-switch-row">
+                            <input type="checkbox" id="debugAllowUploads">
+                            <span>Allow photo and file uploads</span>
+                        </label>
+                        <label class="debug-switch-row">
+                            <input type="checkbox" id="debugRegistrationOpen">
+                            <span>Registration open</span>
+                        </label>
+                        <label class="debug-grant-field">
+                            <span>Max upload size (MB)</span>
+                            <input type="number" id="debugMaxUploadMb" min="0" max="10" step="0.5" value="2">
+                        </label>
+                        <button class="debug-tool-btn" onclick="debugSaveSiteSettings()">Save community</button>
+                    </div>
+
                     <div class="debug-tool-card danger">
                         <h3>Maintenance mode</h3>
                         <p>Blocks regular players behind a maintenance screen. TotallyMason keeps full access.</p>
@@ -491,6 +583,20 @@
                     </div>
 
                     <div class="debug-tool-card debug-grant-card">
+                        <h3>Moderate one account</h3>
+                        <p>Delete every post from a username, reset their streak, or clear their presence.</p>
+                        <div class="debug-grant-form">
+                            <label class="debug-grant-field debug-grant-wide">
+                                <span>Username</span>
+                                <input type="text" id="debugModUsername" maxlength="24" placeholder="username">
+                            </label>
+                            <button class="debug-delete" onclick="debugDeletePostsByUser()">Delete their posts</button>
+                            <button class="debug-btn" onclick="debugResetUserStreak()">Reset streak</button>
+                            <button class="debug-btn" onclick="debugClearUserPresence()">Clear presence</button>
+                        </div>
+                    </div>
+
+                    <div class="debug-tool-card debug-grant-card">
                         <h3>Bulk grants</h3>
                         <p>Apply a grant to every registered account at once.</p>
                         <div class="debug-grant-form">
@@ -500,6 +606,15 @@
                             </label>
                             <button class="debug-tool-btn" onclick="debugGrantShellsToAll()">Give to all</button>
                             <button class="debug-btn" onclick="debugGiveAllCosmeticsToAll()">All cosmetics to all</button>
+                        </div>
+                    </div>
+
+                    <div class="debug-tool-card">
+                        <h3>Pins &amp; streaks</h3>
+                        <p>Remove every pin marker from posts, or clear all daily streak progress without touching Shells.</p>
+                        <div class="debug-action-row">
+                            <button class="debug-btn" onclick="debugClearAllPins()">Clear all pins</button>
+                            <button class="debug-btn" onclick="debugResetAllStreaks()">Reset all streaks</button>
                         </div>
                     </div>
 
@@ -692,7 +807,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Developer Beta 1.20.1</p>
+                            <p>LessFun Developer Beta 1.20.3</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -836,7 +951,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
-    <script src="games3d.js?v=20261132"></script>
-    <script src="app.js?v=20261132"></script>
+    <script src="games3d.js?v=20261135"></script>
+    <script src="app.js?v=20261135"></script>
 </body>
 </html>

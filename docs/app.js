@@ -29,7 +29,13 @@ const SITE_SETTINGS_DEFAULTS = {
     maintenance: false,
     shells_multiplier: 1,
     featured_game: '',
-    disabled_games: []
+    disabled_games: [],
+    allow_uploads: true,
+    max_upload_mb: 2,
+    allow_replies: true,
+    allow_reactions: true,
+    registration_open: true,
+    community_open: true
 };
 let siteSettings = Object.assign({}, SITE_SETTINGS_DEFAULTS);
 let siteSettingsLoaded = false;
@@ -43,6 +49,12 @@ function normalizeSiteSettings(row) {
     next.shells_multiplier = isFinite(mult) && mult >= 0 && mult <= 20 ? mult : 1;
     if (typeof row.featured_game === 'string') next.featured_game = row.featured_game;
     if (Array.isArray(row.disabled_games)) next.disabled_games = row.disabled_games.map(String);
+
+    ['allow_uploads', 'allow_replies', 'allow_reactions', 'registration_open', 'community_open'].forEach(function (key) {
+        if (typeof row[key] === 'boolean') next[key] = row[key];
+    });
+    const uploadLimit = Number(row.max_upload_mb);
+    next.max_upload_mb = isFinite(uploadLimit) && uploadLimit >= 0 && uploadLimit <= 10 ? uploadLimit : 2;
     return next;
 }
 
@@ -70,6 +82,27 @@ function applySiteSettings() {
         overlay.style.display = blocked ? 'flex' : 'none';
         document.body.classList.toggle('is-maintenance', blocked);
     }
+
+    const communityClosed = !siteSettings.community_open && !isOwner();
+    const postForm = document.getElementById('communityPostForm');
+    if (postForm) {
+        postForm.classList.toggle('is-closed', communityClosed);
+        const note = document.getElementById('communityClosedNote');
+        if (note) note.style.display = communityClosed ? 'block' : 'none';
+        const textarea = document.getElementById('postContent');
+        const submit = document.getElementById('postSubmitBtn');
+        const media = document.getElementById('postMediaInput');
+        if (textarea) textarea.disabled = communityClosed;
+        if (submit) submit.disabled = communityClosed;
+        if (media) media.disabled = communityClosed || !siteSettings.allow_uploads;
+    }
+    const mediaHint = document.getElementById('postMediaHint');
+    if (mediaHint) {
+        mediaHint.textContent = !siteSettings.allow_uploads
+            ? 'Uploads are currently disabled.'
+            : 'Images are compressed. Up to ' + siteSettings.max_upload_mb + ' MB.';
+    }
+    document.body.classList.toggle('community-closed', communityClosed);
 }
 
 async function loadSiteSettings() {
@@ -101,6 +134,12 @@ async function saveSiteSettings(next) {
             shells_multiplier: siteSettings.shells_multiplier,
             featured_game: siteSettings.featured_game,
             disabled_games: siteSettings.disabled_games,
+            allow_uploads: siteSettings.allow_uploads,
+            max_upload_mb: siteSettings.max_upload_mb,
+            allow_replies: siteSettings.allow_replies,
+            allow_reactions: siteSettings.allow_reactions,
+            registration_open: siteSettings.registration_open,
+            community_open: siteSettings.community_open,
             updated_at: new Date().toISOString()
         }, { onConflict: 'id' });
         return res || { error: { message: 'No response' } };
@@ -376,8 +415,8 @@ function showDebugStatus(message, isError) {
     debugStatusTimer = setTimeout(function () { el.className = 'debug-status'; }, 4000);
 }
 
-const DEBUG_TABS = ['overview', 'users', 'posts', 'wallets', 'scores', 'social', 'site', 'tools'];
-let debugData = { users: [], posts: [], wallets: [], scores: [], presence: [], friendships: [] };
+const DEBUG_TABS = ['overview', 'users', 'posts', 'community', 'wallets', 'scores', 'social', 'site', 'tools'];
+let debugData = { users: [], posts: [], replies: [], postReactions: [], replyReactions: [], wallets: [], scores: [], presence: [], friendships: [] };
 let debugErrors = {};
 let debugTab = 'overview';
 let debugLoadToken = 0;
@@ -456,7 +495,10 @@ async function renderDebugUsers() {
         debugQuery(supabaseClient.from('wallets').select('*').order('username', { ascending: true })),
         debugQuery(supabaseClient.from('scores').select('*').order('created_at', { ascending: false }).limit(500)),
         debugQuery(supabaseClient.from('user_presence').select('*').order('last_seen', { ascending: false })),
-        debugQuery(supabaseClient.from('friendships').select('*').order('created_at', { ascending: false }))
+        debugQuery(supabaseClient.from('friendships').select('*').order('created_at', { ascending: false })),
+        debugQuery(supabaseClient.from('post_replies').select('*').order('created_at', { ascending: true })),
+        debugQuery(supabaseClient.from('post_reactions').select('*').order('created_at', { ascending: false })),
+        debugQuery(supabaseClient.from('reply_reactions').select('*').order('created_at', { ascending: false }))
     ]);
     if (token !== debugLoadToken) return;
 
@@ -466,7 +508,10 @@ async function renderDebugUsers() {
         wallets: results[2].error,
         scores: results[3].error,
         presence: results[4].error,
-        friendships: results[5].error
+        friendships: results[5].error,
+        replies: results[6].error,
+        postReactions: results[7].error,
+        replyReactions: results[8].error
     };
     debugData = {
         users: results[0].data || [],
@@ -474,7 +519,10 @@ async function renderDebugUsers() {
         wallets: results[2].data || [],
         scores: results[3].data || [],
         presence: results[4].data || [],
-        friendships: results[5].data || []
+        friendships: results[5].data || [],
+        replies: results[6].data || [],
+        postReactions: results[7].data || [],
+        replyReactions: results[8].data || []
     };
     debugUsersCache = debugData.users;
 
@@ -494,7 +542,7 @@ async function renderDebugUsers() {
     renderDebugTab();
 
     const missing = [];
-    ['users', 'posts', 'wallets', 'scores', 'presence', 'friendships'].forEach(function (table) {
+    ['users', 'posts', 'wallets', 'scores', 'presence', 'friendships', 'replies', 'postReactions', 'replyReactions'].forEach(function (table) {
         if (debugErrors[table]) missing.push(table);
     });
     if (missing.length) {
@@ -506,6 +554,7 @@ function renderDebugTab() {
     renderDebugOverview();
     renderDebugUsersTable();
     renderDebugPosts();
+    renderDebugCommunity();
     renderDebugWallets();
     renderDebugScores();
     renderDebugPresence();
@@ -537,6 +586,8 @@ function renderDebugOverview() {
             ['Posts', debugNum(debugData.posts.length), pinned + ' pinned'],
             ['Wallets', debugNum(wallets.length), 'Shells balances'],
             ['Scores', debugNum(scores.length), 'recent runs loaded'],
+            ['Replies', debugNum(debugData.replies.length), debugNum(debugData.postReactions.length + debugData.replyReactions.length) + ' reactions'],
+            ['Uploads', debugNum(debugData.posts.filter(function (post) { return !!post.media_url; }).length), 'posts with media'],
             ['Shells in circulation', debugNum(shells), debugNum(totalEarned) + ' earned all-time'],
             ['Newest account', newest ? newest.username : '—', newest ? debugDate(newest.created_at) : 'No accounts yet']
         ];
@@ -640,7 +691,8 @@ function renderDebugPosts() {
     const rows = debugData.posts.filter(function (post) {
         return !query ||
             String(post.username || '').toLowerCase().indexOf(query) >= 0 ||
-            String(post.content || '').toLowerCase().indexOf(query) >= 0;
+            String(post.content || '').toLowerCase().indexOf(query) >= 0 ||
+            String(post.media_name || '').toLowerCase().indexOf(query) >= 0;
     });
 
     if (!rows.length) {
@@ -651,16 +703,79 @@ function renderDebugPosts() {
     const localPins = getPinnedIds();
     tbody.innerHTML = rows.map(function (post) {
         const pinned = isPinnedByContent(post.content) || localPins.indexOf(String(post.id)) >= 0;
+        const media = post.media_url
+            ? '<span class="debug-media-tag">' + (String(post.media_type || '').indexOf('image/') === 0 ? 'IMAGE' : 'FILE') + ' ' + escapeHtml(debugTruncate(post.media_name || 'attachment', 28)) + '</span>'
+            : '';
         return '<tr>' +
             '<td><div class="debug-user"><span class="debug-avatar">' + escapeHtml(String(post.username || '?').charAt(0).toUpperCase()) + '</span><span>' + escapeHtml(post.username || '') + '</span></div></td>' +
-            '<td class="debug-post-text">' + escapeHtml(debugTruncate(stripPinMarker(post.content), 90)) + '</td>' +
+            '<td class="debug-post-text">' + media + escapeHtml(debugTruncate(stripPinMarker(post.content), 90)) + '</td>' +
             '<td class="debug-date">' + escapeHtml(debugDate(post.created_at)) + '</td>' +
             '<td class="debug-actions"><div class="debug-action-row">' +
                 '<button class="debug-btn" onclick="toggleDebugPin(\'' + debugArg(String(post.id)) + '\',' + (pinned ? 'true' : 'false') + ')">' + (pinned ? 'Unpin' : 'Pin') + '</button>' +
+                (post.media_url ? '<button class="debug-btn" onclick="stripDebugPostMedia(\'' + debugArg(String(post.id)) + '\')">Strip media</button>' : '') +
                 '<button class="debug-delete" onclick="deleteDebugPost(\'' + debugArg(String(post.id)) + '\')">Delete</button>' +
             '</div></td>' +
         '</tr>';
     }).join('');
+}
+
+function renderDebugCommunity() {
+    const repliesBody = document.getElementById('debugReplies');
+    const reactionsBody = document.getElementById('debugReactions');
+    if (!repliesBody && !reactionsBody) return;
+
+    if (repliesBody) {
+        if (debugErrors.replies && !debugData.replies.length) {
+            repliesBody.innerHTML = debugEmptyRow(5, 'Could not load replies: ' + (debugErrors.replies.message || 'Unknown error') + '. Run supabase/community.sql.');
+        } else if (!debugData.replies.length) {
+            repliesBody.innerHTML = debugEmptyRow(5, 'No replies yet.');
+        } else {
+            const query = String((document.getElementById('debugReplySearch') || {}).value || '').trim().toLowerCase();
+            const postTitles = {};
+            debugData.posts.forEach(function (post) {
+                postTitles[String(post.id)] = stripPinMarker(post.content) || (post.media_name ? '[media]' : '(empty)');
+            });
+            const rows = debugData.replies.filter(function (reply) {
+                return !query ||
+                    String(reply.username || '').toLowerCase().indexOf(query) >= 0 ||
+                    String(reply.content || '').toLowerCase().indexOf(query) >= 0;
+            }).slice(0, 200);
+            repliesBody.innerHTML = rows.length ? rows.map(function (reply) {
+                return '<tr>' +
+                    '<td><div class="debug-user"><span class="debug-avatar">' + escapeHtml(String(reply.username || '?').charAt(0).toUpperCase()) + '</span><span>' + escapeHtml(reply.username || '') + '</span></div></td>' +
+                    '<td class="debug-post-text">' + escapeHtml(debugTruncate(reply.content, 90)) + '</td>' +
+                    '<td class="debug-post-text">' + escapeHtml(debugTruncate(postTitles[String(reply.post_id)] || '#' + reply.post_id, 36)) + '</td>' +
+                    '<td class="debug-date">' + escapeHtml(debugDate(reply.created_at)) + '</td>' +
+                    '<td class="debug-actions"><button class="debug-delete" onclick="deleteDebugReply(\'' + debugArg(String(reply.id)) + '\')">Delete</button></td>' +
+                '</tr>';
+            }).join('') : debugEmptyRow(5, query ? 'No replies match "' + query + '".' : 'No replies yet.');
+        }
+    }
+
+    if (reactionsBody) {
+        const reactions = [];
+        debugData.postReactions.forEach(function (row) {
+            reactions.push({ kind: 'Post #' + row.post_id, username: row.username, reaction: row.reaction, created_at: row.created_at, table: 'post', id: row.id });
+        });
+        debugData.replyReactions.forEach(function (row) {
+            reactions.push({ kind: 'Reply #' + row.reply_id, username: row.username, reaction: row.reaction, created_at: row.created_at, table: 'reply', id: row.id });
+        });
+        if ((debugErrors.postReactions && !debugData.postReactions.length) && (debugErrors.replyReactions && !debugData.replyReactions.length)) {
+            reactionsBody.innerHTML = debugEmptyRow(4, 'Could not load reactions. Run supabase/community.sql.');
+        } else if (!reactions.length) {
+            reactionsBody.innerHTML = debugEmptyRow(4, 'No reactions yet.');
+        } else {
+            reactions.sort(function (a, b) { return Date.parse(b.created_at || 0) - Date.parse(a.created_at || 0); });
+            reactionsBody.innerHTML = reactions.slice(0, 200).map(function (row) {
+                return '<tr>' +
+                    '<td><span class="debug-reaction-emoji">' + escapeHtml(row.reaction) + '</span> <span>' + escapeHtml(row.kind) + '</span></td>' +
+                    '<td>' + escapeHtml(row.username || '') + '</td>' +
+                    '<td class="debug-date">' + escapeHtml(debugDate(row.created_at)) + '</td>' +
+                    '<td class="debug-actions"><button class="debug-delete" onclick="deleteDebugReaction(\'' + row.table + '\',\'' + debugArg(String(row.id)) + '\')">Remove</button></td>' +
+                '</tr>';
+            }).join('');
+        }
+    }
 }
 
 function renderDebugWallets() {
@@ -788,6 +903,20 @@ function renderDebugSite() {
     multiplier.value = String(siteSettings.shells_multiplier);
     maintenance.checked = !!siteSettings.maintenance;
 
+    const toggleMap = {
+        debugAllowUploads: 'allow_uploads',
+        debugAllowReplies: 'allow_replies',
+        debugAllowReactions: 'allow_reactions',
+        debugRegistrationOpen: 'registration_open',
+        debugCommunityOpen: 'community_open'
+    };
+    Object.keys(toggleMap).forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el) el.checked = !!siteSettings[toggleMap[id]];
+    });
+    const uploadLimit = document.getElementById('debugMaxUploadMb');
+    if (uploadLimit) uploadLimit.value = String(siteSettings.max_upload_mb);
+
     const keepFeatured = featured.value || siteSettings.featured_game || '';
     featured.innerHTML = '<option value="">— No featured game —</option>' + games.map(function (game) {
         return '<option value="' + game.id + '">' + escapeHtml(game.name) + '</option>';
@@ -810,10 +939,16 @@ function debugSaveSiteSettings() {
     const featured = document.getElementById('debugFeaturedGame');
     const disabled = document.getElementById('debugDisabledGames');
     const maintenance = document.getElementById('debugMaintenance');
+    const uploadLimitInput = document.getElementById('debugMaxUploadMb');
 
     const mult = Number(multiplier ? multiplier.value : 1);
     if (!isFinite(mult) || mult < 0 || mult > 20) {
         showDebugStatus('Shells multiplier must be between 0 and 20.', true);
+        return;
+    }
+    const uploadLimit = Number(uploadLimitInput ? uploadLimitInput.value : 2);
+    if (!isFinite(uploadLimit) || uploadLimit < 0 || uploadLimit > 10) {
+        showDebugStatus('Upload limit must be between 0 and 10 MB.', true);
         return;
     }
     const disabledGames = [];
@@ -827,7 +962,13 @@ function debugSaveSiteSettings() {
         maintenance: !!(maintenance && maintenance.checked),
         shells_multiplier: mult,
         featured_game: featured ? featured.value : '',
-        disabled_games: disabledGames
+        disabled_games: disabledGames,
+        allow_uploads: !!(document.getElementById('debugAllowUploads') || {}).checked,
+        max_upload_mb: uploadLimit,
+        allow_replies: !!(document.getElementById('debugAllowReplies') || {}).checked,
+        allow_reactions: !!(document.getElementById('debugAllowReactions') || {}).checked,
+        registration_open: !!(document.getElementById('debugRegistrationOpen') || {}).checked,
+        community_open: !!(document.getElementById('debugCommunityOpen') || {}).checked
     };
     saveSiteSettings(next).then(function (res) {
         if (res && res.error) {
@@ -1199,6 +1340,95 @@ async function toggleDebugPin(id, pinned) {
     await renderDebugUsers();
 }
 
+async function deleteDebugReply(id) {
+    if (!debugGuard()) return;
+    if (!window.confirm('Delete this reply permanently?')) return;
+    const res = await debugQuery(supabaseClient.from('post_replies').delete().eq('id', id));
+    if (res.error) {
+        showDebugStatus('Could not delete reply: ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    showDebugStatus('Reply deleted.', false);
+    await renderDebugUsers();
+    renderCommunity();
+}
+
+async function deleteDebugReaction(table, id) {
+    if (!debugGuard()) return;
+    const target = table === 'reply' ? 'reply_reactions' : 'post_reactions';
+    const res = await debugQuery(supabaseClient.from(target).delete().eq('id', id));
+    if (res.error) {
+        showDebugStatus('Could not remove reaction: ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    showDebugStatus('Reaction removed.', false);
+    await renderDebugUsers();
+    renderCommunity();
+}
+
+async function clearDebugReplies() {
+    if (!debugGuard()) return;
+    if (!window.confirm('Delete EVERY reply? This cannot be undone.')) return;
+    const res = await debugQuery(supabaseClient.from('post_replies').delete().neq('id', -1));
+    if (res.error) {
+        showDebugStatus('Could not clear replies: ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    showDebugStatus('All replies deleted.', false);
+    await renderDebugUsers();
+    renderCommunity();
+}
+
+async function clearDebugReactions() {
+    if (!debugGuard()) return;
+    if (!window.confirm('Remove EVERY post and reply reaction?')) return;
+    const postRes = await debugQuery(supabaseClient.from('post_reactions').delete().neq('id', -1));
+    const replyRes = await debugQuery(supabaseClient.from('reply_reactions').delete().neq('id', -1));
+    if (postRes.error && replyRes.error) {
+        showDebugStatus('Could not clear reactions: ' + (postRes.error.message || replyRes.error.message || 'Unknown error'), true);
+        return;
+    }
+    showDebugStatus('All reactions cleared.', false);
+    await renderDebugUsers();
+    renderCommunity();
+}
+
+async function stripDebugPostMedia(id) {
+    if (!debugGuard()) return;
+    if (!window.confirm('Remove the attachment from this post?')) return;
+    const res = await debugQuery(supabaseClient.from('posts').update({
+        media_url: null,
+        media_name: null,
+        media_type: null,
+        media_size: 0
+    }).eq('id', id));
+    if (res.error) {
+        showDebugStatus('Could not strip media: ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    showDebugStatus('Attachment removed.', false);
+    await renderDebugUsers();
+    renderCommunity();
+}
+
+async function stripAllDebugMedia() {
+    if (!debugGuard()) return;
+    if (!window.confirm('Remove attachments from EVERY post? The posts stay.')) return;
+    const res = await debugQuery(supabaseClient.from('posts').update({
+        media_url: null,
+        media_name: null,
+        media_type: null,
+        media_size: 0
+    }).not('media_url', 'is', null));
+    if (res.error) {
+        showDebugStatus('Could not strip media: ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    showDebugStatus('All post attachments removed.', false);
+    await renderDebugUsers();
+    renderCommunity();
+}
+
 async function deleteDebugScore(id) {
     if (!debugGuard()) return;
     if (!window.confirm('Delete this score permanently?')) return;
@@ -1235,6 +1465,9 @@ function exportDebugData() {
         exported_at: new Date().toISOString(),
         users: debugData.users,
         posts: debugData.posts,
+        replies: debugData.replies,
+        post_reactions: debugData.postReactions,
+        reply_reactions: debugData.replyReactions,
         wallets: debugData.wallets,
         scores: debugData.scores,
         presence: debugData.presence,
@@ -1300,7 +1533,10 @@ async function purgeGuestWallets() {
 async function deleteAllDebugPosts() {
     if (!debugGuard()) return;
     if (!window.confirm('Delete EVERY community post? This cannot be undone.')) return;
-    if (!window.confirm('Really delete all ' + debugData.posts.length + ' posts?')) return;
+    if (!window.confirm('Really delete all ' + debugData.posts.length + ' posts, replies, and reactions?')) return;
+    await debugQuery(supabaseClient.from('reply_reactions').delete().neq('id', -1));
+    await debugQuery(supabaseClient.from('post_reactions').delete().neq('id', -1));
+    await debugQuery(supabaseClient.from('post_replies').delete().neq('id', -1));
     const res = await debugQuery(supabaseClient.from('posts').delete().neq('id', -1));
     if (res.error) {
         showDebugStatus('Could not delete posts: ' + (res.error.message || 'Unknown error'), true);
@@ -1311,8 +1547,106 @@ async function deleteAllDebugPosts() {
     await renderDebugUsers();
 }
 
-async function clearAllDebugScores() {
+async function debugDeletePostsByUser() {
     if (!debugGuard()) return;
+    const input = document.getElementById('debugModUsername');
+    const username = input ? input.value.trim() : '';
+    if (!username) {
+        showDebugStatus('Enter a username first.', true);
+        return;
+    }
+    if (username === 'TotallyMason') {
+        showDebugStatus('The owner account is protected.', true);
+        return;
+    }
+    if (!window.confirm('Delete every post by "' + username + '"? Replies and reactions on those posts will be removed too.')) return;
+    const res = await debugQuery(supabaseClient.from('posts').delete().eq('username', username));
+    if (res.error) {
+        showDebugStatus('Could not delete posts: ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    showDebugStatus('Deleted posts by ' + username + '.', false);
+    await renderDebugUsers();
+    renderCommunity();
+}
+
+async function debugResetUserStreak() {
+    if (!debugGuard()) return;
+    const input = document.getElementById('debugModUsername');
+    const username = input ? input.value.trim() : '';
+    if (!username) {
+        showDebugStatus('Enter a username first.', true);
+        return;
+    }
+    const res = await debugQuery(supabaseClient.from('wallets').update({
+        streak: 0,
+        last_play_day: null,
+        streak_rewards: [],
+        updated_at: new Date().toISOString()
+    }).eq('username', username));
+    if (res.error) {
+        showDebugStatus('Could not reset streak: ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    showDebugStatus('Reset streak for ' + username + '.', false);
+    await renderDebugUsers();
+}
+
+async function debugClearUserPresence() {
+    if (!debugGuard()) return;
+    const input = document.getElementById('debugModUsername');
+    const username = input ? input.value.trim() : '';
+    if (!username) {
+        showDebugStatus('Enter a username first.', true);
+        return;
+    }
+    const res = await debugQuery(supabaseClient.from('user_presence').delete().eq('username', username));
+    if (res.error) {
+        showDebugStatus('Could not clear presence: ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    showDebugStatus('Cleared presence for ' + username + '.', false);
+    await renderDebugUsers();
+}
+
+async function debugClearAllPins() {
+    if (!debugGuard()) return;
+    if (!window.confirm('Remove every pin marker and clear local pins?')) return;
+    const pinned = debugData.posts.filter(function (post) { return isPinnedByContent(post.content); });
+    let changed = 0;
+    for (let i = 0; i < pinned.length; i++) {
+        const res = await debugQuery(supabaseClient.from('posts').update({
+            content: stripPinMarker(pinned[i].content)
+        }).eq('id', pinned[i].id));
+        if (!res.error) changed++;
+    }
+    savePinnedIds([]);
+    showDebugStatus('Unpinned ' + changed + ' post' + (changed === 1 ? '' : 's') + '.', false);
+    await renderDebugUsers();
+    renderCommunity();
+}
+
+async function debugResetAllStreaks() {
+    if (!debugGuard()) return;
+    if (!window.confirm('Clear streak progress for every wallet? Shells are untouched.')) return;
+    const res = await debugQuery(supabaseClient.from('wallets').update({
+        streak: 0,
+        last_play_day: null,
+        streak_rewards: [],
+        updated_at: new Date().toISOString()
+    }).neq('username', '__never__'));
+    if (res.error) {
+        showDebugStatus('Could not reset streaks: ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    showDebugStatus('All streaks cleared.', false);
+    if (currentUser && currentUser.type === 'user') {
+        try { await loadWallet(); } catch (e) {}
+    }
+    await renderDebugUsers();
+}
+
+async function clearAllDebugScores() {    if (!debugGuard()) return;
     if (!window.confirm('Delete EVERY score in the global table? This cannot be undone.')) return;
     const res = await debugQuery(supabaseClient.from('scores').delete().neq('id', -1));
     if (res.error) {
@@ -1557,6 +1891,9 @@ async function deleteUserAccount(id) {
 
     // Best-effort cleanup for projects without a foreign key.
     try { await supabaseClient.from('posts').delete().eq('username', user.username); } catch (e) {}
+    try { await supabaseClient.from('post_replies').delete().eq('username', user.username); } catch (e) {}
+    try { await supabaseClient.from('post_reactions').delete().eq('username', user.username); } catch (e) {}
+    try { await supabaseClient.from('reply_reactions').delete().eq('username', user.username); } catch (e) {}
     try { await supabaseClient.from('wallets').delete().eq('username', user.username); } catch (e) {}
     try { await supabaseClient.from('scores').delete().eq('username', user.username); } catch (e) {}
     try { await supabaseClient.from('friendships').delete().eq('requester', user.username); } catch (e) {}
@@ -1605,6 +1942,10 @@ async function signUp(){
     const username=document.getElementById("signupUsername").value.trim(); 
     const password=document.getElementById("signupPassword").value; 
     if(!username||!password){alert("Please fill in all fields");return;} 
+    if(!siteSettings.registration_open && !isOwner()){
+        alert('Registration is temporarily closed. Please try again later.');
+        return;
+    }
     if(supabaseClient){ 
         try {
             const {data:existing}=await supabaseClient.from('users').select('*').eq('username',username).maybeSingle(); 
@@ -1680,6 +2021,7 @@ async function logout(){
 }
 
 function escapeHtml(t){ const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
+function escapeAttr(t){ return String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 /* ============================================================
    Shells wallet + cosmetics shop
@@ -1706,6 +2048,42 @@ const COSMETICS = [
     { id: 'paint_chrome', type: 'paint', name: 'Chrome', cost: 1600, color: '#c0c7d1', threeColor: 0xc0c7d1 },
     { id: 'paint_neon', type: 'paint', name: 'Neon Lime', cost: 1800, color: '#c6ff00', threeColor: 0xc6ff00 },
     { id: 'paint_toxic', type: 'paint', name: 'Toxic Green', cost: 2000, color: '#39ff14', threeColor: 0x39ff14 },
+    { id: 'paint_copper', type: 'paint', name: 'Copper Coast', cost: 320, color: '#d97757', threeColor: 0xd97757 },
+    { id: 'paint_sky', type: 'paint', name: 'Sky Blue', cost: 420, color: '#4cc9f0', threeColor: 0x4cc9f0 },
+    { id: 'paint_mint', type: 'paint', name: 'Mint Cream', cost: 480, color: '#80ed99', threeColor: 0x80ed99 },
+    { id: 'paint_cherry', type: 'paint', name: 'Cherry Red', cost: 620, color: '#d90429', threeColor: 0xd90429 },
+    { id: 'paint_lavender', type: 'paint', name: 'Lavender Haze', cost: 760, color: '#bdb2ff', threeColor: 0xbdb2ff },
+    { id: 'paint_stealth', type: 'paint', name: 'Stealth Grey', cost: 1450, color: '#2f3640', threeColor: 0x2f3640 },
+
+    // Car bodies (cosmetic silhouettes only — no speed or handling changes)
+    { id: 'body_classic', type: 'body', name: 'Classic Cruiser', cost: 0, default: true, style: 'classic', color: '#ef476f', threeColor: 0xef476f },
+    { id: 'body_buggy', type: 'body', name: 'Dune Buggy', cost: 350, style: 'buggy', color: '#ffb703', threeColor: 0xffb703 },
+    { id: 'body_wagon', type: 'body', name: 'Surf Wagon', cost: 450, style: 'wagon', color: '#06d6a0', threeColor: 0x06d6a0 },
+    { id: 'body_truck', type: 'body', name: 'Beach Truck', cost: 600, style: 'truck', color: '#8d99ae', threeColor: 0x8d99ae },
+    { id: 'body_racer', type: 'body', name: 'Track Racer', cost: 850, style: 'racer', color: '#e63946', threeColor: 0xe63946 },
+    { id: 'body_van', type: 'body', name: 'Camper Van', cost: 900, style: 'van', color: '#f4a261', threeColor: 0xf4a261 },
+    { id: 'body_roadster', type: 'body', name: 'Open Roadster', cost: 1000, style: 'roadster', color: '#118ab2', threeColor: 0x118ab2 },
+    { id: 'body_muscle', type: 'body', name: 'Muscle Car', cost: 1150, style: 'muscle', color: '#ff6b35', threeColor: 0xff6b35 },
+    { id: 'body_limo', type: 'body', name: 'Stretch Limo', cost: 1300, style: 'limo', color: '#f1faee', threeColor: 0xf1faee },
+    { id: 'body_cyber', type: 'body', name: 'Cyber Wedge', cost: 1500, style: 'cyber', color: '#c0c7d1', threeColor: 0xc0c7d1 },
+    { id: 'body_retro', type: 'body', name: 'Retro Fin', cost: 1650, style: 'retro', color: '#2ec4b6', threeColor: 0x2ec4b6 },
+    { id: 'body_taxi', type: 'body', name: 'Coast Taxi', cost: 1800, style: 'taxi', color: '#ffd166', threeColor: 0xffd166 },
+    { id: 'body_monster', type: 'body', name: 'Monster Truck', cost: 2200, style: 'monster', color: '#9b5de5', threeColor: 0x9b5de5 },
+    { id: 'body_phantom', type: 'body', name: 'Phantom GT', cost: 2800, style: 'phantom', color: '#5a189a', threeColor: 0x5a189a },
+
+    // Engines (visual exhaust and glow only — never changes speed)
+    { id: 'engine_stock', type: 'engine', name: 'Stock Engine', cost: 0, default: true, style: 'stock', color: '#8d99ae', threeColor: 0x8d99ae },
+    { id: 'engine_v8', type: 'engine', name: 'Chrome V8', cost: 500, style: 'v8', color: '#d9e2ec', threeColor: 0xd9e2ec },
+    { id: 'engine_turbo', type: 'engine', name: 'Turbo Spool', cost: 650, style: 'turbo', color: '#4cc9f0', threeColor: 0x4cc9f0 },
+    { id: 'engine_electric', type: 'engine', name: 'Electric Core', cost: 800, style: 'electric', color: '#22e6ff', threeColor: 0x22e6ff },
+    { id: 'engine_diesel', type: 'engine', name: 'Diesel Stack', cost: 900, style: 'diesel', color: '#8b5a2b', threeColor: 0x8b5a2b },
+    { id: 'engine_twin', type: 'engine', name: 'Twin Side Pipes', cost: 1100, style: 'twin', color: '#ffd166', threeColor: 0xffd166 },
+    { id: 'engine_hybrid', type: 'engine', name: 'Hybrid Drive', cost: 1250, style: 'hybrid', color: '#80ed99', threeColor: 0x80ed99 },
+    { id: 'engine_jet', type: 'engine', name: 'Jet Turbine', cost: 1600, style: 'jet', color: '#ff9f1c', threeColor: 0xff9f1c },
+    { id: 'engine_rocket', type: 'engine', name: 'Rocket Pack', cost: 1900, style: 'rocket', color: '#ff4d6d', threeColor: 0xff4d6d },
+    { id: 'engine_quantum', type: 'engine', name: 'Quantum Core', cost: 2400, style: 'quantum', color: '#b14dff', threeColor: 0xb14dff },
+    { id: 'engine_solar', type: 'engine', name: 'Solar Sail', cost: 2700, style: 'solar', color: '#ffd166', threeColor: 0xffd166 },
+    { id: 'engine_nitro', type: 'engine', name: 'Nitro Burner', cost: 3200, style: 'nitro', color: '#39ff14', threeColor: 0x39ff14 },
 
     // Surfboards
     { id: 'board_teal', type: 'board', name: 'Teal Board', cost: 0, default: true, color: '#06d6a0', threeColor: 0x06d6a0 },
@@ -1719,6 +2097,10 @@ const COSMETICS = [
     { id: 'board_pearl', type: 'board', name: 'Pearl Board', cost: 1100, color: '#f8f9fa', threeColor: 0xf8f9fa },
     { id: 'board_galaxy', type: 'board', name: 'Galaxy Board', cost: 1300, color: '#3a0ca3', threeColor: 0x3a0ca3 },
     { id: 'board_lava', type: 'board', name: 'Lava Board', cost: 1400, color: '#d00000', threeColor: 0xd00000 },
+    { id: 'board_candy', type: 'board', name: 'Candy Stripe', cost: 620, color: '#ff70a6', threeColor: 0xff70a6 },
+    { id: 'board_neon', type: 'board', name: 'Neon Fin', cost: 780, color: '#c6ff00', threeColor: 0xc6ff00 },
+    { id: 'board_sakura', type: 'board', name: 'Sakura Board', cost: 880, color: '#ffb3c6', threeColor: 0xffb3c6 },
+    { id: 'board_storm', type: 'board', name: 'Storm Rider', cost: 1250, color: '#495057', threeColor: 0x495057 },
 
     // Underglow
     { id: 'glow_off', type: 'glow', name: 'No Underglow', cost: 0, default: true, none: true, color: '#555a63', threeColor: 0x555a63 },
@@ -1728,6 +2110,10 @@ const COSMETICS = [
     { id: 'glow_purple', type: 'glow', name: 'Violet Glow', cost: 600, color: '#b14dff', threeColor: 0xb14dff },
     { id: 'glow_gold', type: 'glow', name: 'Golden Glow', cost: 900, color: '#ffcf4d', threeColor: 0xffcf4d },
     { id: 'glow_rainbow', type: 'glow', name: 'Rainbow Glow', cost: 1600, rainbow: true, color: '#ff70a6', threeColor: 0xff70a6 },
+    { id: 'glow_red', type: 'glow', name: 'Red Alert', cost: 500, color: '#ff3131', threeColor: 0xff3131 },
+    { id: 'glow_blue', type: 'glow', name: 'Ice Blue', cost: 560, color: '#4dabf7', threeColor: 0x4dabf7 },
+    { id: 'glow_white', type: 'glow', name: 'Pure White', cost: 720, color: '#f8f9fa', threeColor: 0xf8f9fa },
+    { id: 'glow_sunset', type: 'glow', name: 'Sunset Fade', cost: 1050, rainbow: true, color: '#ff9f1c', threeColor: 0xff9f1c },
 
     // Wheels
     { id: 'wheel_stock', type: 'wheel', name: 'Stock Wheels', cost: 0, default: true, none: true, color: '#2b2b2b', threeColor: 0x2b2b2b },
@@ -1737,6 +2123,11 @@ const COSMETICS = [
     { id: 'wheel_red', type: 'wheel', name: 'Red Rims', cost: 600, color: '#ff3b3b', threeColor: 0xff3b3b },
     { id: 'wheel_chrome', type: 'wheel', name: 'Chrome Rims', cost: 700, color: '#d9e2ec', threeColor: 0xd9e2ec },
     { id: 'wheel_violet', type: 'wheel', name: 'Violet Rims', cost: 800, color: '#9b5de5', threeColor: 0x9b5de5 },
+    { id: 'wheel_black', type: 'wheel', name: 'Blackout Rims', cost: 300, color: '#3a3f47', threeColor: 0x3a3f47 },
+    { id: 'wheel_blue', type: 'wheel', name: 'Ocean Rims', cost: 620, color: '#118ab2', threeColor: 0x118ab2 },
+    { id: 'wheel_orange', type: 'wheel', name: 'Sunset Rims', cost: 680, color: '#ff7b00', threeColor: 0xff7b00 },
+    { id: 'wheel_rose', type: 'wheel', name: 'Rose Rims', cost: 760, color: '#ff5d8f', threeColor: 0xff5d8f },
+    { id: 'wheel_hologram', type: 'wheel', name: 'Hologram Rims', cost: 1500, rainbow: true, color: '#70e1f5', threeColor: 0x70e1f5 },
 
     // Exhaust trails
     { id: 'trail_none', type: 'trail', name: 'No Trail', cost: 0, default: true, none: true, color: '#555a63', threeColor: 0x555a63 },
@@ -1746,6 +2137,11 @@ const COSMETICS = [
     { id: 'trail_royal', type: 'trail', name: 'Royal Trail', cost: 750, color: '#9b5de5', threeColor: 0x9b5de5 },
     { id: 'trail_gold', type: 'trail', name: 'Gold Trail', cost: 1000, color: '#ffd166', threeColor: 0xffd166 },
     { id: 'trail_rainbow', type: 'trail', name: 'Rainbow Trail', cost: 1400, rainbow: true, color: '#ff70a6', threeColor: 0xff70a6 },
+    { id: 'trail_cyan', type: 'trail', name: 'Cyan Streak', cost: 520, color: '#22e6ff', threeColor: 0x22e6ff },
+    { id: 'trail_pink', type: 'trail', name: 'Pink Streak', cost: 620, color: '#ff4d9d', threeColor: 0xff4d9d },
+    { id: 'trail_violet', type: 'trail', name: 'Violet Streak', cost: 820, color: '#b14dff', threeColor: 0xb14dff },
+    { id: 'trail_ember', type: 'trail', name: 'Ember Streak', cost: 980, color: '#ff6b35', threeColor: 0xff6b35 },
+    { id: 'trail_starlight', type: 'trail', name: 'Starlight Trail', cost: 1700, rainbow: true, color: '#e0fbfc', threeColor: 0xe0fbfc },
 
     // Beach umbrellas
     { id: 'umbrella_classic', type: 'umbrella', name: 'Classic Mix', cost: 0, default: true, none: true, color: '#ef476f', threeColor: 0xef476f },
@@ -1753,11 +2149,17 @@ const COSMETICS = [
     { id: 'umbrella_yellow', type: 'umbrella', name: 'Sunny Beach', cost: 300, color: '#ffd166', threeColor: 0xffd166 },
     { id: 'umbrella_mint', type: 'umbrella', name: 'Mint Beach', cost: 350, color: '#06d6a0', threeColor: 0x06d6a0 },
     { id: 'umbrella_ocean', type: 'umbrella', name: 'Ocean Beach', cost: 400, color: '#118ab2', threeColor: 0x118ab2 },
-    { id: 'umbrella_rainbow', type: 'umbrella', name: 'Rainbow Beach', cost: 900, color: '#ff70a6', threeColor: 0xff70a6 }
+    { id: 'umbrella_rainbow', type: 'umbrella', name: 'Rainbow Beach', cost: 900, color: '#ff70a6', threeColor: 0xff70a6 },
+    { id: 'umbrella_pink', type: 'umbrella', name: 'Pink Sands', cost: 340, color: '#ff8fab', threeColor: 0xff8fab },
+    { id: 'umbrella_lime', type: 'umbrella', name: 'Lime Shore', cost: 420, color: '#a3e635', threeColor: 0xa3e635 },
+    { id: 'umbrella_purple', type: 'umbrella', name: 'Purple Tide', cost: 470, color: '#9d4edd', threeColor: 0x9d4edd },
+    { id: 'umbrella_sunset', type: 'umbrella', name: 'Sunset Stripes', cost: 720, color: '#ff7b00', threeColor: 0xff7b00 }
 ];
 
 const COSMETIC_CATEGORIES = [
     { type: 'paint', label: 'Car Paints', blurb: 'Body colours for your beach buggy.' },
+    { type: 'body', label: 'Car Bodies', blurb: 'Change the whole silhouette. Cosmetic only — never speed or handling.' },
+    { type: 'engine', label: 'Engines', blurb: 'Exhaust, turbines, and glow. Visual upgrades only.' },
     { type: 'board', label: 'Surfboards', blurb: 'Roof boards that ride along with you.' },
     { type: 'glow', label: 'Underglow', blurb: 'Neon light pools under the car.' },
     { type: 'wheel', label: 'Wheels', blurb: 'Rims that pop against the sand.' },
@@ -1939,6 +2341,8 @@ function getEquippedCosmetics() {
         return COSMETICS.find(function (c) { return c.id === equipped[type]; }) || null;
     }
     var paint = chosen('paint');
+    var body = chosen('body');
+    var engine = chosen('engine');
     var board = chosen('board');
     var glow = chosen('glow');
     var wheel = chosen('wheel');
@@ -1946,10 +2350,15 @@ function getEquippedCosmetics() {
     var umbrella = chosen('umbrella');
     return {
         paint: paint ? paint.threeColor : 0xef476f,
+        body: body ? body.style : 'classic',
+        bodyColor: body ? body.threeColor : null,
+        engine: engine ? engine.style : 'stock',
+        engineColor: engine ? engine.threeColor : null,
         board: board ? board.threeColor : 0x06d6a0,
         glow: glow && !glow.none ? glow.threeColor : null,
         glowRainbow: !!(glow && glow.rainbow),
         wheel: wheel && !wheel.none ? wheel.threeColor : null,
+        wheelRainbow: !!(wheel && wheel.rainbow),
         trail: trail && !trail.none ? trail.threeColor : null,
         trailRainbow: !!(trail && trail.rainbow),
         umbrella: umbrella && !umbrella.none ? umbrella.threeColor : null
@@ -1960,7 +2369,13 @@ let storeFilter = 'all';
 let storeSearch = '';
 
 function cosmeticPreview(item) {
-    var cls = 'cosmetic-' + item.type;
+    if (item.type === 'body') {
+        return '<div class="cosmetic-body cosmetic-body-' + item.style + '" style="--swatch:' + item.color + '"><span class="cosmetic-body-cabin"></span><span class="cosmetic-body-wheel"></span></div>';
+    }
+    if (item.type === 'engine') {
+        return '<div class="cosmetic-engine cosmetic-engine-' + item.style + '" style="--swatch:' + item.color + '"><span class="cosmetic-engine-core"></span><span class="cosmetic-engine-pipe"></span><span class="cosmetic-engine-pipe is-second"></span></div>';
+    }
+    var cls = item.type === 'paint' ? 'cosmetic-car' : 'cosmetic-' + item.type;
     if (item.rainbow) cls += ' is-rainbow';
     if (item.none) cls += ' is-none';
     return '<div class="' + cls + '" style="--swatch:' + item.color + '"></div>';
@@ -2201,47 +2616,7 @@ function stripPinMarker(content) {
     if (!isPinnedByContent(content)) return content;
     return content.slice(PIN_MARKER.length).replace(/^\s+/, '');
 }
-async function createPost(){ 
-    if(!currentUser || currentUser.type === 'guest' || !currentUser.persistScores){ 
-        alert('Please sign in to post'); 
-        openAuthModal(); 
-        return; 
-    } 
-    const content=document.getElementById('postContent').value.trim(); 
-    if(!content)return; 
-    if(supabaseClient){ 
-        try {
-            const {error}=await supabaseClient.from('posts').insert({username:currentUser.username, content:content}); 
-            if(error){alert(error.message);return;} 
-            document.getElementById('postContent').value=''; 
-            renderCommunity(); 
-            return; 
-        } catch(e) {
-            alert(e.message || 'Error');
-            return;
-        }
-    } else {
-        alert('Error');
-    }
-}
-async function deletePost(id){ 
-    if(!currentUser || currentUser.type === 'guest' || !currentUser.persistScores) {
-        alert('Account required to delete posts');
-        return;
-    }
-    if(supabaseClient){ 
-        try {
-            if(currentUser.username!=='TotallyMason'){ 
-                // Only allow deleting own posts
-            } 
-            await supabaseClient.from('posts').delete().eq('id',id); 
-            renderCommunity(); 
-            return; 
-        } catch(e) {
-            return;
-        }
-    } 
-}
+
 function getPinnedIds() {
     try {
         const raw = localStorage.getItem('lessfun_pinned_posts');
@@ -2257,7 +2632,7 @@ function savePinnedIds(ids) {
 }
 
 async function togglePin(id, pinned) {
-    if (!currentUser || currentUser.username !== 'TotallyMason' || currentUser.type === 'guest' || !currentUser.persistScores) {
+    if (!isOwner()) {
         alert('Only TotallyMason can pin posts');
         return;
     }
@@ -2288,7 +2663,6 @@ async function togglePin(id, pinned) {
             }
         } catch (e) {}
     }
-    // Local fallback if the post could not be updated (e.g. RLS blocks it).
     const ids = getPinnedIds();
     const sid = String(id);
     const idx = ids.indexOf(sid);
@@ -2297,51 +2671,512 @@ async function togglePin(id, pinned) {
     savePinnedIds(ids);
     renderCommunity();
 }
+const REACTION_EMOJIS = ['❤️', '🔥', '😂', '👍', '🌊', '🎉'];
+let pendingPostMedia = null;
+
+function communityUsername() {
+    return friendUsername();
+}
+
+function communityPostsOpen() {
+    return !!siteSettings.community_open || isOwner();
+}
+
+function communityCanModerate(username) {
+    const me = communityUsername();
+    return !!me && (me === 'TotallyMason' || me === username);
+}
+
+function jsArg(value) {
+    return escapeAttr(String(value == null ? '' : value)
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/\r?\n/g, ' '));
+}
+
+function formatBytes(value) {
+    const n = Math.max(0, Number(value) || 0);
+    if (n < 1024) return n + ' B';
+    if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
+    return (n / 1048576).toFixed(1) + ' MB';
+}
+
+function safeDataUrl(url) {
+    return (typeof url === 'string' && url.indexOf('data:') === 0) ? url : '';
+}
+
+function communityMediaHtml(row) {
+    const url = safeDataUrl(row.media_url);
+    if (!url) return '';
+    const name = row.media_name || 'attachment';
+    const isImage = String(row.media_type || '').indexOf('image/') === 0;
+    if (isImage) {
+        return '<div class="post-media-wrap">' +
+            '<a class="post-media is-image" href="' + escapeAttr(url) + '" target="_blank" rel="noopener">' +
+                '<img src="' + escapeAttr(url) + '" alt="' + escapeAttr(name) + '" loading="lazy">' +
+            '</a>' +
+            '<span class="post-media-caption">' + escapeHtml(name) + ' · ' + escapeHtml(formatBytes(row.media_size)) + '</span>' +
+        '</div>';
+    }
+    return '<a class="post-media is-file" href="' + escapeAttr(url) + '" download="' + escapeAttr(name) + '">' +
+        '<span class="post-file-icon">📎</span>' +
+        '<span class="post-file-info"><strong>' + escapeHtml(name) + '</strong><small>' + escapeHtml(formatBytes(row.media_size)) + ' · download</small></span>' +
+        '<span class="post-file-dl">Save</span>' +
+    '</a>';
+}
+
+function communityReactionBar(kind, id, rows) {
+    if (!siteSettings.allow_reactions) return '';
+    const me = communityUsername();
+    const counts = {};
+    const mine = {};
+    (rows || []).forEach(function (row) {
+        counts[row.reaction] = (counts[row.reaction] || 0) + 1;
+        if (me && String(row.username).toLowerCase() === me.toLowerCase()) mine[row.reaction] = true;
+    });
+    return '<div class="post-reactions" role="group" aria-label="Reactions">' +
+        REACTION_EMOJIS.map(function (emoji) {
+            const count = counts[emoji] || 0;
+            return '<button type="button" class="reaction-btn' + (mine[emoji] ? ' is-active' : '') + '"' +
+                ' title="React with ' + emoji + '" onclick="toggleCommunityReaction(\'' + kind + '\',' + id + ',\'' + emoji + '\')">' +
+                '<span class="reaction-emoji">' + emoji + '</span>' +
+                (count ? '<span class="reaction-count">' + count + '</span>' : '') +
+            '</button>';
+        }).join('') +
+    '</div>';
+}
+
+function communityReplyHtml(reply, rows) {
+    const canDelete = communityCanModerate(reply.username);
+    return '<div class="community-reply" id="reply-' + reply.id + '">' +
+        '<div class="reply-head">' +
+            '<button type="button" class="reply-user" onclick="openProfile(\'' + jsArg(reply.username) + '\')">' + escapeHtml(reply.username) + '</button>' +
+            (reply.username === 'TotallyMason' ? '<span class="reply-owner-tag">OWNER</span>' : '') +
+            '<span class="reply-time">' + new Date(reply.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + '</span>' +
+        '</div>' +
+        '<div class="reply-content">' + escapeHtml(reply.content) + '</div>' +
+        communityReactionBar('reply', reply.id, rows) +
+        (canDelete ? '<div class="reply-actions"><button type="button" class="reply-delete" onclick="deleteReply(' + reply.id + ')">Delete</button></div>' : '') +
+    '</div>';
+}
+
+async function createPost() {
+    if (!communityUsername()) {
+        alert('Please sign in to post');
+        openAuthModal();
+        return;
+    }
+    if (!communityPostsOpen()) {
+        alert('The community is temporarily closed.');
+        return;
+    }
+    const input = document.getElementById('postContent');
+    const content = input ? input.value.trim() : '';
+    if (!content && !pendingPostMedia) return;
+    if (!supabaseClient) {
+        alert('Community posting needs a connection to Supabase.');
+        return;
+    }
+
+    const payload = { username: communityUsername(), content: content };
+    if (pendingPostMedia) {
+        if (!siteSettings.allow_uploads) {
+            alert('Uploads are currently disabled.');
+            return;
+        }
+        payload.media_url = pendingPostMedia.url;
+        payload.media_name = pendingPostMedia.name;
+        payload.media_type = pendingPostMedia.type;
+        payload.media_size = pendingPostMedia.size;
+    }
+
+    try {
+        const { error } = await supabaseClient.from('posts').insert(payload);
+        if (error) {
+            if (pendingPostMedia) {
+                alert('Could not attach that file. Make sure the community migration (supabase/community.sql) has been run.\n\n' + error.message);
+            } else {
+                alert(error.message);
+            }
+            return;
+        }
+        if (input) input.value = '';
+        pendingPostMedia = null;
+        renderPostMediaPreview();
+        renderCommunity();
+    } catch (e) {
+        alert(e.message || 'Error');
+    }
+}
+
+async function deletePost(id) {
+    const me = communityUsername();
+    if (!me) {
+        alert('Account required to delete posts');
+        return;
+    }
+    if (!supabaseClient) return;
+    const row = await socialQuery(supabaseClient.from('posts').select('username').eq('id', id).maybeSingle());
+    if (row.error) {
+        alert('Could not check that post: ' + (row.error.message || 'Unknown error'));
+        return;
+    }
+    if (row.data && !communityCanModerate(row.data.username)) {
+        alert('You can only delete your own posts.');
+        return;
+    }
+    if (!window.confirm('Delete this post? Its replies and reactions will also be removed.')) return;
+    const res = await socialQuery(supabaseClient.from('posts').delete().eq('id', id));
+    if (res.error) {
+        alert('Could not delete post: ' + (res.error.message || 'Unknown error'));
+        return;
+    }
+    const pins = getPinnedIds().filter(function (pid) { return String(pid) !== String(id); });
+    savePinnedIds(pins);
+    renderCommunity();
+}
+
+async function createReply(postId) {
+    const me = communityUsername();
+    if (!me) {
+        alert('Please sign in to reply');
+        openAuthModal();
+        return;
+    }
+    if (!communityPostsOpen()) {
+        alert('The community is temporarily closed.');
+        return;
+    }
+    if (!siteSettings.allow_replies) {
+        alert('Replies are currently disabled.');
+        return;
+    }
+    const input = document.getElementById('replyInput-' + postId);
+    const content = input ? input.value.trim() : '';
+    if (!content) return;
+    if (content.length > 500) {
+        alert('Replies are limited to 500 characters.');
+        return;
+    }
+    if (!supabaseClient) return;
+    const res = await socialQuery(supabaseClient.from('post_replies').insert({
+        post_id: postId,
+        username: me,
+        content: content
+    }));
+    if (res.error) {
+        alert('Could not reply. Make sure supabase/community.sql has been run.\n\n' + (res.error.message || 'Unknown error'));
+        return;
+    }
+    if (input) input.value = '';
+    await renderCommunity();
+    const again = document.getElementById('replyInput-' + postId);
+    if (again) again.focus();
+}
+
+async function deleteReply(id) {
+    const me = communityUsername();
+    if (!me) {
+        alert('Account required to delete replies');
+        return;
+    }
+    if (!supabaseClient) return;
+    const row = await socialQuery(supabaseClient.from('post_replies').select('username').eq('id', id).maybeSingle());
+    if (row.error) {
+        alert('Could not check that reply: ' + (row.error.message || 'Unknown error'));
+        return;
+    }
+    if (row.data && !communityCanModerate(row.data.username)) {
+        alert('You can only delete your own replies.');
+        return;
+    }
+    if (!window.confirm('Delete this reply?')) return;
+    const res = await socialQuery(supabaseClient.from('post_replies').delete().eq('id', id));
+    if (res.error) {
+        alert('Could not delete reply: ' + (res.error.message || 'Unknown error'));
+        return;
+    }
+    renderCommunity();
+}
+
+async function toggleCommunityReaction(kind, id, emoji) {
+    const me = communityUsername();
+    if (!me) {
+        alert('Please sign in to react');
+        openAuthModal();
+        return;
+    }
+    if (!siteSettings.allow_reactions) {
+        alert('Reactions are currently disabled.');
+        return;
+    }
+    if (!supabaseClient) return;
+    const isReply = kind === 'reply';
+    const table = isReply ? 'reply_reactions' : 'post_reactions';
+    const column = isReply ? 'reply_id' : 'post_id';
+
+    const existing = await socialQuery(supabaseClient.from(table)
+        .select('id')
+        .eq(column, id)
+        .eq('username', me)
+        .eq('reaction', emoji)
+        .maybeSingle());
+    if (existing.error) {
+        alert('Reactions need the community migration (supabase/community.sql).\n\n' + (existing.error.message || 'Unknown error'));
+        return;
+    }
+
+    let res;
+    if (existing.data) {
+        res = await socialQuery(supabaseClient.from(table).delete().eq('id', existing.data.id));
+    } else {
+        const row = { username: me, reaction: emoji };
+        row[column] = id;
+        res = await socialQuery(supabaseClient.from(table).insert(row));
+    }
+    if (res.error) {
+        alert('Could not update reaction: ' + (res.error.message || 'Unknown error'));
+        return;
+    }
+    renderCommunity();
+}
+
+function readFileDataUrl(file) {
+    return new Promise(function (resolve, reject) {
+        const reader = new FileReader();
+        reader.onload = function () { resolve(String(reader.result || '')); };
+        reader.onerror = function () { reject(reader.error || new Error('Could not read file')); };
+        reader.readAsDataURL(file);
+    });
+}
+
+function compressCommunityImage(file, limit) {
+    return readFileDataUrl(file).then(function (data) {
+        return new Promise(function (resolve) {
+            const img = new Image();
+            img.onload = function () {
+                try {
+                    const maxDim = 1400;
+                    let width = img.width || 1;
+                    let height = img.height || 1;
+                    const scale = Math.min(1, maxDim / Math.max(width, height));
+                    width = Math.max(1, Math.round(width * scale));
+                    height = Math.max(1, Math.round(height * scale));
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#0b1220';
+                    ctx.fillRect(0, 0, width, height);
+                    ctx.drawImage(img, 0, 0, width, height);
+                    let quality = file.size > limit * 0.6 ? 0.72 : 0.86;
+                    let out = canvas.toDataURL('image/jpeg', quality);
+                    while (out.length > limit * 1.4 && quality > 0.4) {
+                        quality -= 0.1;
+                        out = canvas.toDataURL('image/jpeg', quality);
+                    }
+                    resolve({
+                        url: out,
+                        type: 'image/jpeg',
+                        size: Math.round(out.length * 0.75)
+                    });
+                } catch (e) {
+                    resolve(null);
+                }
+            };
+            img.onerror = function () { resolve(null); };
+            img.src = data;
+        });
+    }).catch(function () { return null; });
+}
+
+async function handlePostMedia(input) {
+    const file = input && input.files && input.files[0];
+    if (!file) return;
+    if (!siteSettings.allow_uploads) {
+        alert('Uploads are currently disabled.');
+        input.value = '';
+        return;
+    }
+    const limitMb = Number(siteSettings.max_upload_mb);
+    const limit = Math.max(0, isFinite(limitMb) ? limitMb : 2) * 1024 * 1024;
+    if (limit <= 0) {
+        alert('Uploads are currently disabled.');
+        input.value = '';
+        return;
+    }
+    if (file.size > limit) {
+        alert('That file is ' + formatBytes(file.size) + '. The limit is ' + formatBytes(limit) + '.');
+        input.value = '';
+        return;
+    }
+
+    try {
+        let media = null;
+        if (String(file.type || '').indexOf('image/') === 0) {
+            media = await compressCommunityImage(file, limit);
+        }
+        if (!media) {
+            const url = await readFileDataUrl(file);
+            media = { url: url, type: file.type || 'application/octet-stream', size: file.size };
+        }
+        pendingPostMedia = {
+            url: media.url,
+            name: String(file.name || 'attachment').slice(0, 120),
+            type: media.type,
+            size: media.size
+        };
+        renderPostMediaPreview();
+    } catch (e) {
+        alert('Could not read that file.');
+    } finally {
+        input.value = '';
+    }
+}
+
+function clearPostMedia() {
+    pendingPostMedia = null;
+    renderPostMediaPreview();
+}
+
+function renderPostMediaPreview() {
+    const wrap = document.getElementById('postMediaPreview');
+    if (!wrap) return;
+    if (!pendingPostMedia) {
+        wrap.style.display = 'none';
+        wrap.innerHTML = '';
+        return;
+    }
+    const isImage = String(pendingPostMedia.type || '').indexOf('image/') === 0;
+    wrap.style.display = 'flex';
+    wrap.innerHTML =
+        (isImage
+            ? '<img class="post-media-thumb" src="' + escapeAttr(pendingPostMedia.url) + '" alt="Attachment preview">'
+            : '<span class="post-media-file-icon">📎</span>') +
+        '<span class="post-media-meta"><strong>' + escapeHtml(pendingPostMedia.name) + '</strong><small>' + escapeHtml(formatBytes(pendingPostMedia.size)) + '</small></span>' +
+        '<button type="button" class="post-media-remove" onclick="clearPostMedia()">Remove</button>';
+}
+
 async function renderCommunity() {
     const container = document.getElementById('communityPosts');
     if (!container) return;
     if (!supabaseClient) return;
-    const { data: posts } = await supabaseClient.from('posts').select('*').order('created_at', { ascending: false });
-    if (!posts || posts.length === 0) {
-        container.innerHTML = '<p style="text-align:center;color:rgba(255,255,255,0.5);padding:40px;">No posts yet</p>';
+
+    if (!communityPostsOpen()) {
+        container.innerHTML = '<div class="community-closed-card"><strong>Community is taking a break.</strong><p>An owner has temporarily closed posts, replies, and reactions. Check back soon.</p></div>';
         return;
     }
 
+    const results = await Promise.all([
+        socialQuery(supabaseClient.from('posts').select('*').order('created_at', { ascending: false })),
+        socialQuery(supabaseClient.from('post_replies').select('*').order('created_at', { ascending: true })),
+        socialQuery(supabaseClient.from('post_reactions').select('*').order('created_at', { ascending: false })),
+        socialQuery(supabaseClient.from('reply_reactions').select('*').order('created_at', { ascending: false }))
+    ]);
+
+    if (results[0].error) {
+        container.innerHTML = '<div class="community-closed-card"><strong>Could not load posts.</strong><p>' + escapeHtml(results[0].error.message || 'Unknown error') + '</p></div>';
+        return;
+    }
+
+    const posts = results[0].data || [];
+    const replies = results[1].data || [];
+    const postReactions = results[2].data || [];
+    const replyReactions = results[3].data || [];
+    const migrationMissing = !!(results[1].error || results[2].error || results[3].error);
+
+    if (!posts.length) {
+        container.innerHTML = '<p class="community-empty">No posts yet. Start the conversation.</p>';
+        return;
+    }
+
+    const repliesByPost = {};
+    const postReactionsByPost = {};
+    const replyReactionsByReply = {};
+    replies.forEach(function (reply) {
+        const key = String(reply.post_id);
+        if (!repliesByPost[key]) repliesByPost[key] = [];
+        repliesByPost[key].push(reply);
+    });
+    postReactions.forEach(function (row) {
+        const key = String(row.post_id);
+        if (!postReactionsByPost[key]) postReactionsByPost[key] = [];
+        postReactionsByPost[key].push(row);
+    });
+    replyReactions.forEach(function (row) {
+        const key = String(row.reply_id);
+        if (!replyReactionsByReply[key]) replyReactionsByReply[key] = [];
+        replyReactionsByReply[key].push(row);
+    });
+
     const localPins = getPinnedIds();
-    const isOwner = currentUser && currentUser.username === 'TotallyMason' && currentUser.type !== 'guest' && currentUser.persistScores;
-    const entries = posts.map(post => ({
-        post,
-        pinned: post.pinned === true || isPinnedByContent(post.content) || localPins.indexOf(String(post.id)) >= 0
-    }));
-    entries.sort((a, b) => {
+    const entries = posts.map(function (post) {
+        return {
+            post: post,
+            pinned: post.pinned === true || isPinnedByContent(post.content) || localPins.indexOf(String(post.id)) >= 0
+        };
+    });
+    entries.sort(function (a, b) {
         if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
         return new Date(b.post.created_at) - new Date(a.post.created_at);
     });
 
-    container.innerHTML = entries.map(({ post, pinned }) => {
-        const date = new Date(post.created_at);
-        const postIsOwner = post.username === 'TotallyMason';
-        const canDelete = currentUser && (currentUser.username === 'TotallyMason' || currentUser.username === post.username);
-        const safeUser = escapeHtml(post.username).replace(/'/g, "\\'");
-        const pinButton = isOwner
-            ? `<button class="post-pin${pinned ? ' is-pinned' : ''}" onclick="togglePin(${post.id}, ${pinned})">${pinned ? '📌 Unpin' : '📌 Pin'}</button>`
-            : '';
-        return `<div class="community-post${pinned ? ' pinned' : ''}">
-            <div class="post-header">
-                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                    <span class="post-user" style="cursor:pointer;" onclick="openProfile('${safeUser}')">${escapeHtml(post.username)}</span>
-                    ${postIsOwner ? '<span style="font-size:9px;padding:2px 5px;background:linear-gradient(90deg,#a855f7,#ec4899);border-radius:4px;font-weight:600;">OWNER</span>' : ''}
-                    ${pinned ? '<span class="post-pin-badge">📌 PINNED</span>' : ''}
-                </div>
-                <span class="post-time">${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</span>
-            </div>
-            <div class="post-content">${escapeHtml(stripPinMarker(post.content))}</div>
-            <div class="post-actions">
-                ${canDelete ? `<button class="post-delete" onclick="deletePost(${post.id})">Delete</button>` : ''}
-                ${pinButton}
-            </div>
-        </div>`;
-    }).join('');
+    const signedIn = !!communityUsername();
+    const owner = isOwner();
+
+    container.innerHTML = (migrationMissing
+        ? '<div class="community-migration-note">Replies and reactions are waiting on the database migration. Run <code>supabase/community.sql</code> to enable them.</div>'
+        : '') +
+        entries.map(function (entry) {
+            const post = entry.post;
+            const pinned = entry.pinned;
+            const date = new Date(post.created_at);
+            const postIsOwner = post.username === 'TotallyMason';
+            const canDelete = communityCanModerate(post.username);
+            const postReplies = repliesByPost[String(post.id)] || [];
+            const pinButton = owner
+                ? '<button type="button" class="post-pin' + (pinned ? ' is-pinned' : '') + '" onclick="togglePin(' + post.id + ', ' + pinned + ')">' + (pinned ? '📌 Unpin' : '📌 Pin') + '</button>'
+                : '';
+
+            let repliesHtml = '';
+            if (siteSettings.allow_replies) {
+                repliesHtml = '<div class="post-replies">' +
+                    '<div class="post-replies-head"><span>Replies</span><small>' + postReplies.length + '</small></div>' +
+                    (postReplies.length
+                        ? postReplies.map(function (reply) {
+                            return communityReplyHtml(reply, replyReactionsByReply[String(reply.id)] || []);
+                        }).join('')
+                        : '<p class="reply-empty">No replies yet.</p>') +
+                    (signedIn && communityPostsOpen()
+                        ? '<div class="reply-composer">' +
+                            '<input type="text" class="reply-input" id="replyInput-' + post.id + '" maxlength="500" placeholder="Reply to ' + escapeAttr(post.username) + '…" onkeydown="if(event.key===\'Enter\'){event.preventDefault();createReply(' + post.id + ');}">' +
+                            '<button type="button" class="reply-send" onclick="createReply(' + post.id + ')">Reply</button>' +
+                        '</div>'
+                        : '<p class="reply-signin">Sign in to reply.</p>') +
+                '</div>';
+            } else {
+                repliesHtml = '<div class="post-replies is-disabled"><p class="reply-empty">Replies are disabled by the owner.</p></div>';
+            }
+
+            return '<div class="community-post' + (pinned ? ' pinned' : '') + '">' +
+                '<div class="post-header">' +
+                    '<div class="post-head-left">' +
+                        '<button type="button" class="post-user" onclick="openProfile(\'' + jsArg(post.username) + '\')">' + escapeHtml(post.username) + '</button>' +
+                        (postIsOwner ? '<span class="post-owner-tag">OWNER</span>' : '') +
+                        (pinned ? '<span class="post-pin-badge">📌 PINNED</span>' : '') +
+                    '</div>' +
+                    '<span class="post-time">' + date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + '</span>' +
+                '</div>' +
+                '<div class="post-content">' + escapeHtml(stripPinMarker(post.content)) + '</div>' +
+                communityMediaHtml(post) +
+                communityReactionBar('post', post.id, postReactionsByPost[String(post.id)] || []) +
+                '<div class="post-actions">' +
+                    (canDelete ? '<button type="button" class="post-delete" onclick="deletePost(' + post.id + ')">Delete</button>' : '') +
+                    pinButton +
+                '</div>' +
+                repliesHtml +
+            '</div>';
+        }).join('');
 }
 
 function loadUser(){ 
@@ -2391,8 +3226,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.20.1";
-const UPDATE_NOTES = "Guest and Account modes added";
+const APP_VERSION = "LessFun Developer Beta 1.20.3";
+const UPDATE_NOTES = "Community replies, reactions, photo posts, new car bodies and engines, and a rebuilt 3D beach";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
