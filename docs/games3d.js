@@ -766,7 +766,11 @@
             monster: { len: 3.45, width: 2.06, ride: 0.62, hood: 0.56, deck: 0.5, cabinZ: -0.05, cabinLen: 1.25, cabinH: 0.5, cabinW: 1.5, roof: true, fenders: true, bigWheels: true, spoiler: false },
             phantom: { len: 3.8, width: 1.96, ride: 0.07, hood: 0.4, deck: 0.38, cabinZ: 0.16, cabinLen: 1.5, cabinH: 0.38, cabinW: 1.24, roof: true, wedge: true, spoiler: true, stripe: true },
             f1: { len: 4.7, width: 1.55, ride: 0.05, hood: 0.22, deck: 0.24, cabinZ: 0.05, cabinLen: 0.95, cabinH: 0.26, cabinW: 0.72, roof: false, windshield: true, spoiler: true, f1: true },
-            bus: { len: 6.6, width: 2.3, ride: 0.28, hood: 0.8, deck: 0.72, cabinZ: 0.45, cabinLen: 4.6, cabinH: 1.5, cabinW: 2.08, roof: true, bus: true }
+            bus: { len: 6.6, width: 2.3, ride: 0.28, hood: 0.8, deck: 0.72, cabinZ: 0.45, cabinLen: 4.6, cabinH: 1.5, cabinW: 2.08, roof: true, bus: true },
+            gt: { len: 4.15, width: 1.98, ride: 0.06, hood: 0.34, deck: 0.35, cabinZ: 0.15, cabinLen: 1.65, cabinH: 0.4, cabinW: 1.3, roof: true, wedge: true, spoiler: true, stripe: true, lightBar: true },
+            super: { len: 4.3, width: 2.06, ride: 0.045, hood: 0.3, deck: 0.3, cabinZ: 0.08, cabinLen: 1.8, cabinH: 0.36, cabinW: 1.34, roof: true, wedge: true, spoiler: true, fenders: true, lightBar: true },
+            offroad: { len: 4.0, width: 2.08, ride: 0.4, hood: 0.6, deck: 0.52, cabinZ: -0.05, cabinLen: 1.8, cabinH: 0.68, cabinW: 1.58, roof: true, cage: true, fenders: true, bigWheels: true, rack: true, lightBar: true, spoiler: false },
+            beater: { len: 3.4, width: 1.8, ride: 0.2, hood: 0.46, deck: 0.48, cabinZ: 0.08, cabinLen: 1.8, cabinH: 0.5, cabinW: 1.3, roof: true, spoiler: false }
         };
 
         function makeBodyMesh(spec, material) {
@@ -1361,11 +1365,11 @@
         // multipliers are supplied by the store).
         var carbonMat = standard(0x14181d, { metalness: 0.7, roughness: 0.28 });
         var carSpec = player.userData.spec;
-        if (kitStyle === 'widebody' || kitStyle === 'track' || kitStyle === 'rally' || kitStyle === 'hyper') {
+        if (kitStyle === 'widebody' || kitStyle === 'track' || kitStyle === 'rally' || kitStyle === 'hyper' || kitStyle === 'gt3' || kitStyle === 'offroad') {
             var skirt = boxMesh(carSpec.width + 0.16, 0.13, carSpec.len * 0.68, carbonMat);
             skirt.position.set(0, carSpec.ride + 0.2, 0);
             bodyAttach.add(skirt);
-            if (kitStyle === 'widebody' || kitStyle === 'hyper') {
+            if (kitStyle === 'widebody' || kitStyle === 'hyper' || kitStyle === 'gt3' || kitStyle === 'offroad') {
                 [-1, 1].forEach(function (side) {
                     [-1, 1].forEach(function (end) {
                         var flare = boxMesh(0.16, 0.2, 0.72, carbonMat);
@@ -1375,12 +1379,12 @@
                 });
             }
         }
-        if (aeroStyle === 'splitter' || aeroStyle === 'active') {
+        if (aeroStyle === 'splitter' || aeroStyle === 'active' || aeroStyle === 'gt3' || aeroStyle === 'ground' || aeroStyle === 'broken') {
             var splitter = boxMesh(carSpec.width + 0.52, 0.055, 0.5, carbonMat);
             splitter.position.set(0, 0.2, -carSpec.len / 2 - 0.08);
             bodyAttach.add(splitter);
         }
-        if (aeroStyle === 'wing' || aeroStyle === 'active') {
+        if (aeroStyle === 'wing' || aeroStyle === 'active' || aeroStyle === 'gt3' || aeroStyle === 'ground') {
             var wing = boxMesh(carSpec.width * 0.94, 0.065, 0.44, carbonMat);
             wing.position.set(0, player.userData.roofY + 0.34, carSpec.len / 2 - 0.12);
             bodyAttach.add(wing);
@@ -1390,7 +1394,14 @@
                 bodyAttach.add(support);
             });
         }
-        if (aeroStyle === 'diffuser' || aeroStyle === 'active') {
+        if (aeroStyle === 'broken') {
+            var brokenWing = boxMesh(carSpec.width * 0.6, 0.05, 0.3, carbonMat);
+            brokenWing.position.set(carSpec.width * 0.16, player.userData.roofY + 0.2, carSpec.len / 2 - 0.12);
+            brokenWing.rotation.z = -0.28;
+            brokenWing.rotation.x = 0.12;
+            bodyAttach.add(brokenWing);
+        }
+        if (aeroStyle === 'diffuser' || aeroStyle === 'active' || aeroStyle === 'ground') {
             [-0.7, -0.25, 0.25, 0.7].forEach(function (fx) {
                 var fin = boxMesh(0.05, 0.2, 0.42, carbonMat);
                 fin.position.set(fx * carSpec.width * 0.4, 0.26, carSpec.len / 2 - 0.02);

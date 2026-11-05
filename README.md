@@ -50,17 +50,17 @@ speed, acceleration, and grip; the other categories are visual.
 
 New players start with **100 Coins**. Purchases are equipped immediately, and
 any owned cosmetic can be re-equipped for free. The Store has **13 global items**
-and the Garage has **120 Beach Racer items**:
+and the Garage has **132 Beach Racer items**:
 
 | Category | Items | What it does |
 | --- | --- | --- |
 | Global themes | 7 | Recolour the interface, HUD, and buttons across every game |
 | Avatar frames | 6 | Ring colours around avatars everywhere in the app |
 | Car paints | 20 | Body colour of the Beach Racer car |
-| Car bodies | 16 | Real performance: top speed, acceleration, and grip (includes an F1 car and a city bus) |
-| Engines | 14 | Real power: top speed and acceleration |
-| Aero parts | 5 | Real grip and top speed: splitters, wings, diffusers |
-| Body kits | 5 | Real acceleration and grip: widebody, track, rally, hyper |
+| Car bodies | 20 | Real performance: top speed, acceleration, and grip (includes F1, bus, GT3, supercar, off-road, and a free beater) |
+| Engines | 17 | Real power: top speed and acceleration (includes free lawnmower and V16/plasma tiers) |
+| Aero parts | 8 | Real grip and top speed: splitters, wings, diffusers, GT3, ground effect, free broken wing |
+| Body kits | 8 | Real acceleration and grip: widebody, track, rally, hyper, GT3, off-road, free rust kit |
 | Surfboards | 15 | Roof board colour and shape detailing |
 | Underglow | 11 | Neon light pool and point light under the car |
 | Wheels | 12 | Rim colour, spokes, and emissive shine |
@@ -170,7 +170,8 @@ handling real user data or payments.
 - Expanded friend/profile stats: joined date, last seen, Coins, lifetime earnings, streak, posts, replies, friends, best runs, and admin status
 - Touch controls for NOS, drift, and gear shifts on phones and narrow screens
 - Beach Racer opens in a 3D garage orbit view with Play and Garage actions
-- Dedicated Garage shop for car parts, opened from the Beach Racer garage screen (no separate top-bar tab)
+- In-game Garage shop for car parts, opened from the Beach Racer garage screen without leaving the game
+- Free downgrade parts for experimenting with slower builds
 - Straight segmented highway with aligned traffic, lanes, guardrails, signs, lights, posts, coins, ramps, and checkpoints
 - Game views open edge-to-edge with a compact floating X/fullscreen header
 - Coin-gift notifications in a bell menu, showing who sent Coins and how much
@@ -187,7 +188,7 @@ handling real user data or payments.
 - Owner-managed admins with selectable post, reply, and user-ban powers
 - Profile pictures with upload/crop, plus richer friend cards showing joined date, Coins, best run, and presence
 - Guest and account authentication options
-- Coins wallet, daily and streak bonuses, a global theme/frame store, and a 120-item Beach Racer garage
+- Coins wallet, daily and streak bonuses, a global theme/frame store, and a 132-item Beach Racer garage
 - Purchases transfer the spent Coins into the TotallyMason wallet, keeping currency circulating
 - Car paints, 14 body styles, 12 engines, surfboards, underglow, wheels,
   exhaust trails, and umbrella colours applied to the 3D beach scene

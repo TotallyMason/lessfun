@@ -6852,3 +6852,102 @@ body.has-avatar-frame .friend-avatar {
     opacity: 1;
     transform: translate(-50%, 0);
 }
+
+/* In-game Beach Racer garage shop */
+.game3d-garage-shop {
+    position: absolute;
+    inset: 0;
+    z-index: 40;
+    display: none;
+    padding: 18px;
+    background: rgba(4, 6, 12, 0.86);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    overflow: hidden;
+}
+
+.game3d-garage-shop-inner {
+    width: min(1040px, 100%);
+    height: 100%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 18px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: linear-gradient(150deg, rgba(24, 30, 44, 0.96), rgba(8, 11, 20, 0.98));
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+    color: #fff;
+    overflow: hidden;
+}
+
+.game3d-garage-shop-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex: 0 0 auto;
+}
+
+.game3d-garage-shop-head h2 {
+    margin: 4px 0 0;
+    font-size: 24px;
+}
+
+.game3d-garage-shop-balance {
+    flex: 0 0 auto;
+    font-size: 12px;
+    font-weight: 700;
+    color: #ffe29a;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 209, 102, 0.25);
+    background: rgba(255, 209, 102, 0.08);
+    align-self: center;
+}
+
+#g3dShopTabs {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+}
+
+#g3dShopTabs .store-tab {
+    flex: 0 0 auto;
+}
+
+.game3d-garage-shop-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+#g3dShopStatus {
+    flex: 0 0 auto;
+    margin: 0;
+    min-height: 16px;
+    font-size: 11px;
+    color: #8affd0;
+}
+
+#g3dShopStatus.is-error {
+    color: #ff9aa8;
+}
+
+@media (max-width: 640px) {
+    .game3d-garage-shop {
+        padding: 8px;
+    }
+
+    .game3d-garage-shop-inner {
+        padding: 12px;
+        border-radius: 16px;
+    }
+
+    .game3d-garage-shop-head h2 {
+        font-size: 19px;
+    }
+}

@@ -429,8 +429,12 @@ function grantMultiplayerSessionReward() {
 function garagePlay() {
     const garage = document.getElementById('g3dGarage');
     if (garage) garage.style.display = 'none';
+    const shop = document.getElementById('g3dGarageShop');
+    if (shop) shop.style.display = 'none';
     const wrap = document.querySelector('#modalGameBody .game3d-wrap');
     if (wrap) wrap.classList.remove('is-garage');
+    garageSuppressed = true;
+    restartGame3D();
     if (window.Games3D) {
         if (window.Games3D.setGarageMode) window.Games3D.setGarageMode(false);
         window.Games3D.setPaused(false);
@@ -438,7 +442,69 @@ function garagePlay() {
     touchPresence();
 }
 
+function renderGarageShop() {
+    const content = document.getElementById('g3dShopContent');
+    if (!content) return;
+    if (!wallet) {
+        content.innerHTML = '<p class="store-loading">Loading garage…</p>';
+        return;
+    }
+    const categories = COSMETIC_CATEGORIES.filter(function (category) {
+        return GARAGE_COSMETIC_TYPES.indexOf(category.type) >= 0;
+    });
+    if (garageFilter !== 'all' && GARAGE_COSMETIC_TYPES.indexOf(garageFilter) < 0) garageFilter = 'all';
+    const tabs = document.getElementById('g3dShopTabs');
+    if (tabs) {
+        tabs.innerHTML = '<button class="store-tab' + (garageFilter === 'all' ? ' active' : '') + '" onclick="setGarageShopFilter(\'all\')">All</button>' +
+            categories.map(function (category) {
+                return '<button class="store-tab' + (garageFilter === category.type ? ' active' : '') + '" onclick="setGarageShopFilter(\'' + category.type + '\')">' +
+                    escapeHtml(category.label) + '</button>';
+            }).join('');
+    }
+    content.innerHTML = categories.filter(function (category) {
+        return garageFilter === 'all' || category.type === garageFilter;
+    }).map(function (category) {
+        const cards = cosmeticCards(category.type, '');
+        if (!cards) return '';
+        return '<section class="store-section">' +
+            '<div class="store-section-head"><h2 class="store-heading">' + escapeHtml(category.label) + '</h2>' +
+            '<p class="store-blurb">' + escapeHtml(category.blurb) + '</p></div>' +
+            '<div class="cosmetic-grid">' + cards + '</div>' +
+        '</section>';
+    }).join('');
+    const balance = document.getElementById('g3dShopBalance');
+    if (balance) balance.textContent = wallet.shells.toLocaleString() + ' Coins';
+}
+
+function setGarageShopFilter(type) {
+    garageFilter = type;
+    renderGarageShop();
+}
+
+function openGarageShop() {
+    if (currentGameId !== 1) return;
+    const shop = document.getElementById('g3dGarageShop');
+    if (shop) shop.style.display = 'flex';
+    if (window.Games3D) window.Games3D.setPaused(true);
+    renderGarageShop();
+}
+
+function closeGarageShop() {
+    const shop = document.getElementById('g3dGarageShop');
+    if (shop) shop.style.display = 'none';
+    if (window.Games3D) window.Games3D.setPaused(false);
+    renderGarageStats();
+}
+
+function flashGarageShopStatus(message, isError) {
+    const el = document.getElementById('g3dShopStatus');
+    if (!el) return;
+    el.textContent = message || '';
+    el.classList.toggle('is-error', !!isError);
+}
+
 function openGarageStore() {
+    if (currentGameId === 1) { openGarageShop(); return; }
     closeGame();
     showView('garage');
 }
@@ -590,8 +656,21 @@ function openGame(id) {
                         '<div class="game3d-garage-actions">' +
                             '<button type="button" class="game3d-mp-primary" onclick="garagePlay()">Play</button>' +
                             '<button type="button" class="game3d-mp-secondary" onclick="garageMultiplayer()">Multiplayer</button>' +
-                            '<button type="button" class="game3d-mp-secondary" onclick="openGarageStore()">Garage · Store</button>' +
+                            '<button type="button" class="game3d-mp-secondary" onclick="openGarageShop()">Garage</button>' +
                         '</div>' +
+                    '</div>' +
+                '</div>' : '') +
+            (game.id === 1 ?
+                '<div class="game3d-garage-shop" id="g3dGarageShop" style="display:none;">' +
+                    '<div class="game3d-garage-shop-inner">' +
+                        '<div class="game3d-garage-shop-head">' +
+                            '<div><span class="game3d-garage-kicker">BEACH RACER · GARAGE</span><h2>Parts &amp; cosmetics</h2></div>' +
+                            '<button type="button" class="game3d-mp-x" onclick="closeGarageShop()">×</button>' +
+                        '</div>' +
+                        '<div class="game3d-garage-shop-balance" id="g3dShopBalance">— Coins</div>' +
+                        '<div class="store-tabs" id="g3dShopTabs"></div>' +
+                        '<div class="game3d-garage-shop-scroll" id="g3dShopContent"></div>' +
+                        '<p class="game3d-mp-status" id="g3dShopStatus"></p>' +
                     '</div>' +
                 '</div>' : '') +
             '<div class="game3d-crash" id="g3dCrashFlash"></div>' +
@@ -2757,10 +2836,8 @@ function debugWalletDefaults(username) {
     const inventory = [];
     const equipped = {};
     COSMETICS.forEach(function (item) {
-        if (item.default) {
-            inventory.push(item.id);
-            if (!equipped[item.type]) equipped[item.type] = item.id;
-        }
+        if (item.default || item.cost === 0) inventory.push(item.id);
+        if (item.default && !equipped[item.type]) equipped[item.type] = item.id;
     });
     return {
         username: username,
@@ -3802,6 +3879,10 @@ const COSMETICS = [
     { id: 'body_phantom', type: 'body', name: 'Phantom GT', cost: 2800, style: 'phantom', color: '#5a189a', threeColor: 0x5a189a },
     { id: 'body_f1', type: 'body', name: 'F1 Open-Wheel', cost: 4500, style: 'f1', color: '#e63946', threeColor: 0xe63946 },
     { id: 'body_bus', type: 'body', name: 'City Bus', cost: 2600, style: 'bus', color: '#ffc400', threeColor: 0xffc400 },
+    { id: 'body_beater', type: 'body', name: 'Free Beater', cost: 0, style: 'beater', color: '#8a6f5a', threeColor: 0x8a6f5a },
+    { id: 'body_offroad', type: 'body', name: 'Off-Road Rig', cost: 2400, style: 'offroad', color: '#6a994e', threeColor: 0x6a994e },
+    { id: 'body_gt', type: 'body', name: 'GT3 Coupe', cost: 3600, style: 'gt', color: '#118ab2', threeColor: 0x118ab2 },
+    { id: 'body_super', type: 'body', name: 'Supercar', cost: 5200, style: 'super', color: '#ff2d55', threeColor: 0xff2d55 },
 
     // Engines (visual exhaust and glow only — never changes speed)
     { id: 'engine_stock', type: 'engine', name: 'Stock Engine', cost: 0, default: true, style: 'stock', color: '#8d99ae', threeColor: 0x8d99ae },
@@ -3818,6 +3899,9 @@ const COSMETICS = [
     { id: 'engine_nitro', type: 'engine', name: 'Nitro Burner', cost: 3200, style: 'nitro', color: '#39ff14', threeColor: 0x39ff14 },
     { id: 'engine_hyper', type: 'engine', name: 'Hyper V12', cost: 3800, style: 'hyper', color: '#ff8a00', threeColor: 0xff8a00 },
     { id: 'engine_fusion', type: 'engine', name: 'Fusion Reactor', cost: 4600, style: 'fusion', color: '#6ef2ff', threeColor: 0x6ef2ff },
+    { id: 'engine_lawnmower', type: 'engine', name: 'Free Lawnmower', cost: 0, style: 'lawnmower', color: '#7f8c8d', threeColor: 0x7f8c8d },
+    { id: 'engine_v16', type: 'engine', name: 'V16 Titan', cost: 3600, style: 'v16', color: '#ffd166', threeColor: 0xffd166 },
+    { id: 'engine_plasma', type: 'engine', name: 'Plasma Drive', cost: 5200, style: 'plasma', color: '#c77dff', threeColor: 0xc77dff },
 
     // Aerodynamic parts (real grip and top-speed parts)
     { id: 'aero_stock', type: 'aero', name: 'Stock Aero', cost: 0, default: true, style: 'stock', color: '#8d99ae', threeColor: 0x8d99ae },
@@ -3825,6 +3909,9 @@ const COSMETICS = [
     { id: 'aero_wing', type: 'aero', name: 'GT Rear Wing', cost: 1100, style: 'wing', color: '#1f242b', threeColor: 0x1f242b },
     { id: 'aero_diffuser', type: 'aero', name: 'Rear Diffuser', cost: 1500, style: 'diffuser', color: '#15191f', threeColor: 0x15191f },
     { id: 'aero_active', type: 'aero', name: 'Active Aero Pack', cost: 2800, style: 'active', color: '#4cc9f0', threeColor: 0x4cc9f0 },
+    { id: 'aero_broken', type: 'aero', name: 'Free Broken Wing', cost: 0, style: 'broken', color: '#8d99ae', threeColor: 0x8d99ae },
+    { id: 'aero_gt3', type: 'aero', name: 'GT3 Aero', cost: 2200, style: 'gt3', color: '#1f242b', threeColor: 0x1f242b },
+    { id: 'aero_ground', type: 'aero', name: 'Ground Effect', cost: 3000, style: 'ground', color: '#2ff6ff', threeColor: 0x2ff6ff },
 
     // Body kits (real grip and acceleration parts)
     { id: 'kit_stock', type: 'kit', name: 'Stock Body', cost: 0, default: true, style: 'stock', color: '#8d99ae', threeColor: 0x8d99ae },
@@ -3832,6 +3919,9 @@ const COSMETICS = [
     { id: 'kit_track', type: 'kit', name: 'Track Kit', cost: 1600, style: 'track', color: '#ffd166', threeColor: 0xffd166 },
     { id: 'kit_rally', type: 'kit', name: 'Rally Kit', cost: 2100, style: 'rally', color: '#06d6a0', threeColor: 0x06d6a0 },
     { id: 'kit_hyper', type: 'kit', name: 'Hyper Kit', cost: 3200, style: 'hyper', color: '#b14dff', threeColor: 0xb14dff },
+    { id: 'kit_rust', type: 'kit', name: 'Free Rust Kit', cost: 0, style: 'rust', color: '#8a6f5a', threeColor: 0x8a6f5a },
+    { id: 'kit_gt3', type: 'kit', name: 'GT3 Kit', cost: 2400, style: 'gt3', color: '#118ab2', threeColor: 0x118ab2 },
+    { id: 'kit_offroad', type: 'kit', name: 'Off-Road Kit', cost: 2600, style: 'offroad', color: '#6a994e', threeColor: 0x6a994e },
 
     // Surfboards
     { id: 'board_teal', type: 'board', name: 'Teal Board', cost: 0, default: true, color: '#06d6a0', threeColor: 0x06d6a0 },
@@ -3922,22 +4012,32 @@ const BODY_PERF = {
     monster:  { top: 0.96, accel: 1.10, grip: 1.24 },
     phantom:  { top: 1.32, accel: 1.34, grip: 1.20 },
     f1:       { top: 1.48, accel: 1.52, grip: 1.34 },
-    bus:      { top: 0.90, accel: 0.92, grip: 0.96 }
+    bus:      { top: 0.90, accel: 0.92, grip: 0.96 },
+    gt:       { top: 1.36, accel: 1.38, grip: 1.24 },
+    super:    { top: 1.42, accel: 1.46, grip: 1.27 },
+    offroad:  { top: 0.98, accel: 1.14, grip: 1.28 },
+    beater:   { top: 0.82, accel: 0.84, grip: 0.90 }
 };
 
 const AERO_PERF = {
     stock:    { top: 1.00, accel: 1.00, grip: 1.00 },
+    broken:   { top: 0.90, accel: 0.95, grip: 0.82 },
     splitter: { top: 1.03, accel: 1.00, grip: 1.05 },
     wing:     { top: 1.01, accel: 1.00, grip: 1.10 },
     diffuser: { top: 1.02, accel: 1.03, grip: 1.08 },
+    gt3:      { top: 1.10, accel: 1.08, grip: 1.22 },
+    ground:   { top: 1.12, accel: 1.10, grip: 1.24 },
     active:   { top: 1.08, accel: 1.06, grip: 1.18 }
 };
 
 const KIT_PERF = {
     stock:    { top: 1.00, accel: 1.00, grip: 1.00 },
+    rust:     { top: 0.90, accel: 0.92, grip: 0.84 },
     widebody: { top: 1.02, accel: 1.00, grip: 1.12 },
     track:    { top: 1.05, accel: 1.06, grip: 1.09 },
     rally:    { top: 1.00, accel: 1.08, grip: 1.16 },
+    gt3:      { top: 1.10, accel: 1.12, grip: 1.15 },
+    offroad:  { top: 1.02, accel: 1.06, grip: 1.24 },
     hyper:    { top: 1.09, accel: 1.10, grip: 1.20 }
 };
 
@@ -3955,7 +4055,10 @@ const ENGINE_PERF = {
     solar:    { top: 1.28, accel: 1.16 },
     nitro:    { top: 1.50, accel: 1.55 },
     hyper:    { top: 1.60, accel: 1.68 },
-    fusion:   { top: 1.74, accel: 1.82 }
+    fusion:   { top: 1.74, accel: 1.82 },
+    lawnmower:{ top: 0.70, accel: 0.74 },
+    v16:      { top: 1.56, accel: 1.62 },
+    plasma:   { top: 1.68, accel: 1.76 }
 };
 
 const COSMETIC_CATEGORIES = [
@@ -4022,9 +4125,9 @@ function normalizeWallet(raw, username) {
     var equipped = Object.assign({}, w.equipped || {});
 
     COSMETICS.forEach(function (item) {
-        if (item.default) {
+        if (item.default || item.cost === 0) {
             if (inventory.indexOf(item.id) < 0) inventory.push(item.id);
-            if (!equipped[item.type]) equipped[item.type] = item.id;
+            if (item.default && !equipped[item.type]) equipped[item.type] = item.id;
         }
     });
 
@@ -4156,6 +4259,9 @@ function renderWalletUI() {
         var el = document.getElementById(id);
         if (el) el.textContent = shells.toLocaleString();
     });
+
+    var shopBalance = document.getElementById('g3dShopBalance');
+    if (shopBalance) shopBalance.textContent = shells.toLocaleString() + ' Coins';
 
     var profileCoins = document.getElementById('profileCoins');
     if (profileCoins && wallet && currentUser && currentUser.type === 'user' && currentUser.username === wallet.username) {
@@ -4449,6 +4555,8 @@ function flashGarageStatus(message, isError) {
 }
 
 function flashShopStatus(message, isError) {
+    const shop = document.getElementById('g3dGarageShop');
+    if (shop && shop.style.display !== 'none') { flashGarageShopStatus(message, isError); return; }
     if (currentView === 'garage') flashGarageStatus(message, isError);
     else flashStoreStatus(message, isError);
 }
@@ -4499,6 +4607,7 @@ async function handleCosmetic(id) {
         applyGlobalCosmetics();
         renderStore();
         renderGarage();
+        renderGarageShop();
         flashShopStatus('Purchased ' + item.name + ' and equipped it.' +
             (credited ? ' ' + item.cost.toLocaleString() + ' Coins went to TotallyMason.' : ''));
         return;
@@ -4509,6 +4618,7 @@ async function handleCosmetic(id) {
     applyGlobalCosmetics();
     renderStore();
     renderGarage();
+    renderGarageShop();
     flashShopStatus(item.name + ' equipped.');
 }
 
@@ -4532,6 +4642,7 @@ async function sellCosmetic(id) {
     applyGlobalCosmetics();
     renderStore();
     renderGarage();
+    renderGarageShop();
     flashShopStatus('Sold ' + item.name + ' for ' + price.toLocaleString() + ' Coins.');
 }
 
@@ -5278,8 +5389,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.22.7";
-const UPDATE_NOTES = "Multiplayer is now an option in the start menu for Tunnel Rush and Star Dodger, and playing multiplayer with other people grants a one-time shared 500-Coin reward per session";
+const APP_VERSION = "LessFun Developer Beta 1.22.8";
+const UPDATE_NOTES = "Added free downgrade parts, more premium bodies/engines/aero/kits with new models, and moved the Beach Racer garage shop inside the game so it no longer kicks you out";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
