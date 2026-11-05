@@ -1543,6 +1543,32 @@ body::before {
     white-space: nowrap;
 }
 
+/* Beach Racer checkpoint counter */
+.game3d-cp-pill strong {
+    color: #8ff8ff;
+    text-shadow: 0 0 14px rgba(80, 230, 255, 0.75);
+}
+
+.game3d-cp-pill.is-hit {
+    animation: cpPillHit 0.55s ease;
+}
+
+.game3d-cp-pill strong.is-hit {
+    animation: cpNumberHit 0.55s ease;
+}
+
+@keyframes cpPillHit {
+    0% { box-shadow: 0 0 0 rgba(80, 230, 255, 0); }
+    30% { box-shadow: 0 0 26px rgba(80, 230, 255, 0.85); }
+    100% { box-shadow: 0 0 0 rgba(80, 230, 255, 0); }
+}
+
+@keyframes cpNumberHit {
+    0% { transform: scale(1); }
+    35% { transform: scale(1.35); color: #e9ffff; }
+    100% { transform: scale(1); }
+}
+
 .game3d-gear-pill {
     min-width: 64px;
 }
@@ -1997,6 +2023,33 @@ body::before {
     border-radius: 999px;
     color: #06231a;
     background: #6dffc0;
+}
+
+.game3d-mp-host {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    padding: 2px 7px;
+    border-radius: 999px;
+    color: #241500;
+    background: linear-gradient(145deg, #ffd166, #ffb02e);
+}
+
+.game3d-mp-player.is-host {
+    border-color: rgba(255, 200, 90, 0.4);
+    background: rgba(255, 190, 80, 0.08);
+}
+
+.game3d-mp-guest {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 11px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px dashed rgba(255, 255, 255, 0.16);
+    text-align: center;
 }
 
 .game3d-mp-leave {

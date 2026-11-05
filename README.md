@@ -147,6 +147,7 @@ handling real user data or payments.
 - Five real-time 3D arcade games powered by Three.js
 - Five-lane coastal highway with guardrails, streetlights, overhead signs, manual throttle, 7 mph creep, and a visible 6-speed automatic in Beach Racer
 - Beach Racer multiplayer for 2–3 players: create or join a five-character room code, race together, see each driver's name floating above their car, and pass through other players without collisions
+- Checkpoint gates every 500 m with a CP counter and a +250 score bonus per gate, plus a host-only start and restart button
 - Guest and account authentication options
 - Shells wallet, daily and streak bonuses, and a 106-item performance and cosmetics shop
 - Car paints, 14 body styles, 12 engines, surfboards, underglow, wheels,

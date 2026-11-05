@@ -270,6 +270,7 @@ function openGame(id) {
                 '<div class="game3d-pill"><span>Score</span><strong id="g3dScore">0</strong></div>' +
                 '<div class="game3d-pill"><span>Status</span><strong id="g3dExtra">-</strong></div>' +
                 (game.hasThrottle ? '<div class="game3d-pill game3d-gear-pill"><span>Gear</span><strong id="g3dGear">1</strong></div>' : '') +
+                (game.hasThrottle ? '<div class="game3d-pill game3d-cp-pill"><span>CP</span><strong id="g3dCheckpoint">0</strong></div>' : '') +
             '</div>' +
             '<div id="g3dCanvas" class="game3d-canvas"></div>' +
             '<div class="game3d-hint">' + (game.controls || '') + '</div>' +
@@ -297,7 +298,8 @@ function openGame(id) {
                         '<div id="g3dMpRoom" style="display:none;">' +
                             '<div class="game3d-mp-code-row"><span>Room</span><strong id="g3dMpRoomCode">-----</strong><button type="button" class="game3d-mp-copy" onclick="racerMpCopyCode()">Copy</button></div>' +
                             '<div class="game3d-mp-players" id="g3dMpPlayers"></div>' +
-                            '<button class="game3d-mp-primary" type="button" onclick="racerMpStart()">Start race</button>' +
+                            '<button class="game3d-mp-primary" type="button" id="g3dMpStartBtn" onclick="racerMpStart()">Start race</button>' +
+                            '<p class="game3d-mp-guest" id="g3dMpGuestNote" style="display:none;">Only the host can start or restart the race.</p>' +
                             '<button class="game3d-mp-leave" type="button" onclick="racerMpLeave()">Leave room</button>' +
                         '</div>' +
                         '<p class="game3d-mp-status" id="g3dMpStatus"></p>' +
@@ -439,6 +441,10 @@ function racerMpPresencePayload() {
     };
 }
 
+function racerMpIsHost() {
+    return !!(racerMp.code && racerMp.players.length && racerMp.players[0].id === racerMp.id);
+}
+
 function racerMpUpdateUi() {
     var btn = document.getElementById('g3dMpBtn');
     if (btn) {
@@ -451,6 +457,16 @@ function racerMpUpdateUi() {
             btn.classList.remove('is-live');
         }
     }
+
+    var isHost = racerMpIsHost();
+
+    var startBtn = document.getElementById('g3dMpStartBtn');
+    if (startBtn) {
+        startBtn.style.display = isHost ? 'block' : 'none';
+        startBtn.textContent = racerMp.racing ? 'Restart race' : 'Start race';
+    }
+    var guestNote = document.getElementById('g3dMpGuestNote');
+    if (guestNote) guestNote.style.display = isHost ? 'none' : 'block';
 
     var lobby = document.getElementById('g3dMpLobby');
     var room = document.getElementById('g3dMpRoom');
@@ -466,11 +482,14 @@ function racerMpUpdateUi() {
         if (!players.length) {
             players = [{ id: racerMp.id, name: racerMp.name || 'You', paint: 0xef476f }];
         }
+        var hostId = players[0] ? players[0].id : racerMp.id;
         playersEl.innerHTML = players.map(function (player) {
             var isSelf = player.id === racerMp.id;
-            return '<div class="game3d-mp-player">' +
+            var isHostRow = player.id === hostId;
+            return '<div class="game3d-mp-player' + (isHostRow ? ' is-host' : '') + '">' +
                 '<span class="game3d-mp-dot" style="background:' + racerMpCssColor(player.paint) + '"></span>' +
                 '<span class="game3d-mp-player-name">' + escapeHtml(player.name || 'Player') + '</span>' +
+                (isHostRow ? '<span class="game3d-mp-host">HOST</span>' : '') +
                 (isSelf ? '<span class="game3d-mp-you">YOU</span>' : '') +
             '</div>';
         }).join('');
@@ -695,6 +714,7 @@ function racerMpHandleState(payload) {
 
 function racerMpHandleStart(payload) {
     if (!payload || String(payload.id) === racerMp.id) return;
+    if (!racerMp.players.length || String(payload.id) !== String(racerMp.players[0].id)) return;
     var now = Date.now();
     if (now - racerMp.lastReset < 800) return;
     racerMp.lastReset = now;
@@ -703,6 +723,11 @@ function racerMpHandleStart(payload) {
 
 function racerMpStart() {
     if (!racerMp.code) return;
+    if (!racerMpIsHost()) {
+        racerMpSetStatus('Only the host can start or restart the race.');
+        racerMpUpdateUi();
+        return;
+    }
     var payload = { id: racerMp.id, at: Date.now() };
     if (racerMp.channel && racerMp.connected) {
         var sent = racerMp.channel.send({ type: 'broadcast', event: 'start', payload: payload });
@@ -3813,8 +3838,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.20.6";
-const UPDATE_NOTES = "Beach Racer multiplayer is here: create a room code, race 2–3 drivers together, see every name above its car, and pass through other players without collisions";
+const APP_VERSION = "LessFun Developer Beta 1.20.7";
+const UPDATE_NOTES = "Beach Racer now has checkpoints every 500 m, a host-only restart button, and WASD typing works in the multiplayer code box";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');

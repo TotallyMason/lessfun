@@ -1038,6 +1038,129 @@
             }
         }
 
+        /* ---------------- Checkpoints ---------------- */
+        var CHECKPOINT_SPACING = 500;
+        var CHECKPOINT_BONUS = 250;
+        var CHECKPOINT_GATE_COUNT = 3;
+        var checkpointsPassed = 0;
+        var nextCheckpointDistance = CHECKPOINT_SPACING;
+        var checkpointGates = [];
+        var gateMat = neon(0x2ff6ff, 1.1);
+        var gateSoftMat = new THREE.MeshBasicMaterial({
+            color: 0x8ff8ff, transparent: true, opacity: 0.55,
+            blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+        });
+        var gateBannerMat = null;
+
+        function makeGateBanner() {
+            var canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 128;
+            var g = canvas.getContext('2d');
+            g.clearRect(0, 0, 512, 128);
+            g.fillStyle = 'rgba(4, 18, 24, 0.82)';
+            g.strokeStyle = '#2ff6ff';
+            g.lineWidth = 6;
+            var x = 18, y = 18, w = 476, h = 92, r = 22;
+            g.beginPath();
+            g.moveTo(x + r, y);
+            g.lineTo(x + w - r, y);
+            g.quadraticCurveTo(x + w, y, x + w, y + r);
+            g.lineTo(x + w, y + h - r);
+            g.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            g.lineTo(x + r, y + h);
+            g.quadraticCurveTo(x, y + h, x, y + h - r);
+            g.lineTo(x, y + r);
+            g.quadraticCurveTo(x, y, x + r, y);
+            g.closePath();
+            g.fill();
+            g.stroke();
+            g.font = 'bold 44px Arial, sans-serif';
+            g.textAlign = 'center';
+            g.textBaseline = 'middle';
+            g.fillStyle = '#d8feff';
+            g.fillText('CHECKPOINT', 256, 66);
+            var texture = new THREE.CanvasTexture(canvas);
+            texture.minFilter = THREE.LinearFilter;
+            gateBannerMat = new THREE.SpriteMaterial({
+                map: texture, transparent: true, depthTest: false, depthWrite: false
+            });
+        }
+        makeGateBanner();
+
+        function buildCheckpointGate(index) {
+            var gate = new THREE.Group();
+            var pillarGeo = new THREE.BoxGeometry(0.34, 7.6, 0.34);
+            [-1, 1].forEach(function (side) {
+                var pillar = new THREE.Mesh(pillarGeo, gateMat);
+                pillar.position.set(side * (ROAD_W / 2 - 0.45), 3.8, 0);
+                gate.add(pillar);
+                var foot = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.7, 0.3, 14), gateSoftMat);
+                foot.position.set(side * (ROAD_W / 2 - 0.45), 0.14, 0);
+                gate.add(foot);
+            });
+            var beam = new THREE.Mesh(new THREE.BoxGeometry(ROAD_W - 0.5, 0.5, 0.5), gateMat);
+            beam.position.set(0, 7.6, 0);
+            gate.add(beam);
+
+            var line = new THREE.Mesh(new THREE.PlaneGeometry(ROAD_W - 1.4, 0.7), gateSoftMat);
+            line.rotation.x = -Math.PI / 2;
+            line.position.y = 0.03;
+            gate.add(line);
+
+            var banner = new THREE.Sprite(gateBannerMat);
+            banner.scale.set(8.2, 2.05, 1);
+            banner.position.set(0, 9.1, 0);
+            banner.renderOrder = 18;
+            gate.add(banner);
+
+            gate.userData.distance = CHECKPOINT_SPACING * (index + 1);
+            gate.userData.index = index;
+            return gate;
+        }
+
+        for (var cgi = 0; cgi < CHECKPOINT_GATE_COUNT; cgi++) {
+            var cpGate = buildCheckpointGate(cgi);
+            cpGate.position.set(0, 0, player.position.z - cpGate.userData.distance);
+            scene.add(cpGate);
+            checkpointGates.push(cpGate);
+        }
+
+        function flashCheckpointHud() {
+            var el = document.getElementById('g3dCheckpoint');
+            if (!el) return;
+            el.textContent = checkpointsPassed;
+            el.classList.remove('is-hit');
+            void el.offsetWidth;
+            el.classList.add('is-hit');
+            var pill = el.parentNode;
+            if (pill) {
+                pill.classList.remove('is-hit');
+                void pill.offsetWidth;
+                pill.classList.add('is-hit');
+            }
+        }
+
+        function updateCheckpoints() {
+            while (distance >= nextCheckpointDistance) {
+                checkpointsPassed++;
+                nextCheckpointDistance += CHECKPOINT_SPACING;
+                flashCheckpointHud();
+            }
+            for (var gi = 0; gi < checkpointGates.length; gi++) {
+                var gate = checkpointGates[gi];
+                if (gate.userData.distance + 40 < distance) {
+                    gate.userData.distance += CHECKPOINT_SPACING * CHECKPOINT_GATE_COUNT;
+                }
+                var rel = gate.userData.distance - distance;
+                gate.position.z = player.position.z - rel;
+                gate.visible = rel > -16 && rel < 620;
+                var near = Math.max(0, 1 - Math.abs(rel) / 70);
+                gate.scale.setScalar(1 + near * 0.02);
+            }
+            gateMat.emissiveIntensity = 1.05 + Math.sin(elapsed * 5) * 0.4;
+            gateSoftMat.opacity = 0.45 + Math.sin(elapsed * 5) * 0.16;
+        }
+
         /* ---------------- Multiplayer ghost racers ---------------- */
         var remoteCars = {};
         var localNameLabel = null;
@@ -1278,6 +1401,7 @@
                 speed = Math.min(CREEP_SPEED, speed + 5 * dt);
             }
             distance += speed * dt;
+            updateCheckpoints();
 
             var steerInput = 0;
             if (input.left) steerInput -= 1;
@@ -1434,7 +1558,7 @@
                     var carBack = Math.min(prevZ, c.position.z) - 2.75;
                     var carFront = Math.max(prevZ, c.position.z) + 2.75;
                     if (carBack < player.position.z + 2.75 && carFront > player.position.z - 2.75) {
-                        endGame(distance);
+                        endGame(distance + checkpointsPassed * CHECKPOINT_BONUS);
                         return;
                     }
                 }
@@ -1450,7 +1574,7 @@
             camera.position.y = 4.35 + Math.sin(elapsed * 1.4) * 0.035;
             camera.lookAt(player.position.x * 0.5 + vx * 0.22, 1.05, -20);
             var gear = speed < 0.15 ? 'N' : gearFor(speed);
-            setHud(distance,
+            setHud(distance + checkpointsPassed * CHECKPOINT_BONUS,
                 (input.brake ? 'BRAKE · ' : (input.up ? 'THROTTLE · ' : '')) + Math.round(speed * 2.23694) + ' mph',
                 gear === 'N' ? 'N' : gear + '/6');
         }
@@ -1467,7 +1591,8 @@
                     x: player.position.x,
                     distance: distance,
                     speed: speed,
-                    gear: speed < 0.15 ? 0 : gearFor(speed)
+                    gear: speed < 0.15 ? 0 : gearFor(speed),
+                    checkpoints: checkpointsPassed
                 };
             },
             getMultiplayerInfo: function () {
@@ -1868,6 +1993,7 @@
         var KEY_DOWN = ['ArrowDown', 's', 'S'];
 
         function down(e) {
+            if (isTypingTarget(e)) return;
             if (KEY_LEFT.indexOf(e.key) >= 0) input.left = true;
             if (KEY_RIGHT.indexOf(e.key) >= 0) input.right = true;
             if (KEY_UP.indexOf(e.key) >= 0) input.up = true;
@@ -1887,8 +2013,20 @@
                 input.brake = false;
             }
         }
+        function isTypingTarget(e) {
+            var target = e && e.target;
+            if (!target) return false;
+            var tag = String(target.tagName || '').toLowerCase();
+            return tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable;
+        }
+        function releaseAll() {
+            input.left = false; input.right = false;
+            input.up = false; input.down = false; input.brake = false;
+            input.pointerActive = false; input.tapQueued = false;
+        }
         listen(global, 'keydown', down);
         listen(global, 'keyup', up);
+        listen(global, 'blur', releaseAll);
 
         var el = renderer.domElement;
         function pos(e) {
