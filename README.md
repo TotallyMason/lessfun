@@ -49,21 +49,23 @@ speed, acceleration, and grip; the other categories are visual.
 | 14-day streak | +1,000 |
 
 New players start with **100 Shells**. Purchases are equipped immediately, and
-any owned cosmetic can be re-equipped for free. The shop has **106 cosmetics** in
-eight categories:
+any owned cosmetic can be re-equipped for free. The shop has **119 cosmetics** in
+ten categories:
 
 | Category | Items | What changes in Beach Racer |
 | --- | --- | --- |
 | Car paints | 20 | Body colour of the beach buggy |
-| Car bodies | 14 | Real performance: top speed, acceleration, and grip |
-| Engines | 12 | Real power: top speed and acceleration |
+| Car bodies | 15 | Real performance: top speed, acceleration, and grip (includes an F1 car) |
+| Engines | 14 | Real power: top speed and acceleration |
+| Aero parts | 5 | Real grip and top speed: splitters, wings, diffusers |
+| Body kits | 5 | Real acceleration and grip: widebody, track, rally, hyper |
 | Surfboards | 15 | Roof board colour and shape detailing |
 | Underglow | 11 | Neon light pool and point light under the car |
 | Wheels | 12 | Rim colour, spokes, and emissive shine |
 | Exhaust trails | 12 | Pulsing additive strips behind the bumper |
 | Beach umbrellas | 10 | Striped canopy colour across the shoreline |
 
-Car bodies and engines are **real performance parts** — each shop card shows
+Car bodies, engines, aero parts, and body kits are **real performance parts** — each shop card shows
 its Top, Accel, and Grip deltas. Paints, boards, glow, wheels, trails, and
 umbrellas stay visual only. Rainbow variants cycle hue over time. A Shells
 multiplier event can be enabled from the Owner Console for double-Shells
@@ -150,10 +152,14 @@ handling real user data or payments.
 - Beach Racer multiplayer for 2–3 players: create or join a five-character room code, race together, see each driver's name floating above their car, and pass through other players without collisions
 - Checkpoint gates every 500 m with a CP counter and a +250 score bonus per gate, plus a host-only start and restart button
 - Manual Q/E gear selector (P, R, N, D) with reverse and park in Beach Racer
+- Shift drifting with tire smoke, 60–120 mph traffic, a rare 500 mph lane-ignoring mad car, ramp trucks you can jump from, and highway entries/exits
+- Always-on public Beach Racer lobbies for up to 50 players with no codes
+- Render-resolution setting (Auto/100/85/70/50%) for smoother 3D frame rates without lowering model quality
 - Owner-managed admins with selectable post, reply, and user-ban powers
 - Profile pictures with upload/crop, plus richer friend cards showing joined date, Shells, best run, and presence
 - Guest and account authentication options
-- Shells wallet, daily and streak bonuses, and a 106-item performance and cosmetics shop
+- Shells wallet, daily and streak bonuses, and a 119-item performance and cosmetics shop
+- Purchases transfer the spent Shells into the TotallyMason wallet, keeping currency circulating
 - Car paints, 14 body styles, 12 engines, surfboards, underglow, wheels,
   exhaust trails, and umbrella colours applied to the 3D beach scene
 - Community posts with photo/file attachments, replies, and emoji reactions

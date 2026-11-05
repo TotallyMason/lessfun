@@ -8,6 +8,7 @@
     };
 
     var renderer = null, scene = null, camera = null;
+    var renderScale = 0; // 0 = auto cap, otherwise a multiplier on the device pixel ratio.
     var container = null, resizeObs = null;
     var raf = 0, clock = null;
     var active = null;
@@ -84,6 +85,8 @@
         var bodyStyle = cosmetics.body || 'classic';
         var engineStyle = cosmetics.engine || 'stock';
         var engineColor = cosmetics.engineColor != null ? cosmetics.engineColor : null;
+        var aeroStyle = cosmetics.aeroStyle || '';
+        var kitStyle = cosmetics.kitStyle || '';
 
         // Real performance from the equipped body + engine. Multipliers are the
         // values shown in the shop. Higher base values make the coastal run
@@ -591,7 +594,8 @@
             taxi: { len: 3.5, width: 1.8, ride: 0.15, hood: 0.5, deck: 0.5, cabinZ: 0.08, cabinLen: 1.65, cabinH: 0.52, cabinW: 1.32, roof: true, taxi: true, spoiler: false },
             suv: { len: 3.9, width: 2.02, ride: 0.3, hood: 0.6, deck: 0.52, cabinZ: 0.02, cabinLen: 2.2, cabinH: 0.8, cabinW: 1.58, roof: true, rack: true, spoiler: false },
             monster: { len: 3.45, width: 2.06, ride: 0.62, hood: 0.56, deck: 0.5, cabinZ: -0.05, cabinLen: 1.25, cabinH: 0.5, cabinW: 1.5, roof: true, fenders: true, bigWheels: true, spoiler: false },
-            phantom: { len: 3.8, width: 1.96, ride: 0.07, hood: 0.4, deck: 0.38, cabinZ: 0.16, cabinLen: 1.5, cabinH: 0.38, cabinW: 1.24, roof: true, wedge: true, spoiler: true, stripe: true }
+            phantom: { len: 3.8, width: 1.96, ride: 0.07, hood: 0.4, deck: 0.38, cabinZ: 0.16, cabinLen: 1.5, cabinH: 0.38, cabinW: 1.24, roof: true, wedge: true, spoiler: true, stripe: true },
+            f1: { len: 4.7, width: 1.55, ride: 0.05, hood: 0.22, deck: 0.24, cabinZ: 0.05, cabinLen: 0.95, cabinH: 0.26, cabinW: 0.72, roof: false, windshield: true, spoiler: true, f1: true }
         };
 
         function makeBodyMesh(spec, material) {
@@ -873,6 +877,32 @@
                     g.add(support);
                 });
             }
+            if (spec.f1) {
+                var aeroMat = standard(0x15191f, { metalness: 0.65, roughness: 0.3 });
+                var frontWing = boxMesh(spec.width + 1.05, 0.06, 0.55, bodyMat);
+                frontWing.position.set(0, 0.24, -spec.len / 2 - 0.12);
+                g.add(frontWing);
+                [-1, 1].forEach(function (side) {
+                    var endplate = boxMesh(0.06, 0.3, 0.6, aeroMat);
+                    endplate.position.set(side * (spec.width / 2 + 0.52), 0.32, -spec.len / 2 - 0.12);
+                    g.add(endplate);
+                    var pod = boxMesh(0.36, 0.32, spec.len * 0.38, bodyMat);
+                    pod.position.set(side * (spec.width / 2 - 0.05), spec.ride + 0.36, spec.len * 0.02);
+                    g.add(pod);
+                });
+                var rearWing = boxMesh(spec.width + 0.62, 0.07, 0.46, bodyMat);
+                rearWing.position.set(0, spec.ride + spec.hood + 0.72, spec.len / 2 - 0.08);
+                g.add(rearWing);
+                [-1, 1].forEach(function (side) {
+                    var rearPlate = boxMesh(0.05, 0.38, 0.6, aeroMat);
+                    rearPlate.position.set(side * (spec.width / 2 + 0.32), spec.ride + spec.hood + 0.56, spec.len / 2 - 0.08);
+                    g.add(rearPlate);
+                });
+                var halo = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.035, 8, 16, Math.PI), aeroMat);
+                halo.position.set(0, spec.ride + spec.hood + spec.cabinH + 0.06, spec.cabinZ);
+                halo.rotation.y = Math.PI / 2;
+                g.add(halo);
+            }
             if (spec.stripe) {
                 var stripe = boxMesh(0.34, 0.02, spec.len * 0.75, new THREE.MeshBasicMaterial({ color: 0xfff3d6 }));
                 stripe.position.set(0, spec.ride + spec.hood + 0.035, -0.04); g.add(stripe);
@@ -1004,6 +1034,47 @@
         board.rotation.y = 0.04;
         if (player.userData.spec.bed) board.position.z += 0.5;
         player.add(board);
+
+        // Aero parts and body kits add real visual hardware (and performance
+        // multipliers are supplied by the store).
+        var carbonMat = standard(0x14181d, { metalness: 0.7, roughness: 0.28 });
+        var carSpec = player.userData.spec;
+        if (kitStyle === 'widebody' || kitStyle === 'track' || kitStyle === 'rally' || kitStyle === 'hyper') {
+            var skirt = boxMesh(carSpec.width + 0.16, 0.13, carSpec.len * 0.68, carbonMat);
+            skirt.position.set(0, carSpec.ride + 0.2, 0);
+            player.add(skirt);
+            if (kitStyle === 'widebody' || kitStyle === 'hyper') {
+                [-1, 1].forEach(function (side) {
+                    [-1, 1].forEach(function (end) {
+                        var flare = boxMesh(0.16, 0.2, 0.72, carbonMat);
+                        flare.position.set(side * (carSpec.width / 2 + 0.04), carSpec.ride + 0.33, end * carSpec.len * 0.31);
+                        player.add(flare);
+                    });
+                });
+            }
+        }
+        if (aeroStyle === 'splitter' || aeroStyle === 'active') {
+            var splitter = boxMesh(carSpec.width + 0.52, 0.055, 0.5, carbonMat);
+            splitter.position.set(0, 0.2, -carSpec.len / 2 - 0.08);
+            player.add(splitter);
+        }
+        if (aeroStyle === 'wing' || aeroStyle === 'active') {
+            var wing = boxMesh(carSpec.width * 0.94, 0.065, 0.44, carbonMat);
+            wing.position.set(0, player.userData.roofY + 0.34, carSpec.len / 2 - 0.12);
+            player.add(wing);
+            [-1, 1].forEach(function (side) {
+                var support = boxMesh(0.06, 0.34, 0.06, carbonMat);
+                support.position.set(side * carSpec.width * 0.34, player.userData.roofY + 0.16, carSpec.len / 2 - 0.12);
+                player.add(support);
+            });
+        }
+        if (aeroStyle === 'diffuser' || aeroStyle === 'active') {
+            [-0.7, -0.25, 0.25, 0.7].forEach(function (fx) {
+                var fin = boxMesh(0.05, 0.2, 0.42, carbonMat);
+                fin.position.set(fx * carSpec.width * 0.4, 0.26, carSpec.len / 2 - 0.02);
+                player.add(fin);
+            });
+        }
 
         // Underglow: additive pool plus a real point light.
         var glowLight = null, glowPool = null;
@@ -1293,38 +1364,60 @@
                 }
             }
             if (exitEnded) {
-                endGame(distance + checkpointsPassed * CHECKPOINT_BONUS + EXIT_BONUS);
+                endGame(distance + checkpointsPassed * CHECKPOINT_BONUS + driftScore + EXIT_BONUS);
                 return true;
             }
             return false;
         }
 
-        // Wide speed streaks that stretch as the car gets faster.
-        var speedLines = [];
-        var speedLineMat = new THREE.MeshBasicMaterial({
-            color: 0xd8f7ff, transparent: true, opacity: 0,
-            blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+        /* ---------------- Drift smoke ---------------- */
+        var driftPuffTex = makeCanvasTexture(64, 64, function (g, w, h) {
+            var grad = g.createRadialGradient(w / 2, h / 2, 2, w / 2, h / 2, w / 2);
+            grad.addColorStop(0, 'rgba(240,244,248,0.9)');
+            grad.addColorStop(0.55, 'rgba(210,218,226,0.45)');
+            grad.addColorStop(1, 'rgba(200,208,216,0)');
+            g.fillStyle = grad;
+            g.fillRect(0, 0, w, h);
         });
-        for (var sli = 0; sli < 30; sli++) {
-            var lineMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.035, 1.4 + Math.random() * 1.8), speedLineMat);
-            lineMesh.position.set((Math.random() - 0.5) * 22, 0.6 + Math.random() * 6.4, -12 - Math.random() * 200);
-            scene.add(lineMesh);
-            speedLines.push(lineMesh);
+        var driftPuffs = [];
+        for (var dpi = 0; dpi < 20; dpi++) {
+            var puffMat = new THREE.SpriteMaterial({
+                map: driftPuffTex, transparent: true, opacity: 0,
+                depthWrite: false, color: 0xdfe6ee
+            });
+            var puff = new THREE.Sprite(puffMat);
+            puff.visible = false;
+            puff.scale.set(1.2, 1.2, 1);
+            scene.add(puff);
+            driftPuffs.push({ sprite: puff, life: 0 });
         }
+        var driftPuffCursor = 0;
+        var driftPuffTimer = 0;
 
-        function updateSpeedLines(dt) {
-            var factor = Math.max(0, Math.min(1, (Math.abs(speed) - 22) / 130));
-            speedLineMat.opacity = factor * 0.55;
-            if (factor <= 0.01) return;
-            for (var si = 0; si < speedLines.length; si++) {
-                var line = speedLines[si];
-                line.position.z += speed * dt * (2.2 + factor * 1.6);
-                if (line.position.z > 8) {
-                    line.position.z = -60 - Math.random() * 180;
-                    line.position.x = (Math.random() - 0.5) * 22;
-                    line.position.y = 0.6 + Math.random() * 6.4;
-                }
-                line.scale.y = 1 + factor * 2.4;
+        function updateDriftPuffs(dt, drifting) {
+            driftPuffTimer -= dt;
+            if (drifting && driftPuffTimer <= 0) {
+                driftPuffTimer = 0.055;
+                var entry = driftPuffs[driftPuffCursor % driftPuffs.length];
+                driftPuffCursor++;
+                entry.life = 0.75;
+                entry.sprite.position.set(
+                    player.position.x + (Math.random() - 0.5) * 1.6,
+                    playerY + 0.35,
+                    player.position.z + 1.7 + Math.random() * 0.5
+                );
+                entry.sprite.scale.set(0.9 + Math.random() * 0.7, 0.9 + Math.random() * 0.7, 1);
+            }
+            for (var pi = 0; pi < driftPuffs.length; pi++) {
+                var p = driftPuffs[pi];
+                if (p.life <= 0) { p.sprite.visible = false; continue; }
+                p.life -= dt;
+                p.sprite.visible = p.life > 0;
+                p.sprite.material.opacity = Math.max(0, p.life / 0.75) * 0.55;
+                var grow = 1 + (0.75 - p.life) * 2.4;
+                p.sprite.scale.set(grow, grow * 0.85, 1);
+                p.sprite.position.y += dt * 1.1;
+                p.sprite.position.z += speed * dt * 0.75;
             }
         }
 
@@ -1491,7 +1584,7 @@
         }
 
         function spawnTraffic(forceZ) {
-            var z = forceZ != null ? forceZ : (-360 - Math.random() * 180);
+            var z = forceZ != null ? forceZ : (-380 - Math.random() * 180);
             var order = [];
             for (var oi = 0; oi < LANES.length; oi++) order.push(oi);
             order.sort(function () { return Math.random() - 0.5; });
@@ -1499,21 +1592,24 @@
             for (var i = 0; i < order.length; i++) {
                 if (!laneBusy(order[i], null, z, 16)) { lane = order[i]; break; }
             }
-            var style = trafficStyles[Math.floor(Math.random() * trafficStyles.length)];
-            var engine = trafficEngines[Math.floor(Math.random() * trafficEngines.length)];
+            var isMad = Math.random() < 0.01;
+            var isRamp = !isMad && Math.random() < 0.055;
+            var style = isMad ? 'cyber' : isRamp ? 'truck' : trafficStyles[Math.floor(Math.random() * trafficStyles.length)];
+            var engine = isMad ? 'nitro' : isRamp ? 'diesel' : trafficEngines[Math.floor(Math.random() * trafficEngines.length)];
+            var paint = isMad ? 0xff1f1f : isRamp ? 0xffc400 : colors[Math.floor(Math.random() * colors.length)];
             var car = buildCar(
-                colors[Math.floor(Math.random() * colors.length)],
+                paint,
                 Math.random() < 0.3 ? colors[Math.floor(Math.random() * colors.length)] : null,
                 style,
                 engine,
-                null,
+                isMad ? 0xff3b00 : null,
                 false
             );
             car.position.set(LANES[lane], 0, z);
             var u = car.userData;
             u.lane = lane;
             u.targetLane = lane;
-            u.state = 'cruise';
+            u.state = isMad ? 'mad' : 'cruise';
             u.signal = 0;
             u.signalT = 0;
             u.blinkT = 0;
@@ -1521,12 +1617,34 @@
             u.fromX = LANES[lane];
             u.toX = LANES[lane];
             u.decisionT = 1.5 + Math.random() * 3.5;
-            u.cruiseSpeed = 20 + Math.random() * 24;
+            // Normal traffic cruises at 60–120 mph. The rare mad car runs at
+            // 500 mph, ignores lanes, and swerves across the whole highway.
+            u.cruiseSpeed = (60 + Math.random() * 60) / 2.2369362920544;
+            if (isMad) {
+                u.mad = true;
+                u.madT = 0;
+                u.madPhase = Math.random() * Math.PI * 2;
+                u.madFreq = 1.4 + Math.random() * 1.4;
+                u.cruiseSpeed = 500 / 2.2369362920544;
+                car.userData.mad = true;
+            }
+            if (isRamp) {
+                u.isRamp = true;
+                u.cruiseSpeed = 26 + Math.random() * 12;
+                var rampMat = standard(0x2b3038, { metalness: 0.55, roughness: 0.4 });
+                var ramp = boxMesh(2.3, 0.14, 4.4, rampMat);
+                ramp.position.set(0, 1.0, 1.5);
+                ramp.rotation.x = -0.3;
+                car.add(ramp);
+                var lip = boxMesh(2.3, 0.12, 0.3, new THREE.MeshBasicMaterial({ color: 0xffc400 }));
+                lip.position.set(0, 1.62, -0.55);
+                car.add(lip);
+            }
             scene.add(car);
             traffic.push(car);
         }
 
-        for (var t = 0; t < 9; t++) spawnTraffic(-90 - t * 40);
+        for (var t = 0; t < 8; t++) spawnTraffic(-100 - t * 46);
 
         function blink(car, side) {
             var u = car.userData;
@@ -1542,6 +1660,7 @@
 
         var distance = 0, speed = CREEP_SPEED, elapsed = 0, spawnT = 0;
         var gearMode = 'D';
+        var playerY = 0, vy = 0, driftScore = 0;
         var maxX = ROAD_W / 2 - 1.3;
         var steerX = 0;
 
@@ -1593,7 +1712,13 @@
             if (distance < 0) distance = 0;
             updateCheckpoints();
             if (updateRamps()) return;
-            updateSpeedLines(dt);
+
+            var driftIntent = !!input.drift && Math.abs(speed) > 18 &&
+                (input.left || input.right || Math.abs(steerX) > 2.2) && playerY < 0.3;
+            if (driftIntent) {
+                speed -= Math.sign(speed) * Math.min(Math.abs(speed), 9 * dt);
+                driftScore += dt * 110;
+            }
 
             var steerInput = 0;
             if (input.left) steerInput -= 1;
@@ -1601,19 +1726,30 @@
             if (input.pointerActive) {
                 steerX = Math.max(-maxX, Math.min(maxX, input.pointerX * maxX * 1.08));
             } else {
-                steerX += steerInput * dt * 9.5 * perf.grip;
+                steerX += steerInput * dt * 9.5 * perf.grip * (driftIntent ? 1.7 : 1);
                 steerX = Math.max(-maxX, Math.min(maxX, steerX));
             }
 
             var beforeX = player.position.x;
-            player.position.x += (steerX - player.position.x) * Math.min(1, dt * 10);
+            player.position.x += (steerX - player.position.x) * Math.min(1, dt * (driftIntent ? 6.5 : 10));
             player.position.x = Math.max(-maxX, Math.min(maxX, player.position.x));
             var vx = (player.position.x - beforeX) / (dt || 0.016);
 
-            player.rotation.y = Math.max(-0.42, Math.min(0.42, vx * 0.045));
-            player.rotation.z = Math.max(-0.2, Math.min(0.2, -vx * 0.022));
+            var yawLimit = driftIntent ? 0.78 : 0.42;
+            var rollLimit = driftIntent ? 0.34 : 0.2;
+            player.rotation.y = Math.max(-yawLimit, Math.min(yawLimit, vx * 0.045 * (driftIntent ? 2.0 : 1)));
+            player.rotation.z = Math.max(-rollLimit, Math.min(rollLimit, -vx * 0.022 * (driftIntent ? 1.7 : 1)));
             player.rotation.x = (input.brake ? 0.035 : 0) + Math.max(-0.03, Math.min(0.03, -vx * 0.002));
             if (player.userData.brakeMat) player.userData.brakeMat.color.setHex(input.brake ? 0xff2438 : 0x5a1018);
+
+            // Airborne physics from ramp cars.
+            if (playerY > 0 || vy !== 0) {
+                playerY += vy * dt;
+                vy -= 28 * dt;
+                if (playerY <= 0) { playerY = 0; vy = 0; }
+                player.position.y = playerY;
+            }
+            updateDriftPuffs(dt, driftIntent);
 
             updateRemoteRacers(dt);
 
@@ -1680,13 +1816,20 @@
             }
 
             spawnT += dt;
-            if (spawnT > Math.max(0.55, 1.2 - elapsed * 0.01)) { spawnT = 0; spawnTraffic(); }
+            if (spawnT > Math.max(0.75, 1.5 - elapsed * 0.012)) { spawnT = 0; spawnTraffic(); }
 
             for (var k = traffic.length - 1; k >= 0; k--) {
                 var c = traffic[k];
                 var u = c.userData;
 
-                if (u.state === 'cruise') {
+                if (u.state === 'mad') {
+                    u.madT += dt;
+                    var madPrevX = c.position.x;
+                    c.position.x = Math.sin(u.madT * u.madFreq + u.madPhase) * (ROAD_W / 2 - 1.2);
+                    var madVx = (c.position.x - madPrevX) / (dt || 0.016);
+                    c.rotation.y = Math.max(-0.7, Math.min(0.7, madVx * 0.02));
+                    c.rotation.z = Math.max(-0.3, Math.min(0.3, -madVx * 0.012));
+                } else if (u.state === 'cruise') {
                     u.decisionT -= dt;
                     if (u.decisionT <= 0) {
                         var choices = [];
@@ -1762,16 +1905,27 @@
                 if (c.position.z > 14 || c.position.z < -760) {
                     scene.remove(c); disposeObject(c); traffic.splice(k, 1); continue;
                 }
+
+                // A ramp truck launches the player when they line up with it.
+                if (u.isRamp && playerY < 0.2 && Math.abs(speed) > 22 &&
+                    Math.abs(c.position.x - player.position.x) < 2.0) {
+                    var rampGap = c.position.z - player.position.z;
+                    if (rampGap > -5 && rampGap < 5) {
+                        vy = Math.min(30, 10 + Math.abs(speed) * 0.09);
+                        playerY = 0.4;
+                    }
+                }
+
                 // Swept collision: at high speed a car can cross the player in a
                 // single frame, so test the whole segment travelled this frame.
                 var spec = u.spec || {};
                 var carHalfW = (spec.width || 1.8) / 2 + 0.72;
                 var carHalfL = (spec.len || 3.2) / 2 + 0.35;
-                if (Math.abs(c.position.x - player.position.x) < carHalfW) {
+                if (playerY < 1.1 && Math.abs(c.position.x - player.position.x) < carHalfW) {
                     var carBack = Math.min(prevZ, c.position.z) - carHalfL;
                     var carFront = Math.max(prevZ, c.position.z) + carHalfL;
                     if (carBack < player.position.z + 2.75 && carFront > player.position.z - 2.75) {
-                        endGame(distance + checkpointsPassed * CHECKPOINT_BONUS);
+                        endGame(distance + checkpointsPassed * CHECKPOINT_BONUS + driftScore);
                         return;
                     }
                 }
@@ -1784,8 +1938,8 @@
             }
 
             camera.position.x += (player.position.x * 0.42 - camera.position.x) * Math.min(1, dt * 5);
-            camera.position.y = 4.35 + Math.sin(elapsed * 1.4) * 0.035;
-            camera.lookAt(player.position.x * 0.5 + vx * 0.22, 1.05, -20);
+            camera.position.y = 4.35 + playerY * 0.78 + Math.sin(elapsed * 1.4) * 0.035;
+            camera.lookAt(player.position.x * 0.5 + vx * 0.22, 1.05 + playerY * 0.9, -20);
             var gearText;
             if (gearMode === 'P' || gearMode === 'R' || gearMode === 'N') {
                 gearText = gearMode;
@@ -1795,8 +1949,10 @@
             }
             var status = (input.brake ? 'BRAKE · ' : (input.up ? 'THROTTLE · ' : '')) +
                 Math.round(Math.abs(speed) * 2.23694) + ' mph' +
+                (driftIntent ? ' · DRIFT' : '') +
+                (playerY > 0.4 ? ' · JUMP' : '') +
                 (exitHintText ? ' · ' + exitHintText : '');
-            setHud(distance + checkpointsPassed * CHECKPOINT_BONUS, status, gearText);
+            setHud(distance + checkpointsPassed * CHECKPOINT_BONUS + driftScore, status, gearText);
         }
 
         camera.position.set(0, 4.35, 10.8);
@@ -1812,7 +1968,9 @@
                     distance: distance,
                     speed: speed,
                     gear: gearMode === 'D' ? (speed < 0.15 ? 1 : gearFor(Math.abs(speed))) : gearMode,
-                    checkpoints: checkpointsPassed
+                    checkpoints: checkpointsPassed,
+                    driftScore: Math.round(driftScore),
+                    airborne: playerY > 0.2
                 };
             },
             getMultiplayerInfo: function () {
@@ -2136,6 +2294,7 @@
         var KEY_DOWN = ['ArrowDown', 's', 'S'];
         var KEY_GEAR_DOWN = ['q', 'Q'];
         var KEY_GEAR_UP = ['e', 'E'];
+        var KEY_DRIFT = ['Shift', 'ShiftLeft', 'ShiftRight'];
 
         function down(e) {
             if (isTypingTarget(e)) return;
@@ -2148,6 +2307,7 @@
             }
             if (KEY_GEAR_DOWN.indexOf(e.key) >= 0) { if (!e.repeat) input.gearDown = true; }
             if (KEY_GEAR_UP.indexOf(e.key) >= 0) { if (!e.repeat) input.gearUp = true; }
+            if (KEY_DRIFT.indexOf(e.key) >= 0) input.drift = true;
             if (e.key === ' ' || e.key === 'Enter') { input.tapQueued = true; e.preventDefault(); }
             if (KEY_LEFT.indexOf(e.key) >= 0 || KEY_RIGHT.indexOf(e.key) >= 0 || KEY_UP.indexOf(e.key) >= 0 || KEY_DOWN.indexOf(e.key) >= 0 || KEY_GEAR_DOWN.indexOf(e.key) >= 0 || KEY_GEAR_UP.indexOf(e.key) >= 0) e.preventDefault();
         }
@@ -2159,6 +2319,7 @@
                 input.down = false;
                 input.brake = false;
             }
+            if (KEY_DRIFT.indexOf(e.key) >= 0) input.drift = false;
             // Gear shifts are consumed by the game loop; a quick tap must still
             // register, so keyup does not clear the queued shift.
         }
@@ -2172,6 +2333,7 @@
             input.left = false; input.right = false;
             input.up = false; input.down = false; input.brake = false;
             input.gearDown = false; input.gearUp = false;
+            input.drift = false;
             input.pointerActive = false; input.tapQueued = false;
         }
         listen(global, 'keydown', down);
@@ -2229,7 +2391,7 @@
 
         resetScene();
         renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-        renderer.setPixelRatio(Math.min(global.devicePixelRatio || 1, 2));
+        renderer.setPixelRatio(effectivePixelRatio());
         renderer.setSize(container.clientWidth || 1, container.clientHeight || 1, false);
         renderer.domElement.style.width = '100%';
         renderer.domElement.style.height = '100%';
@@ -2281,6 +2443,19 @@
 
     function setBrake(on) { input.brake = !!on; }
     function setThrottle(on) { input.up = !!on; }
+    function effectivePixelRatio() {
+        var base = Math.min(global.devicePixelRatio || 1, 2);
+        if (renderScale > 0) return Math.max(0.5, base * renderScale);
+        return Math.min(base, 1.5);
+    }
+    function setRenderScale(scale) {
+        renderScale = Math.max(0, Math.min(1, Number(scale) || 0));
+        if (renderer && container) {
+            renderer.setPixelRatio(effectivePixelRatio());
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            resize();
+        }
+    }
     function setPaused(on) { paused = !!on; }
     function setRemoteRacers(list) {
         if (active && active.setRemotes) active.setRemotes(list || []);
@@ -2303,6 +2478,7 @@
         setPaused: setPaused,
         setRemoteRacers: setRemoteRacers,
         setLocalRacerName: setLocalRacerName,
+        setRenderScale: setRenderScale,
         getRacerState: getRacerState,
         getRacerInfo: getRacerInfo
     };

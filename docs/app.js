@@ -4,7 +4,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_Ev9umZevWcT-AwVHTPQLnw_DHdpDHWR";
 const supabaseClient = (typeof window !== 'undefined' && window.supabase) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 const games = [
-    { id: 1, name: "Beach Racer", description: "Outrun traffic on a five-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · ← → steer · Q/E gears (P R N D) · keep right for exits" },
+    { id: 1, name: "Beach Racer", description: "Outrun traffic on a five-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · ← → steer · Shift drift · Q/E gears · right lane exits" },
     { id: 2, name: "Tunnel Rush", description: "Thread the neon tunnel at warp speed", icon: "tunnel", controls: "Left / Right or drag to rotate" },
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
     { id: 5, name: "Star Dodger", description: "Weave through an asteroid storm", icon: "rocket", controls: "Arrow keys or drag to fly" }
@@ -18,12 +18,36 @@ let debugStatusTimer = 0;
 
 const RACER_MP_MAX = 3;
 const RACER_MP_CODE_LENGTH = 5;
+const RACER_MP_PUBLIC_MAX = 50;
+const RACER_MP_PUBLIC_LOBBIES = [
+    { id: 'public-1', name: 'Sunset Highway', channel: 'lessfun-racer-public-1' },
+    { id: 'public-2', name: 'Palm Coast', channel: 'lessfun-racer-public-2' },
+    { id: 'public-3', name: 'Neon Shore', channel: 'lessfun-racer-public-3' }
+];
 const ADMIN_POWER_DEFS = [
     { id: 'manage_posts', label: 'Delete and pin posts' },
     { id: 'manage_replies', label: 'Delete replies' },
     { id: 'manage_users', label: 'Ban and unban users' }
 ];
 let avatarCache = {};
+let renderScaleSetting = 0;
+try {
+    const savedScale = parseFloat(localStorage.getItem('lessfun_render_scale') || '0');
+    if (isFinite(savedScale) && savedScale >= 0 && savedScale <= 1) renderScaleSetting = savedScale;
+} catch (e) {}
+
+function applyRenderScaleSetting() {
+    if (window.Games3D && window.Games3D.setRenderScale) window.Games3D.setRenderScale(renderScaleSetting);
+    const select = document.getElementById('renderScaleSelect');
+    if (select) select.value = String(renderScaleSetting);
+}
+
+function setRenderScaleSetting(value) {
+    const scale = parseFloat(value);
+    renderScaleSetting = isFinite(scale) ? Math.max(0, Math.min(1, scale)) : 0;
+    try { localStorage.setItem('lessfun_render_scale', String(renderScaleSetting)); } catch (e) {}
+    applyRenderScaleSetting();
+}
 let racerMp = {
     id: '',
     code: '',
@@ -35,6 +59,11 @@ let racerMp = {
     lastReset: 0,
     panelOpen: false,
     racing: false,
+    public: false,
+    publicName: '',
+    maxPlayers: RACER_MP_MAX,
+    publicCounts: {},
+    publicProbing: false,
     players: [],
     remotes: {},
     status: ''
@@ -261,7 +290,6 @@ function showView(view) {
     }
     document.getElementById('gamesView').style.display = 'none';
     document.getElementById('storeView').style.display = 'none';
-    document.getElementById('supportView').style.display = 'none';
     document.getElementById('settingsView').style.display = 'none';
     document.getElementById('communityView').style.display = 'none';
     if(document.getElementById('usersView')) document.getElementById('usersView').style.display = 'none';
@@ -272,7 +300,6 @@ function showView(view) {
     else if (view === 'community') { document.getElementById('communityView').style.display = 'block'; document.getElementById('nav-community').classList.add('active'); renderCommunity(); }
     else if (view === 'users') { if(document.getElementById('usersView')){ document.getElementById('usersView').style.display = 'block'; document.getElementById('nav-users').classList.add('active'); renderFriends(); } }
     else if (view === 'store') { document.getElementById('storeView').style.display = 'block'; document.getElementById('nav-store').classList.add('active'); renderWalletUI(); renderStore(); }
-    else if (view === 'support') { document.getElementById('supportView').style.display = 'block'; document.getElementById('nav-support').classList.add('active'); }
     else if (view === 'settings') { document.getElementById('settingsView').style.display = 'block'; document.getElementById('nav-settings').classList.add('active'); }
     else if (view === 'debug') { document.getElementById('debugView').style.display = 'block'; document.getElementById('nav-debug').classList.add('active'); renderDebugUsers(); }
     currentView = view;
@@ -356,9 +383,11 @@ function openGame(id) {
                                 '<input class="game3d-mp-input" id="g3dMpCode" type="text" maxlength="5" placeholder="CODE" autocapitalize="characters" spellcheck="false" onkeydown="if(event.key===\'Enter\')racerMpJoinCode()">' +
                                 '<button class="game3d-mp-secondary" type="button" onclick="racerMpJoinCode()">Join</button>' +
                             '</div>' +
+                            '<div class="game3d-mp-or">or join a public lobby · 50 racers</div>' +
+                            '<div class="game3d-mp-public" id="g3dMpPublicList"></div>' +
                         '</div>' +
                         '<div id="g3dMpRoom" style="display:none;">' +
-                            '<div class="game3d-mp-code-row"><span>Room</span><strong id="g3dMpRoomCode">-----</strong><button type="button" class="game3d-mp-copy" onclick="racerMpCopyCode()">Copy</button></div>' +
+                            '<div class="game3d-mp-code-row"><span id="g3dMpRoomLabel">Room</span><strong id="g3dMpRoomCode">-----</strong><button type="button" class="game3d-mp-copy" id="g3dMpCopyBtn" onclick="racerMpCopyCode()">Copy</button></div>' +
                             '<div class="game3d-mp-players" id="g3dMpPlayers"></div>' +
                             '<button class="game3d-mp-primary" type="button" id="g3dMpStartBtn" onclick="racerMpStart()">Start race</button>' +
                             '<p class="game3d-mp-guest" id="g3dMpGuestNote" style="display:none;">Only the host can start or restart the race.</p>' +
@@ -386,6 +415,7 @@ function openGame(id) {
             onScore: function (name, score) { saveScore(name, score); },
             onGameOver: function (score, seconds) { handleGameOver(score, seconds); }
         });
+        applyRenderScaleSetting();
     }
 
     if (game.hasThrottle) {
@@ -504,7 +534,7 @@ function racerMpPresencePayload() {
 }
 
 function racerMpIsHost() {
-    return !!(racerMp.code && racerMp.players.length && racerMp.players[0].id === racerMp.id);
+    return !!(racerMp.code && !racerMp.public && racerMp.players.length && racerMp.players[0].id === racerMp.id);
 }
 
 function racerMpUpdateUi() {
@@ -512,7 +542,9 @@ function racerMpUpdateUi() {
     if (btn) {
         if (racerMp.code) {
             var count = Math.max(1, racerMp.players.length);
-            btn.textContent = 'Room ' + racerMp.code + ' · ' + count + '/' + RACER_MP_MAX;
+            btn.textContent = racerMp.public
+                ? 'Public ' + count + '/' + racerMp.maxPlayers
+                : 'Room ' + racerMp.code + ' · ' + count + '/' + racerMp.maxPlayers;
             btn.classList.add('is-live');
         } else {
             btn.textContent = 'Multiplayer';
@@ -521,6 +553,7 @@ function racerMpUpdateUi() {
     }
 
     var isHost = racerMpIsHost();
+    var isPublic = !!racerMp.public;
 
     var startBtn = document.getElementById('g3dMpStartBtn');
     if (startBtn) {
@@ -528,7 +561,7 @@ function racerMpUpdateUi() {
         startBtn.textContent = racerMp.racing ? 'Restart race' : 'Start race';
     }
     var guestNote = document.getElementById('g3dMpGuestNote');
-    if (guestNote) guestNote.style.display = isHost ? 'none' : 'block';
+    if (guestNote) guestNote.style.display = (!isHost && !isPublic && racerMp.code) ? 'block' : 'none';
 
     var lobby = document.getElementById('g3dMpLobby');
     var room = document.getElementById('g3dMpRoom');
@@ -536,7 +569,13 @@ function racerMpUpdateUi() {
     if (room) room.style.display = racerMp.code ? 'block' : 'none';
 
     var codeEl = document.getElementById('g3dMpRoomCode');
-    if (codeEl) codeEl.textContent = racerMp.code || '-----';
+    if (codeEl) codeEl.textContent = racerMp.public ? (racerMp.publicName || 'Public') : (racerMp.code || '-----');
+    var roomLabel = document.getElementById('g3dMpRoomLabel');
+    if (roomLabel) roomLabel.textContent = racerMp.public ? 'Lobby' : 'Room';
+    var copyBtn = document.getElementById('g3dMpCopyBtn');
+    if (copyBtn) copyBtn.style.display = racerMp.public ? 'none' : 'inline-block';
+
+    racerMpRenderPublicLobbies();
 
     var playersEl = document.getElementById('g3dMpPlayers');
     if (playersEl && racerMp.code) {
@@ -644,23 +683,53 @@ function racerMpJoinCode() {
     racerMpConnect(code, name);
 }
 
-function racerMpConnect(code, name) {
+function racerMpJoinPublic(index) {
+    var lobby = RACER_MP_PUBLIC_LOBBIES[index];
+    if (!lobby) return;
+    var name = racerMpReadName();
+    if (!name) return;
+    racerMpConnect(lobby.id, name, { id: lobby.id, name: lobby.name, channel: lobby.channel });
+}
+
+function racerMpRenderPublicLobbies() {
+    var host = document.getElementById('g3dMpPublicList');
+    if (!host) return;
+    host.innerHTML = RACER_MP_PUBLIC_LOBBIES.map(function (lobby, index) {
+        var joined = racerMp.public && racerMp.publicChannel === lobby.channel;
+        var count = joined ? racerMp.players.length : racerMp.publicCounts[lobby.channel];
+        return '<div class="game3d-mp-public-row">' +
+            '<span class="game3d-mp-public-name">' + escapeHtml(lobby.name) + '</span>' +
+            '<span class="game3d-mp-public-count">' + (count == null ? '—' : count) + '/50</span>' +
+            '<button type="button" class="game3d-mp-public-join" onclick="racerMpJoinPublic(' + index + ')"' +
+                (joined ? ' disabled' : '') + '>' + (joined ? 'Joined' : 'Join') + '</button>' +
+        '</div>';
+    }).join('');
+}
+
+function racerMpConnect(code, name, publicInfo) {
     if (!supabaseClient) {
         racerMpSetStatus('Multiplayer is unavailable — the online service did not load.');
         return;
     }
     racerMpLeave(true);
     racerMp.id = racerMpMakeId();
-    racerMp.code = code;
+    racerMp.code = publicInfo ? publicInfo.id : code;
     racerMp.name = name;
     racerMp.connected = false;
-    racerMp.racing = false;
+    racerMp.public = !!publicInfo;
+    racerMp.publicName = publicInfo ? publicInfo.name : '';
+    racerMp.publicChannel = publicInfo ? publicInfo.channel : '';
+    racerMp.maxPlayers = publicInfo ? RACER_MP_PUBLIC_MAX : RACER_MP_MAX;
+    racerMp.racing = !!publicInfo;
     racerMp.joinedAt = Date.now();
     racerMp.remotes = {};
     racerMp.players = [];
-    racerMp.status = 'Connecting to room ' + code + '…';
+    racerMp.status = publicInfo
+        ? 'Joining ' + publicInfo.name + '…'
+        : 'Connecting to room ' + code + '…';
 
-    var channel = supabaseClient.channel('lessfun-racer-' + code, {
+    var channelName = publicInfo ? publicInfo.channel : ('lessfun-racer-' + code);
+    var channel = supabaseClient.channel(channelName, {
         config: { presence: { key: racerMp.id } }
     });
     racerMp.channel = channel;
@@ -679,14 +748,22 @@ function racerMpConnect(code, name) {
         if (racerMp.channel !== channel) return;
         if (status === 'SUBSCRIBED') {
             racerMp.connected = true;
-            racerMpSetStatus('Room ' + code + ' · share this code with 1–2 friends.');
+            if (racerMp.public) {
+                racerMpSetStatus(racerMp.publicName + ' · race is live.');
+            } else {
+                racerMpSetStatus('Room ' + code + ' · share this code with 1–2 friends.');
+            }
             var tracked = channel.track(racerMpPresencePayload());
             if (tracked && tracked.catch) tracked.catch(function () {});
-            racerMpApplyToGame();
+            if (racerMp.public) {
+                racerMpPrepareRace();
+            } else {
+                racerMpApplyToGame();
+            }
             racerMpUpdateUi();
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
             racerMp.connected = false;
-            racerMpSetStatus('Could not connect to that room. Check the code and try again.');
+            racerMpSetStatus(racerMp.public ? 'Could not join that public lobby. Try another one.' : 'Could not connect to that room. Check the code and try again.');
             racerMpUpdateUi();
         }
     });
@@ -732,12 +809,13 @@ function racerMpSyncPresence() {
         return (a.joinedAt || 0) - (b.joinedAt || 0) || String(a.id).localeCompare(String(b.id));
     });
 
-    if (players.length > RACER_MP_MAX) {
-        var keep = players.slice(0, RACER_MP_MAX);
+    var maxPlayers = racerMp.maxPlayers || RACER_MP_MAX;
+    if (players.length > maxPlayers) {
+        var keep = players.slice(0, maxPlayers);
         var allowed = keep.some(function (player) { return player.id === racerMp.id; });
         if (!allowed) {
             racerMpLeave(true);
-            racerMpSetStatus('That room is full — 3 players max.');
+            racerMpSetStatus(racerMp.public ? 'That public lobby is full — 50 racers max.' : 'That room is full — 3 players max.');
             racerMpUpdateUi();
             return;
         }
@@ -750,7 +828,9 @@ function racerMpSyncPresence() {
     });
 
     if (racerMp.connected) {
-        racerMp.status = players.length + ' / ' + RACER_MP_MAX + ' players in the room.';
+        racerMp.status = racerMp.public
+            ? 'Public lobby · ' + players.length + ' / ' + maxPlayers + ' racers · race is live.'
+            : players.length + ' / ' + maxPlayers + ' players in the room.';
     }
     racerMpUpdateUi();
 }
@@ -775,6 +855,7 @@ function racerMpHandleState(payload) {
 }
 
 function racerMpHandleStart(payload) {
+    if (racerMp.public) return;
     if (!payload || String(payload.id) === racerMp.id) return;
     if (!racerMp.players.length || String(payload.id) !== String(racerMp.players[0].id)) return;
     var now = Date.now();
@@ -858,6 +939,15 @@ function racerMpTick() {
         }
         list.push(remote);
     });
+    // A 50-player public lobby can contain dozens of ghost cars. Keep the
+    // nearest 16 so the scene stays smooth while everyone remains in the list.
+    if (list.length > 16) {
+        var localDistance = (window.Games3D && window.Games3D.getRacerState) ? (window.Games3D.getRacerState() || {}).distance || 0 : 0;
+        list.sort(function (a, b) {
+            return Math.abs((a.distance || 0) - localDistance) - Math.abs((b.distance || 0) - localDistance);
+        });
+        list = list.slice(0, 16);
+    }
     if (window.Games3D) window.Games3D.setRemoteRacers(list);
 }
 
@@ -887,6 +977,10 @@ function racerMpLeave(quiet) {
     racerMp.players = [];
     racerMp.lastSend = 0;
     racerMp.joinedAt = 0;
+    racerMp.public = false;
+    racerMp.publicName = '';
+    racerMp.publicChannel = '';
+    racerMp.maxPlayers = RACER_MP_MAX;
     if (window.Games3D) {
         window.Games3D.setRemoteRacers([]);
         window.Games3D.setLocalRacerName('');
@@ -2787,6 +2881,7 @@ const COSMETICS = [
     { id: 'body_taxi', type: 'body', name: 'Coast Taxi', cost: 1800, style: 'taxi', color: '#ffd166', threeColor: 0xffd166 },
     { id: 'body_monster', type: 'body', name: 'Monster Truck', cost: 2200, style: 'monster', color: '#9b5de5', threeColor: 0x9b5de5 },
     { id: 'body_phantom', type: 'body', name: 'Phantom GT', cost: 2800, style: 'phantom', color: '#5a189a', threeColor: 0x5a189a },
+    { id: 'body_f1', type: 'body', name: 'F1 Open-Wheel', cost: 4500, style: 'f1', color: '#e63946', threeColor: 0xe63946 },
 
     // Engines (visual exhaust and glow only — never changes speed)
     { id: 'engine_stock', type: 'engine', name: 'Stock Engine', cost: 0, default: true, style: 'stock', color: '#8d99ae', threeColor: 0x8d99ae },
@@ -2801,6 +2896,22 @@ const COSMETICS = [
     { id: 'engine_quantum', type: 'engine', name: 'Quantum Core', cost: 2400, style: 'quantum', color: '#b14dff', threeColor: 0xb14dff },
     { id: 'engine_solar', type: 'engine', name: 'Solar Sail', cost: 2700, style: 'solar', color: '#ffd166', threeColor: 0xffd166 },
     { id: 'engine_nitro', type: 'engine', name: 'Nitro Burner', cost: 3200, style: 'nitro', color: '#39ff14', threeColor: 0x39ff14 },
+    { id: 'engine_hyper', type: 'engine', name: 'Hyper V12', cost: 3800, style: 'hyper', color: '#ff8a00', threeColor: 0xff8a00 },
+    { id: 'engine_fusion', type: 'engine', name: 'Fusion Reactor', cost: 4600, style: 'fusion', color: '#6ef2ff', threeColor: 0x6ef2ff },
+
+    // Aerodynamic parts (real grip and top-speed parts)
+    { id: 'aero_stock', type: 'aero', name: 'Stock Aero', cost: 0, default: true, style: 'stock', color: '#8d99ae', threeColor: 0x8d99ae },
+    { id: 'aero_splitter', type: 'aero', name: 'Carbon Splitter', cost: 700, style: 'splitter', color: '#2b2f36', threeColor: 0x2b2f36 },
+    { id: 'aero_wing', type: 'aero', name: 'GT Rear Wing', cost: 1100, style: 'wing', color: '#1f242b', threeColor: 0x1f242b },
+    { id: 'aero_diffuser', type: 'aero', name: 'Rear Diffuser', cost: 1500, style: 'diffuser', color: '#15191f', threeColor: 0x15191f },
+    { id: 'aero_active', type: 'aero', name: 'Active Aero Pack', cost: 2800, style: 'active', color: '#4cc9f0', threeColor: 0x4cc9f0 },
+
+    // Body kits (real grip and acceleration parts)
+    { id: 'kit_stock', type: 'kit', name: 'Stock Body', cost: 0, default: true, style: 'stock', color: '#8d99ae', threeColor: 0x8d99ae },
+    { id: 'kit_widebody', type: 'kit', name: 'Widebody Kit', cost: 900, style: 'widebody', color: '#ef476f', threeColor: 0xef476f },
+    { id: 'kit_track', type: 'kit', name: 'Track Kit', cost: 1600, style: 'track', color: '#ffd166', threeColor: 0xffd166 },
+    { id: 'kit_rally', type: 'kit', name: 'Rally Kit', cost: 2100, style: 'rally', color: '#06d6a0', threeColor: 0x06d6a0 },
+    { id: 'kit_hyper', type: 'kit', name: 'Hyper Kit', cost: 3200, style: 'hyper', color: '#b14dff', threeColor: 0xb14dff },
 
     // Surfboards
     { id: 'board_teal', type: 'board', name: 'Teal Board', cost: 0, default: true, color: '#06d6a0', threeColor: 0x06d6a0 },
@@ -2889,7 +3000,24 @@ const BODY_PERF = {
     retro:    { top: 1.04, accel: 1.10, grip: 1.06 },
     taxi:     { top: 1.02, accel: 1.04, grip: 1.10 },
     monster:  { top: 0.96, accel: 1.10, grip: 1.24 },
-    phantom:  { top: 1.32, accel: 1.34, grip: 1.20 }
+    phantom:  { top: 1.32, accel: 1.34, grip: 1.20 },
+    f1:       { top: 1.48, accel: 1.52, grip: 1.34 }
+};
+
+const AERO_PERF = {
+    stock:    { top: 1.00, accel: 1.00, grip: 1.00 },
+    splitter: { top: 1.03, accel: 1.00, grip: 1.05 },
+    wing:     { top: 1.01, accel: 1.00, grip: 1.10 },
+    diffuser: { top: 1.02, accel: 1.03, grip: 1.08 },
+    active:   { top: 1.08, accel: 1.06, grip: 1.18 }
+};
+
+const KIT_PERF = {
+    stock:    { top: 1.00, accel: 1.00, grip: 1.00 },
+    widebody: { top: 1.02, accel: 1.00, grip: 1.12 },
+    track:    { top: 1.05, accel: 1.06, grip: 1.09 },
+    rally:    { top: 1.00, accel: 1.08, grip: 1.16 },
+    hyper:    { top: 1.09, accel: 1.10, grip: 1.20 }
 };
 
 const ENGINE_PERF = {
@@ -2904,13 +3032,17 @@ const ENGINE_PERF = {
     rocket:   { top: 1.34, accel: 1.40 },
     quantum:  { top: 1.44, accel: 1.50 },
     solar:    { top: 1.28, accel: 1.16 },
-    nitro:    { top: 1.50, accel: 1.55 }
+    nitro:    { top: 1.50, accel: 1.55 },
+    hyper:    { top: 1.60, accel: 1.68 },
+    fusion:   { top: 1.74, accel: 1.82 }
 };
 
 const COSMETIC_CATEGORIES = [
     { type: 'paint', label: 'Car Paints', blurb: 'Body colours for your beach buggy.' },
     { type: 'body', label: 'Car Bodies', blurb: 'Real handling parts. Every body changes top speed, acceleration, and grip.' },
     { type: 'engine', label: 'Engines', blurb: 'Real power. Every engine changes top speed and acceleration.' },
+    { type: 'aero', label: 'Aero Parts', blurb: 'Splitters, wings, and diffusers that add real grip and top speed.' },
+    { type: 'kit', label: 'Body Kits', blurb: 'Widebody and track kits that change acceleration and grip.' },
     { type: 'board', label: 'Surfboards', blurb: 'Roof boards that ride along with you.' },
     { type: 'glow', label: 'Underglow', blurb: 'Neon light pools under the car.' },
     { type: 'wheel', label: 'Wheels', blurb: 'Rims that pop against the sand.' },
@@ -3094,6 +3226,8 @@ function getEquippedCosmetics() {
     var paint = chosen('paint');
     var body = chosen('body');
     var engine = chosen('engine');
+    var aero = chosen('aero');
+    var kit = chosen('kit');
     var board = chosen('board');
     var glow = chosen('glow');
     var wheel = chosen('wheel');
@@ -3101,12 +3235,16 @@ function getEquippedCosmetics() {
     var umbrella = chosen('umbrella');
     var bodyPerf = BODY_PERF[body ? body.style : 'classic'] || BODY_PERF.classic;
     var enginePerf = ENGINE_PERF[engine ? engine.style : 'stock'] || ENGINE_PERF.stock;
+    var aeroPerf = AERO_PERF[aero ? aero.style : 'stock'] || AERO_PERF.stock;
+    var kitPerf = KIT_PERF[kit ? kit.style : 'stock'] || KIT_PERF.stock;
     return {
         paint: paint ? paint.threeColor : 0xef476f,
         body: body ? body.style : 'classic',
         bodyColor: body ? body.threeColor : null,
         engine: engine ? engine.style : 'stock',
         engineColor: engine ? engine.threeColor : null,
+        aeroStyle: aero ? aero.style : 'stock',
+        kitStyle: kit ? kit.style : 'stock',
         board: board ? board.threeColor : 0x06d6a0,
         glow: glow && !glow.none ? glow.threeColor : null,
         glowRainbow: !!(glow && glow.rainbow),
@@ -3116,9 +3254,9 @@ function getEquippedCosmetics() {
         trailRainbow: !!(trail && trail.rainbow),
         umbrella: umbrella && !umbrella.none ? umbrella.threeColor : null,
         performance: {
-            topSpeed: bodyPerf.top * enginePerf.top,
-            accel: bodyPerf.accel * enginePerf.accel,
-            grip: bodyPerf.grip
+            topSpeed: bodyPerf.top * enginePerf.top * aeroPerf.top * kitPerf.top,
+            accel: bodyPerf.accel * enginePerf.accel * aeroPerf.accel * kitPerf.accel,
+            grip: bodyPerf.grip * aeroPerf.grip * kitPerf.grip
         }
     };
 }
@@ -3133,6 +3271,12 @@ function cosmeticPreview(item) {
     if (item.type === 'engine') {
         return '<div class="cosmetic-engine cosmetic-engine-' + item.style + '" style="--swatch:' + item.color + '"><span class="cosmetic-engine-core"></span><span class="cosmetic-engine-pipe"></span><span class="cosmetic-engine-pipe is-second"></span></div>';
     }
+    if (item.type === 'aero') {
+        return '<div class="cosmetic-aero cosmetic-aero-' + item.style + '" style="--swatch:' + item.color + '"><span class="cosmetic-aero-wing"></span></div>';
+    }
+    if (item.type === 'kit') {
+        return '<div class="cosmetic-kit cosmetic-kit-' + item.style + '" style="--swatch:' + item.color + '"><span class="cosmetic-kit-body"></span><span class="cosmetic-kit-skirt"></span></div>';
+    }
     var cls = item.type === 'paint' ? 'cosmetic-car' : 'cosmetic-' + item.type;
     if (item.rainbow) cls += ' is-rainbow';
     if (item.none) cls += ' is-none';
@@ -3141,10 +3285,12 @@ function cosmeticPreview(item) {
 
 function performanceBadges(item) {
     var perf = item.type === 'body' ? BODY_PERF[item.style]
-        : item.type === 'engine' ? ENGINE_PERF[item.style] : null;
+        : item.type === 'engine' ? ENGINE_PERF[item.style]
+        : item.type === 'aero' ? AERO_PERF[item.style]
+        : item.type === 'kit' ? KIT_PERF[item.style] : null;
     if (!perf) return '';
     var parts = [['Top', perf.top], ['Accel', perf.accel]];
-    if (item.type === 'body') parts.push(['Grip', perf.grip]);
+    if (perf.grip != null) parts.push(['Grip', perf.grip]);
     return '<div class="cosmetic-perf">' + parts.map(function (part) {
         var pct = Math.round((part[1] - 1) * 100);
         var cls = pct > 0 ? 'is-up' : (pct < 0 ? 'is-down' : 'is-zero');
@@ -3262,6 +3408,21 @@ function flashStoreStatus(message, isError) {
     }, 3200);
 }
 
+async function creditOwnerShells(amount) {
+    var value = Math.max(0, Math.floor(Number(amount) || 0));
+    if (!value || !supabaseClient || !currentUser || currentUser.type !== 'user') return false;
+    if (currentUser.username === 'TotallyMason') return false;
+    try {
+        const ownerRes = await supabaseClient.from('wallets').select('shells').eq('username', 'TotallyMason').maybeSingle();
+        if (ownerRes.error || !ownerRes.data) return false;
+        const next = (Number(ownerRes.data.shells) || 0) + value;
+        const res = await supabaseClient.from('wallets').update({ shells: next }).eq('username', 'TotallyMason');
+        return !(res && res.error);
+    } catch (e) {
+        return false;
+    }
+}
+
 async function handleCosmetic(id) {
     var item = COSMETICS.find(function (c) { return c.id === id; });
     if (!item || !wallet) return;
@@ -3278,8 +3439,10 @@ async function handleCosmetic(id) {
         wallet.inventory.push(item.id);
         wallet.equipped[item.type] = item.id;
         await saveWallet();
+        const credited = await creditOwnerShells(item.cost);
         renderStore();
-        flashStoreStatus('Purchased ' + item.name + ' and equipped it.');
+        flashStoreStatus('Purchased ' + item.name + ' and equipped it.' +
+            (credited ? ' ' + item.cost.toLocaleString() + ' Shells went to TotallyMason.' : ''));
         return;
     }
 
@@ -4026,8 +4189,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.21.0";
-const UPDATE_NOTES = "Owner-selected admins, profile pictures, richer friend cards, and a faster Beach Racer with SUVs, trucks, merging ramps, exits, and Q/E park-reverse gears. Helix Drop has been retired";
+const APP_VERSION = "LessFun Developer Beta 1.21.1";
+const UPDATE_NOTES = "Faster 60–120 mph traffic, a rare 500 mph mad car, drifting, ramp jumps, F1 and aero/body-kit parts, Shells paid to TotallyMason on purchases, 50-player public lobbies, and a render-resolution setting. Support and the blue speed strips are gone";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
@@ -4050,6 +4213,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     startPresence();
     loadAvatarCache();
     checkForUpdates();
+    applyRenderScaleSetting();
 });
 
 document.addEventListener('visibilitychange', function () {

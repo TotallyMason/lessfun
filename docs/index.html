@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261141">
+    <link rel="stylesheet" href="style.css?v=20261142">
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -60,13 +60,6 @@
                         <path d="M2 8h12M8 2a10 10 0 0 1 3 6 10 10 0 0 1-3 6M8 2a10 10 0 0 0-3 6 10 10 0 0 0 3 6" stroke="currentColor" stroke-width="1.5"/>
                     </svg>
                     Store
-                </button>
-                <button class="nav-btn" onclick="showView('support')" id="nav-support">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-right:6px;">
-                        <circle cx="8" cy="6" r="3" stroke="currentColor" stroke-width="1.5"/>
-                        <path d="M3 13c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                    </svg>
-                    Support
                 </button>
             </div>
             <div class="nav-right" style="gap:12px;">
@@ -695,46 +688,6 @@
         </div>
     </div>
 
-    <!-- Support View -->
-    <div id="supportView" class="view" style="display: none;">
-        <div class="container">
-            <header>
-                <h1>Support</h1>
-                <p class="subtitle">We're here to help</p>
-            </header>
-            <div class="support-section">
-                <div class="support-card">
-                    <h2>Contact Us</h2>
-                    <p>For questions, feedback, or support, please reach out to us.</p>
-                    <a href="mailto:masonwyj@gmail.com" class="support-link">masonwyj@gmail.com</a>
-                </div>
-                <div class="support-card">
-                    <h2>FAQ</h2>
-                    <div class="faq-item">
-                        <h3>How do I save my scores?</h3>
-                        <p>Scores are automatically saved locally on your device.</p>
-                    </div>
-                    <div class="faq-item">
-                        <h3>Are there more games coming?</h3>
-                        <p>Yes! We're constantly working on adding new games.</p>
-                    </div>
-                    <div class="faq-item">
-                        <h3>Can I play offline?</h3>
-                        <p>Most games work offline once loaded, but some features may require an internet connection.</p>
-                    </div>
-                    <div class="faq-item">
-                        <h3>How do I report a bug?</h3>
-                        <p>Email us at masonwyj@gmail.com with details about the issue you're experiencing.</p>
-                    </div>
-                    <div class="faq-item">
-                        <h3>Is this game free?</h3>
-                        <p>Yes, all current games are free to play. In-app purchases are coming soon.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Settings View -->
     <div id="settingsView" class="view" style="display: none;">
         <div class="container">
@@ -779,6 +732,19 @@
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
+                    <div class="settings-item">
+                        <div>
+                            <h3>Render Resolution</h3>
+                            <p>Lower this if the 3D games feel slow. Auto caps the pixel ratio for smoother frames.</p>
+                        </div>
+                        <select id="renderScaleSelect" class="settings-select" onchange="setRenderScaleSetting(this.value)">
+                            <option value="0">Auto</option>
+                            <option value="1">100%</option>
+                            <option value="0.85">85%</option>
+                            <option value="0.7">70%</option>
+                            <option value="0.5">50%</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="settings-group">
                     <h2>Gameplay</h2>
@@ -818,13 +784,13 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Developer Beta 1.21.0</p>
+                            <p>LessFun Developer Beta 1.21.1</p>
                         </div>
                     </div>
                     <div class="settings-item">
                         <div>
                             <h3>Games Available</h3>
-                            <p>10 Mini Games</p>
+                            <p>4 Mini Games</p>
                         </div>
                     </div>
                     <div class="info-card">
@@ -969,7 +935,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
-    <script src="games3d.js?v=20261141"></script>
-    <script src="app.js?v=20261141"></script>
+    <script src="games3d.js?v=20261142"></script>
+    <script src="app.js?v=20261142"></script>
 </body>
 </html>
