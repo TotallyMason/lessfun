@@ -4,7 +4,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_Ev9umZevWcT-AwVHTPQLnw_DHdpDHWR";
 const supabaseClient = (typeof window !== 'undefined' && window.supabase) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 const games = [
-    { id: 1, name: "Beach Racer", description: "Outrun traffic on a five-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · ← → steer · Shift drift · Q/E gears · right lane exits" },
+    { id: 1, name: "Beach Racer", description: "Outrun traffic on a five-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · ← → steer · Shift drift · N nitrous · Q/E gears · right lane exits" },
     { id: 2, name: "Tunnel Rush", description: "Thread the neon tunnel at warp speed", icon: "tunnel", controls: "Left / Right or drag to rotate" },
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
     { id: 5, name: "Star Dodger", description: "Weave through an asteroid storm", icon: "rocket", controls: "Arrow keys or drag to fly" }
@@ -75,6 +75,7 @@ let presenceTimer = 0;
 let friendsAutoTimer = 0;
 let friendsStatusTimer = 0;
 let profileBanTarget = { username: '', banned: false };
+let profileGiftTarget = '';
 let friendData = { friendships: [], presence: {}, users: [] };
 
 const SITE_SETTINGS_DEFAULTS = {
@@ -367,7 +368,7 @@ function openGame(id) {
             (game.hasThrottle ? '<button class="game3d-throttle" id="g3dThrottle" type="button">Throttle</button>' : '') +
             (game.hasBrake ? '<button class="game3d-brake" id="g3dBrake" type="button">Brake</button>' : '') +
             (game.hasThrottle ? '<div class="game3d-ignition" id="g3dIgnition"><span>Ignition</span><div class="game3d-bar-track"><div class="game3d-bar-fill" id="g3dIgnitionFill"></div></div></div>' : '') +
-            (game.hasThrottle ? '<div class="game3d-nitro" id="g3dNitro"><span>NOS</span><div class="game3d-bar-track"><div class="game3d-bar-fill" id="g3dNitroFill"></div></div></div>' : '') +
+            (game.hasThrottle ? '<div class="game3d-nitro" id="g3dNitro"><span>N · NOS</span><div class="game3d-bar-track"><div class="game3d-bar-fill" id="g3dNitroFill"></div></div></div>' : '') +
             '<button class="game3d-msg-btn" id="g3dMsgBtn" type="button" onclick="toggleDmSidebar()">Messages</button>' +
             '<aside class="game3d-dm" id="g3dDmSidebar">' +
                 '<div class="game3d-dm-head">' +
@@ -377,6 +378,10 @@ function openGame(id) {
                 '<div class="game3d-dm-new">' +
                     '<input class="game3d-mp-input" id="g3dDmNewUser" type="text" maxlength="24" placeholder="Username">' +
                     '<button type="button" class="game3d-mp-secondary" onclick="dmStartConversation()">Open</button>' +
+                '</div>' +
+                '<div class="game3d-dm-search">' +
+                    '<input class="game3d-mp-input" id="g3dDmSearch" type="text" maxlength="24" placeholder="Search users…" oninput="dmSearchUsers(this.value)">' +
+                    '<div class="game3d-dm-results" id="g3dDmResults"></div>' +
                 '</div>' +
                 '<div class="game3d-dm-body">' +
                     '<div class="game3d-dm-list" id="g3dDmList"></div>' +
@@ -566,6 +571,23 @@ function racerMpIsHost() {
     return !!(racerMp.code && !racerMp.public && racerMp.players.length && racerMp.players[0].id === racerMp.id);
 }
 
+function racerMpTeleport(id) {
+    if (!racerMp.racing) {
+        racerMpSetStatus('Teleport is available during a race.');
+        return;
+    }
+    var remote = racerMp.remotes[String(id)];
+    if (!remote) {
+        racerMpSetStatus('That racer has not shared a position yet.');
+        return;
+    }
+    if (window.Games3D && window.Games3D.teleportRacer) {
+        window.Games3D.teleportRacer(remote.distance, remote.x);
+        racerMpSetStatus('Teleported next to ' + (remote.name || 'that racer') + '.');
+        closeRacerMpPanel();
+    }
+}
+
 function racerMpUpdateUi() {
     var btn = document.getElementById('g3dMpBtn');
     if (btn) {
@@ -616,11 +638,13 @@ function racerMpUpdateUi() {
         playersEl.innerHTML = players.map(function (player) {
             var isSelf = player.id === racerMp.id;
             var isHostRow = player.id === hostId;
+            var canTeleport = racerMp.racing && !isSelf;
             return '<div class="game3d-mp-player' + (isHostRow ? ' is-host' : '') + '">' +
                 '<span class="game3d-mp-dot" style="background:' + racerMpCssColor(player.paint) + '"></span>' +
                 '<span class="game3d-mp-player-name">' + escapeHtml(player.name || 'Player') + '</span>' +
                 (isHostRow ? '<span class="game3d-mp-host">HOST</span>' : '') +
                 (isSelf ? '<span class="game3d-mp-you">YOU</span>' : '') +
+                (canTeleport ? '<button type="button" class="game3d-mp-teleport" onclick="racerMpTeleport(\'' + debugArg(player.id) + '\')">Teleport</button>' : '') +
             '</div>';
         }).join('');
     }
@@ -1332,6 +1356,57 @@ function dmStartConversation() {
     }
     if (input) input.value = '';
     dmOpenConversation(name);
+}
+
+let dmSearchTimer = 0;
+let dmSearchToken = 0;
+
+function dmSearchUsers(value) {
+    const results = document.getElementById('g3dDmResults');
+    const query = String(value || '').trim();
+    if (!query) {
+        if (results) results.innerHTML = '';
+        return;
+    }
+    if (dmSearchTimer) clearTimeout(dmSearchTimer);
+    dmSearchTimer = setTimeout(function () { dmRunUserSearch(query); }, 250);
+}
+
+async function dmRunUserSearch(query) {
+    const results = document.getElementById('g3dDmResults');
+    if (!results || !supabaseClient) return;
+    const token = ++dmSearchToken;
+    const safe = query.replace(/[%_]/g, '');
+    let res = await socialQuery(supabaseClient.from('users').select('username, avatar').ilike('username', '%' + safe + '%').limit(8));
+    if (res.error) {
+        res = await socialQuery(supabaseClient.from('users').select('username').ilike('username', '%' + safe + '%').limit(8));
+    }
+    if (token !== dmSearchToken) return;
+    if (res.error) {
+        results.innerHTML = '<p class="game3d-dm-empty">Search unavailable. Run supabase/messages.sql.</p>';
+        return;
+    }
+    const me = currentUser && currentUser.username;
+    const users = (res.data || []).filter(function (row) { return row.username && row.username !== me; });
+    if (!users.length) {
+        results.innerHTML = '<p class="game3d-dm-empty">No users match.</p>';
+        return;
+    }
+    results.innerHTML = users.map(function (row) {
+        rememberAvatar(row.username, row.avatar);
+        return '<button type="button" class="game3d-dm-result" onclick="dmPickSearchResult(\'' + debugArg(row.username) + '\')">' +
+            userAvatarHtml(row.username, 'reply-avatar') +
+            '<span>' + escapeHtml(row.username) + '</span>' +
+        '</button>';
+    }).join('');
+}
+
+function dmPickSearchResult(username) {
+    const results = document.getElementById('g3dDmResults');
+    const search = document.getElementById('g3dDmSearch');
+    if (results) results.innerHTML = '';
+    if (search) search.value = '';
+    dmOpenConversation(username);
 }
 
 function toggleDmSidebar(force) {
@@ -3697,12 +3772,17 @@ function cosmeticCards(type) {
             cls = affordable ? 'buy' : 'locked';
         }
 
+        var sellPrice = item.cost > 0 ? Math.floor(item.cost * 0.5) : 0;
+        var sellBtn = (owned && !item.default && sellPrice > 0)
+            ? '<button class="cosmetic-sell" onclick="sellCosmetic(\'' + item.id + '\')">Sell · ' + sellPrice.toLocaleString() + '</button>'
+            : '';
         return '<div class="cosmetic-card' + (equipped ? ' is-equipped' : '') + '">' +
             '<div class="cosmetic-preview">' + cosmeticPreview(item) + '</div>' +
             '<h3 class="cosmetic-name">' + escapeHtml(item.name) + '</h3>' +
             performanceBadges(item) +
             '<div class="cosmetic-price">' + (owned ? (equipped ? 'In use' : 'Owned') : shellIcon(13) + ' ' + item.cost.toLocaleString()) + '</div>' +
             '<button class="cosmetic-btn ' + cls + '"' + disabled + ' onclick="handleCosmetic(\'' + item.id + '\')">' + action + '</button>' +
+            sellBtn +
         '</div>';
     }).join('');
 }
@@ -3826,6 +3906,27 @@ async function handleCosmetic(id) {
     await saveWallet();
     renderStore();
     flashStoreStatus(item.name + ' equipped.');
+}
+
+async function sellCosmetic(id) {
+    var item = COSMETICS.find(function (c) { return c.id === id; });
+    if (!item || !wallet) return;
+    if (item.default || item.cost <= 0) {
+        flashStoreStatus('That item is part of the base car and cannot be sold.', true);
+        return;
+    }
+    if (wallet.inventory.indexOf(item.id) < 0) return;
+    var price = Math.floor(item.cost * 0.5);
+    if (!window.confirm('Sell ' + item.name + ' for ' + price.toLocaleString() + ' Coins?\n\nYou can buy it again later.')) return;
+    wallet.inventory = wallet.inventory.filter(function (ownedId) { return ownedId !== item.id; });
+    if (wallet.equipped[item.type] === item.id) {
+        var fallback = COSMETICS.find(function (c) { return c.type === item.type && c.default; });
+        if (fallback) wallet.equipped[item.type] = fallback.id;
+    }
+    wallet.shells += price;
+    await saveWallet();
+    renderStore();
+    flashStoreStatus('Sold ' + item.name + ' for ' + price.toLocaleString() + ' Coins.');
 }
 
 function dayKey(date) {
@@ -4571,8 +4672,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.21.2";
-const UPDATE_NOTES = "Encrypted private messages in a game sidebar, ignition bars, synthesized engine/tire/nitrous sounds, nitrous boost, buses, jump ramps, and track coins that pay out at game over. The currency is now called Coins";
+const APP_VERSION = "LessFun Developer Beta 1.21.3";
+const UPDATE_NOTES = "Smooth morphing glass HUD, curving highway lanes, a teleport button for public racers, coin gifting, sellable cosmetics, user search in private messages, and a clearer N nitrous key";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
@@ -4647,6 +4748,9 @@ function openProfile(username) {
         logoutBtn.style.display = 'none';
     }
     profileBanTarget = { username: username, banned: false };
+    profileGiftTarget = isSelfAccount ? '' : username;
+    const giftBtn = document.getElementById('profileGiftBtn');
+    if (giftBtn) giftBtn.style.display = (!isSelfAccount && currentUser && currentUser.type === 'user') ? 'inline-flex' : 'none';
     const banBtn = document.getElementById('profileBanBtn');
     if (banBtn) {
         const canBan = !isSelfAccount && username !== 'TotallyMason' && hasAdminPower('manage_users');
@@ -4773,6 +4877,67 @@ async function saveAvatarDataUrl(dataUrl) {
 
 function removeProfilePhoto() {
     saveAvatarDataUrl('');
+}
+
+async function openGiftCoins() {
+    if (!currentUser || currentUser.type !== 'user') {
+        openAuthModal();
+        return;
+    }
+    if (!wallet) {
+        alert('Your wallet is still loading. Try again in a moment.');
+        return;
+    }
+    const target = profileGiftTarget;
+    if (!target || target === currentUser.username) return;
+    const raw = window.prompt('How many Coins do you want to gift to ' + target + '?\n\nYou have ' + wallet.shells.toLocaleString() + ' Coins.', '25');
+    if (raw === null) return;
+    const amount = Math.floor(Number(raw));
+    if (!isFinite(amount) || amount <= 0) {
+        alert('Enter a whole number of Coins.');
+        return;
+    }
+    if (amount > wallet.shells) {
+        alert('You do not have that many Coins.');
+        return;
+    }
+    if (!window.confirm('Gift ' + amount.toLocaleString() + ' Coins to ' + target + '?')) return;
+
+    wallet.shells -= amount;
+    await saveWallet();
+
+    let delivered = true;
+    if (supabaseClient) {
+        try {
+            const existing = await supabaseClient.from('wallets').select('shells').eq('username', target).maybeSingle();
+            if (existing.error) {
+                delivered = false;
+            } else if (existing.data) {
+                const res = await supabaseClient.from('wallets').update({
+                    shells: (Number(existing.data.shells) || 0) + amount
+                }).eq('username', target);
+                if (res && res.error) delivered = false;
+            } else {
+                const res = await supabaseClient.from('wallets').insert({
+                    username: target,
+                    shells: amount
+                });
+                if (res && res.error) delivered = false;
+            }
+        } catch (e) {
+            delivered = false;
+        }
+    }
+
+    if (!delivered) {
+        wallet.shells += amount;
+        await saveWallet();
+        alert('Could not send those Coins. Your balance was restored.');
+        return;
+    }
+    renderWalletUI();
+    flashStoreStatus('Gifted ' + amount.toLocaleString() + ' Coins to ' + target + '.');
+    alert('Gifted ' + amount.toLocaleString() + ' Coins to ' + target + '.');
 }
 
 async function banProfileUser() {

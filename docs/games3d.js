@@ -49,14 +49,33 @@
         });
     }
 
+    function setPillText(id, text, animate) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        var value = String(text);
+        if (el.textContent === value) return;
+        var pill = el.parentNode;
+        var prev = pill && pill.getBoundingClientRect ? pill.getBoundingClientRect().width : 0;
+        el.textContent = value;
+        if (animate !== false && pill && pill.animate) {
+            try {
+                var next = pill.getBoundingClientRect().width;
+                if (Math.abs(next - prev) > 0.5) {
+                    pill.animate(
+                        [{ width: prev + 'px' }, { width: next + 'px' }],
+                        { duration: 340, easing: 'cubic-bezier(.22,1,.36,1)' }
+                    );
+                }
+            } catch (e) {}
+        }
+    }
+
     function setHud(score, extra, gear) {
-        var s = document.getElementById('g3dScore');
-        if (s) s.textContent = Math.round(score);
-        var e = document.getElementById('g3dExtra');
-        if (e && extra !== undefined) e.textContent = extra;
+        setPillText('g3dScore', Math.round(score));
+        if (extra !== undefined) setPillText('g3dExtra', extra);
         var g = document.getElementById('g3dGear');
         if (g && gear !== undefined && String(gear) !== g.textContent) {
-            g.textContent = gear;
+            setPillText('g3dGear', gear);
             g.classList.remove('is-shifting');
             void g.offsetWidth;
             g.classList.add('is-shifting');
@@ -307,9 +326,14 @@
         var ROAD_W = 17.6;
         var scrollers = [];
         function addScroller(obj, wrap, factor) {
-            scrollers.push({ obj: obj, wrap: wrap, factor: factor == null ? 1 : factor });
+            scrollers.push({ obj: obj, wrap: wrap, factor: factor == null ? 1 : factor, baseX: obj.position.x });
             scene.add(obj);
             return obj;
+        }
+
+        function roadCurveOffset(z) {
+            var s = distance - z;
+            return Math.sin(s * 0.00105) * 4.4 + Math.sin(s * 0.00037 + 1.4) * 2.2;
         }
 
         // Textured sand and packed track.
@@ -425,6 +449,7 @@
                 var dash = new THREE.Mesh(new THREE.PlaneGeometry(0.14, 3.2), laneLineMat);
                 dash.rotation.x = -Math.PI / 2;
                 dash.position.set(x, 0.006, 8 - da * 17);
+                dash.userData.roadMark = true;
                 addScroller(dash, 500);
             }
         });
@@ -1347,7 +1372,7 @@
             tone(1046, 0.18, 'sine', 0.055, 1568);
             var el = document.getElementById('g3dCheckpoint');
             if (!el) return;
-            el.textContent = checkpointsPassed;
+            setPillText('g3dCheckpoint', checkpointsPassed);
             el.classList.remove('is-hit');
             void el.offsetWidth;
             el.classList.add('is-hit');
@@ -1626,7 +1651,7 @@
                 if (nitroFill) nitroFill.style.width = Math.round(nitro) + '%';
             }
             var coinEl = document.getElementById('g3dRunCoins');
-            if (coinEl) coinEl.textContent = coinsCollected;
+            if (coinEl) setPillText('g3dRunCoins', coinsCollected);
         }
 
         /* ---------------- Drift smoke ---------------- */
@@ -2082,6 +2107,9 @@
                 var sc = scrollers[si];
                 sc.obj.position.z += speed * dt * sc.factor;
                 if (sc.obj.position.z > 28) sc.obj.position.z -= sc.wrap;
+                if (sc.obj.userData && sc.obj.userData.roadMark) {
+                    sc.obj.position.x = sc.baseX + roadCurveOffset(sc.obj.position.z);
+                }
             }
 
             // Gentle ocean swell.
@@ -2225,7 +2253,10 @@
 
             camera.position.x += (player.position.x * 0.42 - camera.position.x) * Math.min(1, dt * 5);
             camera.position.y = 4.35 + playerY * 0.78 + Math.sin(elapsed * 1.4) * 0.035;
-            camera.lookAt(player.position.x * 0.5 + vx * 0.22, 1.05 + playerY * 0.9, -20);
+            var curveAhead = roadCurveOffset(-80) - roadCurveOffset(0);
+            camera.lookAt(player.position.x * 0.5 + vx * 0.22 + curveAhead * 0.22, 1.05 + playerY * 0.9, -20);
+            camera.rotateZ(-curveAhead * 0.0016);
+            camera.rotateY(curveAhead * 0.0009);
             var gearText;
             if (!engineOn) {
                 gearText = 'OFF';
@@ -2247,6 +2278,25 @@
             updateAudio();
         }
 
+        function teleportRacer(targetDistance, targetX) {
+            distance = Math.max(0, Number(targetDistance) || 0);
+            nextCheckpointDistance = (Math.floor(distance / CHECKPOINT_SPACING) + 1) * CHECKPOINT_SPACING;
+            var tx = Math.max(-maxX, Math.min(maxX, Number(targetX) || 0));
+            player.position.x = tx;
+            steerX = tx;
+            playerY = 0;
+            vy = 0;
+            speed = Math.max(speed, 35);
+            for (var ti = traffic.length - 1; ti >= 0; ti--) {
+                var tc = traffic[ti];
+                if (Math.abs(tc.position.z - player.position.z) < 55) {
+                    scene.remove(tc);
+                    disposeObject(tc);
+                    traffic.splice(ti, 1);
+                }
+            }
+        }
+
         camera.position.set(0, 4.35, 10.8);
         camera.lookAt(0, 1.05, -20);
         initAudio();
@@ -2255,6 +2305,7 @@
             over: false,
             update: update,
             getCoins: function () { return coinsCollected; },
+            teleport: teleportRacer,
             setRemotes: setRemoteRacers,
             setLocalName: setLocalRacerName,
             getState: function () {
@@ -2777,6 +2828,9 @@
     function getRacerInfo() {
         return active && active.getMultiplayerInfo ? active.getMultiplayerInfo() : null;
     }
+    function teleportRacer(distance, x) {
+        if (active && active.teleport) active.teleport(distance, x);
+    }
 
     global.Games3D = {
         start: start,
@@ -2788,6 +2842,7 @@
         setLocalRacerName: setLocalRacerName,
         setRenderScale: setRenderScale,
         setSoundEnabled: setSoundEnabled,
+        teleportRacer: teleportRacer,
         getRacerState: getRacerState,
         getRacerInfo: getRacerInfo
     };

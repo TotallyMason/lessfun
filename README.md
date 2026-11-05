@@ -155,9 +155,12 @@ handling real user data or payments.
 - Checkpoint gates every 500 m with a CP counter and a +250 score bonus per gate, plus a host-only start and restart button
 - Manual Q/E gear selector (P, R, N, D) with reverse and park in Beach Racer
 - Shift drifting with tire smoke, 60–120 mph traffic, buses, a rare 500 mph lane-ignoring mad car, ramp trucks, static jump ramps, and highway entries/exits
-- Ignition bar, synthesized engine/tire/nitrous audio, and a drainable nitrous boost on N
+- Ignition bar, synthesized engine/tire/nitrous audio, and a drainable nitrous boost on **N**
 - Gold track coins that are collected during a run and paid into the Coins wallet at game over
 - Private messages with ECDH P-256 + AES-GCM end-to-end encryption, available from an in-game sidebar
+- Private-message user search, coin gifting from profiles, and 50% cosmetic resale
+- Teleport to any racer in a public lobby, and curving highway lane markings for a more dynamic road
+- Liquid-glass HUD pills that expand and contract smoothly as values change
 - Always-on public Beach Racer lobbies for up to 50 players with no codes
 - Render-resolution setting (Auto/100/85/70/50%) for smoother 3D frame rates without lowering model quality
 - Owner-managed admins with selectable post, reply, and user-ban powers
