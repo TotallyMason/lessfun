@@ -6277,3 +6277,116 @@ body::before {
         padding: 8px 10px;
     }
 }
+
+/* Beach Racer 3D garage intro */
+.game3d-garage {
+    position: absolute;
+    inset: 0;
+    z-index: 7;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 0 0 min(7vw, 80px);
+    pointer-events: none;
+    background: linear-gradient(90deg, rgba(4, 6, 12, 0.82) 0%, rgba(4, 6, 12, 0.48) 42%, rgba(4, 6, 12, 0) 68%);
+}
+
+.game3d-garage-card {
+    pointer-events: auto;
+    width: min(390px, 88vw);
+    padding: 26px;
+    border-radius: 22px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: linear-gradient(150deg, rgba(26, 32, 46, 0.9), rgba(8, 11, 20, 0.94));
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    backdrop-filter: blur(18px) saturate(150%);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    color: #fff;
+}
+
+.game3d-garage-kicker {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    color: #8affd0;
+}
+
+.game3d-garage-card h2 {
+    margin: 6px 0 4px;
+    font-size: 30px;
+}
+
+.game3d-garage-sub {
+    margin-bottom: 16px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.game3d-garage-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 18px;
+}
+
+.game3d-garage-chip {
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.game3d-garage-chip strong {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.game3d-garage-chip em {
+    font-style: normal;
+    font-weight: 700;
+}
+
+.game3d-garage-chip em.is-up { color: #8affd0; }
+.game3d-garage-chip em.is-down { color: #ff9aa8; }
+
+.game3d-garage-actions {
+    display: flex;
+    gap: 9px;
+}
+
+.game3d-garage-actions .game3d-mp-primary {
+    flex: 1;
+    margin-top: 0;
+}
+
+.game3d-garage-actions .game3d-mp-secondary {
+    flex: 0 0 auto;
+    padding: 0 16px;
+}
+
+.game3d-wrap.is-garage .game3d-hud,
+.game3d-wrap.is-garage .game3d-hint,
+.game3d-wrap.is-garage .game3d-throttle,
+.game3d-wrap.is-garage .game3d-brake,
+.game3d-wrap.is-garage .game3d-ignition,
+.game3d-wrap.is-garage .game3d-nitro,
+.game3d-wrap.is-garage .game3d-touch-controls,
+.game3d-wrap.is-garage .game3d-msg-btn,
+.game3d-wrap.is-garage .game3d-mp-btn {
+    display: none !important;
+}
+
+@media (max-width: 640px) {
+    .game3d-garage {
+        align-items: flex-end;
+        padding: 16px;
+        background: linear-gradient(0deg, rgba(4, 6, 12, 0.9) 0%, rgba(4, 6, 12, 0.35) 62%, transparent 100%);
+    }
+
+    .game3d-garage-card {
+        width: 100%;
+        padding: 20px;
+    }
+}

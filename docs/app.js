@@ -359,6 +359,48 @@ function isGameDisabled(id) {
     });
 }
 
+function garageEquippedName(type) {
+    if (!wallet) return '—';
+    const item = COSMETICS.find(function (c) { return c.id === wallet.equipped[type]; });
+    return item ? item.name : '—';
+}
+
+function renderGarageStats() {
+    const host = document.getElementById('g3dGarageStats');
+    if (!host) return;
+    const perf = getEquippedCosmetics().performance || {};
+    const top = Math.round(((perf.topSpeed || 1) - 1) * 100);
+    const accel = Math.round(((perf.accel || 1) - 1) * 100);
+    const grip = Math.round(((perf.grip || 1) - 1) * 100);
+    function chip(label, value, pct) {
+        return '<span class="game3d-garage-chip"><strong>' + escapeHtml(label) + '</strong> ' + escapeHtml(value) +
+            (pct != null ? ' <em class="' + (pct >= 0 ? 'is-up' : 'is-down') + '">' + (pct > 0 ? '+' : '') + pct + '%</em>' : '') + '</span>';
+    }
+    host.innerHTML =
+        chip('Body', garageEquippedName('body'), top) +
+        chip('Engine', garageEquippedName('engine'), accel) +
+        chip('Aero', garageEquippedName('aero'), grip) +
+        chip('Kit', garageEquippedName('kit'), null);
+}
+
+function garagePlay() {
+    const garage = document.getElementById('g3dGarage');
+    if (garage) garage.style.display = 'none';
+    const wrap = document.querySelector('#modalGameBody .game3d-wrap');
+    if (wrap) wrap.classList.remove('is-garage');
+    if (window.Games3D) {
+        if (window.Games3D.setGarageMode) window.Games3D.setGarageMode(false);
+        window.Games3D.setPaused(false);
+    }
+    touchPresence();
+}
+
+function openGarageStore() {
+    closeGame();
+    showView('store');
+    setStoreFilter('all');
+}
+
 function mobileHold(control, on) {
     if (!window.Games3D) return;
     if (control === 'nitro' && window.Games3D.setNitro) window.Games3D.setNitro(!!on);
@@ -370,6 +412,7 @@ function mobileShift(direction) {
 }
 
 let currentGameId = null;
+let garageSuppressed = false;
 
 function openGame(id) {
     const game = games.find(g => g.id === id);
@@ -462,8 +505,7 @@ function openGame(id) {
                         '<p class="game3d-mp-note">The race restarts for everyone when a room starts. Player cars never collide with each other.</p>' +
                     '</div>' +
                 '</div>' : '') +
-            ((game.id === 2 || game.id === 5) ?
-                '<button class="game3d-mp-btn" id="g3dArcadeMpBtn" type="button" onclick="openArcadeMpPanel()">Multiplayer</button>' +
+            ((game.id === 2 || game.id === 5) ?                '<button class="game3d-mp-btn" id="g3dArcadeMpBtn" type="button" onclick="openArcadeMpPanel()">Multiplayer</button>' +
                 '<div class="game3d-mp" id="g3dArcadeMpPanel" style="display:none;">' +
                     '<div class="game3d-mp-card">' +
                         '<div class="game3d-mp-head">' +
@@ -478,6 +520,19 @@ function openGame(id) {
                     '</div>' +
                 '</div>' +
                 '<div class="game3d-arcade-board" id="g3dArcadeBoard" style="display:none;"></div>' : '') +
+            (game.id === 1 ?
+                '<div class="game3d-garage" id="g3dGarage">' +
+                    '<div class="game3d-garage-card">' +
+                        '<span class="game3d-garage-kicker">BEACH RACER · GARAGE</span>' +
+                        '<h2>Your ride</h2>' +
+                        '<p class="game3d-garage-sub">Orbit view · buy and equip parts in the Garage tab.</p>' +
+                        '<div class="game3d-garage-stats" id="g3dGarageStats"></div>' +
+                        '<div class="game3d-garage-actions">' +
+                            '<button type="button" class="game3d-mp-primary" onclick="garagePlay()">Play</button>' +
+                            '<button type="button" class="game3d-mp-secondary" onclick="openGarageStore()">Garage · Store</button>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' : '') +
             '<div class="game3d-crash" id="g3dCrashFlash"></div>' +
             '<div class="game3d-warning" id="g3dWarning"></div>' +
             '<div class="game3d-over" id="g3dOver" style="display:none;">' +
@@ -501,7 +556,23 @@ function openGame(id) {
         });
         applyRenderScaleSetting();
         applySoundSetting();
+        applyUnitSetting();
     }
+    if (id === 1 && !garageSuppressed) {
+        if (window.Games3D && window.Games3D.setGarageMode) window.Games3D.setGarageMode(true);
+        const garage = document.getElementById('g3dGarage');
+        if (garage) garage.style.display = 'flex';
+        const wrap = document.querySelector('#modalGameBody .game3d-wrap');
+        if (wrap) wrap.classList.add('is-garage');
+        renderGarageStats();
+    } else {
+        const garage = document.getElementById('g3dGarage');
+        if (garage) garage.style.display = 'none';
+        const wrap = document.querySelector('#modalGameBody .game3d-wrap');
+        if (wrap) wrap.classList.remove('is-garage');
+        if (window.Games3D && window.Games3D.setGarageMode) window.Games3D.setGarageMode(false);
+    }
+    garageSuppressed = false;
     lastRunCoins = 0;
 
     if (game.hasThrottle) {
@@ -989,6 +1060,7 @@ function racerMpStart() {
 }
 
 function racerMpPrepareRace() {
+    garageSuppressed = true;
     racerMp.racing = true;
     racerMp.panelOpen = false;
     racerMp.remotes = {};
@@ -1762,6 +1834,21 @@ function applySoundSetting() {
     if (window.Games3D && window.Games3D.setSoundEnabled) window.Games3D.setSoundEnabled(soundSetting);
     const toggle = document.getElementById('soundToggle');
     if (toggle) toggle.checked = soundSetting;
+}
+
+function applyUnitSetting() {
+    if (window.Games3D && window.Games3D.setUnitSystem) window.Games3D.setUnitSystem(unitSetting);
+    const select = document.getElementById('unitSelect');
+    if (select) select.value = unitSetting;
+}
+
+function setUnitSetting(value) {
+    unitSetting = value === 'kmh' ? 'kmh' : 'mph';
+    try { localStorage.setItem('lessfun_units', unitSetting); } catch (e) {}
+    applyUnitSetting();
+    if (currentGameId === 1 && window.Games3D) {
+        window.Games3D.setPaused(false);
+    }
 }
 
 function setSoundSetting(on) {
@@ -3787,7 +3874,11 @@ let walletMutated = false;
 let storeStatusTimer = 0;
 let lastRunCoins = 0;
 let soundSetting = true;
-try { soundSetting = localStorage.getItem('lessfun_sound') !== 'false'; } catch (e) {}
+let unitSetting = 'mph';
+try {
+    soundSetting = localStorage.getItem('lessfun_sound') !== 'false';
+    unitSetting = localStorage.getItem('lessfun_units') === 'kmh' ? 'kmh' : 'mph';
+} catch (e) {}
 
 function shellIcon(size) {
     var s = size || 16;
@@ -4953,8 +5044,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.21.8";
-const UPDATE_NOTES = "See what friends are playing and join them, live 20-player multiplayer for Tunnel Rush and Star Dodger, smarter AI emergency braking, a red collision warning with sound for you, and more realistic crashes with no slow-mo label";
+const APP_VERSION = "LessFun Developer Beta 1.21.9";
+const UPDATE_NOTES = "Beach Racer now opens in a 3D garage with Play and Garage Store buttons, the highway genuinely curves, mph/km-h switching, adaptive FPS scaling, better car paint and detail, and crash parts that bend, break off, and bounce";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
@@ -4979,6 +5070,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     checkForUpdates();
     applyRenderScaleSetting();
     applySoundSetting();
+    applyUnitSetting();
 });
 
 document.addEventListener('visibilitychange', function () {

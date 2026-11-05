@@ -165,11 +165,14 @@ handling real user data or payments.
 - Liquid-glass HUD pills that expand and contract smoothly as values change
 - Expanded friend/profile stats: joined date, last seen, Coins, lifetime earnings, streak, posts, replies, friends, best runs, and admin status
 - Touch controls for NOS, drift, and gear shifts on phones and narrow screens
+- Beach Racer opens in a 3D garage orbit view with Play and Garage Store actions
+- Real curving highway geometry with road tiles, curved traffic, lanes, guardrails, coins, ramps, and checkpoints
+- mph/km-h setting, adaptive resolution for steadier frame rates, and upgraded car paint and player-car detail
 - Friend activity presence with a Join button for their current game or public lobby
 - Live public multiplayer for Tunnel Rush and Star Dodger with real-time score boards
 - AI traffic emergency braking with brake lights; human players get a red flash and warning beep instead of auto-braking
 - Real 3D suspension on Beach Racer cars: coilover springs, control arms, independent wheel travel, body roll, brake dive, acceleration squat, and landing compression
-- Longer cinematic crashes with tumbling, debris, sparks, smoke, wheel detachment, body crumple, bounced landings, and a delayed game-over sequence (no camera shake, no slow-mo label)
+- Longer cinematic crashes with tumbling, debris, sparks, smoke, wheel and surfboard detachment, body crumple, bounced landings, and a delayed game-over sequence (no camera shake, no slow-mo label)
 - Always-on public Beach Racer lobbies for up to 50 players with no codes
 - Render-resolution setting (Auto/100/85/70/50%) for smoother 3D frame rates without lowering model quality
 - Owner-managed admins with selectable post, reply, and user-ban powers
