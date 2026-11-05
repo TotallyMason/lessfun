@@ -86,15 +86,17 @@
         var engineColor = cosmetics.engineColor != null ? cosmetics.engineColor : null;
 
         // Real performance from the equipped body + engine. Multipliers are the
-        // values shown in the shop; the stock car is 120 m/s and 18 m/s².
+        // values shown in the shop. Higher base values make the coastal run
+        // feel genuinely fast, especially with a good engine fitted.
         var equippedPerf = cosmetics.performance || {};
         var perf = {
-            topSpeed: 120 * (equippedPerf.topSpeed || 1),
-            accel: 18 * (equippedPerf.accel || 1),
+            topSpeed: 168 * (equippedPerf.topSpeed || 1),
+            accel: 27 * (equippedPerf.accel || 1),
             grip: equippedPerf.grip || 1
         };
         // 7 mph idle creep, in metres per second.
         var CREEP_SPEED = 7 / 2.2369362920544;
+        var REVERSE_MAX = 16;
         var GEAR_FRACTIONS = [0.16, 0.31, 0.47, 0.64, 0.83];
 
         scene.background = new THREE.Color(0x9bd7f2);
@@ -587,6 +589,7 @@
             cyber: { len: 3.65, width: 2.0, ride: 0.08, hood: 0.36, deck: 0.34, cabinZ: 0.02, cabinLen: 1.65, cabinH: 0.48, cabinW: 1.46, roof: true, wedge: true, lightBar: true, spoiler: true },
             retro: { len: 3.35, width: 1.82, ride: 0.14, hood: 0.5, deck: 0.5, cabinZ: 0.1, cabinLen: 1.45, cabinH: 0.44, cabinW: 1.3, roof: true, fins: true, spoiler: false },
             taxi: { len: 3.5, width: 1.8, ride: 0.15, hood: 0.5, deck: 0.5, cabinZ: 0.08, cabinLen: 1.65, cabinH: 0.52, cabinW: 1.32, roof: true, taxi: true, spoiler: false },
+            suv: { len: 3.9, width: 2.02, ride: 0.3, hood: 0.6, deck: 0.52, cabinZ: 0.02, cabinLen: 2.2, cabinH: 0.8, cabinW: 1.58, roof: true, rack: true, spoiler: false },
             monster: { len: 3.45, width: 2.06, ride: 0.62, hood: 0.56, deck: 0.5, cabinZ: -0.05, cabinLen: 1.25, cabinH: 0.5, cabinW: 1.5, roof: true, fenders: true, bigWheels: true, spoiler: false },
             phantom: { len: 3.8, width: 1.96, ride: 0.07, hood: 0.4, deck: 0.38, cabinZ: 0.16, cabinLen: 1.5, cabinH: 0.38, cabinW: 1.24, roof: true, wedge: true, spoiler: true, stripe: true }
         };
@@ -1161,6 +1164,170 @@
             gateSoftMat.opacity = 0.45 + Math.sin(elapsed * 5) * 0.16;
         }
 
+        /* ---------------- Highway ramps, merges, speed lines ---------------- */
+        var RAMP_SPACING = 900;
+        var RAMP_SLOTS = 4;
+        var EXIT_BONUS = 500;
+        var exitHintText = '';
+        var rampFeatures = [];
+
+        function rampSignTexture(label, color) {
+            return makeCanvasTexture(256, 96, function (g, w, h) {
+                g.fillStyle = color;
+                g.fillRect(0, 0, w, h);
+                g.strokeStyle = 'rgba(255,255,255,0.85)';
+                g.lineWidth = 5;
+                g.strokeRect(6, 6, w - 12, h - 12);
+                g.fillStyle = '#ffffff';
+                g.font = 'bold 40px Arial, sans-serif';
+                g.textAlign = 'center';
+                g.textBaseline = 'middle';
+                g.fillText(label, w / 2, h / 2 + 2);
+            });
+        }
+
+        function buildRamp(type) {
+            var g = new THREE.Group();
+            var asphalt = standard(0x343944, { roughness: 0.92 });
+            var ramp = new THREE.Mesh(new THREE.PlaneGeometry(10.5, 40), asphalt);
+            ramp.rotation.x = -Math.PI / 2;
+            ramp.position.set(ROAD_W / 2 + 5.2, 0.015, 0);
+            g.add(ramp);
+
+            var edgeColor = type === 'exit' ? 0xffc24a : 0x6dffc0;
+            var edge = new THREE.Mesh(new THREE.PlaneGeometry(0.32, 40), new THREE.MeshBasicMaterial({
+                color: edgeColor, transparent: true, opacity: 0.8,
+                blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+            }));
+            edge.rotation.x = -Math.PI / 2;
+            edge.position.set(ROAD_W / 2 + 0.15, 0.03, 0);
+            g.add(edge);
+
+            var signTex = rampSignTexture(type === 'exit' ? 'EXIT  →' : 'ON RAMP ↑', type === 'exit' ? '#1c7a4a' : '#1c5a9a');
+            var sign = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.35, 0.16), standard(0x0c1418, { metalness: 0.4 }));
+            sign.position.set(ROAD_W / 2 + 2.7, 5.4, 0);
+            g.add(sign);
+            var face = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.18), new THREE.MeshBasicMaterial({ map: signTex, transparent: true }));
+            face.position.set(ROAD_W / 2 + 2.7, 5.4, 0.1);
+            g.add(face);
+            var pole = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.13, 5.1, 8), standard(0x8b929c, { metalness: 0.6 }));
+            pole.position.set(ROAD_W / 2 + 2.7, 2.55, -0.05);
+            g.add(pole);
+
+            // Simple guard rail along the ramp edge.
+            var rail = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.5, 40), standard(0xd7dde5, { metalness: 0.5, roughness: 0.4 }));
+            rail.position.set(ROAD_W / 2 + 10.3, 0.62, 0);
+            g.add(rail);
+
+            g.userData.type = type;
+            return g;
+        }
+
+        for (var rfi = 0; rfi < RAMP_SLOTS; rfi++) {
+            var rampType = rfi % 2 === 0 ? 'exit' : 'entry';
+            var rampGroup = buildRamp(rampType);
+            var rampFeature = {
+                distance: 750 + rfi * RAMP_SPACING,
+                type: rampType,
+                group: rampGroup,
+                spawned: false
+            };
+            rampGroup.position.set(0, 0, player.position.z - rampFeature.distance);
+            scene.add(rampGroup);
+            rampFeatures.push(rampFeature);
+        }
+
+        function spawnMergeCar(featureZ) {
+            var style = ['truck', 'suv', 'van', 'classic'][Math.floor(Math.random() * 4)];
+            var car = buildCar(
+                colors[Math.floor(Math.random() * colors.length)],
+                null,
+                style,
+                'stock',
+                null,
+                false
+            );
+            var lane = LANES.length - 1;
+            var u = car.userData;
+            car.position.set(ROAD_W / 2 + 6.2, 0, featureZ);
+            u.lane = lane;
+            u.targetLane = lane;
+            u.state = 'merge';
+            u.changeT = 0;
+            u.fromX = ROAD_W / 2 + 6.2;
+            u.toX = LANES[lane];
+            u.cruiseSpeed = 16 + Math.random() * 12;
+            u.signal = 1;
+            u.signalT = 0;
+            u.blinkT = 0;
+            u.fromLane = lane;
+            u.decisionT = 2;
+            scene.add(car);
+            traffic.push(car);
+        }
+
+        function updateRamps() {
+            exitHintText = '';
+            var exitEnded = false;
+            for (var ri = 0; ri < rampFeatures.length; ri++) {
+                var feature = rampFeatures[ri];
+                var rel = feature.distance - distance;
+                if (rel < -60) {
+                    feature.distance += RAMP_SPACING * RAMP_SLOTS;
+                    feature.spawned = false;
+                    rel = feature.distance - distance;
+                }
+                feature.group.position.z = player.position.z - rel;
+                feature.group.visible = rel > -50 && rel < 520;
+
+                if (feature.type === 'entry') {
+                    if (!feature.spawned && rel < 460 && rel > 200) {
+                        feature.spawned = true;
+                        spawnMergeCar(player.position.z - rel);
+                    }
+                } else {
+                    if (rel < 170 && rel > -8) exitHintText = 'EXIT →';
+                    if (rel <= 2 && rel >= -8 && player.position.x > maxX - 1.05) {
+                        exitEnded = true;
+                    }
+                }
+            }
+            if (exitEnded) {
+                endGame(distance + checkpointsPassed * CHECKPOINT_BONUS + EXIT_BONUS);
+                return true;
+            }
+            return false;
+        }
+
+        // Wide speed streaks that stretch as the car gets faster.
+        var speedLines = [];
+        var speedLineMat = new THREE.MeshBasicMaterial({
+            color: 0xd8f7ff, transparent: true, opacity: 0,
+            blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+        });
+        for (var sli = 0; sli < 30; sli++) {
+            var lineMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.035, 1.4 + Math.random() * 1.8), speedLineMat);
+            lineMesh.position.set((Math.random() - 0.5) * 22, 0.6 + Math.random() * 6.4, -12 - Math.random() * 200);
+            scene.add(lineMesh);
+            speedLines.push(lineMesh);
+        }
+
+        function updateSpeedLines(dt) {
+            var factor = Math.max(0, Math.min(1, (Math.abs(speed) - 22) / 130));
+            speedLineMat.opacity = factor * 0.55;
+            if (factor <= 0.01) return;
+            for (var si = 0; si < speedLines.length; si++) {
+                var line = speedLines[si];
+                line.position.z += speed * dt * (2.2 + factor * 1.6);
+                if (line.position.z > 8) {
+                    line.position.z = -60 - Math.random() * 180;
+                    line.position.x = (Math.random() - 0.5) * 22;
+                    line.position.y = 0.6 + Math.random() * 6.4;
+                }
+                line.scale.y = 1 + factor * 2.4;
+            }
+        }
+
         /* ---------------- Multiplayer ghost racers ---------------- */
         var remoteCars = {};
         var localNameLabel = null;
@@ -1310,7 +1477,7 @@
 
         var traffic = [];
         var colors = [0xef476f, 0xffd166, 0x06d6a0, 0x118ab2, 0xf78c6b, 0xf7f3e8, 0x7f8c8d, 0x9b5de5];
-        var trafficStyles = ['classic', 'buggy', 'wagon', 'truck', 'racer', 'van', 'roadster', 'muscle', 'retro', 'taxi', 'cyber'];
+        var trafficStyles = ['classic', 'buggy', 'wagon', 'truck', 'suv', 'racer', 'van', 'roadster', 'muscle', 'retro', 'taxi', 'cyber', 'suv', 'truck'];
         var trafficEngines = ['stock', 'stock', 'v8', 'turbo', 'electric', 'diesel', 'twin'];
 
         function laneBusy(lane, self, z, range) {
@@ -1374,6 +1541,7 @@
         }
 
         var distance = 0, speed = CREEP_SPEED, elapsed = 0, spawnT = 0;
+        var gearMode = 'D';
         var maxX = ROAD_W / 2 - 1.3;
         var steerX = 0;
 
@@ -1388,9 +1556,30 @@
         function update(dt) {
             elapsed += dt;
 
-            // Manual throttle. W / ↑ / THROTTLE accelerates; with no input the
-            // car settles to a 7 mph creep; the brake can stop it completely.
-            if (input.brake) {
+            // Gear selector: Q shifts down (D → N → R → P), E shifts up
+            // (P → R → N → D). D keeps the 6-speed automatic.
+            if (input.gearDown) {
+                input.gearDown = false;
+                gearMode = gearMode === 'D' ? 'N' : gearMode === 'N' ? 'R' : 'P';
+            }
+            if (input.gearUp) {
+                input.gearUp = false;
+                gearMode = gearMode === 'P' ? 'R' : gearMode === 'R' ? 'N' : 'D';
+            }
+
+            if (gearMode === 'P') {
+                speed = Math.max(0, speed - 80 * dt);
+            } else if (gearMode === 'R') {
+                if (input.up) {
+                    speed = Math.max(-REVERSE_MAX, speed - perf.accel * 0.55 * dt);
+                } else if (input.brake) {
+                    speed = Math.min(0, speed + 45 * dt);
+                } else {
+                    speed += (0 - speed) * Math.min(1, dt * 3);
+                }
+            } else if (gearMode === 'N') {
+                speed += (0 - speed) * Math.min(1, dt * 1.4);
+            } else if (input.brake) {
                 speed = Math.max(0, speed - 58 * dt);
             } else if (input.up) {
                 var pull = perf.accel * (1 - 0.55 * Math.min(1, speed / perf.topSpeed));
@@ -1401,7 +1590,10 @@
                 speed = Math.min(CREEP_SPEED, speed + 5 * dt);
             }
             distance += speed * dt;
+            if (distance < 0) distance = 0;
             updateCheckpoints();
+            if (updateRamps()) return;
+            updateSpeedLines(dt);
 
             var steerInput = 0;
             if (input.left) steerInput -= 1;
@@ -1541,6 +1733,24 @@
                         clearBlink(c);
                         u.decisionT = 1.8 + Math.random() * 3.2;
                     }
+                } else if (u.state === 'merge') {
+                    u.changeT += dt;
+                    var mp = Math.min(1, u.changeT / 2.2);
+                    var me = mp * mp * (3 - 2 * mp);
+                    c.position.x = u.fromX + (u.toX - u.fromX) * me;
+                    c.rotation.y = -0.1 * (1 - mp);
+                    u.blinkT += dt;
+                    blink(c, 1);
+                    if (mp >= 1) {
+                        c.position.x = u.toX;
+                        c.rotation.y = 0;
+                        u.lane = u.targetLane;
+                        u.state = 'cruise';
+                        u.signal = 0;
+                        u.signalT = 0;
+                        clearBlink(c);
+                        u.decisionT = 2 + Math.random() * 3;
+                    }
                 }
 
                 var prevZ = c.position.z;
@@ -1552,11 +1762,14 @@
                 if (c.position.z > 14 || c.position.z < -760) {
                     scene.remove(c); disposeObject(c); traffic.splice(k, 1); continue;
                 }
-                // Swept collision: at 200 m/s a car can cross the player in a
+                // Swept collision: at high speed a car can cross the player in a
                 // single frame, so test the whole segment travelled this frame.
-                if (Math.abs(c.position.x - player.position.x) < 1.55) {
-                    var carBack = Math.min(prevZ, c.position.z) - 2.75;
-                    var carFront = Math.max(prevZ, c.position.z) + 2.75;
+                var spec = u.spec || {};
+                var carHalfW = (spec.width || 1.8) / 2 + 0.72;
+                var carHalfL = (spec.len || 3.2) / 2 + 0.35;
+                if (Math.abs(c.position.x - player.position.x) < carHalfW) {
+                    var carBack = Math.min(prevZ, c.position.z) - carHalfL;
+                    var carFront = Math.max(prevZ, c.position.z) + carHalfL;
                     if (carBack < player.position.z + 2.75 && carFront > player.position.z - 2.75) {
                         endGame(distance + checkpointsPassed * CHECKPOINT_BONUS);
                         return;
@@ -1564,7 +1777,7 @@
                 }
             }
 
-            var fov = 62 + Math.min(12, speed * 0.10);
+            var fov = 64 + Math.min(18, Math.abs(speed) * 0.13);
             if (Math.abs(camera.fov - fov) > 0.1) {
                 camera.fov = fov;
                 camera.updateProjectionMatrix();
@@ -1573,10 +1786,17 @@
             camera.position.x += (player.position.x * 0.42 - camera.position.x) * Math.min(1, dt * 5);
             camera.position.y = 4.35 + Math.sin(elapsed * 1.4) * 0.035;
             camera.lookAt(player.position.x * 0.5 + vx * 0.22, 1.05, -20);
-            var gear = speed < 0.15 ? 'N' : gearFor(speed);
-            setHud(distance + checkpointsPassed * CHECKPOINT_BONUS,
-                (input.brake ? 'BRAKE · ' : (input.up ? 'THROTTLE · ' : '')) + Math.round(speed * 2.23694) + ' mph',
-                gear === 'N' ? 'N' : gear + '/6');
+            var gearText;
+            if (gearMode === 'P' || gearMode === 'R' || gearMode === 'N') {
+                gearText = gearMode;
+            } else {
+                var g = gearFor(Math.abs(speed));
+                gearText = (speed < 0.15 ? 1 : g) + '/6';
+            }
+            var status = (input.brake ? 'BRAKE · ' : (input.up ? 'THROTTLE · ' : '')) +
+                Math.round(Math.abs(speed) * 2.23694) + ' mph' +
+                (exitHintText ? ' · ' + exitHintText : '');
+            setHud(distance + checkpointsPassed * CHECKPOINT_BONUS, status, gearText);
         }
 
         camera.position.set(0, 4.35, 10.8);
@@ -1591,7 +1811,7 @@
                     x: player.position.x,
                     distance: distance,
                     speed: speed,
-                    gear: speed < 0.15 ? 0 : gearFor(speed),
+                    gear: gearMode === 'D' ? (speed < 0.15 ? 1 : gearFor(Math.abs(speed))) : gearMode,
                     checkpoints: checkpointsPassed
                 };
             },
@@ -1784,82 +2004,6 @@
         return { over: false, update: update };
     }
 
-    /* ---------------- Helix Drop ---------------- */
-    function createHelix(ctx) {
-        var scene = ctx.scene, camera = ctx.camera;
-        scene.fog = new THREE.FogExp2(0x05020c, 0.025);
-        camera.position.set(0, 7, 10);
-
-        scene.add(new THREE.AmbientLight(0x8a8aff, 1.1));
-        var sun = new THREE.DirectionalLight(0xffffff, 1.2); sun.position.set(6, 12, 8); scene.add(sun);
-
-        var R = 2.8, SEG = 22, GAP_SEG = 6;
-        var gapHalf = (GAP_SEG / SEG) * Math.PI;
-        var group = new THREE.Group(); scene.add(group);
-
-        var pole = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 180, 12), neon(0x9b5cff, 0.8));
-        pole.position.y = -80; group.add(pole);
-
-        var rings = [];
-        var ringMat = neon(0x2ff6ff, 1.3);
-        var RING_GAP = 3.2, RING_COUNT = 46, ringYStart = -2;
-        for (var i = 0; i < RING_COUNT; i++) {
-            var y = ringYStart - i * RING_GAP;
-            var gapCenter = Math.random() * Math.PI * 2;
-            var ring = new THREE.Group();
-            for (var k = 0; k < SEG; k++) {
-                var a = k / SEG * Math.PI * 2;
-                var d = Math.atan2(Math.sin(a - gapCenter), Math.cos(a - gapCenter));
-                if (Math.abs(d) < gapHalf) continue;
-                var seg = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.18, 0.7), ringMat);
-                seg.position.set(Math.cos(a) * R, 0, Math.sin(a) * R);
-                seg.rotation.y = -a;
-                ring.add(seg);
-            }
-            ring.position.y = y;
-            ring.userData.gap = gapCenter;
-            group.add(ring); rings.push(ring);
-        }
-
-        var ball = new THREE.Mesh(new THREE.SphereGeometry(0.42, 24, 24), neon(0xff2fd0, 1.4));
-        ball.position.set(R, 1.5, 0);
-        scene.add(ball);
-
-        var ballY = 1.5, speed = 6, passed = 0, nextRing = 0, groupRot = 0, targetRot = 0;
-
-        function angDist(a, b) { return Math.atan2(Math.sin(a - b), Math.cos(a - b)); }
-
-        function update(dt) {
-            speed = Math.min(5 + passed * 0.12, 15);
-            ballY -= speed * dt;
-            ball.position.y = ballY;
-
-            var steer = 0;
-            if (input.left) steer -= 1;
-            if (input.right) steer += 1;
-            if (input.pointerActive) steer = input.pointerX;
-            targetRot += steer * dt * 3.2;
-            groupRot += (targetRot - groupRot) * Math.min(1, dt * 12);
-            group.rotation.y = groupRot;
-
-            while (nextRing < rings.length && ballY <= rings[nextRing].position.y + 0.14) {
-                var worldGap = rings[nextRing].userData.gap - groupRot;
-                var d = Math.abs(angDist(0, worldGap));
-                if (d > gapHalf - 0.06) { endGame(passed); return; }
-                passed++;
-                nextRing++;
-            }
-
-            camera.position.y += ((ballY + 6) - camera.position.y) * Math.min(1, dt * 3);
-            camera.lookAt(0, ballY - 1.5, 0);
-
-            setHud(passed, 'Depth ' + Math.max(0, Math.round(-ballY)) + 'm');
-            if (ballY < rings[rings.length - 1].position.y - 8) endGame(passed);
-        }
-
-        return { over: false, update: update };
-    }
-
     /* ---------------- Star Dodger ---------------- */
     function createSky(ctx) {
         var scene = ctx.scene, camera = ctx.camera;
@@ -1966,7 +2110,6 @@
         1: createRacer,
         2: createTunnel,
         3: createStack,
-        4: createHelix,
         5: createSky
     };
 
@@ -1991,6 +2134,8 @@
         var KEY_RIGHT = ['ArrowRight', 'd', 'D'];
         var KEY_UP = ['ArrowUp', 'w', 'W'];
         var KEY_DOWN = ['ArrowDown', 's', 'S'];
+        var KEY_GEAR_DOWN = ['q', 'Q'];
+        var KEY_GEAR_UP = ['e', 'E'];
 
         function down(e) {
             if (isTypingTarget(e)) return;
@@ -2001,8 +2146,10 @@
                 input.down = true;
                 input.brake = true;
             }
+            if (KEY_GEAR_DOWN.indexOf(e.key) >= 0) { if (!e.repeat) input.gearDown = true; }
+            if (KEY_GEAR_UP.indexOf(e.key) >= 0) { if (!e.repeat) input.gearUp = true; }
             if (e.key === ' ' || e.key === 'Enter') { input.tapQueued = true; e.preventDefault(); }
-            if (KEY_LEFT.indexOf(e.key) >= 0 || KEY_RIGHT.indexOf(e.key) >= 0 || KEY_UP.indexOf(e.key) >= 0 || KEY_DOWN.indexOf(e.key) >= 0) e.preventDefault();
+            if (KEY_LEFT.indexOf(e.key) >= 0 || KEY_RIGHT.indexOf(e.key) >= 0 || KEY_UP.indexOf(e.key) >= 0 || KEY_DOWN.indexOf(e.key) >= 0 || KEY_GEAR_DOWN.indexOf(e.key) >= 0 || KEY_GEAR_UP.indexOf(e.key) >= 0) e.preventDefault();
         }
         function up(e) {
             if (KEY_LEFT.indexOf(e.key) >= 0) input.left = false;
@@ -2012,6 +2159,8 @@
                 input.down = false;
                 input.brake = false;
             }
+            // Gear shifts are consumed by the game loop; a quick tap must still
+            // register, so keyup does not clear the queued shift.
         }
         function isTypingTarget(e) {
             var target = e && e.target;
@@ -2022,6 +2171,7 @@
         function releaseAll() {
             input.left = false; input.right = false;
             input.up = false; input.down = false; input.brake = false;
+            input.gearDown = false; input.gearUp = false;
             input.pointerActive = false; input.tapQueued = false;
         }
         listen(global, 'keydown', down);

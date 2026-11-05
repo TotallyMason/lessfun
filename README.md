@@ -7,13 +7,12 @@ A 3D arcade with a liquid-glass interface. Play it at
 
 | Game | What it is |
 | --- | --- |
-| Beach Racer | Outrun traffic on a five-lane coastal highway. Hold W / ↑ for throttle, steer freely, and brake through the pack in a 6-speed automatic. Race 2–3 players online with a room code. |
+| Beach Racer | Outrun traffic on a five-lane coastal highway. Hold W / ↑ for throttle, steer freely, and brake through the pack in a 6-speed automatic. Shift P/R/N/D with Q and E, take highway exits, and race 2–3 players online with a room code. |
 | Tunnel Rush | Thread an endless neon tunnel and rotate through the gaps. |
 | Cube Stack | Stack the tower as high as you can before the blocks drift away. |
-| Helix Drop | Fall through a rotating helix and slip through the openings. |
 | Star Dodger | Weave through an asteroid storm at increasing speed. |
 
-All five games are real-time 3D scenes rendered with Three.js.
+All four games are real-time 3D scenes rendered with Three.js.
 
 ## Play
 
@@ -83,6 +82,8 @@ Already have an older project? Run these incremental migrations instead of the
 full file:
 
 - [`supabase/friends.sql`](supabase/friends.sql) — friendships and presence.
+- [`supabase/admins_avatars.sql`](supabase/admins_avatars.sql) — admin flags,
+  selectable admin powers, and profile picture storage.
 - [`supabase/owner_tools.sql`](supabase/owner_tools.sql) — ban flag and site
   settings.
 - [`supabase/community.sql`](supabase/community.sql) — post attachments, replies,
@@ -144,10 +145,13 @@ handling real user data or payments.
 
 ## Features
 
-- Five real-time 3D arcade games powered by Three.js
-- Five-lane coastal highway with guardrails, streetlights, overhead signs, manual throttle, 7 mph creep, and a visible 6-speed automatic in Beach Racer
+- Four real-time 3D arcade games powered by Three.js
+- Five-lane coastal highway with guardrails, streetlights, overhead signs, SUVs and trucks, merging entry ramps, exit ramps that end the run, and a much faster top speed in Beach Racer
 - Beach Racer multiplayer for 2–3 players: create or join a five-character room code, race together, see each driver's name floating above their car, and pass through other players without collisions
 - Checkpoint gates every 500 m with a CP counter and a +250 score bonus per gate, plus a host-only start and restart button
+- Manual Q/E gear selector (P, R, N, D) with reverse and park in Beach Racer
+- Owner-managed admins with selectable post, reply, and user-ban powers
+- Profile pictures with upload/crop, plus richer friend cards showing joined date, Shells, best run, and presence
 - Guest and account authentication options
 - Shells wallet, daily and streak bonuses, and a 106-item performance and cosmetics shop
 - Car paints, 14 body styles, 12 engines, surfboards, underglow, wheels,

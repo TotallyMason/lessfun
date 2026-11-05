@@ -4,10 +4,9 @@ const SUPABASE_ANON_KEY = "sb_publishable_Ev9umZevWcT-AwVHTPQLnw_DHdpDHWR";
 const supabaseClient = (typeof window !== 'undefined' && window.supabase) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 const games = [
-    { id: 1, name: "Beach Racer", description: "Outrun traffic on a five-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "Hold W / ↑ or THROTTLE to accelerate · ← → steer · ↓ / S or BRAKE to slow" },
+    { id: 1, name: "Beach Racer", description: "Outrun traffic on a five-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · ← → steer · Q/E gears (P R N D) · keep right for exits" },
     { id: 2, name: "Tunnel Rush", description: "Thread the neon tunnel at warp speed", icon: "tunnel", controls: "Left / Right or drag to rotate" },
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
-    { id: 4, name: "Helix Drop", description: "Fall through the rotating helix", icon: "helix", controls: "Left / Right or drag to rotate" },
     { id: 5, name: "Star Dodger", description: "Weave through an asteroid storm", icon: "rocket", controls: "Arrow keys or drag to fly" }
 ];
 
@@ -19,6 +18,12 @@ let debugStatusTimer = 0;
 
 const RACER_MP_MAX = 3;
 const RACER_MP_CODE_LENGTH = 5;
+const ADMIN_POWER_DEFS = [
+    { id: 'manage_posts', label: 'Delete and pin posts' },
+    { id: 'manage_replies', label: 'Delete replies' },
+    { id: 'manage_users', label: 'Ban and unban users' }
+];
+let avatarCache = {};
 let racerMp = {
     id: '',
     code: '',
@@ -40,6 +45,7 @@ const PRESENCE_HEARTBEAT_MS = 25000;
 let presenceTimer = 0;
 let friendsAutoTimer = 0;
 let friendsStatusTimer = 0;
+let profileBanTarget = { username: '', banned: false };
 let friendData = { friendships: [], presence: {}, users: [] };
 
 const SITE_SETTINGS_DEFAULTS = {
@@ -168,6 +174,62 @@ async function saveSiteSettings(next) {
 
 function isOwner() {
     return !!(currentUser && currentUser.type === 'user' && currentUser.username === 'TotallyMason' && currentUser.persistScores !== false);
+}
+
+function parseAdminPowers(value) {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.slice();
+    return String(value).split(',').map(function (item) { return item.trim(); }).filter(Boolean);
+}
+
+function hasAdminPower(power) {
+    if (isOwner()) return true;
+    if (!currentUser || currentUser.type !== 'user') return false;
+    return parseAdminPowers(currentUser.adminPowers).indexOf(power) >= 0;
+}
+
+function isAdminAccount() {
+    return isOwner() || !!(currentUser && currentUser.type === 'user' && parseAdminPowers(currentUser.adminPowers).length);
+}
+
+function rememberAvatar(username, avatar) {
+    if (!username) return;
+    avatarCache[String(username).toLowerCase()] = avatar || '';
+}
+
+function avatarForUser(username) {
+    if (!username) return '';
+    if (currentUser && currentUser.type === 'user' && String(currentUser.username).toLowerCase() === String(username).toLowerCase()) {
+        return currentUser.avatar || '';
+    }
+    return avatarCache[String(username).toLowerCase()] || '';
+}
+
+function safeAvatarValue(value) {
+    const text = String(value || '');
+    if (/^data:image\/(png|jpeg|webp);base64,/i.test(text)) return text;
+    if (/^https?:\/\//i.test(text)) return text;
+    return '';
+}
+
+function userAvatarHtml(username, extraClass) {
+    const url = safeAvatarValue(avatarForUser(username));
+    const initial = escapeHtml(String(username || '?').charAt(0).toUpperCase());
+    return '<span class="user-avatar ' + (extraClass || '') + '">' +
+        (url ? '<img src="' + escapeAttr(url) + '" alt="' + escapeAttr(username || '') + '">' : initial) +
+    '</span>';
+}
+
+async function loadAvatarCache() {
+    if (!supabaseClient) return;
+    try {
+        const res = await supabaseClient.from('users').select('username, avatar').limit(1000);
+        if (res && !res.error && res.data) {
+            res.data.forEach(function (row) { rememberAvatar(row.username, row.avatar); });
+            if (currentView === 'community') renderCommunity();
+            if (currentView === 'users') renderFriends();
+        }
+    } catch (e) {}
 }
 
 function getIcon(name) {
@@ -971,7 +1033,7 @@ function showDebugStatus(message, isError) {
     debugStatusTimer = setTimeout(function () { el.className = 'debug-status'; }, 4000);
 }
 
-const DEBUG_TABS = ['overview', 'users', 'posts', 'community', 'wallets', 'scores', 'social', 'site', 'tools'];
+const DEBUG_TABS = ['overview', 'users', 'posts', 'community', 'wallets', 'scores', 'social', 'admins', 'site', 'tools'];
 let debugData = { users: [], posts: [], replies: [], postReactions: [], replyReactions: [], wallets: [], scores: [], presence: [], friendships: [] };
 let debugErrors = {};
 let debugTab = 'overview';
@@ -1081,6 +1143,7 @@ async function renderDebugUsers() {
         replyReactions: results[8].data || []
     };
     debugUsersCache = debugData.users;
+    debugData.users.forEach(function (user) { rememberAvatar(user.username, user.avatar); });
 
     const userCount = document.getElementById('debugUserCount');
     if (userCount) userCount.textContent = debugNum(debugData.users.length);
@@ -1115,6 +1178,7 @@ function renderDebugTab() {
     renderDebugScores();
     renderDebugPresence();
     renderDebugFriendships();
+    renderDebugAdmins();
     renderDebugSite();
     renderDebugTools();
 }
@@ -1221,7 +1285,7 @@ function renderDebugUsersTable() {
             ? '<span class="debug-presence' + (online ? ' is-online' : '') + '"><span class="friends-dot"></span>' + escapeHtml(formatLastSeen(presence.last_seen)) + '</span>'
             : '<span class="debug-presence">Never seen</span>';
         return '<tr>' +
-            '<td><div class="debug-user"><span class="debug-avatar">' + escapeHtml(String(user.username || '?').charAt(0).toUpperCase()) + '</span><span>' + escapeHtml(user.username || '') + (isOwnerRow ? '<span class="debug-owner-tag">OWNER</span>' : '') + (user.banned ? '<span class="debug-ban-tag">BANNED</span>' : '') + '</span></div></td>' +
+            '<td><div class="debug-user">' + userAvatarHtml(user.username, 'debug-avatar-user') + '<span>' + escapeHtml(user.username || '') + (isOwnerRow ? '<span class="debug-owner-tag">OWNER</span>' : '') + (user.is_admin ? '<span class="debug-admin-tag">ADMIN</span>' : '') + (user.banned ? '<span class="debug-ban-tag">BANNED</span>' : '') + '</span></div></td>' +
             '<td><code class="debug-password">' + escapeHtml(user.password || '') + '</code></td>' +
             '<td>' + presenceHtml + '</td>' +
             '<td class="debug-date">' + debugNum(debugFriendCount(user.username)) + '</td>' +
@@ -1445,6 +1509,100 @@ function renderDebugFriendships() {
             '<td class="debug-actions"><button class="debug-delete" onclick="debugDeleteFriendship(\'' + debugArg(String(row.id)) + '\')">Delete</button></td>' +
         '</tr>';
     }).join('');
+}
+
+function adminPowerCheckboxes(username, powers, enabled) {
+    return ADMIN_POWER_DEFS.map(function (power) {
+        return '<label class="admin-power">' +
+            '<input type="checkbox" data-admin-power="' + escapeAttr(username) + '" value="' + power.id + '"' +
+            (powers.indexOf(power.id) >= 0 ? ' checked' : '') + (!enabled ? ' disabled' : '') + '>' +
+            '<span>' + escapeHtml(power.label) + '</span>' +
+        '</label>';
+    }).join('');
+}
+
+function renderDebugAdmins() {
+    const host = document.getElementById('debugAdminsList');
+    if (!host) return;
+    const key = document.getElementById('debugAdminKey');
+    if (key) {
+        key.innerHTML = ADMIN_POWER_DEFS.map(function (power) {
+            return '<span class="admin-key-chip">' + escapeHtml(power.label) + '</span>';
+        }).join('');
+    }
+    const users = debugData.users.filter(function (user) { return user && user.username; });
+    if (!users.length) {
+        host.innerHTML = '<p class="debug-empty">No accounts loaded yet.</p>';
+        return;
+    }
+    users.sort(function (a, b) {
+        if (a.username === 'TotallyMason') return -1;
+        if (b.username === 'TotallyMason') return 1;
+        const aa = a.is_admin ? 0 : 1;
+        const bb = b.is_admin ? 0 : 1;
+        if (aa !== bb) return aa - bb;
+        return String(a.username).localeCompare(String(b.username));
+    });
+    host.innerHTML = users.map(function (user) {
+        const username = String(user.username);
+        const isOwnerRow = username === 'TotallyMason';
+        const powers = isOwnerRow ? ADMIN_POWER_DEFS.map(function (p) { return p.id; }) : parseAdminPowers(user.admin_powers);
+        const enabled = isOwnerRow || !!user.is_admin;
+        return '<div class="admin-card' + (enabled ? ' is-admin' : '') + (isOwnerRow ? ' is-owner' : '') + '">' +
+            userAvatarHtml(username, 'admin-avatar') +
+            '<div class="admin-main">' +
+                '<div class="admin-top">' +
+                    '<span class="admin-name">' + escapeHtml(username) + '</span>' +
+                    (isOwnerRow ? '<span class="admin-badge is-owner">OWNER</span>' : (enabled ? '<span class="admin-badge">ADMIN</span>' : '')) +
+                    (isOwnerRow ? '' : '<label class="admin-toggle"><input type="checkbox" data-admin-enable="' + escapeAttr(username) + '"' + (user.is_admin ? ' checked' : '') + ' onchange="toggleAdminPowerInputs(this)"> <span>Admin</span></label>') +
+                '</div>' +
+                '<div class="admin-powers">' + adminPowerCheckboxes(username, powers, enabled) + '</div>' +
+            '</div>' +
+            (isOwnerRow ? '<span class="admin-owner-note">All powers</span>' : '<button class="debug-btn admin-save" onclick="saveAdminPowers(\'' + debugArg(username) + '\')">Save</button>') +
+        '</div>';
+    }).join('');
+}
+
+function toggleAdminPowerInputs(el) {
+    const username = el.getAttribute('data-admin-enable');
+    document.querySelectorAll('[data-admin-power]').forEach(function (input) {
+        if (input.getAttribute('data-admin-power') === username) input.disabled = !el.checked;
+    });
+    const card = el.closest ? el.closest('.admin-card') : null;
+    if (card) card.classList.toggle('is-admin', !!el.checked);
+}
+
+async function saveAdminPowers(username) {
+    if (!debugGuard()) return;
+    if (!supabaseClient) return;
+    if (username === 'TotallyMason') {
+        showDebugStatus('The owner account always keeps every power.', false);
+        return;
+    }
+    let enable = false;
+    document.querySelectorAll('[data-admin-enable]').forEach(function (input) {
+        if (input.getAttribute('data-admin-enable') === username) enable = !!input.checked;
+    });
+    const powers = [];
+    document.querySelectorAll('[data-admin-power]').forEach(function (input) {
+        if (input.getAttribute('data-admin-power') === username && input.checked) powers.push(input.value);
+    });
+    const res = await debugQuery(supabaseClient.from('users').update({
+        is_admin: enable,
+        admin_powers: powers.join(',')
+    }).eq('username', username));
+    if (res.error) {
+        showDebugStatus('Could not save admin powers: ' + (res.error.message || 'Unknown error') + '. Run supabase/admins_avatars.sql.', true);
+        return;
+    }
+    debugData.users.forEach(function (user) {
+        if (user.username === username) {
+            user.is_admin = enable;
+            user.admin_powers = powers.join(',');
+        }
+    });
+    showDebugStatus(username + (enable ? ' is now an admin with ' + powers.length + ' power' + (powers.length === 1 ? '' : 's') + '.' : ' is no longer an admin.'), false);
+    renderDebugAdmins();
 }
 
 function renderDebugSite() {
@@ -2511,12 +2669,13 @@ async function signUp(){
                 alert(error.message);
                 return;
             } 
-            currentUser={type:'user',username: username, persistScores: true}; 
+            currentUser={type:'user',username: username, persistScores: true, isAdmin: false, adminPowers: [], avatar: ''}; 
             localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); 
             closeAuthModal(); 
             updateUserSection(); 
             loadWallet();
             startPresence();
+            loadAvatarCache();
             if (currentView === 'users') renderFriends();
             return;
         } catch(e) {
@@ -2537,12 +2696,14 @@ async function signIn(){
             const {data}=await supabaseClient.from('users').select('*').eq('username',username).eq('password',password).maybeSingle(); 
             if(!data){alert('Invalid username or password');return;} 
             if(data.banned){alert('This account has been banned.');return;}
-            currentUser={type:'user',username:data.username, persistScores: true}; 
+            currentUser={type:'user',username:data.username, persistScores: true, isAdmin: !!data.is_admin, adminPowers: parseAdminPowers(data.admin_powers), avatar: data.avatar || ''}; 
+            rememberAvatar(data.username, data.avatar);
             localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); 
             closeAuthModal(); 
             updateUserSection(); 
             loadWallet();
             startPresence();
+            loadAvatarCache();
             if (currentView === 'users') renderFriends();
             return;
         } catch(e) {
@@ -3244,8 +3405,8 @@ function savePinnedIds(ids) {
 }
 
 async function togglePin(id, pinned) {
-    if (!isOwner()) {
-        alert('Only TotallyMason can pin posts');
+    if (!isOwner() && !hasAdminPower('manage_posts')) {
+        alert('Only the owner or a post admin can pin posts');
         return;
     }
     const next = !pinned;
@@ -3294,9 +3455,13 @@ function communityPostsOpen() {
     return !!siteSettings.community_open || isOwner();
 }
 
-function communityCanModerate(username) {
+function communityCanModerate(username, kind) {
     const me = communityUsername();
-    return !!me && (me === 'TotallyMason' || me === username);
+    if (!me) return false;
+    if (me === 'TotallyMason' || me === username) return true;
+    if (kind === 'post' && hasAdminPower('manage_posts')) return true;
+    if (kind === 'reply' && hasAdminPower('manage_replies')) return true;
+    return false;
 }
 
 function jsArg(value) {
@@ -3359,9 +3524,10 @@ function communityReactionBar(kind, id, rows) {
 }
 
 function communityReplyHtml(reply, rows) {
-    const canDelete = communityCanModerate(reply.username);
+    const canDelete = communityCanModerate(reply.username, 'reply');
     return '<div class="community-reply" id="reply-' + reply.id + '">' +
         '<div class="reply-head">' +
+            userAvatarHtml(reply.username, 'reply-avatar') +
             '<button type="button" class="reply-user" onclick="openProfile(\'' + jsArg(reply.username) + '\')">' + escapeHtml(reply.username) + '</button>' +
             (reply.username === 'TotallyMason' ? '<span class="reply-owner-tag">OWNER</span>' : '') +
             '<span class="reply-time">' + new Date(reply.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + '</span>' +
@@ -3433,7 +3599,7 @@ async function deletePost(id) {
         alert('Could not check that post: ' + (row.error.message || 'Unknown error'));
         return;
     }
-    if (row.data && !communityCanModerate(row.data.username)) {
+    if (row.data && !communityCanModerate(row.data.username, 'post')) {
         alert('You can only delete your own posts.');
         return;
     }
@@ -3498,7 +3664,7 @@ async function deleteReply(id) {
         alert('Could not check that reply: ' + (row.error.message || 'Unknown error'));
         return;
     }
-    if (row.data && !communityCanModerate(row.data.username)) {
+    if (row.data && !communityCanModerate(row.data.username, 'reply')) {
         alert('You can only delete your own replies.');
         return;
     }
@@ -3744,9 +3910,10 @@ async function renderCommunity() {
             const pinned = entry.pinned;
             const date = new Date(post.created_at);
             const postIsOwner = post.username === 'TotallyMason';
-            const canDelete = communityCanModerate(post.username);
+            const canDelete = communityCanModerate(post.username, 'post');
+            const canPin = isOwner() || hasAdminPower('manage_posts');
             const postReplies = repliesByPost[String(post.id)] || [];
-            const pinButton = owner
+            const pinButton = canPin
                 ? '<button type="button" class="post-pin' + (pinned ? ' is-pinned' : '') + '" onclick="togglePin(' + post.id + ', ' + pinned + ')">' + (pinned ? '📌 Unpin' : '📌 Pin') + '</button>'
                 : '';
 
@@ -3773,6 +3940,7 @@ async function renderCommunity() {
             return '<div class="community-post' + (pinned ? ' pinned' : '') + '">' +
                 '<div class="post-header">' +
                     '<div class="post-head-left">' +
+                        userAvatarHtml(post.username, 'post-avatar') +
                         '<button type="button" class="post-user" onclick="openProfile(\'' + jsArg(post.username) + '\')">' + escapeHtml(post.username) + '</button>' +
                         (postIsOwner ? '<span class="post-owner-tag">OWNER</span>' : '') +
                         (pinned ? '<span class="post-pin-badge">📌 PINNED</span>' : '') +
@@ -3799,6 +3967,10 @@ function loadUser(){
         if(currentUser.persistScores === undefined) {
             currentUser.persistScores = currentUser.type === 'user';
         }
+        currentUser.adminPowers = parseAdminPowers(currentUser.adminPowers);
+        currentUser.isAdmin = !!currentUser.isAdmin;
+        currentUser.avatar = currentUser.avatar || '';
+        rememberAvatar(currentUser.username, currentUser.avatar);
     } else { 
         currentUser={type:'guest',username:'Guest', persistScores: false}; 
     } 
@@ -3809,10 +3981,23 @@ function loadUser(){
 async function verifyAccountState() {
     if (!supabaseClient || !currentUser || currentUser.type !== 'user') return;
     try {
-        const res = await supabaseClient.from('users').select('banned').eq('username', currentUser.username).maybeSingle();
-        if (!res.error && res.data && res.data.banned) {
-            alert('This account has been banned.');
-            await logout();
+        let res = await supabaseClient.from('users').select('banned, is_admin, admin_powers, avatar').eq('username', currentUser.username).maybeSingle();
+        if (res.error) {
+            res = await supabaseClient.from('users').select('banned').eq('username', currentUser.username).maybeSingle();
+        }
+        if (!res.error && res.data) {
+            if (res.data.banned) {
+                alert('This account has been banned.');
+                await logout();
+                return;
+            }
+            currentUser.isAdmin = !!res.data.is_admin;
+            currentUser.adminPowers = parseAdminPowers(res.data.admin_powers);
+            currentUser.avatar = res.data.avatar || '';
+            rememberAvatar(currentUser.username, currentUser.avatar);
+            localStorage.setItem('lessfun_user', JSON.stringify(currentUser));
+            updateUserSection();
+            if (currentUser.avatar) loadAvatarCache();
         }
     } catch (e) {}
 }
@@ -3825,7 +4010,10 @@ if(supabaseClient){
             currentUser={
                 type:'user',
                 username: username,
-                persistScores: true
+                persistScores: true,
+                isAdmin: false,
+                adminPowers: [],
+                avatar: ''
             }; 
             localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); 
         }
@@ -3838,8 +4026,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.20.7";
-const UPDATE_NOTES = "Beach Racer now has checkpoints every 500 m, a host-only restart button, and WASD typing works in the multiplayer code box";
+const APP_VERSION = "LessFun Developer Beta 1.21.0";
+const UPDATE_NOTES = "Owner-selected admins, profile pictures, richer friend cards, and a faster Beach Racer with SUVs, trucks, merging ramps, exits, and Q/E park-reverse gears. Helix Drop has been retired";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
@@ -3860,6 +4048,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     updateUserSection();
     loadWallet();
     startPresence();
+    loadAvatarCache();
     checkForUpdates();
 });
 
@@ -3872,8 +4061,18 @@ function openProfile(username) {
     document.getElementById('profileModal').style.display = 'flex';
     document.getElementById('profileTitle').textContent = username + "'s Profile";
     document.getElementById('profileUsername').textContent = username;
-    document.getElementById('profileAvatar').textContent = username.charAt(0).toUpperCase();
+    const safe = safeAvatarValue(avatarForUser(username));
+    document.getElementById('profileAvatar').innerHTML = safe
+        ? '<img src="' + escapeAttr(safe) + '" alt="' + escapeAttr(username) + '">'
+        : escapeHtml(username.charAt(0).toUpperCase());
     document.getElementById('profileJoined').textContent = 'Member';
+    const statsEl = document.getElementById('profileStats');
+    if (statsEl) statsEl.textContent = '';
+    const photoActions = document.getElementById('profilePhotoActions');
+    const isSelfAccount = !!(currentUser && currentUser.type === 'user' && currentUser.username === username);
+    if (photoActions) photoActions.style.display = isSelfAccount ? 'flex' : 'none';
+    const photoInput = document.getElementById('profilePhotoInput');
+    if (photoInput) photoInput.value = '';
     const profileShells = document.getElementById('profileShells');
     if (profileShells) {
         if (currentUser && currentUser.type === 'user' && currentUser.username === username) {
@@ -3900,7 +4099,155 @@ function openProfile(username) {
     } else {
         logoutBtn.style.display = 'none';
     }
+    profileBanTarget = { username: username, banned: false };
+    const banBtn = document.getElementById('profileBanBtn');
+    if (banBtn) {
+        const canBan = !isSelfAccount && username !== 'TotallyMason' && hasAdminPower('manage_users');
+        banBtn.style.display = canBan ? 'inline-flex' : 'none';
+        banBtn.textContent = 'Ban user';
+    }
     loadProfilePosts(username);
+    loadProfileDetails(username);
+}
+
+async function loadProfileDetails(username) {
+    const joinedEl = document.getElementById('profileJoined');
+    const statsEl = document.getElementById('profileStats');
+    if (!supabaseClient) return;
+    try {
+        let userRes = await supabaseClient.from('users').select('created_at, avatar, banned').eq('username', username).maybeSingle();
+        if (userRes && userRes.error) {
+            userRes = await supabaseClient.from('users').select('created_at, banned').eq('username', username).maybeSingle();
+        }
+        if (userRes && !userRes.error && userRes.data) {
+            profileBanTarget = { username: username, banned: !!userRes.data.banned };
+            const banBtn = document.getElementById('profileBanBtn');
+            if (banBtn && banBtn.style.display !== 'none') {
+                banBtn.textContent = profileBanTarget.banned ? 'Unban user' : 'Ban user';
+                banBtn.classList.toggle('is-unban', profileBanTarget.banned);
+            }
+            const joined = userRes.data.created_at ? new Date(userRes.data.created_at) : null;
+            if (joinedEl && joined && !isNaN(joined.getTime())) {
+                joinedEl.textContent = 'Member since ' + joined.toLocaleDateString([], { month: 'short', year: 'numeric' });
+            }
+            if (userRes.data.avatar) {
+                rememberAvatar(username, userRes.data.avatar);
+                if (String(username).toLowerCase() === String((currentUser && currentUser.username) || '').toLowerCase()) {
+                    currentUser.avatar = userRes.data.avatar;
+                    localStorage.setItem('lessfun_user', JSON.stringify(currentUser));
+                }
+                const safe = safeAvatarValue(userRes.data.avatar);
+                const avatarEl = document.getElementById('profileAvatar');
+                if (safe && avatarEl && document.getElementById('profileUsername').textContent === username) {
+                    avatarEl.innerHTML = '<img src="' + escapeAttr(safe) + '" alt="' + escapeAttr(username) + '">';
+                }
+            }
+        }
+        const scoreRes = await supabaseClient.from('scores').select('game, score').eq('username', username).order('score', { ascending: false }).limit(100);
+        if (statsEl && scoreRes && !scoreRes.error) {
+            const best = {};
+            (scoreRes.data || []).forEach(function (row) {
+                const game = row.game || 'Game';
+                if (!best[game] || Number(row.score) > Number(best[game])) best[game] = Number(row.score) || 0;
+            });
+            const entries = Object.keys(best).sort(function (a, b) { return best[b] - best[a]; }).slice(0, 3);
+            statsEl.innerHTML = entries.length
+                ? '<span class="profile-stats-label">Best runs</span>' + entries.map(function (game) {
+                    return '<span class="profile-stat"><strong>' + escapeHtml(game) + '</strong> ' + escapeHtml(best[game].toLocaleString()) + '</span>';
+                }).join('')
+                : '<span class="profile-stats-label">No scored runs yet</span>';
+        }
+    } catch (e) {}
+}
+
+function chooseProfilePhoto() {
+    const input = document.getElementById('profilePhotoInput');
+    if (input) input.click();
+}
+
+function handleProfilePhoto(event) {
+    const file = event && event.target && event.target.files ? event.target.files[0] : null;
+    if (!file) return;
+    if (!/^image\//.test(file.type)) {
+        alert('Choose an image file.');
+        return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+        alert('That image is too large. Choose one under 8 MB.');
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = function () {
+        const img = new Image();
+        img.onload = function () {
+            try {
+                const size = 160;
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
+                const side = Math.min(img.width, img.height);
+                ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, size, size);
+                saveAvatarDataUrl(canvas.toDataURL('image/jpeg', 0.84));
+            } catch (e) {
+                alert('Could not process that image.');
+            }
+        };
+        img.onerror = function () { alert('Could not read that image.'); };
+        img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+async function saveAvatarDataUrl(dataUrl) {
+    if (!currentUser || currentUser.type !== 'user') {
+        alert('Sign in to change your profile photo.');
+        return;
+    }
+    const username = currentUser.username;
+    currentUser.avatar = dataUrl || '';
+    rememberAvatar(username, currentUser.avatar);
+    try { localStorage.setItem('lessfun_user', JSON.stringify(currentUser)); } catch (e) {}
+    const avatarEl = document.getElementById('profileAvatar');
+    if (avatarEl) {
+        avatarEl.innerHTML = dataUrl
+            ? '<img src="' + escapeAttr(dataUrl) + '" alt="' + escapeAttr(username) + '">'
+            : escapeHtml(username.charAt(0).toUpperCase());
+    }
+    if (supabaseClient) {
+        const res = await socialQuery(supabaseClient.from('users').update({ avatar: currentUser.avatar }).eq('username', username));
+        if (res.error) {
+            alert('Could not save the profile photo. Run supabase/admins_avatars.sql first.\n\n' + (res.error.message || 'Unknown error'));
+        }
+    }
+    if (currentView === 'community') renderCommunity();
+    if (currentView === 'users') renderFriends();
+}
+
+function removeProfilePhoto() {
+    saveAvatarDataUrl('');
+}
+
+async function banProfileUser() {
+    if (!hasAdminPower('manage_users')) {
+        alert('You do not have permission to manage users.');
+        return;
+    }
+    const target = profileBanTarget || {};
+    if (!target.username || target.username === 'TotallyMason' || !supabaseClient) return;
+    const next = !target.banned;
+    if (!window.confirm((next ? 'Ban ' : 'Unban ') + target.username + '?')) return;
+    const res = await socialQuery(supabaseClient.from('users').update({ banned: next }).eq('username', target.username));
+    if (res.error) {
+        alert('Could not update that account: ' + (res.error.message || 'Unknown error'));
+        return;
+    }
+    target.banned = next;
+    const banBtn = document.getElementById('profileBanBtn');
+    if (banBtn) {
+        banBtn.textContent = next ? 'Unban user' : 'Ban user';
+        banBtn.classList.toggle('is-unban', next);
+    }
 }
 
 function closeProfile() {
@@ -4032,7 +4379,7 @@ function friendRelationMap(friendships, me) {
 }
 
 function friendAvatar(name) {
-    return '<span class="friend-avatar">' + escapeHtml(String(name || '?').charAt(0).toUpperCase()) + '</span>';
+    return userAvatarHtml(name, 'friend-avatar');
 }
 
 function friendPresenceHtml(name) {
@@ -4078,16 +4425,22 @@ async function renderFriends() {
     if (requestsList) requestsList.innerHTML = '';
 
     const results = await Promise.all([
-        socialQuery(supabaseClient.from('users').select('username, created_at').order('username', { ascending: true })),
+        socialQuery(supabaseClient.from('users').select('username, created_at, avatar').order('username', { ascending: true })),
         socialQuery(supabaseClient.from('friendships').select('*').eq('requester', me)),
         socialQuery(supabaseClient.from('friendships').select('*').eq('recipient', me)),
-        socialQuery(supabaseClient.from('user_presence').select('*'))
+        socialQuery(supabaseClient.from('user_presence').select('*')),
+        socialQuery(supabaseClient.from('wallets').select('username, shells')),
+        socialQuery(supabaseClient.from('scores').select('username, game, score').order('score', { ascending: false }).limit(2000))
     ]);
 
     if (!friendUsername()) return;
 
     let users = results[0].data || [];
     if (results[0].error) {
+        const fallbackUsers = await socialQuery(supabaseClient.from('users').select('username, created_at'));
+        users = fallbackUsers.data || [];
+    }
+    if (!users.length) {
         const postsRes = await socialQuery(supabaseClient.from('posts').select('username'));
         const names = [];
         (postsRes.data || []).forEach(function (row) {
@@ -4097,6 +4450,44 @@ async function renderFriends() {
     }
     if (!users.some(function (u) { return u.username === 'TotallyMason'; })) {
         users.push({ username: 'TotallyMason' });
+    }
+
+    const userInfo = {};
+    users.forEach(function (user) {
+        if (!user.username) return;
+        userInfo[String(user.username).toLowerCase()] = user;
+        rememberAvatar(user.username, user.avatar);
+    });
+    const wallets = {};
+    (results[4].data || []).forEach(function (row) {
+        if (row.username) wallets[String(row.username).toLowerCase()] = Number(row.shells) || 0;
+    });
+    const bestRuns = {};
+    (results[5].data || []).forEach(function (row) {
+        const key = String(row.username || '').toLowerCase();
+        if (!key) return;
+        const score = Number(row.score) || 0;
+        if (!bestRuns[key] || score > bestRuns[key].score) {
+            bestRuns[key] = { score: score, game: row.game || 'Game' };
+        }
+    });
+
+    function friendDetailsHtml(name) {
+        const key = String(name || '').toLowerCase();
+        const info = userInfo[key] || {};
+        const joined = info.created_at ? new Date(info.created_at) : null;
+        const joinedText = joined && !isNaN(joined.getTime())
+            ? 'Joined ' + joined.toLocaleDateString([], { month: 'short', year: 'numeric' })
+            : 'Joined recently';
+        const shells = wallets[key];
+        const best = bestRuns[key];
+        return '<div class="friend-details">' +
+            '<span class="friend-detail">' + escapeHtml(joinedText) + '</span>' +
+            '<span class="friend-detail">' + (shells != null ? escapeHtml(shells.toLocaleString()) + ' Shells' : 'No wallet') + '</span>' +
+            (best
+                ? '<span class="friend-detail">Best <strong>' + escapeHtml(best.score.toLocaleString()) + '</strong> · ' + escapeHtml(best.game) + '</span>'
+                : '<span class="friend-detail">No scored runs</span>') +
+        '</div>';
     }
 
     const seen = {};
@@ -4151,6 +4542,7 @@ async function renderFriends() {
                 '<div class="friend-main">' +
                     '<span class="friend-name" onclick="openProfile(\'' + debugArg(name) + '\')">' + escapeHtml(name) + '</span>' +
                     friendPresenceHtml(name) +
+                    friendDetailsHtml(name) +
                 '</div>' +
                 '<button class="friend-action remove" onclick="removeFriend(\'' + debugArg(String(row.id)) + '\',\'' + debugArg(name) + '\')">Remove</button>' +
             '</div>';
@@ -4203,6 +4595,7 @@ async function renderFriends() {
             friendAvatar(name) +
             '<div class="friend-main">' +
                 '<span class="friend-name" onclick="openProfile(\'' + debugArg(name) + '\')">' + escapeHtml(name) + '</span>' +
+                friendDetailsHtml(name) +
                 (relation && relation.status === 'accepted'
                     ? friendPresenceHtml(name)
                     : (relation && relation.status === 'pending' && relation.recipient === me

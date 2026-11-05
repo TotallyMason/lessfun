@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261140">
+    <link rel="stylesheet" href="style.css?v=20261141">
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -278,6 +278,7 @@
                 <button class="debug-tab" data-debug-tab="wallets" onclick="showDebugTab('wallets')">Wallets</button>
                 <button class="debug-tab" data-debug-tab="scores" onclick="showDebugTab('scores')">Scores</button>
                 <button class="debug-tab" data-debug-tab="social" onclick="showDebugTab('social')">Friends</button>
+                <button class="debug-tab" data-debug-tab="admins" onclick="showDebugTab('admins')">Admins</button>
                 <button class="debug-tab" data-debug-tab="site" onclick="showDebugTab('site')">Site</button>
                 <button class="debug-tab" data-debug-tab="tools" onclick="showDebugTab('tools')">Tools</button>
             </div>
@@ -564,6 +565,16 @@
                 </div>
             </div>
 
+            <div class="debug-panel" id="debugPanel-admins" style="display:none;">
+                <div class="debug-section">
+                    <h3>Admins and powers</h3>
+                    <p>Promote an account to admin, then tick the powers it should have. Changes apply the next time that player signs in or refreshes.</p>
+                    <div class="admin-power-key" id="debugAdminKey"></div>
+                    <div class="admin-roster" id="debugAdminsList"><p class="debug-empty">Loading accounts…</p></div>
+                    <p class="admin-note">The owner account always keeps every power. Admin accounts can moderate the community immediately according to the powers saved here.</p>
+                </div>
+            </div>
+
             <div class="debug-panel" id="debugPanel-tools" style="display:none;">
                 <div class="debug-tools-grid">
                     <div class="debug-tool-card debug-grant-card">
@@ -807,7 +818,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Developer Beta 1.20.7</p>
+                            <p>LessFun Developer Beta 1.21.0</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -927,11 +938,18 @@
             </div>
             <div class="modal-body" style="flex-direction: column; align-items: stretch; padding: 24px;">
                 <div style="text-align:center;margin-bottom:24px;">
-                    <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#a855f7,#ec4899);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:600;" id="profileAvatar">?</div>
+                    <div class="profile-avatar" id="profileAvatar">?</div>
+                    <div class="profile-photo-actions" id="profilePhotoActions" style="display:none;">
+                        <button type="button" class="profile-photo-btn" onclick="chooseProfilePhoto()">Change photo</button>
+                        <button type="button" class="profile-photo-btn is-ghost" onclick="removeProfilePhoto()">Remove</button>
+                        <input id="profilePhotoInput" type="file" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="handleProfilePhoto(event)">
+                    </div>
                     <h3 id="profileUsername" style="font-size:24px;margin-bottom:4px;"></h3>
                     <p id="profileJoined" style="color:rgba(255,255,255,0.6);font-size:13px;"></p>
+                    <p id="profileStats" class="profile-stats"></p>
                     <p id="profileShells" class="profile-shells" style="display:none;"></p>
                     <button id="profileLogoutBtn" class="game-btn-3d" style="display:none;margin:16px auto 0;padding:8px 24px;">Log Out</button>
+                    <button id="profileBanBtn" class="profile-ban-btn" style="display:none;" onclick="banProfileUser()">Ban user</button>
                 </div>
                 <div style="margin-bottom:20px;">
                     <h4 style="margin-bottom:12px;">Posts</h4>
@@ -951,7 +969,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
-    <script src="games3d.js?v=20261140"></script>
-    <script src="app.js?v=20261140"></script>
+    <script src="games3d.js?v=20261141"></script>
+    <script src="app.js?v=20261141"></script>
 </body>
 </html>
