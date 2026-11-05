@@ -380,66 +380,39 @@
                 g.fillRect(cx + 6, 0, 9, h);
             }
         }, 1, 26);
-        var ROAD_TILE_LEN = 20;
-        var ROAD_TILE_COUNT = 28;
-        var roadTiles = [];
-        var tileTex = trackTex.clone();
-        tileTex.needsUpdate = true;
-        tileTex.wrapS = THREE.RepeatWrapping;
-        tileTex.wrapT = THREE.RepeatWrapping;
-        tileTex.repeat.set(1, 1.15);
-        var tileRoadMat = standard(0xffffff, { map: tileTex, roughness: 0.95, metalness: 0.04 });
         var shoulderMat = standard(0x9aa0a6, { roughness: 0.92 });
         var railMat = standard(0xc3c9cf, { metalness: 0.35, roughness: 0.45 });
         var railPostMat = standard(0x8d949c, { metalness: 0.3, roughness: 0.5 });
         var laneLineMat = new THREE.MeshBasicMaterial({ color: 0xf8f8f4, transparent: true, opacity: 0.82 });
         var edgeLineMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
-        var tileRoadGeo = new THREE.PlaneGeometry(ROAD_W, ROAD_TILE_LEN + 0.9);
-        var tileShoulderGeo = new THREE.PlaneGeometry(1.0, ROAD_TILE_LEN + 0.9);
-        var tileEdgeGeo = new THREE.PlaneGeometry(0.16, ROAD_TILE_LEN + 0.9);
-        var tileRailGeo = new THREE.BoxGeometry(0.12, 0.3, ROAD_TILE_LEN + 0.7);
-        var tileRailGeo2 = new THREE.BoxGeometry(0.1, 0.16, ROAD_TILE_LEN + 0.7);
-        for (var rt = 0; rt < ROAD_TILE_COUNT; rt++) {
-            var roadTile = new THREE.Group();
-            var roadMesh = new THREE.Mesh(tileRoadGeo, tileRoadMat);
-            roadMesh.rotation.x = -Math.PI / 2;
-            roadMesh.position.y = -0.025;
-            roadTile.add(roadMesh);
-            [-1, 1].forEach(function (side) {
-                var shoulder = new THREE.Mesh(tileShoulderGeo, shoulderMat);
-                shoulder.rotation.x = -Math.PI / 2;
-                shoulder.position.set(side * (ROAD_W / 2 + 0.5), -0.02, 0);
-                roadTile.add(shoulder);
-                var edge = new THREE.Mesh(tileEdgeGeo, edgeLineMat);
-                edge.rotation.x = -Math.PI / 2;
-                edge.position.set(side * (ROAD_W / 2 - 0.42), 0.006, 0);
-                roadTile.add(edge);
-                var rail = new THREE.Mesh(tileRailGeo, railMat);
-                rail.position.set(side * (ROAD_W / 2 + 0.85), 0.72, 0);
-                roadTile.add(rail);
-                var rail2 = new THREE.Mesh(tileRailGeo2, railMat);
-                rail2.position.set(side * (ROAD_W / 2 + 0.85), 0.42, 0);
-                roadTile.add(rail2);
-            });
-            scene.add(roadTile);
-            roadTiles.push(roadTile);
-        }
 
-        function updateRoadTiles() {
-            if (!player) return;
-            var baseS = Math.floor((distance - 20) / ROAD_TILE_LEN) * ROAD_TILE_LEN;
-            var playerCurve = curveAt(distance);
-            for (var ti = 0; ti < roadTiles.length; ti++) {
-                var sPos = baseS + ti * ROAD_TILE_LEN;
-                var tile = roadTiles[ti];
-                var tz = player.position.z - (sPos - distance);
-                var tx = curveAt(sPos) - playerCurve;
-                var tangent = (curveAt(sPos + ROAD_TILE_LEN * 0.5) - curveAt(sPos - ROAD_TILE_LEN * 0.5)) / ROAD_TILE_LEN;
-                tile.position.set(tx, 0, tz);
-                tile.rotation.y = -Math.atan(tangent);
-            }
-        }
-        updateRoadTiles();
+        var track = new THREE.Mesh(
+            new THREE.PlaneGeometry(ROAD_W, 500),
+            standard(0xffffff, { map: trackTex, roughness: 0.96, metalness: 0.03 })
+        );
+        track.rotation.x = -Math.PI / 2;
+        track.position.set(0, -0.025, -235);
+        scene.add(track);
+
+        [-1, 1].forEach(function (side) {
+            var shoulder = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 500), shoulderMat);
+            shoulder.rotation.x = -Math.PI / 2;
+            shoulder.position.set(side * (ROAD_W / 2 + 0.5), -0.02, -235);
+            scene.add(shoulder);
+
+            var edge = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 500), edgeLineMat);
+            edge.rotation.x = -Math.PI / 2;
+            edge.position.set(side * (ROAD_W / 2 - 0.42), 0.006, -235);
+            scene.add(edge);
+
+            var railX = side * (ROAD_W / 2 + 0.85);
+            var rail = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.3, 500), railMat);
+            rail.position.set(railX, 0.72, -235);
+            scene.add(rail);
+            var rail2 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.16, 500), railMat);
+            rail2.position.set(railX, 0.42, -235);
+            scene.add(rail2);
+        });
 
         var wetSand = new THREE.Mesh(
             new THREE.PlaneGeometry(6.2, 500),
@@ -449,8 +422,9 @@
         wetSand.position.set(-13.0, -0.08, -235); scene.add(wetSand);
 
         // Ocean: a gently animated wave mesh plus foam and sun glints.
-        var oceanGeo = new THREE.PlaneGeometry(160, 660, 34, 90);
+        var oceanGeo = new THREE.PlaneGeometry(160, 660, 24, 60);
         var oceanBase = new Float32Array(oceanGeo.attributes.position.array);
+        var oceanUpdateT = 0;
         var ocean = new THREE.Mesh(oceanGeo, standard(0x1b87a8, {
             metalness: 0.42, roughness: 0.17, transparent: true, opacity: 0.94
         }));
@@ -2423,6 +2397,7 @@
         var nitro = 100, nitroActive = false;
         var coinsCollected = 0;
         var garageMode = false;
+        var hudT = 0;
         var maxX = ROAD_W / 2 - 1.3;
         var steerX = 0;
 
@@ -2511,7 +2486,6 @@
             var prevDistance = distance;
             distance += speed * dt;
             if (distance < 0) distance = 0;
-            updateRoadTiles();
             updateCheckpoints();
             if (updateRamps()) return;
             updateCoins(prevDistance);
@@ -2621,14 +2595,18 @@
                 }
             }
 
-            // Gentle ocean swell.
-            var pos = oceanGeo.attributes.position;
-            for (var vi = 0; vi < pos.count; vi++) {
-                var ox = oceanBase[vi * 3];
-                var oy = oceanBase[vi * 3 + 1];
-                pos.array[vi * 3 + 2] = Math.sin((ox * 0.11 + elapsed * 1.6)) * 0.16 + Math.sin((oy * 0.16 - elapsed * 1.1)) * 0.1;
+            // Gentle ocean swell, throttled to 30 Hz.
+            oceanUpdateT -= dt;
+            if (oceanUpdateT <= 0) {
+                oceanUpdateT = 1 / 30;
+                var pos = oceanGeo.attributes.position;
+                for (var vi = 0; vi < pos.count; vi++) {
+                    var ox = oceanBase[vi * 3];
+                    var oy = oceanBase[vi * 3 + 1];
+                    pos.array[vi * 3 + 2] = Math.sin((ox * 0.11 + elapsed * 1.6)) * 0.16 + Math.sin((oy * 0.16 - elapsed * 1.1)) * 0.1;
+                }
+                pos.needsUpdate = true;
             }
-            pos.needsUpdate = true;
 
             for (var bdi = 0; bdi < birds.length; bdi++) {
                 var bird = birds[bdi];
@@ -2851,7 +2829,11 @@
                 (driftIntent ? ' · DRIFT' : '') +
                 (playerY > 0.4 ? ' · JUMP' : '') +
                 (exitHintText ? ' · ' + exitHintText : '');
-            setHud(distance + checkpointsPassed * CHECKPOINT_BONUS + driftScore, status, gearText);
+            hudT -= dt;
+            if (hudT <= 0) {
+                hudT = 0.1;
+                setHud(distance + checkpointsPassed * CHECKPOINT_BONUS + driftScore, status, gearText);
+            }
             updateRaceHud();
             updateAudio();
         }

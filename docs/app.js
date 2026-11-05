@@ -5210,8 +5210,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.22.3";
-const UPDATE_NOTES = "Live FPS and render-resolution counters, with automatic resolution scaling that targets 60 FPS: lower resolution when below 60, raise it when above 60, and hold steady at 60";
+const APP_VERSION = "LessFun Developer Beta 1.22.4";
+const UPDATE_NOTES = "Removed Gift from the top bar and optimised Beach Racer: one-piece road, fewer draw calls, throttled ocean and HUD updates, and the 60 FPS resolution scaling keeps tuning itself";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');

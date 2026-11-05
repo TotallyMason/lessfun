@@ -164,7 +164,7 @@ handling real user data or payments.
 - Ignition bar, synthesized engine/tire/nitrous audio, and a drainable nitrous boost on **N**
 - Gold track coins that are collected during a run and paid into the Coins wallet at game over
 - Private messages with ECDH P-256 + AES-GCM end-to-end encryption, available from an in-game sidebar
-- Coin gifting from the top menu or a profile, private-message user search, and 50% cosmetic resale
+- Coin gifting from Friends or a profile, private-message user search, and 50% cosmetic resale
 - Teleport to any racer in a public lobby, and curving highway lane markings for a more dynamic road
 - Liquid-glass HUD pills that expand and contract smoothly as values change
 - Expanded friend/profile stats: joined date, last seen, Coins, lifetime earnings, streak, posts, replies, friends, best runs, and admin status
@@ -175,7 +175,7 @@ handling real user data or payments.
 - Game views open edge-to-edge with a compact floating X/fullscreen header
 - Coin-gift notifications in a bell menu, showing who sent Coins and how much
 - Live Now Playing list in Friends showing what signed-in players are doing, with Join buttons
-- mph/km-h setting, a live FPS/resolution counter, 60 FPS-targeted automatic resolution scaling, and upgraded car paint and player-car detail
+- mph/km-h setting, a live FPS/resolution counter, 60 FPS-targeted automatic resolution scaling, one-piece road geometry, and throttled ocean/HUD updates
 - Friend activity presence with a Join button for their current game or public lobby
 - Live public multiplayer for Tunnel Rush and Star Dodger with real-time score boards
 - AI traffic emergency braking with brake lights; human players get a red flash and warning beep instead of auto-braking
