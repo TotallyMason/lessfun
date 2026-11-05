@@ -168,8 +168,9 @@ handling real user data or payments.
 - Expanded friend/profile stats: joined date, last seen, Coins, lifetime earnings, streak, posts, replies, friends, best runs, and admin status
 - Touch controls for NOS, drift, and gear shifts on phones and narrow screens
 - Beach Racer opens in a 3D garage orbit view with Play and Garage actions
-- Dedicated Garage shop for car parts, separate from the global Store
-- Real curving highway geometry with road tiles, curved traffic, lanes, guardrails, coins, ramps, and checkpoints
+- Dedicated Garage shop for car parts, opened from the Beach Racer garage screen (no separate top-bar tab)
+- Real curving highway geometry with road tiles, curved traffic, lanes, guardrails, signs, lights, posts, coins, ramps, and checkpoints
+- Game views open edge-to-edge with an optional browser fullscreen button
 - mph/km-h setting, adaptive resolution for steadier frame rates, and upgraded car paint and player-car detail
 - Friend activity presence with a Join button for their current game or public lobby
 - Live public multiplayer for Tunnel Rush and Star Dodger with real-time score boards

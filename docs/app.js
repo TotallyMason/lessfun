@@ -318,7 +318,7 @@ function showView(view) {
     else if (view === 'community') { document.getElementById('communityView').style.display = 'block'; document.getElementById('nav-community').classList.add('active'); renderCommunity(); }
     else if (view === 'users') { if(document.getElementById('usersView')){ document.getElementById('usersView').style.display = 'block'; document.getElementById('nav-users').classList.add('active'); renderFriends(); } }
     else if (view === 'store') { document.getElementById('storeView').style.display = 'block'; document.getElementById('nav-store').classList.add('active'); renderWalletUI(); renderStore(); }
-    else if (view === 'garage') { document.getElementById('garageView').style.display = 'block'; document.getElementById('nav-garage').classList.add('active'); renderWalletUI(); renderGarage(); }
+    else if (view === 'garage') { document.getElementById('garageView').style.display = 'block'; var gnav = document.getElementById('nav-garage'); if (gnav) gnav.classList.add('active'); renderWalletUI(); renderGarage(); }
     else if (view === 'settings') { document.getElementById('settingsView').style.display = 'block'; document.getElementById('nav-settings').classList.add('active'); }
     else if (view === 'debug') { document.getElementById('debugView').style.display = 'block'; document.getElementById('nav-debug').classList.add('active'); renderDebugUsers(); }
     currentView = view;
@@ -621,6 +621,19 @@ function openGame(id) {
 
 function restartGame3D() {
     if (currentGameId != null) openGame(currentGameId);
+}
+
+function toggleGameFullscreen() {
+    const modal = document.getElementById('gameModal');
+    if (!modal) return;
+    if (document.fullscreenElement) {
+        if (document.exitFullscreen) document.exitFullscreen().catch(function () {});
+        return;
+    }
+    if (modal.requestFullscreen) {
+        const req = modal.requestFullscreen();
+        if (req && req.catch) req.catch(function () {});
+    }
 }
 
 function closeGame() {
@@ -5191,8 +5204,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.22.0";
-const UPDATE_NOTES = "The Store now sells global themes and avatar frames that work everywhere, while Beach Racer parts moved to a dedicated Garage shop. Open Beach Racer for the 3D garage, then Play or visit the Garage tab";
+const APP_VERSION = "LessFun Developer Beta 1.22.1";
+const UPDATE_NOTES = "Roadside signs, lights, posts, gates, and traffic now follow the curved road correctly, the Garage was removed from the top bar, and every game opens edge-to-edge with a fullscreen button";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');

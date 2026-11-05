@@ -6460,3 +6460,33 @@ body.has-avatar-frame .friend-avatar {
     border-color: #ff70a6;
     box-shadow: 0 0 12px #ff70a6, 0 0 26px #22e6ff;
 }
+
+/* Game view is edge-to-edge fullscreen by default */
+#gameModal .modal-content {
+    width: 100vw;
+    height: 100vh;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    border-radius: 0;
+    border: 0;
+}
+
+#gameModal .modal-body {
+    height: calc(100vh - 72px);
+}
+
+#gameModal .modal-header {
+    height: 72px;
+}
+
+#gameModal:fullscreen .modal-content,
+#gameModal:-webkit-full-screen .modal-content {
+    width: 100vw;
+    height: 100vh;
+}
+
+@media (max-width: 640px) {
+    #gameModal .modal-body { height: calc(100vh - 64px); }
+    #gameModal .modal-header { height: 64px; }
+}

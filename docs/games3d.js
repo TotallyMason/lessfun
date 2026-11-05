@@ -330,7 +330,7 @@
         var ROAD_W = 17.6;
         var scrollers = [];
         function addScroller(obj, wrap, factor) {
-            scrollers.push({ obj: obj, wrap: wrap, factor: factor == null ? 1 : factor, baseX: obj.position.x });
+            scrollers.push({ obj: obj, wrap: wrap, factor: factor == null ? 1 : factor, baseX: obj.position.x, baseRotY: obj.rotation ? obj.rotation.y : 0 });
             scene.add(obj);
             return obj;
         }
@@ -341,6 +341,11 @@
 
         function roadCurveOffset(z) {
             return curveAt(distance - z);
+        }
+
+        function roadTangentAt(z) {
+            var s = distance - z;
+            return Math.atan((curveAt(s + 8) - curveAt(s - 8)) / 16);
         }
 
         // Textured sand and packed track.
@@ -1572,6 +1577,7 @@
                 var gateZ = player.position.z - rel;
                 gate.position.z = gateZ;
                 gate.position.x = roadCurveOffset(gateZ) - roadCurveOffset(player.position.z);
+                gate.rotation.y = -roadTangentAt(gateZ);
                 gate.visible = rel > -16 && rel < 620;
                 var near = Math.max(0, 1 - Math.abs(rel) / 70);
                 gate.scale.setScalar(1 + near * 0.02);
@@ -1698,6 +1704,7 @@
                 var featureZ = player.position.z - rel;
                 feature.group.position.z = featureZ;
                 feature.group.position.x = roadCurveOffset(featureZ) - roadCurveOffset(player.position.z);
+                feature.group.rotation.y = -roadTangentAt(featureZ);
                 feature.group.visible = rel > -50 && rel < 520;
 
                 if (feature.type === 'entry') {
@@ -1808,6 +1815,7 @@
                 var rel = ramp.userData.distance - distance;
                 var rampZ = player.position.z - rel;
                 ramp.position.set(ramp.userData.laneX + (roadCurveOffset(rampZ) - roadCurveOffset(player.position.z)), 0, rampZ);
+                ramp.rotation.y = -roadTangentAt(rampZ);
                 ramp.visible = rel > -45 && rel < 480;
                 if (playerY < 0.2 && Math.abs(speed) > 25 && Math.abs(ramp.userData.laneX - player.position.x) < 1.8 &&
                     ramp.userData.distance > prevDistance && ramp.userData.distance <= distance + 2) {
@@ -2294,8 +2302,11 @@
 
                 entry.car.position.x = entry.displayX;
                 entry.car.position.z = player.position.z - (entry.displayDistance - distance);
+                entry.car.rotation.y -= entry.curveRot || 0;
                 entry.car.rotation.y = Math.max(-0.35, Math.min(0.35, -dx * 0.9));
                 entry.car.rotation.z = Math.max(-0.12, Math.min(0.12, dx * 0.45));
+                entry.curveRot = -roadTangentAt(entry.car.position.z);
+                entry.car.rotation.y += entry.curveRot;
 
                 var remoteSpeed = typeof data.speed === 'number' ? data.speed : 0;
                 var z = entry.car.position.z;
@@ -2529,7 +2540,8 @@
 
             var yawLimit = driftIntent ? 0.78 : 0.42;
             var rollLimit = driftIntent ? 0.34 : 0.2;
-            player.rotation.y = Math.max(-yawLimit, Math.min(yawLimit, vx * 0.045 * (driftIntent ? 2.0 : 1)));
+            player.rotation.y = Math.max(-yawLimit, Math.min(yawLimit, vx * 0.045 * (driftIntent ? 2.0 : 1))) - roadTangentAt(player.position.z);
+
             player.rotation.z = Math.max(-rollLimit, Math.min(rollLimit, -vx * 0.022 * (driftIntent ? 1.7 : 1)));
             player.rotation.x = (input.brake ? 0.035 : 0) + Math.max(-0.03, Math.min(0.03, -vx * 0.002));
             if (player.userData.brakeMat) player.userData.brakeMat.color.setHex(input.brake ? 0xff2438 : 0x5a1018);
@@ -2602,10 +2614,9 @@
                 var sc = scrollers[si];
                 sc.obj.position.z += speed * dt * sc.factor;
                 if (sc.obj.position.z > 28) sc.obj.position.z -= sc.wrap;
-                if (sc.obj.userData && sc.obj.userData.roadMark) {
+                if (Math.abs(sc.baseX) < 14) {
                     sc.obj.position.x = sc.baseX + roadCurveOffset(sc.obj.position.z);
-                } else if (Math.abs(sc.baseX) < 14) {
-                    sc.obj.position.x = sc.baseX + roadCurveOffset(sc.obj.position.z);
+                    sc.obj.rotation.y = (sc.baseRotY || 0) - roadTangentAt(sc.obj.position.z);
                 }
             }
 
@@ -2632,6 +2643,7 @@
                 var c = traffic[k];
                 var u = c.userData;
 
+                c.rotation.y -= u.curveRot || 0;
                 if (u.state === 'mad') {
                     u.madT += dt;
                     var madPrevX = u.logicalX != null ? u.logicalX : c.position.x;
@@ -2744,6 +2756,8 @@
 
                 u.curveShift = roadCurveOffset(c.position.z) - roadCurveOffset(player.position.z);
                 c.position.x = (u.logicalX != null ? u.logicalX : c.position.x) + u.curveShift;
+                u.curveRot = -roadTangentAt(c.position.z);
+                c.rotation.y += u.curveRot;
 
                 var prevZ = c.position.z;
                 c.position.z += (speed - u.cruiseSpeed) * dt;
