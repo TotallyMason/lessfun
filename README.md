@@ -92,6 +92,8 @@ full file:
   and public messaging keys.
 - [`supabase/presence_activity.sql`](supabase/presence_activity.sql) — friend
   activity, game, and joinable public-lobby presence.
+- [`supabase/coin_gifts.sql`](supabase/coin_gifts.sql) — gift notifications and
+  sender history.
 - [`supabase/owner_tools.sql`](supabase/owner_tools.sql) — ban flag and site
   settings.
 - [`supabase/community.sql`](supabase/community.sql) — post attachments, replies,
@@ -169,8 +171,10 @@ handling real user data or payments.
 - Touch controls for NOS, drift, and gear shifts on phones and narrow screens
 - Beach Racer opens in a 3D garage orbit view with Play and Garage actions
 - Dedicated Garage shop for car parts, opened from the Beach Racer garage screen (no separate top-bar tab)
-- Real curving highway geometry with road tiles, curved traffic, lanes, guardrails, signs, lights, posts, coins, ramps, and checkpoints
-- Game views open edge-to-edge with an optional browser fullscreen button
+- Straight segmented highway with aligned traffic, lanes, guardrails, signs, lights, posts, coins, ramps, and checkpoints
+- Game views open edge-to-edge with a compact floating X/fullscreen header
+- Coin-gift notifications in a bell menu, showing who sent Coins and how much
+- Live Now Playing list in Friends showing what signed-in players are doing, with Join buttons
 - mph/km-h setting, adaptive resolution for steadier frame rates, and upgraded car paint and player-car detail
 - Friend activity presence with a Join button for their current game or public lobby
 - Live public multiplayer for Tunnel Rush and Star Dodger with real-time score boards

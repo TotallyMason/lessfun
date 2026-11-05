@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261152">
+    <link rel="stylesheet" href="style.css?v=20261153">
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -78,6 +78,13 @@
                     </svg>
                     <span class="shells-amount" id="navCoins">100</span>
                 </button>
+                <button class="nav-btn nav-bell" onclick="openNotifications()" id="nav-bell" title="Notifications">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/>
+                        <path d="M10 21h4"/>
+                    </svg>
+                    <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+                </button>
                 <button class="nav-btn" onclick="handleProfileNavClick()" id="nav-profile">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-right:6px;">
                         <circle cx="8" cy="6" r="3" stroke="currentColor" stroke-width="1.5"/>
@@ -91,13 +98,6 @@
                         <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                     </svg>
                     Settings
-                </button>
-                <button class="nav-btn nav-debug" onclick="openOwnerDebug()" id="nav-debug" style="display:none;" title="Owner tools">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;">
-                        <rect x="7" y="7" width="10" height="12" rx="5"/>
-                        <path d="M9 7V5a3 3 0 0 1 6 0v2M3 11h4M17 11h4M3 17h4M17 17h4M12 11v8"/>
-                    </svg>
-                    <span class="nav-debug-label">Debug</span>
                 </button>
             </div>
         </div>
@@ -220,6 +220,7 @@
                         <small id="friendsSummaryText">Sign in to add friends</small>
                     </div>
                     <div class="friends-toolbar-actions">
+                        <button class="friends-gift" type="button" onclick="openGiftModal()">Gift Coins</button>
                         <button class="friends-refresh" onclick="renderFriends()">Refresh</button>
                     </div>
                 </div>
@@ -228,6 +229,14 @@
                     Sign in to add friends and see when they were last online.
                     <button type="button" onclick="openAuthModal()">Sign in</button>
                 </div>
+
+                <section class="friends-section">
+                    <div class="friends-section-head">
+                        <h2>Now playing <span id="nowPlayingCount" class="friends-count">0</span></h2>
+                        <small style="color:rgba(255,255,255,0.4);font-size:11px;">Live activity from signed-in players</small>
+                    </div>
+                    <div id="nowPlayingList" class="friends-list"></div>
+                </section>
 
                 <section class="friends-section">
                     <div class="friends-section-head">
@@ -830,7 +839,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Developer Beta 1.22.1</p>
+                            <p>LessFun Developer Beta 1.22.2</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -857,6 +866,16 @@
                         <h3>Credits</h3>
                         <p>Designed and developed by Mason Wong</p>
                         <p style="margin-top:8px; color:rgba(255,255,255,0.6); font-size:13px;">Powered by pure web technologies</p>
+                    </div>
+                </div>
+                <div class="settings-group" id="debugSettingsGroup" style="display:none;">
+                    <h2>Developer</h2>
+                    <div class="settings-item">
+                        <div>
+                            <h3>Owner Console</h3>
+                            <p>Full-site controls for TotallyMason only.</p>
+                        </div>
+                        <button id="nav-debug" class="settings-select" style="display:none;cursor:pointer;" onclick="openOwnerDebug()">Open</button>
                     </div>
                 </div>
             </div>
@@ -979,6 +998,23 @@
         </div>
     </div>
 
+    <div id="notificationsModal" class="modal" style="display: none;">
+        <div class="modal-backdrop" onclick="closeNotifications()"></div>
+        <div class="modal-content" style="max-width: 440px; margin: auto;">
+            <div class="modal-header">
+                <h2>Notifications</h2>
+                <button class="modal-close" onclick="closeNotifications()">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body" style="display:block;padding:18px;">
+                <div id="notificationsList" class="notif-list"><p class="notif-empty">No notifications yet.</p></div>
+            </div>
+        </div>
+    </div>
+
     <div id="giftModal" class="modal" style="display: none;">
         <div class="modal-backdrop" onclick="closeGiftModal()"></div>
         <div class="modal-content" style="max-width: 400px; margin: auto;">
@@ -1021,7 +1057,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
-    <script src="games3d.js?v=20261152"></script>
-    <script src="app.js?v=20261152"></script>
+    <script src="games3d.js?v=20261153"></script>
+    <script src="app.js?v=20261153"></script>
 </body>
 </html>

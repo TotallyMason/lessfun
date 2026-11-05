@@ -6490,3 +6490,144 @@ body.has-avatar-frame .friend-avatar {
     #gameModal .modal-body { height: calc(100vh - 64px); }
     #gameModal .modal-header { height: 64px; }
 }
+
+.friends-gift {
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 209, 102, 0.5);
+    background: rgba(255, 209, 102, 0.16);
+    color: #ffe29a;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.friends-gift:hover {
+    background: rgba(255, 209, 102, 0.3);
+}
+
+.friend-action.gift {
+    border-color: rgba(255, 209, 102, 0.4);
+    color: #ffe29a;
+}
+
+.friend-action.gift:hover {
+    background: rgba(255, 209, 102, 0.16);
+}
+
+/* Notifications */
+.nav-bell {
+    position: relative;
+}
+
+.notif-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    min-width: 16px;
+    height: 16px;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #ff5d8f, #ff3b3b);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1;
+    box-shadow: 0 0 10px rgba(255, 60, 80, 0.7);
+}
+
+.notif-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.notif-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 11px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    font-size: 12px;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.notif-row.is-unread {
+    border-color: rgba(255, 209, 102, 0.35);
+    background: rgba(255, 209, 102, 0.08);
+}
+
+.notif-icon {
+    font-size: 18px;
+    line-height: 1.1;
+}
+
+.notif-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.notif-main strong {
+    color: #fff;
+}
+
+.notif-time {
+    display: block;
+    margin-top: 3px;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.notif-empty {
+    padding: 18px;
+    text-align: center;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+/* Game header: floating X only, no title bar */
+#gameModal .modal-content {
+    position: relative;
+}
+
+#gameModal .modal-header {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    left: auto;
+    width: auto;
+    height: auto;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    z-index: 30;
+}
+
+#gameModal .modal-header h2 {
+    display: none;
+}
+
+#gameModal .modal-body {
+    height: 100vh;
+}
+
+#gameModal .game3d-mp-btn {
+    top: 18px;
+    right: 102px;
+}
+
+@media (max-width: 640px) {
+    #gameModal .game3d-mp-btn {
+        top: auto;
+        right: 12px;
+    }
+}

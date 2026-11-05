@@ -88,6 +88,9 @@ let racerMp = {
 const PRESENCE_ONLINE_MS = 90000;
 const PRESENCE_HEARTBEAT_MS = 25000;
 let presenceTimer = 0;
+let activityChannel = null;
+let activitySubscribed = false;
+let liveActivities = {};
 let friendsAutoTimer = 0;
 let friendsStatusTimer = 0;
 let profileBanTarget = { username: '', banned: false };
@@ -1892,7 +1895,9 @@ function updateUserSection() {
     }
 
     const debugBtn = document.getElementById('nav-debug');
-    if (debugBtn) debugBtn.style.display = isOwner() ? 'flex' : 'none';
+    if (debugBtn) debugBtn.style.display = isOwner() ? 'inline-flex' : 'none';
+    const debugGroup = document.getElementById('debugSettingsGroup');
+    if (debugGroup) debugGroup.style.display = isOwner() ? 'block' : 'none';
 
     if (!isOwner()) {
         ownerUnlocked = false;
@@ -5204,8 +5209,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.22.1";
-const UPDATE_NOTES = "Roadside signs, lights, posts, gates, and traffic now follow the curved road correctly, the Garage was removed from the top bar, and every game opens edge-to-edge with a fullscreen button";
+const APP_VERSION = "LessFun Developer Beta 1.22.2";
+const UPDATE_NOTES = "Debug moved into Settings, prominent gift buttons in Friends, coin-gift notifications with a bell and sender list, a compact X-only game header, a straight road again, and a live Now Playing list showing what players are doing";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
@@ -5369,7 +5374,6 @@ async function loadProfileDetails(username) {
             if (userRes && userRes.data && userRes.data.is_admin) {
                 chips.push('<span class="profile-stat"><strong>ADMIN</strong></span>');
             }
-            chips.push('<span class="profile-stat is-private"><strong>Network</strong> IP hidden by browser</span>');
             statsEl.innerHTML = '<span class="profile-stats-label">Player details</span>' + chips.join('');
         }
     } catch (e) {}
@@ -5523,6 +5527,15 @@ async function sendCoinsGift(target, amount) {
         return { ok: false, message: 'Could not send those Coins. Your balance was restored.' };
     }
     renderWalletUI();
+    if (supabaseClient) {
+        try {
+            await supabaseClient.from('coin_gifts').insert({
+                sender: currentUser.username,
+                recipient: target,
+                amount: amount
+            });
+        } catch (e) {}
+    }
     return { ok: true, message: 'Gifted ' + amount.toLocaleString() + ' Coins to ' + target + '.' };
 }
 
@@ -5657,6 +5670,181 @@ function showFriendsStatus(message, isError) {
 
 let presenceUnavailable = false;
 
+let notifRows = [];
+let notifPoll = 0;
+let notifLoading = false;
+
+function updateNotifBadge() {
+    const badge = document.getElementById('notifBadge');
+    if (!badge) return;
+    const unseen = notifRows.filter(function (row) { return !row.seen; }).length;
+    badge.textContent = unseen > 9 ? '9+' : String(unseen);
+    badge.style.display = unseen > 0 ? 'inline-flex' : 'none';
+}
+
+async function loadNotifications(quiet) {
+    const me = friendUsername();
+    if (!me || !supabaseClient || notifLoading) return;
+    notifLoading = true;
+    try {
+        const res = await socialQuery(supabaseClient.from('coin_gifts')
+            .select('*')
+            .eq('recipient', me)
+            .order('created_at', { ascending: false })
+            .limit(40));
+        if (!res.error) notifRows = res.data || [];
+        updateNotifBadge();
+        if (!quiet && document.getElementById('notificationsModal') && document.getElementById('notificationsModal').style.display !== 'none') {
+            renderNotifications();
+        }
+    } catch (e) {}
+    notifLoading = false;
+}
+
+function renderNotifications() {
+    const list = document.getElementById('notificationsList');
+    if (!list) return;
+    const me = friendUsername();
+    if (!me) {
+        list.innerHTML = '<p class="notif-empty">Sign in to see gift notifications.</p>';
+        return;
+    }
+    if (!notifRows.length) {
+        list.innerHTML = '<p class="notif-empty">No notifications yet. Coin gifts will appear here.</p>';
+        return;
+    }
+    list.innerHTML = notifRows.map(function (row) {
+        const date = new Date(row.created_at);
+        return '<div class="notif-row' + (row.seen ? '' : ' is-unread') + '">' +
+            '<span class="notif-icon">🎁</span>' +
+            '<div class="notif-main">' +
+                '<strong>' + escapeHtml(row.sender || 'Someone') + '</strong> gifted you ' +
+                '<strong>' + escapeHtml((Number(row.amount) || 0).toLocaleString()) + ' Coins</strong>' +
+                '<span class="notif-time">' + escapeHtml(isNaN(date.getTime()) ? '' : date.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })) + '</span>' +
+            '</div>' +
+        '</div>';
+    }).join('');
+}
+
+async function openNotifications() {
+    const modal = document.getElementById('notificationsModal');
+    if (modal) modal.style.display = 'flex';
+    await loadNotifications(false);
+    renderNotifications();
+    markNotificationsSeen();
+}
+
+function closeNotifications() {
+    const modal = document.getElementById('notificationsModal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function markNotificationsSeen() {
+    const me = friendUsername();
+    if (!me || !supabaseClient) return;
+    const unseen = notifRows.some(function (row) { return !row.seen; });
+    if (!unseen) return;
+    try {
+        await supabaseClient.from('coin_gifts').update({ seen: true }).eq('recipient', me).eq('seen', false);
+        notifRows.forEach(function (row) { row.seen = true; });
+        updateNotifBadge();
+    } catch (e) {}
+}
+
+function startNotifications() {
+    if (!friendUsername() || !supabaseClient) return;
+    loadNotifications(true);
+    if (!notifPoll) notifPoll = setInterval(function () { loadNotifications(true); }, 25000);
+}
+
+function stopNotifications() {
+    if (notifPoll) { clearInterval(notifPoll); notifPoll = 0; }
+    notifRows = [];
+    updateNotifBadge();
+}
+
+function startActivityChannel() {
+    if (!friendUsername() || !supabaseClient || activityChannel) return;
+    const me = friendUsername();
+    const channel = supabaseClient.channel('lessfun-activity', { config: { presence: { key: me } } });
+    activityChannel = channel;
+    function sync() {
+        if (activityChannel !== channel) return;
+        const state = channel.presenceState() || {};
+        const next = {};
+        Object.keys(state).forEach(function (key) {
+            const entries = state[key] || [];
+            for (let i = 0; i < entries.length; i++) {
+                const entry = entries[i] || {};
+                const name = entry.username || key;
+                if (!name) continue;
+                next[String(name).toLowerCase()] = {
+                    name: name,
+                    activity: entry.activity || '',
+                    game: entry.game || '',
+                    room: entry.room || '',
+                    at: Number(entry.at) || 0
+                };
+            }
+        });
+        liveActivities = next;
+        if (currentView === 'users') renderFriends();
+    }
+    channel.on('presence', { event: 'sync' }, sync);
+    channel.on('presence', { event: 'join' }, sync);
+    channel.on('presence', { event: 'leave' }, sync);
+    channel.subscribe(function (status) {
+        if (activityChannel !== channel) return;
+        if (status === 'SUBSCRIBED') {
+            activitySubscribed = true;
+            publishActivity();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            activitySubscribed = false;
+        }
+    });
+}
+
+function publishActivity() {
+    if (!activityChannel || !activitySubscribed) return;
+    const me = friendUsername();
+    if (!me) return;
+    const info = currentActivityInfo();
+    try {
+        const tracked = activityChannel.track({
+            username: me,
+            activity: info.activity,
+            game: info.game,
+            room: info.room,
+            at: Date.now()
+        });
+        if (tracked && tracked.catch) tracked.catch(function () {});
+    } catch (e) {}
+}
+
+function stopActivityChannel() {
+    activitySubscribed = false;
+    liveActivities = {};
+    const channel = activityChannel;
+    activityChannel = null;
+    if (channel && supabaseClient && supabaseClient.removeChannel) {
+        try { supabaseClient.removeChannel(channel); } catch (e) {}
+    }
+}
+
+function liveActivityList() {
+    const me = friendUsername() || '';
+    return Object.keys(liveActivities).map(function (key) { return liveActivities[key]; })
+        .filter(function (entry) { return entry && entry.name && entry.name !== me; })
+        .sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
+}
+
+function joinLiveActivity(name, info) {
+    if (!info) return;
+    friendData.activities[name] = info;
+    friendData.activities[String(name).toLowerCase()] = info;
+    joinFriendActivity(name);
+}
+
 function currentActivityInfo() {
     if (typeof arcadeMp !== 'undefined' && arcadeMp && arcadeMp.connected && arcadeMp.gameId) {
         const game = games.find(function (g) { return g.id === arcadeMp.gameId; });
@@ -5725,12 +5913,15 @@ async function touchPresence() {
             }, { onConflict: 'username' });
             if (res && res.error && res.error.code === 'PGRST205') presenceUnavailable = true;
         }
+        publishActivity();
     } catch (e) {}
 }
 
 function startPresence() {
     if (!friendUsername() || !supabaseClient) return;
     touchPresence();
+    startNotifications();
+    startActivityChannel();
     if (!presenceTimer) {
         presenceTimer = setInterval(touchPresence, PRESENCE_HEARTBEAT_MS);
     }
@@ -5744,6 +5935,8 @@ function startPresence() {
 function stopPresence() {
     if (presenceTimer) { clearInterval(presenceTimer); presenceTimer = 0; }
     if (friendsAutoTimer) { clearInterval(friendsAutoTimer); friendsAutoTimer = 0; }
+    stopNotifications();
+    stopActivityChannel();
 }
 
 function friendRelationMap(friendships, me) {
@@ -5768,6 +5961,36 @@ function friendPresenceHtml(name) {
     '</span>';
 }
 
+function renderNowPlaying() {
+    const list = document.getElementById('nowPlayingList');
+    const countEl = document.getElementById('nowPlayingCount');
+    if (!list) return;
+    const entries = liveActivityList();
+    if (countEl) countEl.textContent = String(entries.length);
+    if (!entries.length) {
+        list.innerHTML = '<p class="friends-empty">No one is playing right now.</p>';
+        return;
+    }
+    list.innerHTML = entries.slice(0, 24).map(function (entry) {
+        const info = {
+            activity: entry.activity || 'Online',
+            game: entry.game || '',
+            room: entry.room || ''
+        };
+        friendData.activities[entry.name] = info;
+        friendData.activities[String(entry.name).toLowerCase()] = info;
+        const joinable = info.game === '1' || info.game === '2' || info.game === '5';
+        return '<div class="friend-row">' +
+            userAvatarHtml(entry.name, 'friend-avatar') +
+            '<div class="friend-main">' +
+                '<span class="friend-name" onclick="openProfile(\'' + debugArg(entry.name) + '\')">' + escapeHtml(entry.name) + '</span>' +
+                '<span class="friend-activity">' + escapeHtml(info.activity) + '</span>' +
+            '</div>' +
+            (joinable ? '<button type="button" class="friend-join" onclick="joinFriendActivity(\'' + debugArg(entry.name) + '\')">Join</button>' : '') +
+        '</div>';
+    }).join('');
+}
+
 async function renderFriends() {
     const friendsList = document.getElementById('friendsList');
     const usersList = document.getElementById('usersList');
@@ -5780,6 +6003,10 @@ async function renderFriends() {
 
     const me = friendUsername();
     if (!me) {
+        const nowGuest = document.getElementById('nowPlayingList');
+        if (nowGuest) nowGuest.innerHTML = '<p class="friends-empty">Sign in to see what players are doing live.</p>';
+        const nowCountGuest = document.getElementById('nowPlayingCount');
+        if (nowCountGuest) nowCountGuest.textContent = '0';
         friendsList.innerHTML = '<p class="friends-empty">Sign in to build your friends list.</p>';
         usersList.innerHTML = '<p class="friends-empty">Sign in to find players.</p>';
         if (requestsList) requestsList.innerHTML = '';
@@ -5918,6 +6145,7 @@ async function renderFriends() {
     });
 
     friendData = { friendships: friendships, presence: presence, users: users, activities: activities };
+    renderNowPlaying();
     const rel = friendRelationMap(friendships, me);
     const friends = Object.keys(rel).filter(function (name) {
         return rel[name].status === 'accepted';
@@ -5956,6 +6184,7 @@ async function renderFriends() {
                     friendActivityHtml(name) +
                     friendDetailsHtml(name) +
                 '</div>' +
+                '<button class="friend-action gift" onclick="openGiftModal(\'' + debugArg(name) + '\')">Gift</button>' +
                 '<button class="friend-action remove" onclick="removeFriend(\'' + debugArg(String(row.id)) + '\',\'' + debugArg(name) + '\')">Remove</button>' +
             '</div>';
         }).join('');

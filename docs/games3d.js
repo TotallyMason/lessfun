@@ -336,7 +336,7 @@
         }
 
         function curveAt(trackS) {
-            return Math.sin(trackS * 0.0045) * 16 + Math.sin(trackS * 0.0015 + 1.4) * 8;
+            return 0;
         }
 
         function roadCurveOffset(z) {
