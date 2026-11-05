@@ -174,10 +174,11 @@ handling real user data or payments.
 - Straight segmented highway with aligned traffic, lanes, guardrails, signs, lights, posts, coins, ramps, and checkpoints
 - Game views open edge-to-edge with a compact floating X/fullscreen header
 - Coin-gift notifications in a bell menu, showing who sent Coins and how much
+- A one-time shared **+500 Coin** reward per session for playing multiplayer with at least one other person
 - Live Now Playing list in Friends showing what signed-in players are doing, with Join buttons
 - mph/km-h setting, a live FPS/resolution counter, 60 FPS-targeted automatic resolution scaling, one-piece road geometry, and throttled ocean/HUD updates
 - Friend activity presence with a Join button for their current game or public lobby
-- Live public multiplayer for Tunnel Rush and Star Dodger with real-time score boards
+- Live public multiplayer for Tunnel Rush and Star Dodger with real-time score boards, selectable from each game’s start menu
 - AI traffic emergency braking with brake lights; human players get a red flash and warning beep instead of auto-braking
 - Real 3D suspension on Beach Racer cars: coilover springs, control arms, independent wheel travel, body roll, brake dive, acceleration squat, and landing compression
 - Longer cinematic crashes with tumbling, debris, sparks, smoke, wheel and surfboard detachment, body crumple, bounced landings, and a delayed game-over sequence (no camera shake, no slow-mo label)

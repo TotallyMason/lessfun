@@ -6763,3 +6763,92 @@ body.has-avatar-frame .friend-avatar {
         height: 16px;
     }
 }
+
+/* Multiplayer start menu for Tunnel Rush / Star Dodger */
+.game3d-start {
+    position: absolute;
+    inset: 0;
+    z-index: 7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(4, 6, 12, 0.62);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+}
+
+.game3d-start-card {
+    width: min(420px, 92vw);
+    padding: 28px;
+    border-radius: 22px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: linear-gradient(150deg, rgba(26, 32, 46, 0.94), rgba(8, 11, 20, 0.96));
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    color: #fff;
+    text-align: center;
+}
+
+.game3d-start-card h2 {
+    margin: 7px 0 6px;
+    font-size: 28px;
+}
+
+.game3d-start-card p {
+    margin-bottom: 20px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.game3d-start-actions {
+    display: flex;
+    gap: 9px;
+}
+
+.game3d-start-actions .game3d-mp-primary {
+    flex: 1;
+    margin-top: 0;
+}
+
+.game3d-start-actions .game3d-mp-secondary {
+    flex: 0 0 auto;
+    padding: 0 20px;
+}
+
+/* Make room for three garage actions */
+.game3d-garage-actions {
+    flex-wrap: wrap;
+}
+
+.game3d-garage-actions .game3d-mp-secondary {
+    flex: 1 1 42%;
+    padding: 10px 8px;
+}
+
+/* Global reward toast */
+.global-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 34px;
+    transform: translate(-50%, 24px);
+    z-index: 9999;
+    max-width: min(92vw, 440px);
+    padding: 12px 20px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 209, 102, 0.5);
+    background: linear-gradient(145deg, rgba(46, 38, 16, 0.96), rgba(18, 14, 8, 0.96));
+    color: #ffe6a8;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), 0 0 24px rgba(255, 200, 80, 0.16);
+}
+
+.global-toast.is-visible {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}

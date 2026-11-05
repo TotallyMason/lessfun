@@ -388,6 +388,44 @@ function renderGarageStats() {
         chip('Kit', garageEquippedName('kit'), null);
 }
 
+function startMenuSolo() {
+    const menu = document.getElementById('g3dStartMenu');
+    if (menu) menu.style.display = 'none';
+    if (window.Games3D) window.Games3D.setPaused(false);
+    touchPresence();
+}
+
+function startMenuMultiplayer() {
+    const menu = document.getElementById('g3dStartMenu');
+    if (menu) menu.style.display = 'none';
+    if (window.Games3D) window.Games3D.setPaused(false);
+    arcadeMpJoin();
+}
+
+function garageMultiplayer() {
+    garagePlay();
+    openRacerMpPanel();
+}
+
+function showGameToast(message) {
+    const el = document.getElementById('globalToast');
+    if (!el) return;
+    el.textContent = message;
+    el.classList.add('is-visible');
+    if (gameToastTimer) clearTimeout(gameToastTimer);
+    gameToastTimer = setTimeout(function () { el.classList.remove('is-visible'); }, 3600);
+}
+
+function grantMultiplayerSessionReward() {
+    if (mpRewardSessionClaimed || !wallet) return;
+    mpRewardSessionClaimed = true;
+    wallet.shells = (Number(wallet.shells) || 0) + 500;
+    wallet.totalEarned = (Number(wallet.totalEarned) || 0) + 500;
+    saveWallet();
+    renderWalletUI();
+    showGameToast('Multiplayer with friends · +500 Coins');
+}
+
 function garagePlay() {
     const garage = document.getElementById('g3dGarage');
     if (garage) garage.style.display = 'none';
@@ -417,6 +455,9 @@ function mobileShift(direction) {
 
 let currentGameId = null;
 let garageSuppressed = false;
+let startMenuSuppressed = false;
+let mpRewardSessionClaimed = false;
+let gameToastTimer = 0;
 
 function openGame(id) {
     const game = games.find(g => g.id === id);
@@ -526,6 +567,19 @@ function openGame(id) {
                     '</div>' +
                 '</div>' +
                 '<div class="game3d-arcade-board" id="g3dArcadeBoard" style="display:none;"></div>' : '') +
+            ((game.id === 2 || game.id === 5) ?
+                '<div class="game3d-start" id="g3dStartMenu">' +
+                    '<div class="game3d-start-card">' +
+                        '<span class="game3d-garage-kicker">' + escapeHtml(game.name) + '</span>' +
+                        '<h2>Ready to play?</h2>' +
+                        '<p>Play solo, or jump into the live public lobby with everyone online.</p>' +
+                        '<div class="game3d-start-actions">' +
+                            '<button type="button" class="game3d-mp-primary" onclick="startMenuSolo()">Play Solo</button>' +
+                            '<button type="button" class="game3d-mp-secondary" onclick="startMenuMultiplayer()">Multiplayer</button>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' : '') +
+            '<div class="game3d-toast" id="g3dToast"></div>' +
             (game.id === 1 ?
                 '<div class="game3d-garage" id="g3dGarage">' +
                     '<div class="game3d-garage-card">' +
@@ -535,6 +589,7 @@ function openGame(id) {
                         '<div class="game3d-garage-stats" id="g3dGarageStats"></div>' +
                         '<div class="game3d-garage-actions">' +
                             '<button type="button" class="game3d-mp-primary" onclick="garagePlay()">Play</button>' +
+                            '<button type="button" class="game3d-mp-secondary" onclick="garageMultiplayer()">Multiplayer</button>' +
                             '<button type="button" class="game3d-mp-secondary" onclick="openGarageStore()">Garage · Store</button>' +
                         '</div>' +
                     '</div>' +
@@ -580,6 +635,15 @@ function openGame(id) {
     }
     garageSuppressed = false;
     lastRunCoins = 0;
+    if ((id === 2 || id === 5) && !startMenuSuppressed) {
+        const startMenu = document.getElementById('g3dStartMenu');
+        if (startMenu) startMenu.style.display = 'flex';
+        if (window.Games3D) window.Games3D.setPaused(true);
+    } else {
+        const startMenu = document.getElementById('g3dStartMenu');
+        if (startMenu) startMenu.style.display = 'none';
+    }
+    startMenuSuppressed = false;
 
     if (game.hasThrottle) {
         racerMpApplyToGame();
@@ -1020,6 +1084,7 @@ function racerMpSyncPresence() {
         players = keep;
     }
     racerMp.players = players;
+    if (players.length >= 2) grantMultiplayerSessionReward();
 
     Object.keys(racerMp.remotes).forEach(function (id) {
         if (!players.some(function (player) { return player.id === id; })) delete racerMp.remotes[id];
@@ -1302,6 +1367,7 @@ function arcadeMpJoin() {
             arcadeMpSetStatus('Live · scores update as everyone plays.');
             closeArcadeMpPanel(true);
             if (window.Games3D) window.Games3D.setPaused(false);
+            startMenuSuppressed = true;
             restartGame3D();
             arcadeMpRenderUi();
             touchPresence();
@@ -1348,6 +1414,7 @@ function arcadeMpSyncPresence() {
         }
     });
     arcadeMp.players = players;
+    if (Object.keys(players).length >= 2) grantMultiplayerSessionReward();
     arcadeMpRenderBoard();
     if (arcadeMp.panelOpen) arcadeMpRenderUi();
 }
@@ -5211,8 +5278,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.22.6";
-const UPDATE_NOTES = "Drifting now triggers automatically from speed, steering, and braking, while Shift (or N) fires nitrous with a NITRO SHIFT kick";
+const APP_VERSION = "LessFun Developer Beta 1.22.7";
+const UPDATE_NOTES = "Multiplayer is now an option in the start menu for Tunnel Rush and Star Dodger, and playing multiplayer with other people grants a one-time shared 500-Coin reward per session";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
