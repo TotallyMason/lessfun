@@ -2395,6 +2395,7 @@
         var suspensionImpulse = 0;
         var ignition = 0, engineOn = false;
         var nitro = 100, nitroActive = false;
+        var nitroWasActive = false, nitroShiftT = 0;
         var coinsCollected = 0;
         var garageMode = false;
         var hudT = 0;
@@ -2455,6 +2456,12 @@
             }
 
             nitroActive = !!(input.nitro && input.up && engineOn && gearMode === 'D' && nitro > 0 && !input.brake);
+            if (nitroActive && !nitroWasActive) {
+                nitroShiftT = 0.9;
+                tone(300, 0.16, 'sawtooth', 0.06, 620);
+            }
+            nitroWasActive = nitroActive;
+            nitroShiftT = Math.max(0, nitroShiftT - dt);
             if (nitroActive) nitro = Math.max(0, nitro - 26 * dt);
             else nitro = Math.min(100, nitro + (engineOn ? 7 : 14) * dt);
 
@@ -2491,8 +2498,15 @@
             updateCoins(prevDistance);
             updateJumpRamps(prevDistance);
 
-            var driftIntent = !!input.drift && Math.abs(speed) > 18 &&
-                (input.left || input.right || Math.abs(steerX) > 2.2) && playerY < 0.3;
+            // Drift is detected automatically from speed, steering, and braking.
+            var steeringIntent = (input.left ? -1 : 0) + (input.right ? 1 : 0);
+            var autoDrift = Math.abs(speed) > 26 && playerY < 0.25 && (
+                Math.abs(steerX) > maxX * 0.5 ||
+                (steeringIntent !== 0 && Math.abs(speed) > 48) ||
+                (input.brake && Math.abs(steerX) > maxX * 0.28)
+            );
+            var driftIntent = autoDrift || (!!input.drift && Math.abs(speed) > 18 &&
+                (input.left || input.right || Math.abs(steerX) > 2.2) && playerY < 0.3);
             if (driftIntent) {
                 speed -= Math.sign(speed) * Math.min(Math.abs(speed), 9 * dt);
                 driftScore += dt * 110;
@@ -2825,7 +2839,7 @@
             var status = (input.brake ? 'BRAKE · ' : (input.up ? 'THROTTLE · ' : '')) +
                 speedText(speed) +
                 (!engineOn ? ' · HOLD W TO START' : '') +
-                (nitroActive ? ' · NOS' : '') +
+                (nitroActive ? (nitroShiftT > 0 ? ' · NITRO SHIFT' : ' · NOS') : '') +
                 (driftIntent ? ' · DRIFT' : '') +
                 (playerY > 0.4 ? ' · JUMP' : '') +
                 (exitHintText ? ' · ' + exitHintText : '');
@@ -3224,8 +3238,8 @@
         var KEY_DOWN = ['ArrowDown', 's', 'S'];
         var KEY_GEAR_DOWN = ['q', 'Q'];
         var KEY_GEAR_UP = ['e', 'E'];
-        var KEY_DRIFT = ['Shift', 'ShiftLeft', 'ShiftRight'];
-        var KEY_NITRO = ['n', 'N'];
+        var KEY_DRIFT = []; // Drifting is automatic; the mobile Drift button still forces it.
+        var KEY_NITRO = ['n', 'N', 'Shift', 'ShiftLeft', 'ShiftRight'];
 
         function down(e) {
             if (isTypingTarget(e)) return;

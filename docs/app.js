@@ -4,7 +4,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_Ev9umZevWcT-AwVHTPQLnw_DHdpDHWR";
 const supabaseClient = (typeof window !== 'undefined' && window.supabase) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 const games = [
-    { id: 1, name: "Beach Racer", description: "Outrun traffic on a five-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · ← → steer · Shift drift · N nitrous · Q/E gears · right lane exits" },
+    { id: 1, name: "Beach Racer", description: "Outrun traffic on a five-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · ← → steer · drift is automatic · Shift / N nitrous · Q/E gears · right lane exits" },
     { id: 2, name: "Tunnel Rush", description: "Thread the neon tunnel at warp speed", icon: "tunnel", controls: "Left / Right or drag to rotate" },
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
     { id: 5, name: "Star Dodger", description: "Weave through an asteroid storm", icon: "rocket", controls: "Arrow keys or drag to fly" }
@@ -5211,8 +5211,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.22.5";
-const UPDATE_NOTES = "The in-game HUD is now one liquid-glass bar instead of separate pills, and the score is hidden while playing so it only appears on the game-over screen";
+const APP_VERSION = "LessFun Developer Beta 1.22.6";
+const UPDATE_NOTES = "Drifting now triggers automatically from speed, steering, and braking, while Shift (or N) fires nitrous with a NITRO SHIFT kick";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
