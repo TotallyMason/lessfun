@@ -6631,3 +6631,45 @@ body.has-avatar-frame .friend-avatar {
         right: 12px;
     }
 }
+
+/* Live FPS + render resolution counter */
+.game3d-perf {
+    position: absolute;
+    top: 68px;
+    left: 18px;
+    z-index: 6;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(8, 12, 20, 0.52);
+    color: rgba(255, 255, 255, 0.68);
+    font-size: 9px;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.35;
+    letter-spacing: 0.03em;
+    pointer-events: none;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+}
+
+.game3d-perf span:first-child {
+    color: #8affd0;
+    font-weight: 700;
+}
+
+.game3d-wrap.is-garage .game3d-perf {
+    display: none;
+}
+
+@media (max-width: 640px) {
+    .game3d-perf {
+        top: auto;
+        bottom: 210px;
+        left: 12px;
+        font-size: 8px;
+        padding: 5px 8px;
+    }
+}

@@ -175,7 +175,7 @@ handling real user data or payments.
 - Game views open edge-to-edge with a compact floating X/fullscreen header
 - Coin-gift notifications in a bell menu, showing who sent Coins and how much
 - Live Now Playing list in Friends showing what signed-in players are doing, with Join buttons
-- mph/km-h setting, adaptive resolution for steadier frame rates, and upgraded car paint and player-car detail
+- mph/km-h setting, a live FPS/resolution counter, 60 FPS-targeted automatic resolution scaling, and upgraded car paint and player-car detail
 - Friend activity presence with a Join button for their current game or public lobby
 - Live public multiplayer for Tunnel Rush and Star Dodger with real-time score boards
 - AI traffic emergency braking with brake lights; human players get a red flash and warning beep instead of auto-braking

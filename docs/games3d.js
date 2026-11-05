@@ -12,6 +12,7 @@
     var adaptiveScale = 1;
     var fpsTime = 0;
     var fpsFrames = 0;
+    var lastFps = 0;
     var soundEnabled = true;
     var unitSystem = 'mph';
     var audioMuteHandler = null;
@@ -3315,11 +3316,19 @@
         var dt = Math.min(clock.getDelta(), 0.05);
         fpsTime += dt;
         fpsFrames++;
-        if (fpsTime >= 1.6) {
+        if (fpsTime >= 1) {
             var fps = fpsFrames / fpsTime;
-            if (fps < 48 && adaptiveScale > 0.62) adaptiveScale = Math.max(0.62, adaptiveScale - 0.07);
-            else if (fps > 57 && adaptiveScale < 1) adaptiveScale = Math.min(1, adaptiveScale + 0.04);
-            if (renderer) renderer.setPixelRatio(effectivePixelRatio());
+            lastFps = fps;
+            var changed = false;
+            if (fps < 59 && adaptiveScale > 0.35) {
+                adaptiveScale = Math.max(0.35, adaptiveScale - 0.06);
+                changed = true;
+            } else if (fps > 61 && adaptiveScale < 1.5) {
+                adaptiveScale = Math.min(1.5, adaptiveScale + 0.03);
+                changed = true;
+            }
+            if (changed && renderer) renderer.setPixelRatio(effectivePixelRatio());
+            updatePerfHud(fps);
             fpsTime = 0;
             fpsFrames = 0;
         }
@@ -3414,8 +3423,19 @@
     }
     function effectivePixelRatio() {
         var base = Math.min(global.devicePixelRatio || 1, 2);
-        if (renderScale > 0) return Math.max(0.5, base * renderScale * adaptiveScale);
+        if (renderScale > 0) return Math.max(0.35, base * renderScale * adaptiveScale);
         return Math.min(base, 1.5) * adaptiveScale;
+    }
+
+    function updatePerfHud(fps) {
+        var fpsEl = document.getElementById('g3dFps');
+        var resEl = document.getElementById('g3dRes');
+        if (fpsEl) fpsEl.textContent = Math.round(fps) + ' FPS';
+        if (resEl && renderer) {
+            var canvas = renderer.domElement;
+            var ratio = renderer.getPixelRatio();
+            resEl.textContent = Math.round(ratio * 100) + '% · ' + canvas.width + '×' + canvas.height;
+        }
     }
     function setRenderScale(scale) {
         renderScale = Math.max(0, Math.min(1, Number(scale) || 0));

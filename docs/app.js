@@ -440,6 +440,7 @@ function openGame(id) {
             '</div>' +
             '<div id="g3dCanvas" class="game3d-canvas"></div>' +
             '<div class="game3d-hint">' + (game.controls || '') + '</div>' +
+            '<div class="game3d-perf" id="g3dPerf"><span id="g3dFps">-- FPS</span><span id="g3dRes">--</span></div>' +
             (game.hasThrottle ? '<button class="game3d-throttle" id="g3dThrottle" type="button">Throttle</button>' : '') +
             (game.hasBrake ? '<button class="game3d-brake" id="g3dBrake" type="button">Brake</button>' : '') +
             (game.hasThrottle ? '<div class="game3d-ignition" id="g3dIgnition"><span>Ignition</span><div class="game3d-bar-track"><div class="game3d-bar-fill" id="g3dIgnitionFill"></div></div></div>' : '') +
@@ -5209,8 +5210,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.22.2";
-const UPDATE_NOTES = "Debug moved into Settings, prominent gift buttons in Friends, coin-gift notifications with a bell and sender list, a compact X-only game header, a straight road again, and a live Now Playing list showing what players are doing";
+const APP_VERSION = "LessFun Developer Beta 1.22.3";
+const UPDATE_NOTES = "Live FPS and render-resolution counters, with automatic resolution scaling that targets 60 FPS: lower resolution when below 60, raise it when above 60, and hold steady at 60";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
