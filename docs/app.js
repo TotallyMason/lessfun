@@ -432,11 +432,12 @@ function openGame(id) {
     body.innerHTML =
         '<div class="game3d-wrap">' +
             '<div class="game3d-hud">' +
-                '<div class="game3d-pill"><span>Score</span><strong id="g3dScore">0</strong></div>' +
-                '<div class="game3d-pill"><span>Status</span><strong id="g3dExtra">-</strong></div>' +
-                (game.hasThrottle ? '<div class="game3d-pill game3d-gear-pill"><span>Gear</span><strong id="g3dGear">1</strong></div>' : '') +
-                (game.hasThrottle ? '<div class="game3d-pill game3d-cp-pill"><span>CP</span><strong id="g3dCheckpoint">0</strong></div>' : '') +
-                (game.hasThrottle ? '<div class="game3d-pill game3d-coin-pill"><span>Coins</span><strong id="g3dRunCoins">0</strong></div>' : '') +
+                '<div class="game3d-glass">' +
+                    '<strong class="game3d-glass-status" id="g3dExtra">-</strong>' +
+                    (game.hasThrottle ? '<span class="game3d-glass-sep"></span><span class="game3d-glass-stat game3d-gear-pill"><small>Gear</small><strong id="g3dGear">1</strong></span>' : '') +
+                    (game.hasThrottle ? '<span class="game3d-glass-sep"></span><span class="game3d-glass-stat game3d-cp-pill"><small>CP</small><strong id="g3dCheckpoint">0</strong></span>' : '') +
+                    (game.hasThrottle ? '<span class="game3d-glass-sep"></span><span class="game3d-glass-stat game3d-coin-pill"><small>Coins</small><strong id="g3dRunCoins">0</strong></span>' : '') +
+                '</div>' +
             '</div>' +
             '<div id="g3dCanvas" class="game3d-canvas"></div>' +
             '<div class="game3d-hint">' + (game.controls || '') + '</div>' +
@@ -5210,8 +5211,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.22.4";
-const UPDATE_NOTES = "Removed Gift from the top bar and optimised Beach Racer: one-piece road, fewer draw calls, throttled ocean and HUD updates, and the 60 FPS resolution scaling keeps tuning itself";
+const APP_VERSION = "LessFun Developer Beta 1.22.5";
+const UPDATE_NOTES = "The in-game HUD is now one liquid-glass bar instead of separate pills, and the score is hidden while playing so it only appears on the game-over screen";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');

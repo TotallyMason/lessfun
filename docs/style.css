@@ -6673,3 +6673,93 @@ body.has-avatar-frame .friend-avatar {
         padding: 5px 8px;
     }
 }
+
+/* Single liquid-glass HUD bar */
+.game3d-glass {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    max-width: calc(100vw - 230px);
+    padding: 9px 17px;
+    border-radius: 999px;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.19), rgba(255, 255, 255, 0.05));
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    -webkit-backdrop-filter: blur(20px) saturate(170%);
+    backdrop-filter: blur(20px) saturate(170%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.36), 0 10px 30px rgba(0, 0, 0, 0.36);
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.game3d-glass-status {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.2;
+    color: #fff;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.game3d-glass-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    line-height: 1.05;
+}
+
+.game3d-glass-stat small {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.game3d-glass-stat strong {
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+}
+
+.game3d-glass-sep {
+    width: 1px;
+    height: 21px;
+    flex: 0 0 auto;
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.game3d-glass .game3d-cp-pill strong {
+    color: #8ff8ff;
+    text-shadow: 0 0 14px rgba(80, 230, 255, 0.75);
+}
+
+.game3d-glass .game3d-coin-pill strong {
+    color: #ffd166;
+    text-shadow: 0 0 14px rgba(255, 200, 80, 0.7);
+}
+
+@media (max-width: 640px) {
+    .game3d-glass {
+        max-width: calc(100vw - 96px);
+        gap: 6px;
+        padding: 7px 10px;
+    }
+
+    .game3d-glass-status {
+        font-size: 10px;
+    }
+
+    .game3d-glass-stat small {
+        font-size: 7px;
+    }
+
+    .game3d-glass-stat strong {
+        font-size: 12px;
+    }
+
+    .game3d-glass-sep {
+        height: 16px;
+    }
+}

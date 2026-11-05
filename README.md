@@ -166,7 +166,7 @@ handling real user data or payments.
 - Private messages with ECDH P-256 + AES-GCM end-to-end encryption, available from an in-game sidebar
 - Coin gifting from Friends or a profile, private-message user search, and 50% cosmetic resale
 - Teleport to any racer in a public lobby, and curving highway lane markings for a more dynamic road
-- Liquid-glass HUD pills that expand and contract smoothly as values change
+- Single liquid-glass HUD bar for speed/status, gear, checkpoints, and coins; score is shown only on game over
 - Expanded friend/profile stats: joined date, last seen, Coins, lifetime earnings, streak, posts, replies, friends, best runs, and admin status
 - Touch controls for NOS, drift, and gear shifts on phones and narrow screens
 - Beach Racer opens in a 3D garage orbit view with Play and Garage actions
