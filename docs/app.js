@@ -307,6 +307,7 @@ function showView(view) {
     }
     document.getElementById('gamesView').style.display = 'none';
     document.getElementById('storeView').style.display = 'none';
+    if (document.getElementById('garageView')) document.getElementById('garageView').style.display = 'none';
     document.getElementById('settingsView').style.display = 'none';
     document.getElementById('communityView').style.display = 'none';
     if(document.getElementById('usersView')) document.getElementById('usersView').style.display = 'none';
@@ -317,6 +318,7 @@ function showView(view) {
     else if (view === 'community') { document.getElementById('communityView').style.display = 'block'; document.getElementById('nav-community').classList.add('active'); renderCommunity(); }
     else if (view === 'users') { if(document.getElementById('usersView')){ document.getElementById('usersView').style.display = 'block'; document.getElementById('nav-users').classList.add('active'); renderFriends(); } }
     else if (view === 'store') { document.getElementById('storeView').style.display = 'block'; document.getElementById('nav-store').classList.add('active'); renderWalletUI(); renderStore(); }
+    else if (view === 'garage') { document.getElementById('garageView').style.display = 'block'; document.getElementById('nav-garage').classList.add('active'); renderWalletUI(); renderGarage(); }
     else if (view === 'settings') { document.getElementById('settingsView').style.display = 'block'; document.getElementById('nav-settings').classList.add('active'); }
     else if (view === 'debug') { document.getElementById('debugView').style.display = 'block'; document.getElementById('nav-debug').classList.add('active'); renderDebugUsers(); }
     currentView = view;
@@ -397,8 +399,7 @@ function garagePlay() {
 
 function openGarageStore() {
     closeGame();
-    showView('store');
-    setStoreFilter('all');
+    showView('garage');
 }
 
 function mobileHold(control, on) {
@@ -3658,6 +3659,23 @@ const DAILY_BONUS = 25;
 const STREAK_BONUSES = { 3: 150, 7: 400, 14: 1000 };
 
 const COSMETICS = [
+    // Global themes (apply to the whole app and every game)
+    { id: 'theme_aurora', type: 'theme', name: 'Aurora Glass', cost: 0, default: true, color: '#a855f7', accent2: '#ec4899' },
+    { id: 'theme_sunset', type: 'theme', name: 'Sunset Drive', cost: 500, color: '#ff7b00', accent2: '#ff3b6b' },
+    { id: 'theme_ocean', type: 'theme', name: 'Ocean Signal', cost: 650, color: '#22a6ff', accent2: '#22e6ff' },
+    { id: 'theme_lime', type: 'theme', name: 'Lime Circuit', cost: 800, color: '#7dff4d', accent2: '#06d6a0' },
+    { id: 'theme_rose', type: 'theme', name: 'Rose Quartz', cost: 950, color: '#ff5d8f', accent2: '#ff9ec4' },
+    { id: 'theme_mono', type: 'theme', name: 'Monochrome', cost: 1200, color: '#d9e2ec', accent2: '#8d99ae' },
+    { id: 'theme_gold', type: 'theme', name: 'Gold Coast', cost: 1800, color: '#ffd166', accent2: '#ff9f1c' },
+
+    // Avatar frames (shown around every profile picture in the app)
+    { id: 'frame_none', type: 'frame', name: 'No Frame', cost: 0, default: true, none: true, color: '#555a63' },
+    { id: 'frame_gold', type: 'frame', name: 'Gold Ring', cost: 600, color: '#ffd166' },
+    { id: 'frame_cyan', type: 'frame', name: 'Cyan Pulse', cost: 750, color: '#22e6ff' },
+    { id: 'frame_rose', type: 'frame', name: 'Rose Halo', cost: 850, color: '#ff5d8f' },
+    { id: 'frame_lime', type: 'frame', name: 'Lime Halo', cost: 900, color: '#7dff4d' },
+    { id: 'frame_rainbow', type: 'frame', name: 'Prism Ring', cost: 1600, rainbow: true, color: '#ff70a6' },
+
     // Car paints
     { id: 'paint_coral', type: 'paint', name: 'Coral Cruiser', cost: 0, default: true, color: '#ef476f', threeColor: 0xef476f },
     { id: 'paint_sunset', type: 'paint', name: 'Sunset Amber', cost: 250, color: '#ffa94d', threeColor: 0xffa94d },
@@ -3854,6 +3872,8 @@ const ENGINE_PERF = {
 };
 
 const COSMETIC_CATEGORIES = [
+    { type: 'theme', label: 'Global Themes', blurb: 'Accent colours for the whole app, HUD, and every game.' },
+    { type: 'frame', label: 'Avatar Frames', blurb: 'Profile ring colours that appear everywhere your avatar is shown.' },
     { type: 'paint', label: 'Car Paints', blurb: 'Body colours for your beach buggy.' },
     { type: 'body', label: 'Car Bodies', blurb: 'Real handling parts. Every body changes top speed, acceleration, and grip.' },
     { type: 'engine', label: 'Engines', blurb: 'Real power. Every engine changes top speed and acceleration.' },
@@ -3867,6 +3887,8 @@ const COSMETIC_CATEGORIES = [
 ];
 
 const COSMETIC_TYPES = COSMETIC_CATEGORIES.map(function (category) { return category.type; });
+const GLOBAL_COSMETIC_TYPES = ['theme', 'frame'];
+const GARAGE_COSMETIC_TYPES = ['paint', 'body', 'engine', 'aero', 'kit', 'board', 'glow', 'wheel', 'trail', 'umbrella'];
 
 let wallet = null;
 let walletLoadToken = 0;
@@ -4023,9 +4045,27 @@ async function saveWallet() {
     }
 }
 
+function applyGlobalCosmetics() {
+    const equipped = wallet ? wallet.equipped : {};
+    const theme = COSMETICS.find(function (c) { return c.id === equipped.theme; }) ||
+        COSMETICS.find(function (c) { return c.type === 'theme' && c.default; });
+    const frame = COSMETICS.find(function (c) { return c.id === equipped.frame; });
+    const root = document.documentElement;
+    if (theme) {
+        root.style.setProperty('--theme-accent', theme.color || '#a855f7');
+        root.style.setProperty('--theme-accent2', theme.accent2 || '#ec4899');
+    }
+    const frameOn = !!(frame && !frame.none);
+    if (document.body) {
+        document.body.classList.toggle('has-avatar-frame', frameOn);
+        document.body.classList.toggle('is-rainbow-frame', !!(frameOn && frame.rainbow));
+    }
+    root.style.setProperty('--frame-color', frameOn ? (frame.color || '#ffd166') : 'transparent');
+}
+
 function renderWalletUI() {
     var shells = wallet ? wallet.shells : SHELLS_START;
-    ['navCoins', 'storeCoins'].forEach(function (id) {
+    ['navCoins', 'storeCoins', 'garageCoins', 'profileCoinsValue'].forEach(function (id) {
         var el = document.getElementById(id);
         if (el) el.textContent = shells.toLocaleString();
     });
@@ -4039,6 +4079,11 @@ function renderWalletUI() {
     if (guestNote) {
         guestNote.style.display = (!currentUser || currentUser.type !== 'user') ? 'block' : 'none';
     }
+    var garageGuest = document.getElementById('garageGuestNote');
+    if (garageGuest) {
+        garageGuest.style.display = (!currentUser || currentUser.type !== 'user') ? 'block' : 'none';
+    }
+    applyGlobalCosmetics();
 }
 
 function getEquippedCosmetics() {
@@ -4100,6 +4145,12 @@ function cosmeticPreview(item) {
     if (item.type === 'kit') {
         return '<div class="cosmetic-kit cosmetic-kit-' + item.style + '" style="--swatch:' + item.color + '"><span class="cosmetic-kit-body"></span><span class="cosmetic-kit-skirt"></span></div>';
     }
+    if (item.type === 'theme') {
+        return '<div class="cosmetic-theme" style="--swatch:' + item.color + ';--swatch2:' + (item.accent2 || item.color) + '"><span></span></div>';
+    }
+    if (item.type === 'frame') {
+        return '<div class="cosmetic-frame' + (item.rainbow ? ' is-rainbow' : '') + (item.none ? ' is-none' : '') + '" style="--swatch:' + item.color + '"><span></span></div>';
+    }
     var cls = item.type === 'paint' ? 'cosmetic-car' : 'cosmetic-' + item.type;
     if (item.rainbow) cls += ' is-rainbow';
     if (item.none) cls += ' is-none';
@@ -4122,8 +4173,8 @@ function performanceBadges(item) {
     }).join('') + '</div>';
 }
 
-function cosmeticCards(type) {
-    var query = String(storeSearch || '').trim().toLowerCase();
+function cosmeticCards(type, queryOverride) {
+    var query = String(queryOverride != null ? queryOverride : storeSearch || '').trim().toLowerCase();
     return COSMETICS.filter(function (item) {
         return item.type === type && (!query || item.name.toLowerCase().indexOf(query) >= 0);
     }).map(function (item) {
@@ -4175,6 +4226,12 @@ function storeOwnedCount(type) {
     return { owned: owned, total: items.length };
 }
 
+function cosmeticOwnedCountFor(types) {
+    var items = COSMETICS.filter(function (item) { return types.indexOf(item.type) >= 0; });
+    var owned = items.filter(function (item) { return wallet && wallet.inventory.indexOf(item.id) >= 0; }).length;
+    return { owned: owned, total: items.length };
+}
+
 function renderStore(refocusSearch) {
     var content = document.getElementById('storeContent');
     if (!content) return;
@@ -4183,16 +4240,20 @@ function renderStore(refocusSearch) {
         return;
     }
 
-    var allCount = storeOwnedCount('all');
+    var globalCategories = COSMETIC_CATEGORIES.filter(function (category) {
+        return GLOBAL_COSMETIC_TYPES.indexOf(category.type) >= 0;
+    });
+    if (storeFilter !== 'all' && GLOBAL_COSMETIC_TYPES.indexOf(storeFilter) < 0) storeFilter = 'all';
+    var allCount = cosmeticOwnedCountFor(GLOBAL_COSMETIC_TYPES);
     var tabs = '<button class="store-tab' + (storeFilter === 'all' ? ' active' : '') + '" onclick="setStoreFilter(\'all\')">' +
         'All <span>' + allCount.owned + '/' + allCount.total + '</span></button>';
-    tabs += COSMETIC_CATEGORIES.map(function (category) {
-        var counts = storeOwnedCount(category.type);
+    tabs += globalCategories.map(function (category) {
+        var counts = cosmeticOwnedCountFor([category.type]);
         return '<button class="store-tab' + (storeFilter === category.type ? ' active' : '') + '" onclick="setStoreFilter(\'' + category.type + '\')">' +
             escapeHtml(category.label) + ' <span>' + counts.owned + '/' + counts.total + '</span></button>';
     }).join('');
 
-    var categories = COSMETIC_CATEGORIES.filter(function (category) {
+    var categories = globalCategories.filter(function (category) {
         return storeFilter === 'all' || category.type === storeFilter;
     });
 
@@ -4213,8 +4274,8 @@ function renderStore(refocusSearch) {
             '<div class="store-tabs">' + tabs + '</div>' +
             '<input type="search" id="storeSearch" class="store-search" placeholder="Search cosmetics…" value="' + escapeHtml(storeSearch) + '" oninput="updateStoreSearch(this.value)">' +
         '</div>' +
-        (sections || '<p class="store-empty">No cosmetics match that search.</p>') +
-        '<p class="store-note">Car bodies and engines change real top speed, acceleration, and grip. Paints, boards, glow, wheels, trails, and umbrellas are visual. Coins are earned by playing.</p>';
+        (sections || '<p class="store-empty">No global items match that search.</p>') +
+        '<p class="store-note">Global items work across the whole app and every game. Themes recolour the interface and HUD, and avatar frames appear around profile pictures. Beach Racer car parts are sold in the Garage tab.</p>';
 
     if (refocusSearch) {
         var input = document.getElementById('storeSearch');
@@ -4223,6 +4284,86 @@ function renderStore(refocusSearch) {
             try { input.setSelectionRange(input.value.length, input.value.length); } catch (e) {}
         }
     }
+}
+
+let garageFilter = 'all';
+let garageSearch = '';
+
+function renderGarage(refocusSearch) {
+    var content = document.getElementById('garageContent');
+    if (!content) return;
+    if (!wallet) {
+        content.innerHTML = '<p class="store-loading">Loading garage…</p>';
+        return;
+    }
+    var garageCategories = COSMETIC_CATEGORIES.filter(function (category) {
+        return GARAGE_COSMETIC_TYPES.indexOf(category.type) >= 0;
+    });
+    if (garageFilter !== 'all' && GARAGE_COSMETIC_TYPES.indexOf(garageFilter) < 0) garageFilter = 'all';
+    var allCount = cosmeticOwnedCountFor(GARAGE_COSMETIC_TYPES);
+    var tabs = '<button class="store-tab' + (garageFilter === 'all' ? ' active' : '') + '" onclick="setGarageFilter(\'all\')">' +
+        'All <span>' + allCount.owned + '/' + allCount.total + '</span></button>';
+    tabs += garageCategories.map(function (category) {
+        var counts = cosmeticOwnedCountFor([category.type]);
+        return '<button class="store-tab' + (garageFilter === category.type ? ' active' : '') + '" onclick="setGarageFilter(\'' + category.type + '\')">' +
+            escapeHtml(category.label) + ' <span>' + counts.owned + '/' + counts.total + '</span></button>';
+    }).join('');
+
+    var categories = garageCategories.filter(function (category) {
+        return garageFilter === 'all' || category.type === garageFilter;
+    });
+
+    var sections = categories.map(function (category) {
+        var cards = cosmeticCards(category.type, garageSearch);
+        if (!cards) return '';
+        return '<section class="store-section">' +
+            '<div class="store-section-head">' +
+                '<h2 class="store-heading">' + escapeHtml(category.label) + '</h2>' +
+                '<p class="store-blurb">' + escapeHtml(category.blurb) + '</p>' +
+            '</div>' +
+            '<div class="cosmetic-grid">' + cards + '</div>' +
+        '</section>';
+    }).join('');
+
+    content.innerHTML =
+        '<div class="store-toolbar">' +
+            '<div class="store-tabs">' + tabs + '</div>' +
+            '<input type="search" id="garageSearch" class="store-search" placeholder="Search Beach Racer parts…" value="' + escapeHtml(garageSearch) + '" oninput="updateGarageSearch(this.value)">' +
+        '</div>' +
+        (sections || '<p class="store-empty">No Beach Racer parts match that search.</p>') +
+        '<p class="store-note">These parts only affect Beach Racer. Bodies, engines, aero, and kits change real top speed, acceleration, and grip. Paints, boards, glow, wheels, trails, and umbrellas are visual.</p>';
+
+    if (refocusSearch) {
+        var input = document.getElementById('garageSearch');
+        if (input) {
+            input.focus();
+            try { input.setSelectionRange(input.value.length, input.value.length); } catch (e) {}
+        }
+    }
+}
+
+function setGarageFilter(type) {
+    garageFilter = type;
+    renderGarage();
+}
+
+function updateGarageSearch(value) {
+    garageSearch = value;
+    renderGarage(true);
+}
+
+function flashGarageStatus(message, isError) {
+    var el = document.getElementById('garageStatus');
+    if (!el) return;
+    el.textContent = message;
+    el.className = 'store-status is-visible ' + (isError ? 'is-error' : 'is-success');
+    if (storeStatusTimer) clearTimeout(storeStatusTimer);
+    storeStatusTimer = setTimeout(function () { el.className = 'store-status'; }, 3200);
+}
+
+function flashShopStatus(message, isError) {
+    if (currentView === 'garage') flashGarageStatus(message, isError);
+    else flashStoreStatus(message, isError);
 }
 
 function flashStoreStatus(message, isError) {
@@ -4258,7 +4399,7 @@ async function handleCosmetic(id) {
     var owned = wallet.inventory.indexOf(item.id) >= 0;
     if (!owned) {
         if (wallet.shells < item.cost) {
-            flashStoreStatus('Not enough Coins. You need ' + (item.cost - wallet.shells).toLocaleString() + ' more.', true);
+            flashShopStatus('Not enough Coins. You need ' + (item.cost - wallet.shells).toLocaleString() + ' more.', true);
             return;
         }
         if (!window.confirm('Buy ' + item.name + ' for ' + item.cost.toLocaleString() + ' Coins?')) return;
@@ -4268,23 +4409,27 @@ async function handleCosmetic(id) {
         wallet.equipped[item.type] = item.id;
         await saveWallet();
         const credited = await creditOwnerCoins(item.cost);
+        applyGlobalCosmetics();
         renderStore();
-        flashStoreStatus('Purchased ' + item.name + ' and equipped it.' +
+        renderGarage();
+        flashShopStatus('Purchased ' + item.name + ' and equipped it.' +
             (credited ? ' ' + item.cost.toLocaleString() + ' Coins went to TotallyMason.' : ''));
         return;
     }
 
     wallet.equipped[item.type] = item.id;
     await saveWallet();
+    applyGlobalCosmetics();
     renderStore();
-    flashStoreStatus(item.name + ' equipped.');
+    renderGarage();
+    flashShopStatus(item.name + ' equipped.');
 }
 
 async function sellCosmetic(id) {
     var item = COSMETICS.find(function (c) { return c.id === id; });
     if (!item || !wallet) return;
     if (item.default || item.cost <= 0) {
-        flashStoreStatus('That item is part of the base car and cannot be sold.', true);
+        flashShopStatus('That item is part of the base kit and cannot be sold.', true);
         return;
     }
     if (wallet.inventory.indexOf(item.id) < 0) return;
@@ -4297,8 +4442,10 @@ async function sellCosmetic(id) {
     }
     wallet.shells += price;
     await saveWallet();
+    applyGlobalCosmetics();
     renderStore();
-    flashStoreStatus('Sold ' + item.name + ' for ' + price.toLocaleString() + ' Coins.');
+    renderGarage();
+    flashShopStatus('Sold ' + item.name + ' for ' + price.toLocaleString() + ' Coins.');
 }
 
 function dayKey(date) {
@@ -5044,8 +5191,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.21.9";
-const UPDATE_NOTES = "Beach Racer now opens in a 3D garage with Play and Garage Store buttons, the highway genuinely curves, mph/km-h switching, adaptive FPS scaling, better car paint and detail, and crash parts that bend, break off, and bounce";
+const APP_VERSION = "LessFun Developer Beta 1.22.0";
+const UPDATE_NOTES = "The Store now sells global themes and avatar frames that work everywhere, while Beach Racer parts moved to a dedicated Garage shop. Open Beach Racer for the 3D garage, then Play or visit the Garage tab";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');

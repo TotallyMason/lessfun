@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261150">
+    <link rel="stylesheet" href="style.css?v=20261151">
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -69,7 +69,7 @@
                     </svg>
                     Store
                 </button>
-                <button class="nav-btn" onclick="openGarageStore()" id="nav-garage">
+                <button class="nav-btn" onclick="showView('garage')" id="nav-garage">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-right:6px;">
                         <path d="M2 7l6-4.5L14 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                         <path d="M3.5 6.5V13h9V6.5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
@@ -135,7 +135,7 @@
         <div class="container">
             <header>
                 <h1>Store</h1>
-                <p class="subtitle">Enhance your experience</p>
+                <p class="subtitle">Global items that work in every game</p>
             </header>
             <div class="store-balance">
                 <div class="store-balance-icon">
@@ -148,12 +148,40 @@
                     <div class="store-balance-label">Your Coins</div>
                     <div class="store-balance-value" id="storeCoins">100</div>
                 </div>
-                <p class="store-balance-hint">Earn 1 Coin per second of play · daily and streak bonuses · bodies and engines add real speed</p>
+                <p class="store-balance-hint">Themes and avatar frames work across the whole app · Beach Racer car parts are in the Garage</p>
             </div>
             <p class="store-guest-note" id="storeGuestNote" style="display:none;">Playing as a guest — Coins are saved on this device only. <button type="button" onclick="openAuthModal()">Sign in</button> to keep them across devices.</p>
             <div class="store-status" id="storeStatus" role="status"></div>
             <div id="storeContent">
                 <p class="store-loading">Loading shop…</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Garage View (Beach Racer parts only) -->
+    <div id="garageView" class="view" style="display: none;">
+        <div class="container">
+            <header>
+                <h1>Garage</h1>
+                <p class="subtitle">Beach Racer parts, body kits, and car cosmetics</p>
+            </header>
+            <div class="store-balance">
+                <div class="store-balance-icon">
+                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 3c5.2 0 9 3.4 9 7.6 0 2.1-1.8 3.9-3.9 3.9H6.9C4.8 14.5 3 12.7 3 10.6 3 6.4 6.8 3 12 3Z"/>
+                        <path d="M12 3v11.5M6.6 5.2 9.2 14M17.4 5.2 14.8 14"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="store-balance-label">Your Coins</div>
+                    <div class="store-balance-value" id="garageCoins">100</div>
+                </div>
+                <p class="store-balance-hint">Beach Racer car parts change real speed, acceleration, grip, and looks. Global themes and frames live in the Store.</p>
+            </div>
+            <p class="store-guest-note" id="garageGuestNote" style="display:none;">Playing as a guest — Coins are saved on this device only. <button type="button" onclick="openAuthModal()">Sign in</button> to keep them across devices.</p>
+            <div class="store-status" id="garageStatus" role="status"></div>
+            <div id="garageContent">
+                <p class="store-loading">Loading garage…</p>
             </div>
         </div>
     </div>
@@ -810,7 +838,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Developer Beta 1.21.9</p>
+                            <p>LessFun Developer Beta 1.22.0</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -994,7 +1022,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
-    <script src="games3d.js?v=20261150"></script>
-    <script src="app.js?v=20261150"></script>
+    <script src="games3d.js?v=20261151"></script>
+    <script src="app.js?v=20261151"></script>
 </body>
 </html>

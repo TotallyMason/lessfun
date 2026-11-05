@@ -6390,3 +6390,73 @@ body::before {
         padding: 20px;
     }
 }
+
+/* Global store items: themes and avatar frames */
+:root {
+    --theme-accent: #a855f7;
+    --theme-accent2: #ec4899;
+    --frame-color: transparent;
+}
+
+.nav-btn.active {
+    background: linear-gradient(135deg, var(--theme-accent), var(--theme-accent2)) !important;
+    box-shadow: 0 6px 20px color-mix(in srgb, var(--theme-accent) 35%, transparent);
+}
+
+.game3d-mp-primary,
+.game-btn-3d {
+    background: linear-gradient(145deg, var(--theme-accent), var(--theme-accent2)) !important;
+    color: #fff !important;
+}
+
+.store-tab.active {
+    border-color: color-mix(in srgb, var(--theme-accent) 70%, #fff 10%) !important;
+    color: #fff !important;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--theme-accent) 55%, transparent), color-mix(in srgb, var(--theme-accent2) 55%, transparent)) !important;
+}
+
+.cosmetic-btn.equipped {
+    border-color: var(--theme-accent) !important;
+    color: var(--theme-accent) !important;
+}
+
+body.has-avatar-frame .user-avatar,
+body.has-avatar-frame .profile-avatar,
+body.has-avatar-frame .friend-avatar {
+    box-shadow: 0 0 0 2px var(--frame-color), 0 0 18px var(--frame-color), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.cosmetic-theme {
+    width: 96px;
+    height: 66px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--swatch), var(--swatch2));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 8px 20px rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.cosmetic-frame {
+    width: 96px;
+    height: 66px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cosmetic-frame span {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 5px solid var(--swatch);
+    box-shadow: 0 0 18px var(--swatch);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.cosmetic-frame.is-none {
+    opacity: 0.35;
+}
+
+.cosmetic-frame.is-rainbow span {
+    border-color: #ff70a6;
+    box-shadow: 0 0 12px #ff70a6, 0 0 26px #22e6ff;
+}
