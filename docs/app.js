@@ -17,6 +17,24 @@ let ownerUnlocked = false;
 let debugUsersCache = [];
 let debugStatusTimer = 0;
 
+const RACER_MP_MAX = 3;
+const RACER_MP_CODE_LENGTH = 5;
+let racerMp = {
+    id: '',
+    code: '',
+    name: '',
+    channel: null,
+    connected: false,
+    timer: 0,
+    lastSend: 0,
+    lastReset: 0,
+    panelOpen: false,
+    racing: false,
+    players: [],
+    remotes: {},
+    status: ''
+};
+
 const PRESENCE_ONLINE_MS = 90000;
 const PRESENCE_HEARTBEAT_MS = 25000;
 let presenceTimer = 0;
@@ -257,6 +275,35 @@ function openGame(id) {
             '<div class="game3d-hint">' + (game.controls || '') + '</div>' +
             (game.hasThrottle ? '<button class="game3d-throttle" id="g3dThrottle" type="button">Throttle</button>' : '') +
             (game.hasBrake ? '<button class="game3d-brake" id="g3dBrake" type="button">Brake</button>' : '') +
+            (game.hasThrottle ?
+                '<button class="game3d-mp-btn" id="g3dMpBtn" type="button" onclick="openRacerMpPanel()">Multiplayer</button>' +
+                '<div class="game3d-mp" id="g3dMpPanel" style="display:none;">' +
+                    '<div class="game3d-mp-card">' +
+                        '<div class="game3d-mp-head">' +
+                            '<h3>Beach Racer Multiplayer</h3>' +
+                            '<button type="button" class="game3d-mp-x" onclick="closeRacerMpPanel()">×</button>' +
+                        '</div>' +
+                        '<p class="game3d-mp-sub">2–3 players · share a room code · cars pass through each other</p>' +
+                        '<div id="g3dMpLobby">' +
+                            '<label class="game3d-mp-label" for="g3dMpName">Your name</label>' +
+                            '<input class="game3d-mp-input" id="g3dMpName" type="text" maxlength="16" autocomplete="nickname" placeholder="Driver name" onchange="racerMpNameChanged()">' +
+                            '<button class="game3d-mp-primary" type="button" onclick="racerMpCreateRoom()">Create room</button>' +
+                            '<div class="game3d-mp-or">or join with a code</div>' +
+                            '<div class="game3d-mp-join">' +
+                                '<input class="game3d-mp-input" id="g3dMpCode" type="text" maxlength="5" placeholder="CODE" autocapitalize="characters" spellcheck="false" onkeydown="if(event.key===\'Enter\')racerMpJoinCode()">' +
+                                '<button class="game3d-mp-secondary" type="button" onclick="racerMpJoinCode()">Join</button>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div id="g3dMpRoom" style="display:none;">' +
+                            '<div class="game3d-mp-code-row"><span>Room</span><strong id="g3dMpRoomCode">-----</strong><button type="button" class="game3d-mp-copy" onclick="racerMpCopyCode()">Copy</button></div>' +
+                            '<div class="game3d-mp-players" id="g3dMpPlayers"></div>' +
+                            '<button class="game3d-mp-primary" type="button" onclick="racerMpStart()">Start race</button>' +
+                            '<button class="game3d-mp-leave" type="button" onclick="racerMpLeave()">Leave room</button>' +
+                        '</div>' +
+                        '<p class="game3d-mp-status" id="g3dMpStatus"></p>' +
+                        '<p class="game3d-mp-note">The race restarts for everyone when a room starts. Player cars never collide with each other.</p>' +
+                    '</div>' +
+                '</div>' : '') +
             '<div class="game3d-over" id="g3dOver" style="display:none;">' +
                 '<div class="game3d-over-card">' +
                     '<h3>Game Over</h3>' +
@@ -275,6 +322,12 @@ function openGame(id) {
             onScore: function (name, score) { saveScore(name, score); },
             onGameOver: function (score, seconds) { handleGameOver(score, seconds); }
         });
+    }
+
+    if (game.hasThrottle) {
+        racerMpApplyToGame();
+    } else if (racerMp.code) {
+        racerMpLeave();
     }
 
     var brakeBtn = document.getElementById('g3dBrake');
@@ -319,10 +372,468 @@ function restartGame3D() {
 }
 
 function closeGame() {
+    closeRacerMpPanel(true);
+    racerMpLeave(true);
     if (window.Games3D) window.Games3D.stop();
     document.getElementById('gameModal').style.display = 'none';
     currentGameId = null;
 }
+
+/* ============================================================
+   Beach Racer multiplayer rooms (2–3 players, room codes)
+   ============================================================ */
+
+function racerMpSanitizeName(value) {
+    return String(value == null ? '' : value).replace(/\s+/g, ' ').trim().slice(0, 16);
+}
+
+function racerMpSuggestedName() {
+    if (currentUser && currentUser.type === 'user' && currentUser.username && currentUser.username !== 'Guest') {
+        return racerMpSanitizeName(currentUser.username);
+    }
+    try { return racerMpSanitizeName(localStorage.getItem('lessfun_racer_name') || ''); } catch (e) { return ''; }
+}
+
+function racerMpSaveName(name) {
+    try { localStorage.setItem('lessfun_racer_name', name); } catch (e) {}
+}
+
+function racerMpMakeId() {
+    try {
+        if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+    } catch (e) {}
+    return 'racer-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+}
+
+function racerMpMakeCode() {
+    var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    var code = '';
+    for (var i = 0; i < RACER_MP_CODE_LENGTH; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+}
+
+function racerMpCssColor(value) {
+    var n = typeof value === 'number' ? value : 0xef476f;
+    return '#' + ('000000' + (n >>> 0).toString(16)).slice(-6);
+}
+
+function racerMpSetStatus(text) {
+    racerMp.status = text || '';
+    var el = document.getElementById('g3dMpStatus');
+    if (el) el.textContent = racerMp.status;
+}
+
+function racerMpPresencePayload() {
+    var cosmetics = getEquippedCosmetics();
+    return {
+        id: racerMp.id,
+        name: racerMp.name,
+        joinedAt: racerMp.joinedAt || (racerMp.joinedAt = Date.now()),
+        paint: cosmetics.paint,
+        body: cosmetics.body,
+        engine: cosmetics.engine,
+        wheel: cosmetics.wheel,
+        engineColor: cosmetics.engineColor
+    };
+}
+
+function racerMpUpdateUi() {
+    var btn = document.getElementById('g3dMpBtn');
+    if (btn) {
+        if (racerMp.code) {
+            var count = Math.max(1, racerMp.players.length);
+            btn.textContent = 'Room ' + racerMp.code + ' · ' + count + '/' + RACER_MP_MAX;
+            btn.classList.add('is-live');
+        } else {
+            btn.textContent = 'Multiplayer';
+            btn.classList.remove('is-live');
+        }
+    }
+
+    var lobby = document.getElementById('g3dMpLobby');
+    var room = document.getElementById('g3dMpRoom');
+    if (lobby) lobby.style.display = racerMp.code ? 'none' : 'block';
+    if (room) room.style.display = racerMp.code ? 'block' : 'none';
+
+    var codeEl = document.getElementById('g3dMpRoomCode');
+    if (codeEl) codeEl.textContent = racerMp.code || '-----';
+
+    var playersEl = document.getElementById('g3dMpPlayers');
+    if (playersEl && racerMp.code) {
+        var players = racerMp.players.slice();
+        if (!players.length) {
+            players = [{ id: racerMp.id, name: racerMp.name || 'You', paint: 0xef476f }];
+        }
+        playersEl.innerHTML = players.map(function (player) {
+            var isSelf = player.id === racerMp.id;
+            return '<div class="game3d-mp-player">' +
+                '<span class="game3d-mp-dot" style="background:' + racerMpCssColor(player.paint) + '"></span>' +
+                '<span class="game3d-mp-player-name">' + escapeHtml(player.name || 'Player') + '</span>' +
+                (isSelf ? '<span class="game3d-mp-you">YOU</span>' : '') +
+            '</div>';
+        }).join('');
+    }
+
+    var statusEl = document.getElementById('g3dMpStatus');
+    if (statusEl) statusEl.textContent = racerMp.status;
+
+    var nameInput = document.getElementById('g3dMpName');
+    if (nameInput && document.activeElement !== nameInput && !nameInput.value) {
+        nameInput.value = racerMp.name || racerMpSuggestedName();
+    }
+}
+
+function racerMpApplyToGame() {
+    if (!window.Games3D) return;
+    if (racerMp.code) {
+        window.Games3D.setLocalRacerName(racerMp.name || 'Player');
+        if (racerMp.panelOpen) window.Games3D.setPaused(true);
+    } else {
+        window.Games3D.setLocalRacerName('');
+    }
+    racerMpUpdateUi();
+}
+
+function openRacerMpPanel() {
+    if (currentGameId !== 1) return;
+    racerMp.panelOpen = true;
+    racerMp.name = racerMp.name || racerMpSuggestedName();
+    var panel = document.getElementById('g3dMpPanel');
+    if (panel) panel.style.display = 'flex';
+    var nameInput = document.getElementById('g3dMpName');
+    if (nameInput && !nameInput.value) nameInput.value = racerMp.name;
+    var codeInput = document.getElementById('g3dMpCode');
+    if (codeInput) codeInput.value = '';
+    racerMpUpdateUi();
+    if (window.Games3D) window.Games3D.setPaused(true);
+}
+
+function closeRacerMpPanel(silent) {
+    racerMp.panelOpen = false;
+    var panel = document.getElementById('g3dMpPanel');
+    if (panel) panel.style.display = 'none';
+    if (!silent && window.Games3D) window.Games3D.setPaused(false);
+}
+
+function racerMpReadName() {
+    var input = document.getElementById('g3dMpName');
+    var name = racerMpSanitizeName(input ? input.value : racerMp.name);
+    if (!name) {
+        racerMpSetStatus('Enter a driver name first.');
+        if (input) input.focus();
+        return '';
+    }
+    racerMp.name = name;
+    racerMpSaveName(name);
+    return name;
+}
+
+function racerMpNameChanged() {
+    var input = document.getElementById('g3dMpName');
+    var name = racerMpSanitizeName(input ? input.value : '');
+    if (!name) return;
+    racerMp.name = name;
+    racerMpSaveName(name);
+    if (racerMp.channel && racerMp.connected) {
+        var tracked = racerMp.channel.track(racerMpPresencePayload());
+        if (tracked && tracked.catch) tracked.catch(function () {});
+    }
+    if (racerMp.code && window.Games3D) window.Games3D.setLocalRacerName(name);
+    racerMpUpdateUi();
+}
+
+function racerMpCreateRoom() {
+    var name = racerMpReadName();
+    if (!name) return;
+    racerMpConnect(racerMpMakeCode(), name);
+}
+
+function racerMpJoinCode() {
+    var name = racerMpReadName();
+    if (!name) return;
+    var input = document.getElementById('g3dMpCode');
+    var code = String(input ? input.value : '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, RACER_MP_CODE_LENGTH);
+    if (code.length < 4) {
+        racerMpSetStatus('Enter the room code your friend shared.');
+        if (input) input.focus();
+        return;
+    }
+    racerMpConnect(code, name);
+}
+
+function racerMpConnect(code, name) {
+    if (!supabaseClient) {
+        racerMpSetStatus('Multiplayer is unavailable — the online service did not load.');
+        return;
+    }
+    racerMpLeave(true);
+    racerMp.id = racerMpMakeId();
+    racerMp.code = code;
+    racerMp.name = name;
+    racerMp.connected = false;
+    racerMp.racing = false;
+    racerMp.joinedAt = Date.now();
+    racerMp.remotes = {};
+    racerMp.players = [];
+    racerMp.status = 'Connecting to room ' + code + '…';
+
+    var channel = supabaseClient.channel('lessfun-racer-' + code, {
+        config: { presence: { key: racerMp.id } }
+    });
+    racerMp.channel = channel;
+
+    channel.on('broadcast', { event: 'state' }, function (message) {
+        racerMpHandleState(message && message.payload);
+    });
+    channel.on('broadcast', { event: 'start' }, function (message) {
+        racerMpHandleStart(message && message.payload);
+    });
+    channel.on('presence', { event: 'sync' }, function () { racerMpSyncPresence(); });
+    channel.on('presence', { event: 'join' }, function () { racerMpSyncPresence(); });
+    channel.on('presence', { event: 'leave' }, function () { racerMpSyncPresence(); });
+
+    channel.subscribe(function (status) {
+        if (racerMp.channel !== channel) return;
+        if (status === 'SUBSCRIBED') {
+            racerMp.connected = true;
+            racerMpSetStatus('Room ' + code + ' · share this code with 1–2 friends.');
+            var tracked = channel.track(racerMpPresencePayload());
+            if (tracked && tracked.catch) tracked.catch(function () {});
+            racerMpApplyToGame();
+            racerMpUpdateUi();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            racerMp.connected = false;
+            racerMpSetStatus('Could not connect to that room. Check the code and try again.');
+            racerMpUpdateUi();
+        }
+    });
+
+    if (racerMp.timer) clearInterval(racerMp.timer);
+    racerMp.timer = setInterval(racerMpTick, 100);
+    racerMpApplyToGame();
+    racerMpUpdateUi();
+}
+
+function racerMpSyncPresence() {
+    if (!racerMp.channel) return;
+    var state = racerMp.channel.presenceState() || {};
+    var players = [];
+    Object.keys(state).forEach(function (key) {
+        var entries = state[key] || [];
+        for (var i = 0; i < entries.length; i++) {
+            var entry = entries[i];
+            if (!entry || !entry.id) continue;
+            players.push({
+                id: String(entry.id),
+                name: racerMpSanitizeName(entry.name) || 'Player',
+                paint: typeof entry.paint === 'number' ? entry.paint : 0xef476f,
+                joinedAt: Number(entry.joinedAt) || 0
+            });
+        }
+    });
+    var seen = {};
+    players = players.filter(function (player) {
+        if (seen[player.id]) return false;
+        seen[player.id] = true;
+        return true;
+    });
+    if (!players.some(function (player) { return player.id === racerMp.id; })) {
+        players.push({
+            id: racerMp.id,
+            name: racerMp.name || 'You',
+            paint: getEquippedCosmetics().paint,
+            joinedAt: racerMp.joinedAt
+        });
+    }
+    players.sort(function (a, b) {
+        return (a.joinedAt || 0) - (b.joinedAt || 0) || String(a.id).localeCompare(String(b.id));
+    });
+
+    if (players.length > RACER_MP_MAX) {
+        var keep = players.slice(0, RACER_MP_MAX);
+        var allowed = keep.some(function (player) { return player.id === racerMp.id; });
+        if (!allowed) {
+            racerMpLeave(true);
+            racerMpSetStatus('That room is full — 3 players max.');
+            racerMpUpdateUi();
+            return;
+        }
+        players = keep;
+    }
+    racerMp.players = players;
+
+    Object.keys(racerMp.remotes).forEach(function (id) {
+        if (!players.some(function (player) { return player.id === id; })) delete racerMp.remotes[id];
+    });
+
+    if (racerMp.connected) {
+        racerMp.status = players.length + ' / ' + RACER_MP_MAX + ' players in the room.';
+    }
+    racerMpUpdateUi();
+}
+
+function racerMpHandleState(payload) {
+    if (!payload || !payload.id || String(payload.id) === racerMp.id) return;
+    var id = String(payload.id);
+    racerMp.remotes[id] = {
+        id: id,
+        name: racerMpSanitizeName(payload.name) || 'Player',
+        x: Number(payload.x) || 0,
+        distance: Number(payload.distance) || 0,
+        speed: Number(payload.speed) || 0,
+        gear: Number(payload.gear) || 0,
+        body: payload.body || 'classic',
+        engine: payload.engine || 'stock',
+        paint: typeof payload.paint === 'number' ? payload.paint : 0xef476f,
+        wheel: typeof payload.wheel === 'number' ? payload.wheel : null,
+        engineColor: typeof payload.engineColor === 'number' ? payload.engineColor : null,
+        lastSeen: Date.now()
+    };
+}
+
+function racerMpHandleStart(payload) {
+    if (!payload || String(payload.id) === racerMp.id) return;
+    var now = Date.now();
+    if (now - racerMp.lastReset < 800) return;
+    racerMp.lastReset = now;
+    racerMpPrepareRace();
+}
+
+function racerMpStart() {
+    if (!racerMp.code) return;
+    var payload = { id: racerMp.id, at: Date.now() };
+    if (racerMp.channel && racerMp.connected) {
+        var sent = racerMp.channel.send({ type: 'broadcast', event: 'start', payload: payload });
+        if (sent && sent.catch) sent.catch(function () {});
+    }
+    racerMp.lastReset = Date.now();
+    racerMpPrepareRace();
+}
+
+function racerMpPrepareRace() {
+    racerMp.racing = true;
+    racerMp.panelOpen = false;
+    racerMp.remotes = {};
+    var panel = document.getElementById('g3dMpPanel');
+    if (panel) panel.style.display = 'none';
+    if (window.Games3D) {
+        window.Games3D.setRemoteRacers([]);
+        window.Games3D.setPaused(false);
+    }
+    if (currentGameId === 1) {
+        restartGame3D();
+    } else {
+        showView('games');
+        openGame(1);
+    }
+    racerMpApplyToGame();
+    if (window.Games3D) window.Games3D.setPaused(false);
+    racerMpUpdateUi();
+}
+
+function racerMpTick() {
+    if (!racerMp.code || !racerMp.channel) return;
+    if (racerMp.connected) {
+        var state = window.Games3D && window.Games3D.getRacerState ? window.Games3D.getRacerState() : null;
+        if (state && Date.now() - racerMp.lastSend >= 90) {
+            racerMp.lastSend = Date.now();
+            var cosmetics = getEquippedCosmetics();
+            var sent = racerMp.channel.send({
+                type: 'broadcast',
+                event: 'state',
+                payload: {
+                    id: racerMp.id,
+                    name: racerMp.name,
+                    x: state.x,
+                    distance: state.distance,
+                    speed: state.speed,
+                    gear: state.gear,
+                    body: cosmetics.body,
+                    engine: cosmetics.engine,
+                    paint: cosmetics.paint,
+                    wheel: cosmetics.wheel,
+                    engineColor: cosmetics.engineColor
+                }
+            });
+            if (sent && sent.catch) sent.catch(function () {});
+        }
+    }
+
+    var now = Date.now();
+    var list = [];
+    Object.keys(racerMp.remotes).forEach(function (id) {
+        var remote = racerMp.remotes[id];
+        if (now - remote.lastSeen > 4000) {
+            delete racerMp.remotes[id];
+            return;
+        }
+        list.push(remote);
+    });
+    if (window.Games3D) window.Games3D.setRemoteRacers(list);
+}
+
+function racerMpLeave(quiet) {
+    if (racerMp.timer) {
+        clearInterval(racerMp.timer);
+        racerMp.timer = 0;
+    }
+    var channel = racerMp.channel;
+    racerMp.channel = null;
+    racerMp.connected = false;
+    if (channel) {
+        try {
+            var left = channel.untrack();
+            if (left && left.catch) left.catch(function () {});
+        } catch (e) {}
+        if (supabaseClient && supabaseClient.removeChannel) {
+            try {
+                var removed = supabaseClient.removeChannel(channel);
+                if (removed && removed.catch) removed.catch(function () {});
+            } catch (e) {}
+        }
+    }
+    racerMp.code = '';
+    racerMp.racing = false;
+    racerMp.remotes = {};
+    racerMp.players = [];
+    racerMp.lastSend = 0;
+    racerMp.joinedAt = 0;
+    if (window.Games3D) {
+        window.Games3D.setRemoteRacers([]);
+        window.Games3D.setLocalRacerName('');
+    }
+    if (!quiet) racerMpSetStatus('Left the room.');
+    racerMpUpdateUi();
+}
+
+function racerMpCopyCode() {
+    if (!racerMp.code) return;
+    var code = racerMp.code;
+    function copied() { racerMpSetStatus('Room code ' + code + ' copied.'); }
+    function fallback() {
+        try {
+            var area = document.createElement('textarea');
+            area.value = code;
+            area.style.position = 'fixed';
+            area.style.opacity = '0';
+            document.body.appendChild(area);
+            area.select();
+            document.execCommand('copy');
+            document.body.removeChild(area);
+            copied();
+        } catch (e) {
+            racerMpSetStatus('Room code: ' + code);
+        }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).then(copied).catch(fallback);
+    } else {
+        fallback();
+    }
+}
+
 
 async function saveScore(gameName, score) {
     if (!currentUser || currentUser.type === 'guest' || !currentUser.persistScores) return;
@@ -3302,8 +3813,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.20.5";
-const UPDATE_NOTES = "Beach Racer now has real body and engine performance, manual W throttle, a 7 mph creep, a visible 6-speed automatic, and much higher top speed";
+const APP_VERSION = "LessFun Developer Beta 1.20.6";
+const UPDATE_NOTES = "Beach Racer multiplayer is here: create a room code, race 2–3 drivers together, see every name above its car, and pass through other players without collisions";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');

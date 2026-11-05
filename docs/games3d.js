@@ -15,6 +15,7 @@
     var gameMeta = { name: 'Game', onScore: null, onGameOver: null };
     var running = false;
     var playedSeconds = 0;
+    var paused = false;
 
     function addCleanup(fn) { cleanupFns.push(fn); }
 
@@ -1037,6 +1038,153 @@
             }
         }
 
+        /* ---------------- Multiplayer ghost racers ---------------- */
+        var remoteCars = {};
+        var localNameLabel = null;
+        var localNameText = '';
+
+        function roundRectPath(g, x, y, w, h, r) {
+            g.beginPath();
+            g.moveTo(x + r, y);
+            g.lineTo(x + w - r, y);
+            g.quadraticCurveTo(x + w, y, x + w, y + r);
+            g.lineTo(x + w, y + h - r);
+            g.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            g.lineTo(x + r, y + h);
+            g.quadraticCurveTo(x, y + h, x, y + h - r);
+            g.lineTo(x, y + r);
+            g.quadraticCurveTo(x, y, x + r, y);
+            g.closePath();
+        }
+
+        function makeNameSprite(name, accent) {
+            var label = String(name == null ? 'Player' : name).replace(/\s+/g, ' ').trim().slice(0, 16) || 'Player';
+            var canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 128;
+            var g = canvas.getContext('2d');
+            g.font = 'bold 46px Arial, sans-serif';
+            var boxW = Math.min(486, Math.max(150, g.measureText(label).width + 64));
+            var x = (512 - boxW) / 2, y = 24, h = 80, r = 40;
+            var accentStyle = '#9fd8ff';
+            try { accentStyle = new THREE.Color(accent == null ? 0xef476f : accent).getStyle(); } catch (e) {}
+            roundRectPath(g, x, y, boxW, h, r);
+            g.fillStyle = 'rgba(8,12,20,0.8)';
+            g.fill();
+            g.lineWidth = 6;
+            g.strokeStyle = accentStyle;
+            g.stroke();
+            g.fillStyle = '#ffffff';
+            g.textAlign = 'center';
+            g.textBaseline = 'middle';
+            g.fillText(label, 256, y + h / 2 + 2);
+
+            var texture = new THREE.CanvasTexture(canvas);
+            texture.minFilter = THREE.LinearFilter;
+            var material = new THREE.SpriteMaterial({
+                map: texture, transparent: true, depthTest: false, depthWrite: false
+            });
+            var sprite = new THREE.Sprite(material);
+            sprite.scale.set(4.8, 1.2, 1);
+            sprite.renderOrder = 20;
+            return sprite;
+        }
+
+        function removeRemote(entry) {
+            if (!entry) return;
+            scene.remove(entry.car);
+            disposeObject(entry.car);
+            delete remoteCars[entry.id];
+        }
+
+        function addRemoteRacer(data) {
+            var paint = typeof data.paint === 'number' ? data.paint : 0xef476f;
+            var wheel = typeof data.wheel === 'number' ? data.wheel : null;
+            var engineColor = typeof data.engineColor === 'number' ? data.engineColor : null;
+            var car = buildCar(
+                paint,
+                wheel,
+                data.body || 'classic',
+                data.engine || 'stock',
+                engineColor,
+                false
+            );
+            var label = makeNameSprite(data.name, paint);
+            label.position.set(0, car.userData.roofY + 1.05, 0);
+            car.add(label);
+            car.position.set(typeof data.x === 'number' ? data.x : 0, 0, player.position.z);
+            scene.add(car);
+            var entry = {
+                id: data.id,
+                car: car,
+                label: label,
+                state: data,
+                displayX: typeof data.x === 'number' ? data.x : 0,
+                displayDistance: typeof data.distance === 'number' ? data.distance : distance,
+                styleKey: [data.body, data.engine, data.paint, data.wheel, data.engineColor, data.name].join('|')
+            };
+            remoteCars[data.id] = entry;
+            return entry;
+        }
+
+        function setRemoteRacers(list) {
+            var seen = {};
+            list = list || [];
+            for (var i = 0; i < list.length; i++) {
+                var data = list[i];
+                if (!data || !data.id) continue;
+                seen[data.id] = true;
+                var key = [data.body, data.engine, data.paint, data.wheel, data.engineColor, data.name].join('|');
+                var entry = remoteCars[data.id];
+                if (!entry || entry.styleKey !== key) {
+                    removeRemote(entry);
+                    entry = addRemoteRacer(data);
+                }
+                entry.state = data;
+            }
+            for (var id in remoteCars) {
+                if (!seen[id]) removeRemote(remoteCars[id]);
+            }
+        }
+
+        function setLocalRacerName(name) {
+            if (localNameLabel) {
+                player.remove(localNameLabel);
+                disposeObject(localNameLabel);
+                localNameLabel = null;
+            }
+            localNameText = String(name == null ? '' : name).replace(/\s+/g, ' ').trim().slice(0, 16);
+            // Your own name is shown to the other racers above your car. Drawing it
+            // in the chase camera would sit in the middle of the road and block the view.
+        }
+
+        function updateRemoteRacers(dt) {
+            for (var id in remoteCars) {
+                var entry = remoteCars[id];
+                var data = entry.state || {};
+                var targetX = typeof data.x === 'number' ? data.x : 0;
+                targetX = Math.max(-maxX, Math.min(maxX, targetX));
+                var dx = targetX - entry.displayX;
+                entry.displayX += dx * Math.min(1, dt * 12);
+                var targetDistance = typeof data.distance === 'number' ? data.distance : entry.displayDistance;
+                entry.displayDistance += (targetDistance - entry.displayDistance) * Math.min(1, dt * 9);
+
+                entry.car.position.x = entry.displayX;
+                entry.car.position.z = player.position.z - (entry.displayDistance - distance);
+                entry.car.rotation.y = Math.max(-0.35, Math.min(0.35, -dx * 0.9));
+                entry.car.rotation.z = Math.max(-0.12, Math.min(0.12, dx * 0.45));
+
+                var remoteSpeed = typeof data.speed === 'number' ? data.speed : 0;
+                var wheels = entry.car.userData.wheels || [];
+                for (var wi = 0; wi < wheels.length; wi++) {
+                    wheels[wi].rotation.x += Math.max(1, remoteSpeed) * dt * 1.2;
+                }
+
+                // Behind the chase camera or far out of the fog: hide the ghost.
+                var z = entry.car.position.z;
+                entry.car.visible = z > -520 && z < 8.8;
+            }
+        }
+
         var traffic = [];
         var colors = [0xef476f, 0xffd166, 0x06d6a0, 0x118ab2, 0xf78c6b, 0xf7f3e8, 0x7f8c8d, 0x9b5de5];
         var trafficStyles = ['classic', 'buggy', 'wagon', 'truck', 'racer', 'van', 'roadster', 'muscle', 'retro', 'taxi', 'cyber'];
@@ -1150,6 +1298,8 @@
             player.rotation.z = Math.max(-0.2, Math.min(0.2, -vx * 0.022));
             player.rotation.x = (input.brake ? 0.035 : 0) + Math.max(-0.03, Math.min(0.03, -vx * 0.002));
             if (player.userData.brakeMat) player.userData.brakeMat.color.setHex(input.brake ? 0xff2438 : 0x5a1018);
+
+            updateRemoteRacers(dt);
 
             // Wheel spin.
             var wheels = player.userData.wheels || [];
@@ -1307,7 +1457,25 @@
 
         camera.position.set(0, 4.35, 10.8);
         camera.lookAt(0, 1.05, -20);
-        return { over: false, update: update };
+        return {
+            over: false,
+            update: update,
+            setRemotes: setRemoteRacers,
+            setLocalName: setLocalRacerName,
+            getState: function () {
+                return {
+                    x: player.position.x,
+                    distance: distance,
+                    speed: speed,
+                    gear: speed < 0.15 ? 0 : gearFor(speed)
+                };
+            },
+            getMultiplayerInfo: function () {
+                var names = [];
+                for (var id in remoteCars) names.push(remoteCars[id].state.name || '');
+                return { localName: localNameText, remotes: names };
+            }
+        };
     }
 
     /* ---------------- Tunnel Rush ---------------- */
@@ -1744,7 +1912,7 @@
     function loop() {
         raf = requestAnimationFrame(loop);
         var dt = Math.min(clock.getDelta(), 0.05);
-        if (active && running && !active.over) {
+        if (active && running && !active.over && !paused) {
             playedSeconds += dt;
             active.update(dt);
         }
@@ -1753,6 +1921,7 @@
 
     function start(gameId, containerEl, opts) {
         stop();
+        paused = false;
         if (typeof THREE === 'undefined') {
             containerEl.innerHTML = '<p style="padding:40px;text-align:center;color:#fff">3D engine failed to load. Check your connection and refresh.</p>';
             return;
@@ -1798,6 +1967,7 @@
 
     function stop() {
         running = false;
+        paused = false;
         playedSeconds = 0;
         if (raf) { cancelAnimationFrame(raf); raf = 0; }
         for (var i = 0; i < cleanupFns.length; i++) {
@@ -1823,6 +1993,29 @@
 
     function setBrake(on) { input.brake = !!on; }
     function setThrottle(on) { input.up = !!on; }
+    function setPaused(on) { paused = !!on; }
+    function setRemoteRacers(list) {
+        if (active && active.setRemotes) active.setRemotes(list || []);
+    }
+    function setLocalRacerName(name) {
+        if (active && active.setLocalName) active.setLocalName(name || '');
+    }
+    function getRacerState() {
+        return active && active.getState ? active.getState() : null;
+    }
+    function getRacerInfo() {
+        return active && active.getMultiplayerInfo ? active.getMultiplayerInfo() : null;
+    }
 
-    global.Games3D = { start: start, stop: stop, setBrake: setBrake, setThrottle: setThrottle };
+    global.Games3D = {
+        start: start,
+        stop: stop,
+        setBrake: setBrake,
+        setThrottle: setThrottle,
+        setPaused: setPaused,
+        setRemoteRacers: setRemoteRacers,
+        setLocalRacerName: setLocalRacerName,
+        getRacerState: getRacerState,
+        getRacerInfo: getRacerInfo
+    };
 })(window);
