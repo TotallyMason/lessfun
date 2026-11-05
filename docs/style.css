@@ -5583,7 +5583,7 @@ body::before {
 
 .game3d-ignition {
     left: 50%;
-    bottom: 54px;
+    top: 92px;
     transform: translateX(-50%);
     width: min(300px, 58%);
 }
@@ -5619,7 +5619,7 @@ body::before {
 }
 
 @media (max-width: 640px) {
-    .game3d-ignition { bottom: 118px; width: 64%; }
+    .game3d-ignition { top: 88px; width: 64%; }
     .game3d-nitro { right: 12px; bottom: 124px; width: 96px; }
 }
 

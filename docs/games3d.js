@@ -1234,24 +1234,29 @@
                 var front = pivot.userData.front;
                 var rough = Math.sin((travelDistance || 0) * 0.42 + si * 1.9) * 0.5 +
                     Math.sin((travelDistance || 0) * 0.11 + si * 0.7) * 0.5;
-                var target = rough * (0.03 + speedFrac * 0.11);
-                target += (roll || 0) * side * 0.09;
-                target += (pitch || 0) * (front ? -1 : 1) * 0.07;
-                target -= (impulse || 0) * 0.3;
+                var target = rough * (0.055 + speedFrac * 0.16);
+                target += (roll || 0) * side * 0.26;
+                target += (pitch || 0) * (front ? -1 : 1) * 0.2;
+                target -= (impulse || 0) * 0.36;
+                if (car === player && engineOn) target += Math.sin((travelDistance + si) * 34) * 0.005;
                 var current = pivot.userData.travel || 0;
                 current += (target - current) * Math.min(1, dt * 10);
-                current = Math.max(-0.16, Math.min(0.16, current));
+                current = Math.max(-0.28, Math.min(0.28, current));
                 pivot.userData.travel = current;
                 pivot.position.y = pivot.userData.restY + current;
-                if (springs[si]) springs[si].scale.y = Math.max(0.55, 1 + current * 2.2);
+                if (springs[si]) springs[si].scale.y = Math.max(0.45, 1 + current * 2.4);
                 avg += current;
             }
             if (body) {
                 avg /= pivots.length;
-                var bodyTargetY = avg * 1.15;
-                body.position.y += (bodyTargetY - body.position.y) * Math.min(1, dt * 8);
-                body.rotation.z += ((roll || 0) * 0.045 - body.rotation.z) * Math.min(1, dt * 6);
-                body.rotation.x += ((pitch || 0) * 0.035 - body.rotation.x) * Math.min(1, dt * 6);
+                var bounce = (Math.sin((travelDistance || 0) * 0.2) * 0.5 +
+                    Math.sin((travelDistance || 0) * 0.07 + 1.3) * 0.5) * (0.03 + speedFrac * 0.11);
+                bounce -= (impulse || 0) * 0.2;
+                bounce += avg * 0.3;
+                bounce = Math.max(-0.22, Math.min(0.22, bounce));
+                body.position.y += (bounce - body.position.y) * Math.min(1, dt * 9);
+                body.rotation.z += ((roll || 0) * 0.4 - body.rotation.z) * Math.min(1, dt * 6);
+                body.rotation.x += ((pitch || 0) * 0.7 - body.rotation.x) * Math.min(1, dt * 6);
             }
         }
 
@@ -2157,7 +2162,14 @@
                 }
                 player.position.y = playerY;
             }
-            animateSuspension(player, dt, speed, distance, player.rotation.z, player.rotation.x, suspensionImpulse);
+            var bodyRoll = Math.max(-0.5, Math.min(0.5, vx * 0.03 + (driftIntent ? steerInput * 0.42 : 0)));
+            var bodyPitch = 0;
+            if (input.brake) bodyPitch += 0.14;
+            if (input.up && engineOn) bodyPitch -= 0.07;
+            if (playerY > 0.4) bodyPitch -= 0.05;
+            if (suspensionImpulse > 0.02) bodyPitch += 0.12;
+            if (gearMode === 'R' && input.up) bodyPitch -= 0.06;
+            animateSuspension(player, dt, speed, distance, bodyRoll, bodyPitch, suspensionImpulse);
             suspensionImpulse *= Math.max(0, 1 - dt * 5);
             updateDriftPuffs(dt, driftIntent);
 
@@ -2353,11 +2365,12 @@
             }
 
             camera.position.x += (player.position.x * 0.42 - camera.position.x) * Math.min(1, dt * 5);
-            camera.position.y = 4.35 + playerY * 0.78 + (player.userData.bodyGroup ? player.userData.bodyGroup.position.y * 1.5 : 0) + Math.sin(elapsed * 1.4) * 0.035;
+            camera.position.y = 5.3 + playerY * 0.78 + (player.userData.bodyGroup ? player.userData.bodyGroup.position.y * 4.0 : 0) - suspensionImpulse * 0.3 + Math.sin(elapsed * 1.4) * 0.035;
             var curveAhead = roadCurveOffset(-80) - roadCurveOffset(0);
-            camera.lookAt(player.position.x * 0.5 + vx * 0.22 + curveAhead * 0.22, 1.05 + playerY * 0.9, -20);
-            camera.rotateZ(-curveAhead * 0.0016);
+            camera.lookAt(player.position.x * 0.5 + vx * 0.22 + curveAhead * 0.22, 0.5 + playerY * 0.9, -12);
+            camera.rotateZ(-curveAhead * 0.0016 - bodyRoll * 0.1);
             camera.rotateY(curveAhead * 0.0009);
+            camera.rotateX(bodyPitch * 0.05);
             var gearText;
             if (!engineOn) {
                 gearText = 'OFF';
@@ -2398,8 +2411,8 @@
             }
         }
 
-        camera.position.set(0, 4.35, 10.8);
-        camera.lookAt(0, 1.05, -20);
+        camera.position.set(0, 5.3, 13);
+        camera.lookAt(0, 0.5, -12);
         initAudio();
         updateRaceHud();
         return {
@@ -2421,7 +2434,13 @@
                     nitro: Math.round(nitro),
                     engineOn: engineOn,
                     coins: coinsCollected,
-                    suspension: player.userData.bodyGroup ? player.userData.bodyGroup.position.y : 0
+                    suspension: player.userData.bodyGroup ? player.userData.bodyGroup.position.y : 0,
+                    wheelTravel: (player.userData.suspensionPivots || []).reduce(function (maxTravel, pv) {
+                        return Math.max(maxTravel, Math.abs(pv.userData.travel || 0));
+                    }, 0),
+                    bodyMeshes: player.userData.bodyGroup ? player.userData.bodyGroup.children.length : 0,
+                    bodyRoll: player.userData.bodyGroup ? player.userData.bodyGroup.rotation.z : 0,
+                    bodyPitch: player.userData.bodyGroup ? player.userData.bodyGroup.rotation.x : 0
                 };
             },
             getMultiplayerInfo: function () {

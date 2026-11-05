@@ -4672,8 +4672,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.21.4";
-const UPDATE_NOTES = "Beach Racer cars now have real 3D suspension: visible coilovers and control arms, independent wheel travel, body roll, brake dive, acceleration squat, road-bump movement, and landing compression";
+const APP_VERSION = "LessFun Developer Beta 1.21.5";
+const UPDATE_NOTES = "Suspension is now clearly visible: stronger wheel travel, body squat under throttle, brake dive, cornering roll, landing compression, and a camera framing that shows the whole car. The ignition bar moved out of the way";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
