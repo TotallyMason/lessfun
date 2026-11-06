@@ -6999,3 +6999,214 @@ body.has-avatar-frame .friend-avatar {
 .game3d-touch-btn.is-fsd:active {
     box-shadow: 0 0 26px rgba(50, 190, 255, 0.6);
 }
+
+/* Voice party UI */
+.party-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.party-start {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(80, 210, 255, 0.18);
+    background: rgba(20, 120, 180, 0.06);
+}
+
+.party-join-row {
+    display: flex;
+    gap: 7px;
+}
+
+.party-code-input {
+    flex: 1;
+    min-width: 0;
+    padding: 9px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(0, 0, 0, 0.35);
+    color: #fff;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    outline: none;
+}
+
+.party-active {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(80, 210, 255, 0.25);
+    background: rgba(20, 120, 180, 0.07);
+}
+
+.party-code-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.party-code-row strong {
+    font-size: 20px;
+    letter-spacing: 0.2em;
+    color: #9fe8ff;
+}
+
+.party-controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.party-mic-btn {
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 90, 110, 0.45);
+    background: rgba(255, 90, 110, 0.14);
+    color: #ffd0d7;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.party-mic-btn.is-on {
+    border-color: rgba(109, 255, 192, 0.5);
+    background: rgba(109, 255, 192, 0.15);
+    color: #baffdf;
+}
+
+.party-hint {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.party-members {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.party-member {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.party-member.is-me {
+    border-color: rgba(80, 210, 255, 0.35);
+    color: #cdeeff;
+}
+
+.party-member-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.22);
+}
+
+.party-member-dot.is-live {
+    background: #6dffc0;
+    box-shadow: 0 0 8px rgba(109, 255, 192, 0.8);
+}
+
+.party-status {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.party-leave {
+    align-self: flex-start;
+}
+
+/* Persistent voice party widget */
+.party-widget {
+    position: fixed;
+    left: 50%;
+    bottom: 50px;
+    transform: translateX(-50%);
+    z-index: 9998;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px 7px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(80, 210, 255, 0.4);
+    background: linear-gradient(145deg, rgba(10, 40, 60, 0.95), rgba(5, 16, 26, 0.96));
+    color: #dff8ff;
+    font-size: 11px;
+    font-weight: 600;
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5), 0 0 22px rgba(50, 190, 255, 0.12);
+}
+
+.party-widget-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #6dffc0;
+    box-shadow: 0 0 8px rgba(109, 255, 192, 0.8);
+}
+
+.party-widget-code {
+    letter-spacing: 0.1em;
+    color: #9fe8ff;
+}
+
+.party-widget-members {
+    color: rgba(255, 255, 255, 0.5);
+    font-variant-numeric: tabular-nums;
+}
+
+.party-widget-mic,
+.party-widget-leave {
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(109, 255, 192, 0.4);
+    background: rgba(109, 255, 192, 0.14);
+    color: #baffdf;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.party-widget-mic.is-muted {
+    border-color: rgba(255, 90, 110, 0.45);
+    background: rgba(255, 90, 110, 0.15);
+    color: #ffd0d7;
+}
+
+.party-widget-leave {
+    border-color: rgba(255, 255, 255, 0.16);
+    background: transparent;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+@media (max-width: 640px) {
+    .party-widget {
+        bottom: 12px;
+        max-width: calc(100vw - 20px);
+        gap: 6px;
+        padding: 6px 8px 6px 10px;
+    }
+}

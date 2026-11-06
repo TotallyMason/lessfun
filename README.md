@@ -163,7 +163,7 @@ handling real user data or payments.
 - Speed-scaled steering that locks at a standstill, automatic drift detection from speed/steering/braking, and an **F-key FSD** mode with blue lane visualization, safe lane changes, and automatic braking
 - Ignition bar, synthesized engine/tire/nitrous audio, and a drainable nitrous boost on **Shift** or **N**, with a NITRO SHIFT kick
 - Gold track coins that are collected during a run and paid into the Coins wallet at game over
-- Private messages with ECDH P-256 + AES-GCM end-to-end encryption, available from an in-game sidebar
+- Private messages with ECDH P-256 + AES-GCM end-to-end encryption, started by searching for a person in the in-game sidebar
 - Coin gifting from Friends or a profile, private-message user search, and 50% cosmetic resale
 - Teleport to any racer in a public lobby, and curving highway lane markings for a more dynamic road
 - Single liquid-glass HUD bar for speed/status, gear, checkpoints, and coins; score is shown only on game over

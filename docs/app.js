@@ -319,7 +319,7 @@ function showView(view) {
     if (document.getElementById('profileModal')) document.getElementById('profileModal').style.display = 'none';
     if (view === 'games') { document.getElementById('gamesView').style.display = 'block'; document.getElementById('nav-games').classList.add('active'); }
     else if (view === 'community') { document.getElementById('communityView').style.display = 'block'; document.getElementById('nav-community').classList.add('active'); renderCommunity(); }
-    else if (view === 'users') { if(document.getElementById('usersView')){ document.getElementById('usersView').style.display = 'block'; document.getElementById('nav-users').classList.add('active'); renderFriends(); } }
+    else if (view === 'users') { if(document.getElementById('usersView')){ document.getElementById('usersView').style.display = 'block'; document.getElementById('nav-users').classList.add('active'); renderFriends(); partyRender(); } }
     else if (view === 'store') { document.getElementById('storeView').style.display = 'block'; document.getElementById('nav-store').classList.add('active'); renderWalletUI(); renderStore(); }
     else if (view === 'garage') { document.getElementById('garageView').style.display = 'block'; var gnav = document.getElementById('nav-garage'); if (gnav) gnav.classList.add('active'); renderWalletUI(); renderGarage(); }
     else if (view === 'settings') { document.getElementById('settingsView').style.display = 'block'; document.getElementById('nav-settings').classList.add('active'); }
@@ -571,10 +571,6 @@ function openGame(id) {
                     '<div><h3>Private messages</h3><p class="game3d-dm-secure">End-to-end encrypted</p></div>' +
                     '<button type="button" class="game3d-dm-x" onclick="toggleDmSidebar(false)">×</button>' +
                 '</div>' +
-                '<div class="game3d-dm-new">' +
-                    '<input class="game3d-mp-input" id="g3dDmNewUser" type="text" maxlength="24" placeholder="Username">' +
-                    '<button type="button" class="game3d-mp-secondary" onclick="dmStartConversation()">Open</button>' +
-                '</div>' +
                 '<div class="game3d-dm-search">' +
                     '<input class="game3d-mp-input" id="g3dDmSearch" type="text" maxlength="24" placeholder="Search users…" oninput="dmSearchUsers(this.value)">' +
                     '<div class="game3d-dm-results" id="g3dDmResults"></div>' +
@@ -582,7 +578,7 @@ function openGame(id) {
                 '<div class="game3d-dm-body">' +
                     '<div class="game3d-dm-list" id="g3dDmList"></div>' +
                     '<div class="game3d-dm-thread-wrap">' +
-                        '<div class="game3d-dm-thread" id="g3dDmThread"><p class="game3d-dm-empty">Pick a conversation.</p></div>' +
+                        '<div class="game3d-dm-thread" id="g3dDmThread"><p class="game3d-dm-empty">Search for a person above to start an encrypted chat.</p></div>' +
                         '<div class="game3d-dm-compose">' +
                             '<input class="game3d-mp-input" id="g3dDmInput" type="text" maxlength="500" placeholder="Write a message…" onkeydown="if(event.key===\'Enter\'){event.preventDefault();dmSend();}">' +
                             '<button type="button" class="game3d-mp-primary" onclick="dmSend()">Send</button>' +
@@ -3795,6 +3791,7 @@ async function signIn(){
 }
 
 function continueAsGuest(){ 
+    leaveParty(true);
     currentUser={type:'guest',username:'Guest', persistScores: false}; 
     localStorage.removeItem('lessfun_user'); 
     closeAuthModal(); 
@@ -3803,6 +3800,7 @@ function continueAsGuest(){
     loadWallet();
 }
 async function logout(){ 
+    leaveParty(true);
     if(supabaseClient){ 
         try {
             await touchPresence();
@@ -5395,8 +5393,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.22.9";
-const UPDATE_NOTES = "Steering now scales with speed and locks at a standstill, and F toggles FSD: a blue lane visualization with safe automatic lane changes and braking";
+const APP_VERSION = "LessFun Developer Beta 1.23.0";
+const UPDATE_NOTES = "Voice parties in Friends: create or join with a code, toggle your mic with V anywhere, and stay in the call across games and pages. Messages now start from user search";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
@@ -5949,6 +5947,411 @@ function stopNotifications() {
     updateNotifBadge();
 }
 
+/* ============================================================
+   Voice parties — WebRTC mesh with Supabase signaling
+   ============================================================ */
+const PARTY_MAX = 8;
+const PARTY_ICE = { iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }] };
+let party = {
+    code: '',
+    id: '',
+    name: '',
+    channel: null,
+    connected: false,
+    members: {},
+    pcs: {},
+    audios: {},
+    localStream: null,
+    micOn: false,
+    joinedAt: 0,
+    status: ''
+};
+
+function partyMakeCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 5; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+    return code;
+}
+
+function partyDisplayName() {
+    if (currentUser && currentUser.type === 'user' && currentUser.username && currentUser.username !== 'Guest') {
+        return racerMpSanitizeName(currentUser.username);
+    }
+    return racerMpSanitizeName(racerMpSuggestedName()) || 'Guest';
+}
+
+function partySetStatus(text) {
+    party.status = text || '';
+    partyRender();
+}
+
+async function partyEnsureMic() {
+    if (party.localStream) return true;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
+    try {
+        party.localStream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+        });
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+async function createVoiceParty() {
+    partyJoinWithCode(partyMakeCode());
+}
+
+function joinVoicePartyFromInput() {
+    const input = document.getElementById('partyCodeInput');
+    const code = String(input ? input.value : '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
+    if (code.length < 4) {
+        partySetStatus('Enter the party code a friend shared.');
+        return;
+    }
+    partyJoinWithCode(code);
+}
+
+async function partyJoinWithCode(code) {
+    if (!supabaseClient) {
+        partySetStatus('Voice parties need an online connection.');
+        return;
+    }
+    leaveParty(true);
+    party.code = String(code || '').toUpperCase();
+    party.id = racerMpMakeId();
+    party.name = partyDisplayName();
+    party.joinedAt = Date.now();
+    party.connected = false;
+    party.members = {};
+    party.status = 'Requesting microphone…';
+    partyRender();
+    const micOk = await partyEnsureMic();
+    party.micOn = !!micOk;
+    if (party.localStream) {
+        party.localStream.getAudioTracks().forEach(function (track) { track.enabled = party.micOn; });
+    }
+    partyStartChannel(micOk ? '' : 'Microphone unavailable — joined muted.');
+}
+
+function partyStartChannel(initialStatus) {
+    const channel = supabaseClient.channel('lessfun-party-' + party.code, {
+        config: { presence: { key: party.id } }
+    });
+    party.channel = channel;
+    channel.on('broadcast', { event: 'signal' }, function (message) {
+        partyHandleSignal(message && message.payload);
+    });
+    channel.on('presence', { event: 'sync' }, partySyncPresence);
+    channel.on('presence', { event: 'join' }, partySyncPresence);
+    channel.on('presence', { event: 'leave' }, partySyncPresence);
+    channel.subscribe(function (status) {
+        if (party.channel !== channel) return;
+        if (status === 'SUBSCRIBED') {
+            party.connected = true;
+            const tracked = channel.track(partyPresencePayload());
+            if (tracked && tracked.catch) tracked.catch(function () {});
+            party.status = initialStatus || 'Voice party connected. Press V anywhere to toggle your mic.';
+            partyRender();
+            partySyncPresence();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            party.connected = false;
+            party.status = 'Could not connect to that voice party.';
+            partyRender();
+        }
+    });
+}
+
+function partyPresencePayload() {
+    return {
+        id: party.id,
+        username: party.name,
+        mic: party.micOn,
+        joinedAt: party.joinedAt
+    };
+}
+
+function partyPub() {
+    if (!party.channel || !party.connected) return;
+    const tracked = party.channel.track(partyPresencePayload());
+    if (tracked && tracked.catch) tracked.catch(function () {});
+}
+
+function partySend(peerId, data) {
+    if (!party.channel || !party.connected) return;
+    const payload = Object.assign({ from: party.id, to: peerId }, data || {});
+    const sent = party.channel.send({ type: 'broadcast', event: 'signal', payload: payload });
+    if (sent && sent.catch) sent.catch(function () {});
+}
+
+function partySyncPresence() {
+    if (!party.channel || !party.connected) return;
+    const state = party.channel.presenceState() || {};
+    const members = {};
+    Object.keys(state).forEach(function (key) {
+        const entries = state[key] || [];
+        for (let i = 0; i < entries.length; i++) {
+            const entry = entries[i] || {};
+            const id = String(entry.id || key);
+            if (!id) continue;
+            if (!members[id] || (entry.joinedAt || 0) < (members[id].joinedAt || 0)) {
+                members[id] = {
+                    id: id,
+                    username: racerMpSanitizeName(entry.username) || 'Guest',
+                    mic: !!entry.mic,
+                    joinedAt: Number(entry.joinedAt) || 0
+                };
+            }
+        }
+    });
+    party.members = members;
+    Object.keys(members).forEach(function (id) {
+        if (id === party.id) return;
+        partyEnsurePeer(id);
+        if (String(party.id) < String(id)) partyOffer(id);
+    });
+    Object.keys(party.pcs).forEach(function (id) {
+        if (!members[id]) partyClosePeer(id);
+    });
+    partyRender();
+}
+
+function partyEnsurePeer(peerId) {
+    if (party.pcs[peerId]) return party.pcs[peerId];
+    const pc = new RTCPeerConnection(PARTY_ICE);
+    pc.userData = { offered: false, pendingIce: [] };
+    party.pcs[peerId] = pc;
+    pc.onicecandidate = function (event) {
+        if (event.candidate) partySend(peerId, { kind: 'ice', candidate: event.candidate });
+    };
+    pc.ontrack = function (event) {
+        partyAttachStream(peerId, event.streams && event.streams[0] ? event.streams[0] : new MediaStream([event.track]));
+    };
+    pc.onconnectionstatechange = function () {
+        if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+            pc.restartIce && pc.restartIce();
+        }
+    };
+    if (party.localStream) {
+        party.localStream.getAudioTracks().forEach(function (track) {
+            pc.addTrack(track, party.localStream);
+        });
+    }
+    return pc;
+}
+
+async function partyOffer(peerId) {
+    const pc = partyEnsurePeer(peerId);
+    if (pc.userData.offered) return;
+    pc.userData.offered = true;
+    try {
+        const offer = await pc.createOffer({ offerToReceiveAudio: true });
+        await pc.setLocalDescription(offer);
+        partySend(peerId, { kind: 'offer', sdp: pc.localDescription });
+    } catch (e) {
+        pc.userData.offered = false;
+    }
+}
+
+async function partyHandleSignal(payload) {
+    if (!payload || String(payload.to) !== String(party.id) || !party.connected) return;
+    const peerId = String(payload.from || '');
+    if (!peerId || peerId === party.id) return;
+    const pc = partyEnsurePeer(peerId);
+    try {
+        if (payload.kind === 'offer') {
+            if (pc.signalingState !== 'stable') {
+                try { await pc.setLocalDescription({ type: 'rollback' }); } catch (e) {}
+            }
+            await pc.setRemoteDescription(payload.sdp);
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            partySend(peerId, { kind: 'answer', sdp: pc.localDescription });
+            while (pc.userData.pendingIce.length) {
+                try { await pc.addIceCandidate(pc.userData.pendingIce.shift()); } catch (e) {}
+            }
+        } else if (payload.kind === 'answer') {
+            await pc.setRemoteDescription(payload.sdp);
+            while (pc.userData.pendingIce.length) {
+                try { await pc.addIceCandidate(pc.userData.pendingIce.shift()); } catch (e) {}
+            }
+        } else if (payload.kind === 'ice' && payload.candidate) {
+            if (pc.remoteDescription) await pc.addIceCandidate(payload.candidate);
+            else pc.userData.pendingIce.push(payload.candidate);
+        }
+    } catch (e) {
+        party.status = 'Voice connection issue — retrying.';
+        partyRender();
+    }
+}
+
+function partyAttachStream(peerId, stream) {
+    let audio = party.audios[peerId];
+    if (!audio) {
+        audio = document.createElement('audio');
+        audio.autoplay = true;
+        audio.playsInline = true;
+        audio.style.display = 'none';
+        document.body.appendChild(audio);
+        party.audios[peerId] = audio;
+    }
+    audio.srcObject = stream;
+    const played = audio.play();
+    if (played && played.catch) played.catch(function () {});
+    partyRender();
+}
+
+function partyClosePeer(peerId) {
+    const pc = party.pcs[peerId];
+    if (pc) {
+        try { pc.close(); } catch (e) {}
+        delete party.pcs[peerId];
+    }
+    const audio = party.audios[peerId];
+    if (audio) {
+        try { audio.srcObject = null; } catch (e) {}
+        if (audio.parentNode) audio.parentNode.removeChild(audio);
+        delete party.audios[peerId];
+    }
+}
+
+async function togglePartyMic() {
+    if (!party.connected) {
+        showGameToast('Join a voice party first.');
+        return;
+    }
+    if (!party.localStream) {
+        const ok = await partyEnsureMic();
+        if (!ok) {
+            partySetStatus('Microphone permission was denied.');
+            return;
+        }
+        party.localStream.getAudioTracks().forEach(function (track) { track.enabled = true; });
+        party.micOn = true;
+        Object.keys(party.pcs).forEach(function (peerId) {
+            const pc = party.pcs[peerId];
+            party.localStream.getAudioTracks().forEach(function (track) { pc.addTrack(track, party.localStream); });
+            pc.userData.offered = false;
+            partyOffer(peerId);
+        });
+    } else {
+        party.micOn = !party.micOn;
+        party.localStream.getAudioTracks().forEach(function (track) { track.enabled = party.micOn; });
+    }
+    partyPub();
+    partyRender();
+    showGameToast(party.micOn ? 'Microphone on' : 'Microphone muted');
+}
+
+function copyPartyCode() {
+    if (!party.code) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(party.code).then(function () {
+            showGameToast('Party code ' + party.code + ' copied.');
+        }).catch(function () {});
+    }
+}
+
+function leaveParty(quiet) {
+    Object.keys(party.pcs).forEach(partyClosePeer);
+    const channel = party.channel;
+    party.channel = null;
+    party.connected = false;
+    if (channel) {
+        try {
+            const left = channel.untrack();
+            if (left && left.catch) left.catch(function () {});
+        } catch (e) {}
+        if (supabaseClient && supabaseClient.removeChannel) {
+            try { supabaseClient.removeChannel(channel); } catch (e) {}
+        }
+    }
+    if (party.localStream) {
+        party.localStream.getTracks().forEach(function (track) { try { track.stop(); } catch (e) {} });
+    }
+    party.localStream = null;
+    party.micOn = false;
+    party.members = {};
+    party.code = '';
+    party.status = '';
+    partyRender();
+    if (!quiet) showGameToast('Left the voice party.');
+}
+
+function partyMemberList() {
+    return Object.keys(party.members).map(function (id) { return party.members[id]; })
+        .sort(function (a, b) { return (a.joinedAt || 0) - (b.joinedAt || 0); });
+}
+
+function partyRender() {
+    const host = document.getElementById('partyBody');
+    const widget = document.getElementById('partyWidget');
+    if (widget) {
+        widget.style.display = party.connected ? 'flex' : 'none';
+        const codeEl = document.getElementById('partyWidgetCode');
+        if (codeEl) codeEl.textContent = 'Party ' + party.code;
+        const countEl = document.getElementById('partyWidgetMembers');
+        if (countEl) countEl.textContent = partyMemberList().length + '/' + PARTY_MAX;
+        const micBtn = document.getElementById('partyWidgetMic');
+        if (micBtn) {
+            micBtn.textContent = party.micOn ? 'Mic On' : 'Mic Off';
+            micBtn.classList.toggle('is-muted', !party.micOn);
+        }
+    }
+    if (!host) return;
+    if (!party.connected) {
+        host.innerHTML =
+            '<div class="party-start">' +
+                '<button type="button" class="friends-gift" onclick="createVoiceParty()">Create voice party</button>' +
+                '<div class="party-join-row">' +
+                    '<input id="partyCodeInput" class="party-code-input" maxlength="5" placeholder="PARTY CODE" autocapitalize="characters">' +
+                    '<button type="button" class="friends-refresh" onclick="joinVoicePartyFromInput()">Join</button>' +
+                '</div>' +
+                '<p class="party-status">' + escapeHtml(party.status || 'Create a party or join with a code. Voice stays connected across games.') + '</p>' +
+            '</div>';
+        return;
+    }
+    const members = partyMemberList();
+    host.innerHTML =
+        '<div class="party-active">' +
+            '<div class="party-code-row">' +
+                '<span>Party code</span><strong>' + escapeHtml(party.code) + '</strong>' +
+                '<button type="button" class="friends-refresh" onclick="copyPartyCode()">Copy</button>' +
+            '</div>' +
+            '<div class="party-controls">' +
+                '<button type="button" class="party-mic-btn' + (party.micOn ? ' is-on' : '') + '" onclick="togglePartyMic()">' +
+                    (party.micOn ? '🎙 Mic On' : '🔇 Mic Off') +
+                '</button>' +
+                '<span class="party-hint">Press V anywhere to toggle your mic</span>' +
+            '</div>' +
+            '<div class="party-members">' +
+                members.map(function (member) {
+                    return '<span class="party-member' + (member.id === party.id ? ' is-me' : '') + '">' +
+                        '<span class="party-member-dot' + (member.mic ? ' is-live' : '') + '"></span>' +
+                        escapeHtml(member.username) + (member.id === party.id ? ' (you)' : '') +
+                    '</span>';
+                }).join('') +
+            '</div>' +
+            '<p class="party-status">' + escapeHtml(party.status || (members.length + ' in the party.')) + '</p>' +
+            '<button type="button" class="friends-refresh party-leave" onclick="leaveParty()">Leave voice party</button>' +
+        '</div>';
+}
+
+function isEditableKeyTarget(target) {
+    if (!target) return false;
+    const tag = String(target.tagName || '').toLowerCase();
+    return tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable;
+}
+
+document.addEventListener('keydown', function (event) {
+    if (event.repeat) return;
+    if ((event.key === 'v' || event.key === 'V') && party.connected && !isEditableKeyTarget(event.target)) {
+        event.preventDefault();
+        togglePartyMic();
+    }
+});
+
 function startActivityChannel() {
     if (!friendUsername() || !supabaseClient || activityChannel) return;
     const me = friendUsername();
@@ -6186,6 +6589,7 @@ async function renderFriends() {
     const onlineCount = document.getElementById('friendsOnlineCount');
     const friendsCount = document.getElementById('friendsCount');
     if (!friendsList || !usersList) return;
+    partyRender();
 
     const me = friendUsername();
     if (!me) {

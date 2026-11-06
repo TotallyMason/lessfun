@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261160">
+    <link rel="stylesheet" href="style.css?v=20261161">
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -221,6 +221,14 @@
                     Sign in to add friends and see when they were last online.
                     <button type="button" onclick="openAuthModal()">Sign in</button>
                 </div>
+
+                <section class="friends-section">
+                    <div class="friends-section-head">
+                        <h2>Voice party</h2>
+                        <small style="color:rgba(255,255,255,0.4);font-size:11px;">Stays connected across every game and page</small>
+                    </div>
+                    <div id="partyBody" class="party-body"></div>
+                </section>
 
                 <section class="friends-section">
                     <div class="friends-section-head">
@@ -831,7 +839,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Developer Beta 1.22.9</p>
+                            <p>LessFun Developer Beta 1.23.0</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -1047,11 +1055,19 @@
         </div>
     </div>
 
+    <div id="partyWidget" class="party-widget" style="display:none;">
+        <span class="party-widget-dot"></span>
+        <span class="party-widget-code" id="partyWidgetCode">PARTY</span>
+        <span class="party-widget-members" id="partyWidgetMembers">0</span>
+        <button type="button" id="partyWidgetMic" class="party-widget-mic" onclick="togglePartyMic()">Mic On</button>
+        <button type="button" class="party-widget-leave" onclick="leaveParty()">Leave</button>
+    </div>
+
     <div id="globalToast" class="global-toast"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
-    <script src="games3d.js?v=20261160"></script>
-    <script src="app.js?v=20261160"></script>
+    <script src="games3d.js?v=20261161"></script>
+    <script src="app.js?v=20261161"></script>
 </body>
 </html>
