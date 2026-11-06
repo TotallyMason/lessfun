@@ -143,8 +143,10 @@
 
         /* ---------------- Synthesized car audio ---------------- */
         var audioCtx = null, audioMaster = null;
-        var engineOsc = null, engineSub = null, engineGain = null, engineFilter = null;
+        var engineOsc = null, engineGain = null, engineFilter = null;
         var windGain = null, nitroGain = null;
+        var windSrc = null, nitroSrc = null;
+        var engineOscStarted = false, audioNoiseStarted = false;
 
         function initAudio() {
             if (audioCtx || !soundEnabled) return;
@@ -174,12 +176,6 @@
                 engineOsc.type = 'sawtooth';
                 engineOsc.frequency.value = 55;
                 engineOsc.connect(engineFilter);
-                engineOsc.start();
-                engineSub = audioCtx.createOscillator();
-                engineSub.type = 'sine';
-                engineSub.frequency.value = 27;
-                engineSub.connect(engineFilter);
-                engineSub.start();
 
                 var length = Math.floor(audioCtx.sampleRate * 1.2);
                 var buffer = audioCtx.createBuffer(1, length, audioCtx.sampleRate);
@@ -192,13 +188,12 @@
                 windFilter.Q.value = 0.6;
                 windGain = audioCtx.createGain();
                 windGain.gain.value = 0;
-                var windSrc = audioCtx.createBufferSource();
+                windSrc = audioCtx.createBufferSource();
                 windSrc.buffer = buffer;
                 windSrc.loop = true;
                 windSrc.connect(windFilter);
                 windFilter.connect(windGain);
                 windGain.connect(audioMaster);
-                windSrc.start();
 
                 var nitroFilter = audioCtx.createBiquadFilter();
                 nitroFilter.type = 'bandpass';
@@ -206,13 +201,12 @@
                 nitroFilter.Q.value = 0.8;
                 nitroGain = audioCtx.createGain();
                 nitroGain.gain.value = 0;
-                var nitroSrc = audioCtx.createBufferSource();
+                nitroSrc = audioCtx.createBufferSource();
                 nitroSrc.buffer = buffer;
                 nitroSrc.loop = true;
                 nitroSrc.connect(nitroFilter);
                 nitroFilter.connect(nitroGain);
                 nitroGain.connect(audioMaster);
-                nitroSrc.start();
 
                 if (audioCtx.state === 'suspended') audioCtx.resume();
             } catch (e) {
@@ -250,12 +244,19 @@
                 var running = engineOn ? 1 : 0;
                 var absSpeed = Math.abs(speed);
                 var rpm = 52 + absSpeed * 1.05 + (nitroActive ? 55 : 0);
-                engineGain.gain.setTargetAtTime(running ? 0.055 + Math.min(0.045, absSpeed / 2600) : 0, now, 0.08);
+                if (running && !engineOscStarted) {
+                    try { engineOsc.start(); engineOscStarted = true; } catch (e) {}
+                }
+                if (running && !audioNoiseStarted) {
+                    try { windSrc.start(); } catch (e) {}
+                    try { nitroSrc.start(); } catch (e) {}
+                    audioNoiseStarted = true;
+                }
+                engineGain.gain.setTargetAtTime(running ? 0.05 + Math.min(0.04, absSpeed / 2800) : 0, now, 0.08);
                 engineOsc.frequency.setTargetAtTime(rpm, now, 0.06);
-                engineSub.frequency.setTargetAtTime(rpm * 0.5, now, 0.06);
                 engineFilter.frequency.setTargetAtTime(520 + absSpeed * 9, now, 0.1);
-                windGain.gain.setTargetAtTime(Math.min(0.09, absSpeed / 1500), now, 0.15);
-                nitroGain.gain.setTargetAtTime(nitroActive ? 0.055 : 0, now, 0.1);
+                windGain.gain.setTargetAtTime(running ? Math.min(0.075, absSpeed / 1700) : 0, now, 0.15);
+                nitroGain.gain.setTargetAtTime(running && nitroActive ? 0.05 : 0, now, 0.1);
             } catch (e) {}
         }
 

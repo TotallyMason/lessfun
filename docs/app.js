@@ -5393,8 +5393,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.23.4";
-const UPDATE_NOTES = "Call invites are now a popup and work with anyone, not just friends. Added TURN servers, connection retries, audio resume, and stronger audio cleanup to fix unreliable calls and lingering buzzing";
+const APP_VERSION = "LessFun Developer Beta 1.23.5";
+const UPDATE_NOTES = "Call invites are now a user dropdown that works with anyone, and the engine buzz is removed by deleting the low sub-oscillator and keeping all audio sources stopped until the engine actually starts";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
@@ -5976,6 +5976,8 @@ let partyGains = {};
 let pendingCall = null;
 let partyRetryTimer = 0;
 let callInviteSearchTimer = 0;
+let callInviteUsers = [];
+let callInviteUsersLoaded = false;
 
 function partyMakeCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -6560,6 +6562,47 @@ function sendCallInviteFromModal() {
     }
 }
 
+async function loadCallInviteUsers() {
+    if (!supabaseClient || callInviteUsersLoaded) return;
+    callInviteUsersLoaded = true;
+    const res = await socialQuery(supabaseClient.from('users').select('username').order('username', { ascending: true }).limit(500));
+    if (!res.error && res.data) {
+        callInviteUsers = res.data.map(function (row) { return row.username; }).filter(Boolean);
+        partyRender();
+    }
+}
+
+function callInviteDropdownHtml() {
+    const me = friendUsername();
+    const memberNames = {};
+    partyMemberList().forEach(function (member) { memberNames[String(member.username).toLowerCase()] = true; });
+    const options = callInviteUsers.filter(function (name) {
+        return name && name !== me && !memberNames[String(name).toLowerCase()];
+    }).map(function (name) {
+        return '<option value="' + escapeAttr(name) + '">' + escapeHtml(name) + '</option>';
+    }).join('');
+    return '<div class="call-invite-row">' +
+        '<select id="callInviteSelect" class="party-code-input" style="letter-spacing:0;text-transform:none;font-weight:500;">' +
+            '<option value="">' + (options ? 'Choose a player to invite…' : 'No players available') + '</option>' + options +
+        '</select>' +
+        '<button type="button" class="friends-refresh" onclick="inviteSelectedCallUser()">Invite</button>' +
+    '</div>';
+}
+
+function inviteSelectedCallUser() {
+    const select = document.getElementById('callInviteSelect');
+    const name = select ? select.value : '';
+    if (!name) { showGameToast('Choose a player to invite.'); return; }
+    if (!friendUsername()) { openAuthModal(); return; }
+    if (!party.connected) {
+        partyJoinWithCode(partyMakeCode());
+        showGameToast('Starting a call and inviting ' + name + '…');
+        setTimeout(function () { sendInviteWithRetry(name, party.code, true, 0); }, 600);
+    } else {
+        sendInviteWithRetry(name, party.code, true, 0);
+    }
+}
+
 function partyMemberList() {
     return Object.keys(party.members).map(function (id) { return party.members[id]; })
         .sort(function (a, b) { return (a.joinedAt || 0) - (b.joinedAt || 0); });
@@ -6581,6 +6624,7 @@ function partyRender() {
         }
     }
     if (!host) return;
+    if (!callInviteUsersLoaded) loadCallInviteUsers();
     const friends = callFriendNames();
     if (!party.connected) {
         const options = friends.length
@@ -6593,7 +6637,7 @@ function partyRender() {
                     '<button type="button" class="friends-gift" onclick="callSelectedFriend()">Call</button>' +
                 '</div>' +
                 '<button type="button" class="friends-refresh" onclick="startGroupCall()">Start group call</button>' +
-                '<button type="button" class="friends-refresh" onclick="openCallInviteModal()">Invite anyone</button>' +
+                callInviteDropdownHtml() +
                 '<div class="party-join-row">' +
                     '<input id="partyCodeInput" class="party-code-input" maxlength="5" placeholder="CALL CODE" autocapitalize="characters">' +
                     '<button type="button" class="friends-refresh" onclick="joinVoicePartyFromInput()">Join</button>' +
@@ -6633,7 +6677,7 @@ function partyRender() {
                             '<button type="button" onclick="inviteFriendToCall(\'' + debugArg(name) + '\',\'' + debugArg(party.code) + '\', true)">Call</button></span>';
                     }).join('') + '</div>'
                 : '') +
-            '<button type="button" class="friends-refresh" onclick="openCallInviteModal()">Invite anyone</button>' +
+            callInviteDropdownHtml() +
             '<p class="party-status">' + escapeHtml(party.status || (members.length + ' in the call.')) + '</p>' +
             '<button type="button" class="friends-refresh party-leave" onclick="leaveParty()">End call</button>' +
         '</div>';

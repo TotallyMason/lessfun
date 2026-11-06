@@ -7364,3 +7364,14 @@ body.has-avatar-frame .friend-avatar {
     border-color: rgba(80, 210, 255, 0.4);
     background: rgba(80, 210, 255, 0.1);
 }
+
+.call-invite-row {
+    display: flex;
+    gap: 7px;
+    align-items: center;
+}
+
+.call-invite-row select {
+    flex: 1;
+    min-width: 0;
+}
