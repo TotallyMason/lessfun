@@ -5393,8 +5393,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.23.0";
-const UPDATE_NOTES = "Voice parties in Friends: create or join with a code, toggle your mic with V anywhere, and stay in the call across games and pages. Messages now start from user search";
+const APP_VERSION = "LessFun Developer Beta 1.23.1";
+const UPDATE_NOTES = "Voice party audio is now boosted with a Web Audio gain and compressor stage, making friends noticeably louder while reducing clipping";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
@@ -5966,6 +5966,8 @@ let party = {
     joinedAt: 0,
     status: ''
 };
+let partyAudioCtx = null;
+let partyGains = {};
 
 function partyMakeCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -6187,6 +6189,43 @@ async function partyHandleSignal(payload) {
 }
 
 function partyAttachStream(peerId, stream) {
+    // Route remote voice through Web Audio with extra gain + compression so
+    // party chat can be made noticeably louder than a normal audio element.
+    if (!partyAudioCtx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) {
+            try { partyAudioCtx = new AC(); } catch (e) { partyAudioCtx = null; }
+        }
+    }
+    if (partyAudioCtx && partyAudioCtx.createMediaStreamSource) {
+        try {
+            if (partyGains[peerId]) {
+                try { partyGains[peerId].source.disconnect(); } catch (e) {}
+                try { partyGains[peerId].gain.disconnect(); } catch (e) {}
+                try { partyGains[peerId].compressor.disconnect(); } catch (e) {}
+                delete partyGains[peerId];
+            }
+            const source = partyAudioCtx.createMediaStreamSource(stream);
+            const gain = partyAudioCtx.createGain();
+            gain.gain.value = 2.7;
+            const compressor = partyAudioCtx.createDynamicsCompressor();
+            compressor.threshold.value = -16;
+            compressor.knee.value = 12;
+            compressor.ratio.value = 8;
+            compressor.attack.value = 0.003;
+            compressor.release.value = 0.22;
+            source.connect(gain);
+            gain.connect(compressor);
+            compressor.connect(partyAudioCtx.destination);
+            partyGains[peerId] = { source: source, gain: gain, compressor: compressor };
+            if (partyAudioCtx.state === 'suspended') {
+                const resumed = partyAudioCtx.resume();
+                if (resumed && resumed.catch) resumed.catch(function () {});
+            }
+            partyRender();
+            return;
+        } catch (e) {}
+    }
     let audio = party.audios[peerId];
     if (!audio) {
         audio = document.createElement('audio');
@@ -6196,6 +6235,7 @@ function partyAttachStream(peerId, stream) {
         document.body.appendChild(audio);
         party.audios[peerId] = audio;
     }
+    audio.volume = 1;
     audio.srcObject = stream;
     const played = audio.play();
     if (played && played.catch) played.catch(function () {});
@@ -6207,6 +6247,12 @@ function partyClosePeer(peerId) {
     if (pc) {
         try { pc.close(); } catch (e) {}
         delete party.pcs[peerId];
+    }
+    if (partyGains[peerId]) {
+        try { partyGains[peerId].source.disconnect(); } catch (e) {}
+        try { partyGains[peerId].gain.disconnect(); } catch (e) {}
+        try { partyGains[peerId].compressor.disconnect(); } catch (e) {}
+        delete partyGains[peerId];
     }
     const audio = party.audios[peerId];
     if (audio) {
@@ -6271,6 +6317,11 @@ function leaveParty(quiet) {
         party.localStream.getTracks().forEach(function (track) { try { track.stop(); } catch (e) {} });
     }
     party.localStream = null;
+    partyGains = {};
+    if (partyAudioCtx) {
+        try { partyAudioCtx.close(); } catch (e) {}
+        partyAudioCtx = null;
+    }
     party.micOn = false;
     party.members = {};
     party.code = '';
