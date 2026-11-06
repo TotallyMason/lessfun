@@ -4,7 +4,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_Ev9umZevWcT-AwVHTPQLnw_DHdpDHWR";
 const supabaseClient = (typeof window !== 'undefined' && window.supabase) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 const games = [
-    { id: 1, name: "Beach Racer", description: "Outrun traffic on a five-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · ← → steer · drift is automatic · Shift / N nitrous · F FSD · Q/E gears · right lane exits" },
+    { id: 1, name: "Beach Racer", description: "Outrun traffic on a six-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · ← → steer · drift is automatic · Shift / N nitrous · F FSD · Q/E gears · right lane exits" },
     { id: 2, name: "Tunnel Rush", description: "Thread the neon tunnel at warp speed", icon: "tunnel", controls: "Left / Right or drag to rotate" },
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
     { id: 5, name: "Star Dodger", description: "Weave through an asteroid storm", icon: "rocket", controls: "WASD / arrow keys to fly fast, or drag" }
@@ -2450,11 +2450,13 @@ function updateUserSection() {
 
     const debugBtn = document.getElementById('nav-debug');
     if (debugBtn) debugBtn.style.display = isOwner() ? 'inline-flex' : 'none';
-    const debugGroup = document.getElementById('debugSettingsGroup');
-    if (debugGroup) debugGroup.style.display = isOwner() ? 'block' : 'none';
+    const devGroup = document.getElementById('developerSettingsGroup');
+    if (devGroup) devGroup.style.display = isDeveloper() ? 'block' : 'none';
+    const ownerConsoleItem = document.getElementById('ownerConsoleSettingsItem');
+    if (ownerConsoleItem) ownerConsoleItem.style.display = isOwner() ? 'flex' : 'none';
     const devBtn = document.getElementById('nav-dev');
     if (devBtn) devBtn.style.display = isDeveloper() ? 'inline-flex' : 'none';
-    if (!isDeveloper()) closeDevConsole(true);
+    if (!isDeveloper()) { closeDevConsole(true); closeDevAISettings(); }
 
     if (!isOwner()) {
         ownerUnlocked = false;
@@ -2468,10 +2470,25 @@ function updateUserSection() {
 let devConsoleState = {
     open: false,
     rows: [],
+    logs: [],
     poll: 0,
     seen: {},
-    loaded: false
+    loaded: false,
+    aiBusy: {}
 };
+
+const DEV_AI_DEFAULTS = {
+    endpoint: 'https://text.pollinations.ai/openai',
+    model: 'openai',
+    key: '',
+    system: 'You are OpenCode, the AI build assistant embedded in LessFun, a browser arcade built with vanilla HTML/CSS/JS and Three.js. A developer is sending you a change request. Reply with a concise, practical implementation plan: what files/systems are involved, exact tuning or code guidance, risks, and how to test it. Do not claim you already changed the files. Keep it under 220 words. If the request is unsafe or impossible in a static browser game, say so clearly.'
+};
+
+function devAIConfig() {
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem('lessfun_dev_ai') || '{}') || {}; } catch (e) {}
+    return Object.assign({}, DEV_AI_DEFAULTS, saved);
+}
 
 function devSetStatus(message, isError) {
     const el = document.getElementById('devConsoleStatus');
@@ -2502,6 +2519,15 @@ function devCard(row, canReview) {
         '</div>' +
         '<p class="dev-request-message">' + escapeHtml(row.message || '') + '</p>' +
         (row.owner_note ? '<p class="dev-request-note"><strong>Owner note:</strong> ' + escapeHtml(row.owner_note) + '</p>' : '') +
+        (row.ai_reply ?
+            '<div class="dev-ai-block">' +
+                '<div class="dev-ai-head"><span>◈ OpenCode AI</span>' + (row.ai_model ? '<small>' + escapeHtml(row.ai_model) + '</small>' : '') + '</div>' +
+                '<p class="dev-ai-reply">' + escapeHtml(row.ai_reply) + '</p>' +
+                (row.ai_thinking ? '<details class="dev-ai-thinking"><summary>Show AI thinking</summary><pre>' + escapeHtml(row.ai_thinking) + '</pre></details>' : '') +
+            '</div>' :
+            (row.ai_status === 'thinking' ? '<p class="dev-ai-pending">OpenCode AI is thinking…</p>' :
+                (row.ai_status === 'error' ? '<p class="dev-ai-error">AI bridge failed. Open Settings → Developer → OpenCode AI.</p>' : ''))) +
+        (status !== 'pending' && !canReview ? '<div class="dev-request-actions"><button type="button" class="dev-ai-btn" onclick="askDevAI(\'' + debugArg(String(row.id)) + '\')">Ask OpenCode again</button></div>' : '') +
         (canReview && status === 'pending' ?
             '<div class="dev-request-actions">' +
                 '<button type="button" class="dev-approve" onclick="reviewDevRequest(\'' + debugArg(String(row.id)) + '\', \'approved\')">Approve &amp; queue</button>' +
@@ -2515,10 +2541,10 @@ function devRenderConsole() {
     const owner = isOwner();
     const title = document.getElementById('devConsoleTitle');
     const subtitle = document.getElementById('devConsoleSubtitle');
-    if (title) title.textContent = owner ? 'Owner build channel' : 'Developer build channel';
+    if (title) title.textContent = owner ? 'Owner build channel' : 'OpenCode developer channel';
     if (subtitle) subtitle.textContent = owner
-        ? 'Review every developer request, approve what ships, and watch the full activity feed.'
-        : 'Send change requests to the owner/AI build queue. TotallyMason sees every message and must approve it.';
+        ? 'Review every developer request, inspect OpenCode AI thinking, approve what ships, and watch the audit log.'
+        : 'Talk to OpenCode AI about the build. TotallyMason sees every message and must approve changes before they ship.';
     const composer = document.getElementById('devComposer');
     if (composer) composer.style.display = owner ? 'none' : 'flex';
 
@@ -2549,6 +2575,174 @@ function devRenderConsole() {
                     '<p class="dev-empty">No requests yet. Describe the change you want above.</p>');
         }
     }
+
+    const logHost = document.getElementById('devLogList');
+    if (logHost) {
+        const logs = devConsoleState.logs || [];
+        logHost.innerHTML = '<div class="dev-section-head"><h3>Developer log</h3><span class="dev-count">' + logs.length + '</span></div>' +
+            (logs.length ? '<div class="dev-log-list">' + logs.map(function (entry) {
+                return '<div class="dev-log-row">' +
+                    '<span class="dev-log-action">' + escapeHtml(String(entry.action || 'action').replace(/_/g, ' ')) + '</span>' +
+                    '<span class="dev-log-detail">' + escapeHtml(devSnippet(entry.detail, 220)) + '</span>' +
+                    '<time>' + escapeHtml(devTime(entry.created_at)) + '</time>' +
+                '</div>';
+            }).join('') + '</div>' : '<p class="dev-empty">No developer activity logged yet.</p>');
+    }
+}
+
+async function logDeveloper(action, detail) {
+    if (!supabaseClient || !currentUser || currentUser.type !== 'user') return;
+    try {
+        await socialQuery(supabaseClient.from('developer_log').insert({
+            developer: currentUser.username,
+            action: String(action || 'action'),
+            detail: String(detail || '').slice(0, 1500)
+        }));
+    } catch (e) {}
+}
+
+async function callDevAI(message, developer) {
+    const config = devAIConfig();
+    const endpoint = String(config.endpoint || DEV_AI_DEFAULTS.endpoint).trim();
+    if (!endpoint) throw new Error('No AI endpoint configured.');
+    const controller = window.AbortController ? new AbortController() : null;
+    const timeout = setTimeout(function () { if (controller) controller.abort(); }, 45000);
+    try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (config.key) headers.Authorization = 'Bearer ' + config.key;
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: headers,
+            signal: controller ? controller.signal : undefined,
+            body: JSON.stringify({
+                model: config.model || 'openai',
+                messages: [
+                    { role: 'system', content: config.system || DEV_AI_DEFAULTS.system },
+                    { role: 'user', content: 'Developer: ' + developer + '\nRequest: ' + message }
+                ]
+            })
+        });
+        if (!res.ok) throw new Error('AI endpoint returned HTTP ' + res.status);
+        const data = await res.json();
+        const choice = data && data.choices && data.choices[0];
+        const payload = choice && (choice.message || choice.delta) || {};
+        let content = payload.content || '';
+        if (Array.isArray(content)) content = content.map(function (part) { return part && (part.text || part.content) || ''; }).join(' ');
+        if (!content && typeof data.output_text === 'string') content = data.output_text;
+        const thinking = payload.reasoning || payload.reasoning_content || data.reasoning || '';
+        if (!content) throw new Error('AI returned an empty response.');
+        return {
+            reply: String(content).trim(),
+            thinking: String(thinking || '').trim(),
+            model: String(data.model || config.model || 'openai')
+        };
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+async function runDevAIForRequest(id, message, developer) {
+    if (!id || !supabaseClient) return;
+    try {
+        await socialQuery(supabaseClient.from('developer_requests').update({ ai_status: 'thinking' }).eq('id', id));
+        devConsoleState.aiBusy[String(id)] = true;
+        devRenderConsole();
+        await logDeveloper('ai_started', developer + ': ' + devSnippet(message, 160));
+        const ai = await callDevAI(message, developer);
+        const res = await socialQuery(supabaseClient.from('developer_requests').update({
+            ai_reply: ai.reply,
+            ai_thinking: ai.thinking,
+            ai_model: ai.model,
+            ai_status: 'done',
+            ai_at: new Date().toISOString()
+        }).eq('id', id));
+        if (res.error) throw new Error(res.error.message || 'Could not store the AI reply.');
+        await logDeveloper('ai_reply', 'OpenCode replied to ' + developer + ': ' + devSnippet(ai.reply, 160));
+    } catch (e) {
+        try {
+            await socialQuery(supabaseClient.from('developer_requests').update({
+                ai_status: 'error',
+                ai_reply: 'OpenCode AI could not respond: ' + (e.message || 'unknown error'),
+                ai_at: new Date().toISOString()
+            }).eq('id', id));
+        } catch (err) {}
+        await logDeveloper('ai_error', devSnippet(e.message || 'AI request failed', 160));
+    } finally {
+        delete devConsoleState.aiBusy[String(id)];
+        await loadDevRequests();
+    }
+}
+
+async function askDevAI(id) {
+    if (!isDeveloper() || !supabaseClient) return;
+    const row = (devConsoleState.rows || []).filter(function (item) { return String(item.id) === String(id); })[0];
+    if (!row) return;
+    devSetStatus('OpenCode AI is thinking…', false);
+    await runDevAIForRequest(row.id, row.message || '', row.developer || currentUser.username);
+}
+
+function openDevAISettings() {
+    if (!isDeveloper()) return;
+    const modal = document.getElementById('devAiSettingsModal');
+    if (!modal) return;
+    const config = devAIConfig();
+    const endpoint = document.getElementById('devAiEndpoint');
+    const model = document.getElementById('devAiModel');
+    const key = document.getElementById('devAiKey');
+    const system = document.getElementById('devAiSystem');
+    if (endpoint) endpoint.value = config.endpoint;
+    if (model) model.value = config.model;
+    if (key) key.value = config.key || '';
+    if (system) system.value = config.system || DEV_AI_DEFAULTS.system;
+    const disabled = !isOwner();
+    [endpoint, model, key, system].forEach(function (el) { if (el) el.disabled = disabled; });
+    const status = document.getElementById('devAiSettingsStatus');
+    if (status) {
+        status.textContent = disabled
+            ? 'Only the owner can change the bridge. The shared free OpenCode bridge is active.'
+            : 'Free bridge active by default. Add a key only if your endpoint requires one.';
+        status.classList.toggle('is-error', false);
+    }
+    ensureTopLayer(modal);
+    modal.style.display = 'flex';
+}
+
+function closeDevAISettings() {
+    const modal = document.getElementById('devAiSettingsModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function saveDevAISettings() {
+    if (!isOwner()) {
+        const status = document.getElementById('devAiSettingsStatus');
+        if (status) { status.textContent = 'Only the owner can save the AI bridge configuration.'; status.classList.add('is-error'); }
+        return;
+    }
+    const config = {
+        endpoint: String((document.getElementById('devAiEndpoint') || {}).value || DEV_AI_DEFAULTS.endpoint).trim(),
+        model: String((document.getElementById('devAiModel') || {}).value || DEV_AI_DEFAULTS.model).trim(),
+        key: String((document.getElementById('devAiKey') || {}).value || '').trim(),
+        system: String((document.getElementById('devAiSystem') || {}).value || DEV_AI_DEFAULTS.system).trim()
+    };
+    try { localStorage.setItem('lessfun_dev_ai', JSON.stringify(config)); } catch (e) {}
+    const status = document.getElementById('devAiSettingsStatus');
+    if (status) { status.textContent = 'Saved. New developer requests will use this AI bridge.'; status.classList.remove('is-error'); }
+    logDeveloper('ai_config', 'OpenCode endpoint set to ' + config.endpoint + ' (' + config.model + ')');
+}
+
+function resetDevAISettings() {
+    if (!isOwner()) return;
+    try { localStorage.removeItem('lessfun_dev_ai'); } catch (e) {}
+    openDevAISettings();
+    const status = document.getElementById('devAiSettingsStatus');
+    if (status) status.textContent = 'Reset to the free OpenCode bridge.';
+}
+
+async function openDeveloperLog() {
+    if (!isDeveloper()) return;
+    await openDevConsole();
+    const log = document.getElementById('devLogList');
+    if (log && log.scrollIntoView) log.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function loadDevRequests() {
@@ -2559,10 +2753,17 @@ async function loadDevRequests() {
     }
     try {
         let query = supabaseClient.from('developer_requests').select('*').order('created_at', { ascending: false }).limit(200);
-        if (!isOwner()) query = query.eq('developer', currentUser.username);
-        const res = await socialQuery(query);
+        let logQuery = supabaseClient.from('developer_log').select('*').order('created_at', { ascending: false }).limit(120);
+        if (!isOwner()) {
+            query = query.eq('developer', currentUser.username);
+            logQuery = logQuery.eq('developer', currentUser.username);
+        }
+        const results = await Promise.all([socialQuery(query), socialQuery(logQuery)]);
+        const res = results[0];
+        const logRes = results[1];
         if (res.error) {
             devConsoleState.rows = [];
+            devConsoleState.logs = [];
             devConsoleState.error = res.error;
             devRenderConsole();
             devSetStatus('Run supabase/dev_console.sql to enable the developer build channel.', true);
@@ -2570,6 +2771,7 @@ async function loadDevRequests() {
         }
         devConsoleState.error = null;
         devConsoleState.rows = res.data || [];
+        devConsoleState.logs = logRes && !logRes.error ? (logRes.data || []) : [];
         // Surface approval/rejection changes to the developer.
         if (!isOwner()) {
             devConsoleState.rows.forEach(function (row) {
@@ -2602,6 +2804,7 @@ async function openDevConsole() {
     devConsoleState.open = true;
     devConsoleState.seen = {};
     devSetStatus('Loading build channel…', false);
+    await logDeveloper('open_console', 'Developer console opened');
     await loadDevRequests();
     if (devConsoleState.poll) clearInterval(devConsoleState.poll);
     devConsoleState.poll = setInterval(function () {
@@ -2632,15 +2835,19 @@ async function submitDevRequest() {
     const res = await socialQuery(supabaseClient.from('developer_requests').insert({
         developer: currentUser.username,
         message: text,
-        status: 'pending'
-    }));
+        status: 'pending',
+        ai_status: 'thinking'
+    }).select('id').maybeSingle());
     if (res.error) {
         devSetStatus('Could not send: ' + (res.error.message || 'run supabase/dev_console.sql'), true);
         return;
     }
+    const requestId = res.data && res.data.id;
     if (input) input.value = '';
-    devSetStatus('Request sent to TotallyMason for approval.', false);
+    devSetStatus('Request sent. OpenCode AI is working on a plan…', false);
+    await logDeveloper('request_sent', text);
     await loadDevRequests();
+    if (requestId) await runDevAIForRequest(requestId, text, currentUser.username);
 }
 
 async function reviewDevRequest(id, status) {
@@ -2663,6 +2870,7 @@ async function reviewDevRequest(id, status) {
         devSetStatus('Could not review request: ' + (res.error.message || 'run supabase/dev_console.sql'), true);
         return;
     }
+    await logDeveloper(status === 'approved' ? 'request_approved' : 'request_rejected', 'Request #' + id + (note ? ' — ' + note : ''));
     devSetStatus(status === 'approved' ? 'Approved and added to the build queue.' : 'Request rejected.', false);
     await loadDevRequests();
 }
@@ -2677,6 +2885,7 @@ async function toggleDeveloper(username, enabled) {
     }
     const user = (debugData.users || []).filter(function (row) { return row.username === username; })[0];
     if (user) user.developer = !!enabled;
+    logDeveloper(enabled ? 'developer_appointed' : 'developer_removed', username);
     showDebugStatus((enabled ? 'Appointed ' : 'Removed developer access for ') + username + '.', false);
     renderDebugAdmins();
 }
@@ -6020,8 +6229,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.23.9";
-const UPDATE_NOTES = "GTA-inspired lighting and real car shadows, a faster car with stronger speed camera effects, fast WASD in Star Dodger, chase-cam windows for small lobbies, a separate Close Messages button, and an owner-approved Developer Console for appointed developers";
+const APP_VERSION = "LessFun Developer Beta 1.24.0";
+const UPDATE_NOTES = "Six-lane highway, 1,800 km/h FSD with animated lane changes and safer surroundings awareness, ramps as jump targets, native-resolution capped rendering down to 20% with smooth scale transitions, OpenCode AI in Settings for developers only, real AI thinking logs, and better FPS";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');

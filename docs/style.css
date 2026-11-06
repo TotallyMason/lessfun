@@ -7986,3 +7986,192 @@ body.has-avatar-frame .friend-avatar {
     margin-left: 4px;
     color: #9fe8ff;
 }
+
+/* OpenCode AI + developer log */
+.dev-ai-block {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(95, 224, 255, 0.24);
+    background: linear-gradient(145deg, rgba(10, 40, 56, 0.72), rgba(4, 16, 26, 0.72));
+}
+
+.dev-ai-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #8fe8ff;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.dev-ai-head small {
+    margin-left: auto;
+    color: rgba(255, 255, 255, 0.36);
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.dev-ai-reply {
+    margin: 7px 0 0;
+    color: rgba(235, 250, 255, 0.86);
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+.dev-ai-thinking {
+    margin-top: 8px;
+    color: rgba(255, 255, 255, 0.56);
+    font-size: 10px;
+}
+
+.dev-ai-thinking summary {
+    cursor: pointer;
+    color: #9fe8ff;
+}
+
+.dev-ai-thinking pre {
+    margin: 7px 0 0;
+    padding: 8px;
+    max-height: 160px;
+    overflow: auto;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.32);
+    white-space: pre-wrap;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+.dev-ai-pending {
+    margin: 9px 0 0;
+    color: #ffe2a0;
+    font-size: 11px;
+    animation: aiPulse 1.1s ease-in-out infinite alternate;
+}
+
+.dev-ai-error {
+    margin: 9px 0 0;
+    color: #ffaaaa;
+    font-size: 11px;
+}
+
+.dev-ai-btn {
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(95, 224, 255, 0.34);
+    background: rgba(95, 224, 255, 0.09);
+    color: #a9ecff;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.dev-log-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.dev-log-row {
+    display: grid;
+    grid-template-columns: 130px 1fr auto;
+    gap: 8px;
+    align-items: baseline;
+    padding: 7px 9px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.035);
+    font-size: 10px;
+}
+
+.dev-log-action {
+    color: #8fe8ff;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.dev-log-detail {
+    color: rgba(255, 255, 255, 0.6);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dev-log-row time {
+    color: rgba(255, 255, 255, 0.32);
+    font-size: 9px;
+}
+
+.dev-ai-settings-content {
+    max-width: 560px;
+    width: min(560px, calc(100vw - 24px));
+}
+
+.dev-ai-settings-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 18px 20px;
+}
+
+.dev-ai-settings-body label {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.dev-ai-settings-body label span {
+    color: rgba(255, 255, 255, 0.38);
+    font-weight: 400;
+}
+
+.dev-ai-settings-body input,
+.dev-ai-settings-body textarea {
+    width: 100%;
+    padding: 9px 11px;
+    border-radius: 9px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(0, 0, 0, 0.32);
+    color: #f2fbff;
+    font: inherit;
+    font-size: 12px;
+}
+
+.dev-ai-settings-body input:disabled,
+.dev-ai-settings-body textarea:disabled {
+    opacity: 0.55;
+}
+
+.dev-ai-help {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 11px;
+    line-height: 1.55;
+}
+
+.dev-ai-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+@keyframes aiPulse {
+    from { opacity: 0.55; }
+    to { opacity: 1; }
+}
+
+@media (max-width: 640px) {
+    .dev-log-row { grid-template-columns: 1fr; gap: 3px; }
+}

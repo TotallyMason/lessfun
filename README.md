@@ -7,7 +7,7 @@ A 3D arcade with a liquid-glass interface. Play it at
 
 | Game | What it is |
 | --- | --- |
-| Beach Racer | Outrun traffic on a five-lane coastal highway. Hold W / ↑ for throttle, steer freely, and brake through the pack in a 6-speed automatic. Shift P/R/N/D with Q and E, take highway exits, and race 2–3 players online with a room code. |
+| Beach Racer | Outrun traffic on a six-lane coastal highway. Hold W / ↑ for throttle, steer freely, and brake through the pack in a 6-speed automatic. Shift P/R/N/D with Q and E, take highway exits, and race 2–3 players online with a room code. |
 | Tunnel Rush | Thread an endless neon tunnel and rotate through the gaps. |
 | Cube Stack | Stack the tower as high as you can before the blocks drift away. |
 | Star Dodger | Weave through an asteroid storm at increasing speed. |
@@ -158,7 +158,7 @@ handling real user data or payments.
 ## Features
 
 - Four real-time 3D arcade games powered by Three.js
-- Five-lane coastal highway with guardrails, streetlights, overhead signs, SUVs and trucks, merging entry ramps, exit ramps that end the run, and a much faster top speed in Beach Racer
+- Six-lane coastal highway with guardrails, streetlights, overhead signs, SUVs and trucks, merging entry ramps, exit ramps that end the run, and a much faster top speed in Beach Racer
 - Beach Racer multiplayer for 2–3 players: create or join a five-character room code, race together, see each driver's name floating above their car, and pass through other players without collisions
 - Checkpoint gates every 500 m with a CP counter and a +250 score bonus per gate, plus a host-only start and restart button
 - Manual Q/E gear selector (P, R, N, D) with reverse and park in Beach Racer
@@ -168,8 +168,11 @@ handling real user data or payments.
 - Gold track coins that are collected during a run and paid into the Coins wallet at game over
 - Private messages and group messages with ECDH P-256 + AES-GCM end-to-end encryption, started by searching for a person in the in-game sidebar or creating a group
 - Press **X** once to close the Messages sidebar, and press **X** again to close the game. A separate **Close Messages** button is also available in-game. Voice chat has been removed
-- Developer Console for owner-appointed developers: send change requests to the owner/AI build queue, see approval status, and let the owner review every message before anything ships
+- Developer Console for owner-appointed developers, now inside Settings → Developer for developers only: real OpenCode AI replies and thinking traces, owner approval, and a full audit log
+- OpenCode AI bridge with a free default endpoint, owner-configurable endpoint/model/key, and AI plans attached to every developer request
+- Adaptive resolution never supersamples above the device's native resolution, can drop to 20%, and uses a 1-second hold/blend when changing scale to reduce stutter
 - Chase-cam windows for remote racers in lobbies with fewer than six people
+- FSD looks ahead across all six lanes, reads front/rear gaps, tween-animates lane changes, treats ramps as gold jump targets instead of traffic, and can reach 1,800 km/h on a clear lane
 - Real-time car shadows, ACES filmic tone mapping, warmer sunset lighting, and a faster top speed with stronger speed-based camera FOV and shake
 - Star Dodger now responds to fast WASD movement as well as arrow keys and drag controls
 - Coin gifting from Friends or a profile, private-message user search, and 50% cosmetic resale

@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261170">
+    <link rel="stylesheet" href="style.css?v=20261171">
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -837,7 +837,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Developer Beta 1.23.9</p>
+                            <p>LessFun Developer Beta 1.24.0</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -866,14 +866,35 @@
                         <p style="margin-top:8px; color:rgba(255,255,255,0.6); font-size:13px;">Powered by pure web technologies</p>
                     </div>
                 </div>
-                <div class="settings-group" id="debugSettingsGroup" style="display:none;">
+                <div class="settings-group" id="developerSettingsGroup" style="display:none;">
                     <h2>Developer</h2>
-                    <div class="settings-item">
+                    <div class="settings-item" id="ownerConsoleSettingsItem" style="display:none;">
                         <div>
                             <h3>Owner Console</h3>
                             <p>Full-site controls for TotallyMason only.</p>
                         </div>
                         <button id="nav-debug" class="settings-select" style="display:none;cursor:pointer;" onclick="openOwnerDebug()">Open</button>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <h3>Developer Console</h3>
+                            <p>Send supervised changes to OpenCode AI and track owner approvals.</p>
+                        </div>
+                        <button class="settings-select" style="cursor:pointer;" onclick="openDevConsole()">Open</button>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <h3>Developer Log</h3>
+                            <p>Every request, AI call, and approval is recorded.</p>
+                        </div>
+                        <button class="settings-select" style="cursor:pointer;" onclick="openDeveloperLog()">View log</button>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <h3>OpenCode AI</h3>
+                            <p>Connect the developer console to the live AI build assistant.</p>
+                        </div>
+                        <button class="settings-select" style="cursor:pointer;" onclick="openDevAISettings()">Configure</button>
                     </div>
                 </div>
             </div>
@@ -911,7 +932,39 @@
                     </div>
                 </div>
                 <div id="devOwnRequests" class="dev-console-section"></div>
+                <div id="devLogList" class="dev-console-section"></div>
                 <p id="devConsoleStatus" class="dev-console-status"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- OpenCode AI settings -->
+    <div id="devAiSettingsModal" class="modal" style="display:none;">
+        <div class="modal-backdrop" onclick="closeDevAISettings()"></div>
+        <div class="modal-content dev-ai-settings-content">
+            <div class="modal-header">
+                <h2>OpenCode AI Bridge</h2>
+                <button class="modal-close" onclick="closeDevAISettings()">×</button>
+            </div>
+            <div class="dev-ai-settings-body">
+                <p class="dev-ai-help">The Developer Console sends requests to this OpenAI-compatible endpoint. The default free bridge works without a key. Owner-only fields are stored on this device.</p>
+                <label>Endpoint URL
+                    <input id="devAiEndpoint" type="url" placeholder="https://text.pollinations.ai/openai">
+                </label>
+                <label>Model
+                    <input id="devAiModel" type="text" placeholder="openai">
+                </label>
+                <label>API key <span>(optional, owner-only)</span>
+                    <input id="devAiKey" type="password" autocomplete="off" placeholder="Leave blank for the free bridge">
+                </label>
+                <label>System prompt
+                    <textarea id="devAiSystem" rows="4" maxlength="3000"></textarea>
+                </label>
+                <div class="dev-ai-actions">
+                    <button type="button" class="debug-btn" onclick="resetDevAISettings()">Reset defaults</button>
+                    <button type="button" class="game3d-mp-primary" onclick="saveDevAISettings()">Save</button>
+                </div>
+                <p id="devAiSettingsStatus" class="dev-console-status"></p>
             </div>
         </div>
     </div>
@@ -1095,7 +1148,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
-    <script src="games3d.js?v=20261170"></script>
-    <script src="app.js?v=20261170"></script>
+    <script src="games3d.js?v=20261171"></script>
+    <script src="app.js?v=20261171"></script>
 </body>
 </html>
