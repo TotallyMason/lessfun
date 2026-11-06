@@ -10,9 +10,10 @@ A 3D arcade with a liquid-glass interface. Play it at
 | Beach Racer | Outrun traffic on a six-lane coastal highway. Hold W / ↑ for throttle, steer freely, and brake through the pack in a 6-speed automatic. Shift P/R/N/D with Q and E, take highway exits, and race 2–3 players online with a room code. |
 | Tunnel Rush | Thread an endless neon tunnel and rotate through the gaps. |
 | Cube Stack | Stack the tower as high as you can before the blocks drift away. |
+| Dead Coast | First-person zombie survival with WASD movement, trackpad mouse look, waves, ammo, health pickups, and public co-op rooms. |
 | Star Dodger | Weave through an asteroid storm at increasing speed. |
 
-All four games are real-time 3D scenes rendered with Three.js.
+All five games are real-time 3D scenes rendered with Three.js.
 
 ## Play
 
@@ -155,7 +156,7 @@ handling real user data or payments.
 
 ## Features
 
-- Four real-time 3D arcade games powered by Three.js
+- Five real-time 3D games powered by Three.js
 - Six-lane coastal highway with guardrails, streetlights, overhead signs, SUVs and trucks, merging entry ramps, exit ramps that end the run, and a much faster top speed in Beach Racer
 - Beach Racer multiplayer for 2–3 players: create or join a five-character room code, race together, see each driver's name floating above their car, and pass through other players without collisions
 - Checkpoint gates every 500 m with a CP counter and a +250 score bonus per gate, plus a host-only start and restart button
@@ -170,6 +171,7 @@ handling real user data or payments.
 - Chase-cam windows for remote racers in lobbies with fewer than six people
 - FSD looks ahead across all six lanes, reads front/rear gaps, tween-animates lane changes, treats ramps as gold jump targets instead of traffic, tops out at 300 km/h, and auto-swerves into a safe adjacent lane when emergency braking cannot stop in time
 - Crash physics with directional crumple zones that absorb impact energy, plus a physically simulated driver ragdoll
+- Dead Coast FPS: WASD movement, trackpad/mouse look with pointer lock, sprint, jump, reload, wave-based zombies, health/ammo pickups, remote survivor avatars, and three public co-op rooms
 - Star Dodger power-ups: shields, laser weapons, score combos, enemy drones, nebula explosions, and fast WASD movement
 - Play Again restarts the scene without rebuilding the WebGL context for a much faster retry
 - Real-time car shadows, ACES filmic tone mapping, warmer sunset lighting, and a faster top speed with stronger speed-based camera FOV and shake, plus an H-key horn that tells nearby traffic to move over

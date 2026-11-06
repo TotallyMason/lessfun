@@ -7,6 +7,7 @@ const games = [
     { id: 1, name: "Beach Racer", description: "Outrun traffic on a six-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · ← → steer · Shift / N nitrous · F FSD · H honk · Q/E gears · right lane exits" },
     { id: 2, name: "Tunnel Rush", description: "Thread the neon tunnel at warp speed", icon: "tunnel", controls: "Left / Right or drag to rotate" },
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
+    { id: 4, name: "Dead Coast", description: "Survive endless zombie waves in first person", icon: "skull", controls: "WASD move · trackpad look · click fire · R reload · Shift sprint · Space jump" },
     { id: 5, name: "Star Dodger", description: "Weave through an asteroid storm", icon: "rocket", controls: "WASD / arrow keys to fly · drag to steer · Space / click fires when armed" }
 ];
 
@@ -302,7 +303,8 @@ function getIcon(name) {
         "tunnel": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5.5"/><circle cx="12" cy="12" r="2"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>',
         "blocks": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><rect x="4" y="15" width="16" height="5" rx="1"/><rect x="6" y="9" width="13" height="5" rx="1"/><rect x="8" y="3" width="9" height="5" rx="1"/></svg>',
         "helix": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><path d="M7 3c0 3 10 3 10 6S7 12 7 15s10 3 10 6"/><circle cx="17" cy="9" r="1.6" fill="white" stroke="none"/></svg>',
-        "rocket": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><path d="M12 3c3 2 5 5.5 5 9l-2.5 3h-5L7 12c0-3.5 2-7 5-9Z"/><circle cx="12" cy="9" r="1.6"/><path d="M9 15l-2 4 3-1M15 15l2 4-3-1"/></svg>'
+        "rocket": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><path d="M12 3c3 2 5 5.5 5 9l-2.5 3h-5L7 12c0-3.5 2-7 5-9Z"/><circle cx="12" cy="9" r="1.6"/><path d="M9 15l-2 4 3-1M15 15l2 4-3-1"/></svg>',
+        "skull": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><path d="M6 13a6 6 0 0 1 12 0v3a2 2 0 0 1-2 2h-1v2h-2v-2h-2v2H9v-2H8a2 2 0 0 1-2-2v-3Z"/><circle cx="9.5" cy="12" r="1.2" fill="white"/><circle cx="14.5" cy="12" r="1.2" fill="white"/><path d="M11 16h2"/></svg>'
     };
     return icons[name] || '';
 }
@@ -537,6 +539,7 @@ function openGame(id) {
     const game = games.find(g => g.id === id);
     if (!game) return;
     if (arcadeMp.connected && arcadeMp.gameId && arcadeMp.gameId !== id) arcadeMpLeave(true);
+    if (zombieMp.connected && id !== 4) zombieMpLeave(true);
     if (isGameDisabled(id)) {
         alert('This game is temporarily unavailable. Check back soon!');
         return;
@@ -545,7 +548,7 @@ function openGame(id) {
     document.getElementById('modalGameTitle').textContent = game.name;
     const body = document.getElementById('modalGameBody');
     body.innerHTML =
-        '<div class="game3d-wrap">' +
+        '<div class="game3d-wrap' + (game.id === 4 ? ' is-fps' : '') + '">' +
             '<div class="game3d-hud">' +
                 '<div class="game3d-glass">' +
                     '<strong class="game3d-glass-status" id="g3dExtra">-</strong>' +
@@ -556,7 +559,20 @@ function openGame(id) {
             '</div>' +
             '<div id="g3dCanvas" class="game3d-canvas"></div>' +
             '<div class="game3d-remote-cams" id="g3dRemoteCams" style="display:none;"></div>' +
-            '<div class="game3d-hint">' + (game.controls || '') + '</div>' +
+            (game.id === 4 ?
+                '<div class="fps-crosshair" id="g3dFpsCrosshair"><span></span></div>' +
+                '<div class="fps-hitmark" id="g3dFpsHit"></div>' +
+                '<div class="fps-hud">' +
+                    '<div class="fps-stat is-health"><small>Health</small><strong id="g3dFpsHealth">100</strong></div>' +
+                    '<div class="fps-stat"><small>Ammo</small><strong id="g3dFpsAmmo">30 / 120</strong></div>' +
+                    '<div class="fps-stat"><small>Wave</small><strong id="g3dFpsWave">1</strong></div>' +
+                    '<div class="fps-stat"><small>Kills</small><strong id="g3dFpsKills">0</strong></div>' +
+                    '<div class="fps-stat"><small>Score</small><strong id="g3dFpsScore">0</strong></div>' +
+                '</div>' +
+                '<div class="fps-wave-banner" id="g3dFpsWaveBanner"></div>' +
+                '<div class="fps-damage" id="g3dFpsDamage"></div>' +
+                '<div class="fps-prompt" id="g3dFpsPrompt">Click to aim · WASD move · Shift sprint · R reload</div>' : '') +
+            (game.id === 4 ? '' : '<div class="game3d-hint">' + (game.controls || '') + '</div>') +
             '<div class="game3d-perf" id="g3dPerf"><span id="g3dFps">-- FPS</span><span id="g3dRes">--</span></div>' +
             (game.hasThrottle ? '<button class="game3d-throttle" id="g3dThrottle" type="button">Throttle</button>' : '') +
             (game.hasBrake ? '<button class="game3d-brake" id="g3dBrake" type="button">Brake</button>' : '') +
@@ -651,6 +667,33 @@ function openGame(id) {
                     '</div>' +
                 '</div>' +
                 '<div class="game3d-arcade-board" id="g3dArcadeBoard" style="display:none;"></div>' : '') +
+            (game.id === 4 ?
+                '<button class="game3d-mp-btn" id="g3dZombieMpBtn" type="button" onclick="openZombieMpPanel()">Public Rooms</button>' +
+                '<div class="game3d-mp" id="g3dZombieMpPanel" style="display:none;">' +
+                    '<div class="game3d-mp-card zombie-mp-card">' +
+                        '<div class="game3d-mp-head">' +
+                            '<h3>Dead Coast · Public Rooms</h3>' +
+                            '<button type="button" class="game3d-mp-x" onclick="closeZombieMpPanel()">×</button>' +
+                        '</div>' +
+                        '<p class="game3d-mp-sub">Survive together · public rooms · live survivor positions and scores</p>' +
+                        '<div id="g3dZombieRoomList" class="zombie-room-list"></div>' +
+                        '<div class="game3d-mp-players" id="g3dZombiePlayers"></div>' +
+                        '<button class="game3d-mp-leave" type="button" id="g3dZombieJoinBtn" onclick="zombieMpLeave()">Leave public room</button>' +
+                        '<p class="game3d-mp-status" id="g3dZombieStatus"></p>' +
+                    '</div>' +
+                '</div>' : '') +
+            (game.id === 4 ?
+                '<div class="game3d-start" id="g3dStartMenu">' +
+                    '<div class="game3d-start-card zombie-start-card">' +
+                        '<span class="game3d-garage-kicker">DEAD COAST · FIRST PERSON</span>' +
+                        '<h2>Survive the night</h2>' +
+                        '<p>WASD to move, trackpad to look, click to fire. Hold out through endless waves or join a public room.</p>' +
+                        '<div class="game3d-start-actions">' +
+                            '<button type="button" class="game3d-mp-primary" onclick="startMenuSolo()">Play Solo</button>' +
+                            '<button type="button" class="game3d-mp-secondary" onclick="openZombieMpPanel()">Public Rooms</button>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' : '') +
             ((game.id === 2 || game.id === 5) ?
                 '<div class="game3d-start" id="g3dStartMenu">' +
                     '<div class="game3d-start-card">' +
@@ -734,7 +777,7 @@ function openGame(id) {
     }
     garageSuppressed = false;
     lastRunCoins = 0;
-    if ((id === 2 || id === 5) && !startMenuSuppressed) {
+    if ((id === 2 || id === 4 || id === 5) && !startMenuSuppressed) {
         const startMenu = document.getElementById('g3dStartMenu');
         if (startMenu) startMenu.style.display = 'flex';
         if (window.Games3D) window.Games3D.setPaused(true);
@@ -819,6 +862,7 @@ function closeGame() {
     closeRacerMpPanel(true);
     racerMpLeave(true);
     arcadeMpLeave(true);
+    zombieMpLeave(true);
     dmClose();
     if (window.Games3D) window.Games3D.stop();
     document.getElementById('gameModal').style.display = 'none';
@@ -6235,8 +6279,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.24.2";
-const UPDATE_NOTES = "Crashes are smoother and now visibly crush the impact zone, H honks the horn and nearby traffic changes lanes to get out of the way, and FSD auto-swerves when emergency braking cannot stop in time";
+const APP_VERSION = "LessFun Developer Beta 1.25.0";
+const UPDATE_NOTES = "Dead Coast is here: a first-person zombie survival game with WASD movement, trackpad aim, waves, pickups, sprint, jump, reload, and three public co-op rooms";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
@@ -7610,6 +7654,232 @@ function resumePartyAudio() {
 }
 document.addEventListener('pointerdown', resumePartyAudio, true);
 document.addEventListener('keydown', resumePartyAudio, true);
+
+const ZOMBIE_MP_ROOMS = [
+    { id: 'public-1', name: 'Dead Coast · Public 1', channel: 'lessfun-zombie-public-1' },
+    { id: 'public-2', name: 'Dead Coast · Public 2', channel: 'lessfun-zombie-public-2' },
+    { id: 'public-3', name: 'Dead Coast · Public 3', channel: 'lessfun-zombie-public-3' }
+];
+let zombieMp = {
+    room: null,
+    channel: null,
+    connected: false,
+    id: '',
+    name: '',
+    players: {},
+    timer: 0,
+    panelOpen: false,
+    status: ''
+};
+
+function zombieMpRoom(roomId) {
+    return ZOMBIE_MP_ROOMS.filter(function (room) { return room.id === roomId; })[0] || ZOMBIE_MP_ROOMS[0];
+}
+
+function zombieMpSetStatus(text, isError) {
+    zombieMp.status = text || '';
+    const el = document.getElementById('g3dZombieStatus');
+    if (el) {
+        el.textContent = zombieMp.status;
+        el.classList.toggle('is-error', !!isError);
+    }
+}
+
+function zombieMpDisplayName() {
+    if (currentUser && currentUser.type === 'user' && currentUser.username && currentUser.username !== 'Guest') {
+        return racerMpSanitizeName(currentUser.username);
+    }
+    return racerMpSanitizeName(racerMpSuggestedName()) || 'Survivor';
+}
+
+function openZombieMpPanel() {
+    zombieMp.panelOpen = true;
+    const panel = document.getElementById('g3dZombieMpPanel');
+    if (panel) panel.style.display = 'flex';
+    if (window.Games3D) window.Games3D.setPaused(true);
+    zombieMpRenderUi();
+}
+
+function closeZombieMpPanel(silent) {
+    zombieMp.panelOpen = false;
+    const panel = document.getElementById('g3dZombieMpPanel');
+    if (panel) panel.style.display = 'none';
+    if (!silent && window.Games3D) window.Games3D.setPaused(dmState.open);
+}
+
+function zombieMpJoin(roomId) {
+    if (!supabaseClient) {
+        zombieMpSetStatus('Multiplayer needs an online connection.', true);
+        return;
+    }
+    const room = zombieMpRoom(roomId);
+    zombieMpLeave(true);
+    zombieMp.room = room;
+    zombieMp.id = racerMpMakeId();
+    zombieMp.name = zombieMpDisplayName();
+    zombieMp.players = {};
+    zombieMp.connected = false;
+    zombieMpSetStatus('Joining ' + room.name + '…');
+    const channel = supabaseClient.channel(room.channel, { config: { presence: { key: zombieMp.id } } });
+    zombieMp.channel = channel;
+    channel.on('broadcast', { event: 'zombie-state' }, function (message) {
+        zombieMpHandleState(message && message.payload);
+    });
+    channel.on('presence', { event: 'sync' }, zombieMpSyncPresence);
+    channel.on('presence', { event: 'join' }, zombieMpSyncPresence);
+    channel.on('presence', { event: 'leave' }, zombieMpSyncPresence);
+    channel.subscribe(function (status) {
+        if (zombieMp.channel !== channel) return;
+        if (status === 'SUBSCRIBED') {
+            zombieMp.connected = true;
+            const tracked = channel.track({ id: zombieMp.id, name: zombieMp.name, joinedAt: Date.now() });
+            if (tracked && tracked.catch) tracked.catch(function () {});
+            if (zombieMp.timer) clearInterval(zombieMp.timer);
+            zombieMp.timer = setInterval(zombieMpTick, 150);
+            zombieMpSetStatus('Connected to ' + room.name + ' · public room');
+            closeZombieMpPanel(true);
+            const menu = document.getElementById('g3dStartMenu');
+            if (menu) menu.style.display = 'none';
+            startMenuSuppressed = true;
+            if (window.Games3D) window.Games3D.setPaused(false);
+            zombieMpRenderUi();
+            touchPresence();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            zombieMp.connected = false;
+            zombieMpSetStatus('Could not join that public room. Try another.', true);
+            zombieMpRenderUi();
+        }
+    });
+    zombieMpRenderUi();
+}
+
+function zombieMpHandleState(payload) {
+    if (!payload || !payload.id || String(payload.id) === zombieMp.id) return;
+    const id = String(payload.id);
+    zombieMp.players[id] = {
+        id: id,
+        name: racerMpSanitizeName(payload.name) || 'Survivor',
+        x: Number(payload.x) || 0,
+        z: Number(payload.z) || 0,
+        yaw: Number(payload.yaw) || 0,
+        health: Math.max(0, Number(payload.health) || 0),
+        score: Number(payload.score) || 0,
+        wave: Number(payload.wave) || 1,
+        lastSeen: Date.now()
+    };
+    zombieMpPushRemotes();
+    if (zombieMp.panelOpen) zombieMpRenderUi();
+}
+
+function zombieMpSyncPresence() {
+    if (!zombieMp.channel || !zombieMp.connected) return;
+    const state = zombieMp.channel.presenceState() || {};
+    Object.keys(state).forEach(function (key) {
+        (state[key] || []).forEach(function (entry) {
+            if (!entry || !entry.id || String(entry.id) === zombieMp.id) return;
+            const id = String(entry.id);
+            if (zombieMp.players[id]) {
+                zombieMp.players[id].name = racerMpSanitizeName(entry.name) || zombieMp.players[id].name;
+            } else {
+                zombieMp.players[id] = { id: id, name: racerMpSanitizeName(entry.name) || 'Survivor', x: 0, z: 0, yaw: 0, health: 100, score: 0, wave: 1, lastSeen: Date.now() };
+            }
+        });
+    });
+    zombieMpPushRemotes();
+    if (zombieMp.panelOpen) zombieMpRenderUi();
+}
+
+function zombieMpPushRemotes() {
+    if (!window.Games3D || !window.Games3D.setZombieRemotes) return;
+    const list = Object.keys(zombieMp.players).map(function (id) { return zombieMp.players[id]; });
+    window.Games3D.setZombieRemotes(list);
+}
+
+function zombieMpTick() {
+    if (!zombieMp.connected || !zombieMp.channel || currentGameId !== 4) return;
+    const local = window.Games3D && window.Games3D.getZombieState ? window.Games3D.getZombieState() : null;
+    if (!local) return;
+    zombieMp.players[zombieMp.id] = {
+        id: zombieMp.id,
+        name: zombieMp.name,
+        x: local.x,
+        z: local.z,
+        yaw: local.yaw,
+        health: local.health,
+        score: local.score,
+        wave: local.wave,
+        lastSeen: Date.now()
+    };
+    const payload = {
+        id: zombieMp.id,
+        name: zombieMp.name,
+        x: local.x,
+        z: local.z,
+        yaw: local.yaw,
+        health: local.health,
+        score: local.score,
+        wave: local.wave
+    };
+    const sent = zombieMp.channel.send({ type: 'broadcast', event: 'zombie-state', payload: payload });
+    if (sent && sent.catch) sent.catch(function () {});
+    if (zombieMp.panelOpen) zombieMpRenderUi();
+}
+
+function zombieMpRenderUi() {
+    const status = document.getElementById('g3dZombieStatus');
+    if (status) {
+        status.textContent = zombieMp.status || (zombieMp.connected ? 'Connected · share the room with friends.' : 'Pick a public room to play with others.');
+        status.classList.toggle('is-error', false);
+    }
+    const list = document.getElementById('g3dZombieRoomList');
+    if (list) {
+        list.innerHTML = ZOMBIE_MP_ROOMS.map(function (room) {
+            const active = zombieMp.connected && zombieMp.room && zombieMp.room.id === room.id;
+            const count = active ? Object.keys(zombieMp.players).length : 0;
+            return '<button type="button" class="zombie-room' + (active ? ' is-active' : '') + '" onclick="zombieMpJoin(\'' + debugArg(room.id) + '\')">' +
+                '<span class="zombie-room-icon">☣</span>' +
+                '<span class="zombie-room-info"><strong>' + escapeHtml(room.name) + '</strong><small>' +
+                    (active ? count + ' survivor' + (count === 1 ? '' : 's') + ' connected' : 'Public room') +
+                '</small></span>' +
+                '<span class="zombie-room-join">' + (active ? 'Joined' : 'Join') + '</span>' +
+            '</button>';
+        }).join('');
+    }
+    const players = document.getElementById('g3dZombiePlayers');
+    if (players) {
+        const rows = Object.keys(zombieMp.players).map(function (id) { return zombieMp.players[id]; })
+            .sort(function (a, b) { return Number(b.score) - Number(a.score); });
+        players.innerHTML = rows.length ? rows.map(function (player) {
+            return '<div class="game3d-mp-player' + (player.id === zombieMp.id ? ' is-host' : '') + '">' +
+                '<span class="game3d-mp-player-name">' + escapeHtml(player.name) + (player.id === zombieMp.id ? ' (you)' : '') + '</span>' +
+                '<strong class="arcade-player-score">' + Math.round(player.score).toLocaleString() + '</strong>' +
+            '</div>';
+        }).join('') : '<p class="game3d-mp-sub" style="margin:0;">No survivors connected yet.</p>';
+    }
+    const btn = document.getElementById('g3dZombieJoinBtn');
+    if (btn) btn.textContent = zombieMp.connected ? 'Leave public room' : 'Join public room';
+}
+
+function zombieMpLeave(quiet) {
+    if (zombieMp.timer) { clearInterval(zombieMp.timer); zombieMp.timer = 0; }
+    const channel = zombieMp.channel;
+    zombieMp.channel = null;
+    zombieMp.connected = false;
+    zombieMp.room = null;
+    zombieMp.players = {};
+    if (channel) {
+        try { const left = channel.untrack(); if (left && left.catch) left.catch(function () {}); } catch (e) {}
+        if (supabaseClient && supabaseClient.removeChannel) {
+            try { const removed = supabaseClient.removeChannel(channel); if (removed && removed.catch) removed.catch(function () {}); } catch (e) {}
+        }
+    }
+    if (window.Games3D && window.Games3D.setZombieRemotes) window.Games3D.setZombieRemotes([]);
+    const panel = document.getElementById('g3dZombieMpPanel');
+    if (panel && !quiet) panel.style.display = 'none';
+    zombieMp.panelOpen = false;
+    if (!quiet) zombieMpSetStatus('Left the public room.');
+    touchPresence();
+}
 
 function startActivityChannel() {
     if (!friendUsername() || !supabaseClient || activityChannel) return;
