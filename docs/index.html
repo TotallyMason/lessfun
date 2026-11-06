@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261178">
+    <link rel="stylesheet" href="style.css?v=20261179">
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -782,6 +782,26 @@
                             <option value="0.5">50%</option>
                         </select>
                     </div>
+                    <div class="settings-item">
+                        <div>
+                            <h3>Motion Blur</h3>
+                            <p>Blends nearby frames to smooth low-FPS movement and fast camera turns.</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" id="motionBlurToggle" checked onchange="setMotionBlurSetting(this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <h3>FPS Counter</h3>
+                            <p>Show the real-time frame rate and render resolution.</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" id="fpsCounterToggle" checked onchange="setFpsCounterSetting(this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
                 </div>
                 <div class="settings-group">
                     <h2>Gameplay</h2>
@@ -831,7 +851,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Developer Beta 1.28.0</p>
+                            <p>LessFun Developer Beta 1.29.0</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -1053,7 +1073,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
-    <script src="games3d.js?v=20261178"></script>
-    <script src="app.js?v=20261178"></script>
+    <script src="games3d.js?v=20261179"></script>
+    <script src="app.js?v=20261179"></script>
 </body>
 </html>

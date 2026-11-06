@@ -8466,3 +8466,19 @@ body.has-avatar-frame .friend-avatar {
     .fps-need { font-size: 7px; gap: 4px; }
     .fps-need span { width: 46px; }
 }
+
+.game3d-map {
+    position: absolute;
+    top: 132px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    width: 280px;
+    height: 96px;
+    border-radius: 12px;
+    pointer-events: none;
+    box-shadow: 0 10px 28px rgba(0,0,0,0.35);
+}
+@media (max-width: 760px) {
+    .game3d-map { width: 210px; height: 72px; top: 120px; }
+}

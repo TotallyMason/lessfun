@@ -13,6 +13,15 @@
     var adaptiveScale = 1;
     var adaptiveTransition = null;
     var adaptiveCooldown = 0;
+    var motionBlurEnabled = true;
+    var showFps = true;
+    var motionBlurTargets = null;
+    var motionBlurTargetSize = '';
+    var motionBlurIndex = 0;
+    var motionBlurHasPrev = false;
+    var motionBlurScene = null;
+    var motionBlurCamera = null;
+    var motionBlurMaterial = null;
     var fpsTime = 0;
     var fpsFrames = 0;
     var lastFps = 0;
@@ -867,7 +876,8 @@
             monster: { len: 3.45, width: 2.06, ride: 0.62, hood: 0.56, deck: 0.5, cabinZ: -0.05, cabinLen: 1.25, cabinH: 0.5, cabinW: 1.5, roof: true, fenders: true, bigWheels: true, spoiler: false },
             phantom: { len: 3.8, width: 1.96, ride: 0.07, hood: 0.4, deck: 0.38, cabinZ: 0.16, cabinLen: 1.5, cabinH: 0.38, cabinW: 1.24, roof: true, wedge: true, spoiler: true, stripe: true },
             f1: { len: 4.7, width: 1.55, ride: 0.05, hood: 0.22, deck: 0.24, cabinZ: 0.05, cabinLen: 0.95, cabinH: 0.26, cabinW: 0.72, roof: false, windshield: true, spoiler: true, f1: true },
-            bus: { len: 6.6, width: 2.3, ride: 0.28, hood: 0.8, deck: 0.72, cabinZ: 0.45, cabinLen: 4.6, cabinH: 1.5, cabinW: 2.08, roof: true, bus: true },
+            bus: { len: 11.8, width: 2.55, ride: 0.3, hood: 0.84, deck: 0.76, cabinZ: 0.65, cabinLen: 9.0, cabinH: 1.62, cabinW: 2.3, roof: true, bus: true },
+            semi: { len: 13.0, width: 2.45, ride: 0.3, hood: 0.72, deck: 0.6, cabinZ: -4.2, cabinLen: 1.8, cabinH: 1.15, cabinW: 2.05, roof: true, bed: true, semi: true },
             gt: { len: 4.15, width: 1.98, ride: 0.06, hood: 0.34, deck: 0.35, cabinZ: 0.15, cabinLen: 1.65, cabinH: 0.4, cabinW: 1.3, roof: true, wedge: true, spoiler: true, stripe: true, lightBar: true },
             super: { len: 4.3, width: 2.06, ride: 0.045, hood: 0.3, deck: 0.3, cabinZ: 0.08, cabinLen: 1.8, cabinH: 0.36, cabinW: 1.34, roof: true, wedge: true, spoiler: true, fenders: true, lightBar: true },
             offroad: { len: 4.0, width: 2.08, ride: 0.4, hood: 0.6, deck: 0.52, cabinZ: -0.05, cabinLen: 1.8, cabinH: 0.68, cabinW: 1.58, roof: true, cage: true, fenders: true, bigWheels: true, rack: true, lightBar: true, spoiler: false },
@@ -1203,6 +1213,34 @@
                 var stripe = boxMesh(spec.width + 0.02, 0.16, spec.len * 0.72, stripeMat);
                 stripe.position.set(0, spec.ride + 0.72, 0);
                 g.add(stripe);
+                // Roof vents and rear window for the longer bus.
+                for (var bv = 0; bv < 4; bv++) {
+                    var vent = boxMesh(0.8, 0.12, 0.55, standard(0x8b949e, { metalness: 0.5, roughness: 0.4 }));
+                    vent.position.set(0, spec.ride + spec.hood + spec.cabinH + 0.09, spec.cabinZ - 2.8 + bv * 1.9);
+                    g.add(vent);
+                }
+            }
+            if (spec.semi) {
+                var trailerMat = standard(0xe5e7e9, { metalness: 0.35, roughness: 0.42 });
+                var trailer = boxMesh(spec.width * 1.03, 2.9, spec.len * 0.64, trailerMat);
+                trailer.position.set(0, spec.ride + 1.65, spec.len * 0.19);
+                g.add(trailer);
+                var trailerRoof = boxMesh(spec.width * 1.04, 0.12, spec.len * 0.64, standard(0xb9c0c7, { metalness: 0.4, roughness: 0.5 }));
+                trailerRoof.position.set(0, spec.ride + 3.15, spec.len * 0.19);
+                g.add(trailerRoof);
+                var trailerStripe = boxMesh(spec.width * 1.05, 0.28, spec.len * 0.62, new THREE.MeshBasicMaterial({ color: 0xff5a3c }));
+                trailerStripe.position.set(0, spec.ride + 0.62, spec.len * 0.19);
+                g.add(trailerStripe);
+                var cabGuard = boxMesh(spec.width * 1.02, 1.25, 0.18, standard(0x30363d, { metalness: 0.5, roughness: 0.4 }));
+                cabGuard.position.set(0, spec.ride + 0.95, -spec.len * 0.05);
+                g.add(cabGuard);
+                var trailerWheelMat = standard(0x141619, { roughness: 0.92 });
+                for (var tw = -1; tw <= 1; tw += 2) {
+                    var trailerWheel = cylinderMesh(0.4, 0.4, 0.3, 16, trailerWheelMat);
+                    trailerWheel.rotation.z = Math.PI / 2;
+                    trailerWheel.position.set(tw * (spec.width / 2 - 0.02), 0.4, spec.len * 0.47);
+                    g.add(trailerWheel);
+                }
             }
             if (spec.stripe) {
                 var stripe = boxMesh(0.34, 0.02, spec.len * 0.75, new THREE.MeshBasicMaterial({ color: 0xfff3d6 }));
@@ -1372,6 +1410,18 @@
                 child.castShadow = true;
             });
 
+            var carDetails = [];
+            g.traverse(function (child) {
+                if (!child || !child.isMesh || !child.geometry) return;
+                if (child.userData && (child.userData.fakeShadow || child.userData.isSuspensionPivot)) return;
+                try {
+                    if (!child.geometry.boundingSphere) child.geometry.computeBoundingSphere();
+                    var bs = child.geometry.boundingSphere;
+                    if (bs && bs.radius < 0.3) carDetails.push(child);
+                } catch (e) {}
+            });
+            g.userData.lodDetails = carDetails;
+            g.userData.lodVisible = true;
             g.userData.spec = spec;
             g.userData.roofY = spec.ride + spec.hood + (spec.roof ? spec.cabinH : 0) + 0.06;
 
@@ -1786,7 +1836,7 @@
 
         /* ---------------- Highway ramps, merges, speed lines ---------------- */
         var RAMP_SPACING = 900;
-        var RAMP_SLOTS = 4;
+        var RAMP_SLOTS = 0;
         var EXIT_BONUS = 500;
         var exitHintText = '';
         var rampFeatures = [];
@@ -2256,6 +2306,29 @@
             }
         }
 
+        function resolveCollision(car, halfWidth) {
+            var playerKmh = Math.abs(speed) * 3.6;
+            var otherKmh = Math.abs(car.userData.cruiseSpeed || 0) * 3.6;
+            if (playerKmh > 30 && otherKmh > 30) {
+                triggerCrash(car, halfWidth);
+                return true;
+            }
+            // Minor contact: sparks and debris, but no crash sequence.
+            var mx2 = (player.position.x + car.position.x) * 0.5;
+            var mz2 = (player.position.z + car.position.z) * 0.5;
+            spawnCrashDebris(mx2, mz2);
+            spawnSparks(mx2, 0.7, mz2, 28);
+            spawnCrashSmoke(mx2, mz2, 2);
+            speed = Math.max(0, speed * 0.72);
+            suspensionImpulse = Math.max(suspensionImpulse, 0.45);
+            var dirX = player.position.x >= car.position.x ? 1 : -1;
+            player.position.x = Math.max(-maxX, Math.min(maxX, player.position.x + dirX * 0.38));
+            car.position.x += dirX * 0.2;
+            car.userData.collisionCooldown = 0.8;
+            tone(240, 0.12, 'square', 0.07, 120);
+            return false;
+        }
+
         function triggerCrash(car, halfWidth) {
             if (crashActive) return;
             fsdActive = false;
@@ -2625,12 +2698,13 @@
 
                 // Behind the chase camera or far out of the fog: hide the ghost.
                 entry.car.visible = z > -520 && z < 8.8;
+                applyCarLod(entry.car, Math.abs(z - player.position.z));
             }
         }
 
         var traffic = [];
         var colors = [0xef476f, 0xffd166, 0x06d6a0, 0x118ab2, 0xf78c6b, 0xf7f3e8, 0x7f8c8d, 0x9b5de5];
-        var trafficStyles = ['classic', 'buggy', 'wagon', 'truck', 'suv', 'racer', 'van', 'roadster', 'muscle', 'retro', 'taxi', 'cyber', 'suv', 'truck', 'bus', 'bus'];
+        var trafficStyles = ['classic', 'buggy', 'wagon', 'truck', 'suv', 'racer', 'van', 'roadster', 'muscle', 'retro', 'taxi', 'cyber', 'suv', 'truck', 'bus', 'bus', 'semi', 'semi'];
         var trafficEngines = ['stock', 'stock', 'v8', 'turbo', 'electric', 'diesel', 'twin'];
 
         function laneBusy(lane, self, z, range) {
@@ -2754,6 +2828,14 @@
         var fsdChangeDur = 0.85;
         var fsdFromX = 0;
         var fsdRampLane = -1;
+
+        function applyCarLod(car, distanceToCamera) {
+            var details = car.userData.lodDetails || [];
+            var show = distanceToCamera < 65;
+            if (car.userData.lodVisible === show) return;
+            car.userData.lodVisible = show;
+            for (var i = 0; i < details.length; i++) details[i].visible = show;
+        }
 
         function laneIndexOf(x) {
             var best = 0;
@@ -3011,6 +3093,83 @@
             if (elapsed - fsdPanelLast > 0.1) {
                 fsdPanelLast = elapsed;
                 drawFsdPanel();
+            }
+        }
+
+        var MAP_ZONES = ['Palm Pier', 'Neon Strip', 'Marina District', 'Coral Bridge', 'Tunnel Approach', 'Downtown Shore'];
+        var mapLast = 0;
+        function drawRouteMap() {
+            if (elapsed - mapLast < 0.18) return;
+            mapLast = elapsed;
+            var canvas = document.getElementById('g3dMapCanvas');
+            if (!canvas || !canvas.getContext) return;
+            var ctx = canvas.getContext('2d');
+            var w = canvas.width, h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+            ctx.fillStyle = 'rgba(4,12,18,0.82)';
+            ctx.fillRect(0, 0, w, h);
+            ctx.strokeStyle = 'rgba(95,224,255,0.22)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
+
+            var zoneIndex = Math.floor(distance / 1000) % MAP_ZONES.length;
+            var zone = MAP_ZONES[zoneIndex];
+            ctx.fillStyle = '#bfefff';
+            ctx.font = 'bold 10px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(zone.toUpperCase(), 9, 14);
+            ctx.fillStyle = 'rgba(255,255,255,0.45)';
+            ctx.font = '9px Arial';
+            ctx.textAlign = 'right';
+            ctx.fillText(Math.round(distance).toLocaleString() + ' m', w - 9, 14);
+
+            // Route ribbon: future distance at the top, player at the bottom.
+            ctx.beginPath();
+            for (var i = 0; i <= 60; i++) {
+                var ahead = -80 + (i / 60) * 950;
+                var yy = h - 18 - (i / 60) * (h - 36);
+                var xx = w / 2 + Math.sin((distance + ahead) * 0.0032) * 34 + Math.sin((distance + ahead) * 0.0009) * 18;
+                if (i === 0) ctx.moveTo(xx, yy); else ctx.lineTo(xx, yy);
+            }
+            ctx.strokeStyle = 'rgba(95,224,255,0.75)';
+            ctx.lineWidth = 7;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+            ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([5, 6]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Next zones and player.
+            for (var z = 1; z <= 4; z++) {
+                var zDist = (Math.floor(distance / 1000) + z) * 1000;
+                var zAhead = zDist - distance;
+                if (zAhead > 950) continue;
+                var zy = h - 18 - (zAhead / 950) * (h - 36);
+                var zx = w / 2 + Math.sin(zDist * 0.0032) * 34 + Math.sin(zDist * 0.0009) * 18;
+                ctx.fillStyle = 'rgba(255,209,102,0.9)';
+                ctx.beginPath(); ctx.arc(zx, zy, 2.5, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                ctx.font = '8px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillText(MAP_ZONES[Math.floor(zDist / 1000) % MAP_ZONES.length], Math.min(w - 70, zx + 5), zy - 3);
+            }
+            var pxMap = w / 2 + Math.sin(distance * 0.0032) * 34 + Math.sin(distance * 0.0009) * 18;
+            ctx.fillStyle = '#5fe0ff';
+            ctx.beginPath(); ctx.arc(pxMap, h - 18, 4.5, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke();
+
+            // Traffic near the player.
+            for (var t = 0; t < traffic.length; t++) {
+                var car = traffic[t];
+                var rel = distance - (distance - (player.position.z - car.position.z));
+                var ahead = player.position.z - car.position.z;
+                if (ahead < -60 || ahead > 220) continue;
+                var ty = h - 18 + (ahead / 220) * (h - 28);
+                var tx = w / 2 + Math.sin((distance + ahead) * 0.0032) * 34 + Math.sin((distance + ahead) * 0.0009) * 18 + (car.position.x / ROAD_W) * 20;
+                ctx.fillStyle = car.userData.mad ? '#ff4a4a' : (car.userData.isRamp ? '#ffc24a' : 'rgba(220,240,250,0.75)');
+                ctx.fillRect(tx - 2, ty - 2, 4, 4);
             }
         }
 
@@ -3452,6 +3611,8 @@
                 var u = c.userData;
 
                 c.rotation.y -= u.curveRot || 0;
+                u.collisionCooldown = Math.max(0, (u.collisionCooldown || 0) - dt);
+                applyCarLod(c, Math.abs(c.position.z - player.position.z));
                 if (u.state === 'mad') {
                     u.madT += dt;
                     var madPrevX = u.logicalX != null ? u.logicalX : c.position.x;
@@ -3598,8 +3759,7 @@
                     var carBack = Math.min(prevZ, c.position.z) - carHalfL;
                     var carFront = Math.max(prevZ, c.position.z) + carHalfL;
                     if (carBack < player.position.z + 2.75 && carFront > player.position.z - 2.75) {
-                        triggerCrash(c, carHalfW);
-                        return;
+                        if ((u.collisionCooldown || 0) <= 0 && resolveCollision(c, carHalfW)) return;
                     }
                 }
             }
@@ -3673,6 +3833,7 @@
             }
             updateRaceHud();
             updateFsdVisual();
+            drawRouteMap();
             updateAudio();
         }
 
@@ -4595,6 +4756,17 @@
                 phase: Math.random() * Math.PI * 2,
                 dead: false
             };
+            var zDetails = [];
+            g.traverse(function (child) {
+                if (!child || !child.isMesh || !child.geometry) return;
+                try {
+                    if (!child.geometry.boundingSphere) child.geometry.computeBoundingSphere();
+                    var bs = child.geometry.boundingSphere;
+                    if (bs && bs.radius < 0.14) zDetails.push(child);
+                } catch (e) {}
+            });
+            g.userData.lodDetails = zDetails;
+            g.userData.lodVisible = true;
             scene.add(g);
             zombies.push(g);
         }
@@ -5281,6 +5453,17 @@
                 }
             }
 
+            // Detail LOD: tiny eyes/teeth/wounds are hidden at distance.
+            for (var lz = 0; lz < zombies.length; lz++) {
+                var lodZ = zombies[lz];
+                var lodDist = Math.abs(lodZ.position.z - pz);
+                var lodShow = lodDist < 26;
+                if (lodZ.userData.lodVisible === lodShow) continue;
+                lodZ.userData.lodVisible = lodShow;
+                var zdList = lodZ.userData.lodDetails || [];
+                for (var zdl = 0; zdl < zdList.length; zdl++) zdList[zdl].visible = lodShow;
+            }
+
             // Zombie corpses are physical ragdolls: gravity, bounce, friction,
             // angular momentum, and flailing limbs before they settle.
             for (var ci = corpses.length - 1; ci >= 0; ci--) {
@@ -5648,7 +5831,7 @@
             active.update(dt);
         }
         if (renderer && scene && camera) {
-            renderer.render(scene, camera);
+            renderFrame();
             if (active && active.renderCameras && !paused && !active.over) active.renderCameras();
         }
     }
@@ -5698,6 +5881,7 @@
         resizeObs.observe(container);
 
         clock = new THREE.Clock();
+        resetMotionBlurHistory();
         var factory = factories[gameId];
         active = factory ? factory({ scene: scene, camera: camera, input: input, options: opts || {}, renderer: renderer, container: container }) : null;
         if (!active) return;
@@ -5731,6 +5915,7 @@
         input.pointerActive = false; input.pointerX = 0; input.pointerY = 0; input.tapQueued = false;
         input.honk = false; input.jump = false; input.reload = false; input.melee = false; input.interact = false; input.weapon = 0; input.bandage = false;
         clock = new THREE.Clock();
+        resetMotionBlurHistory();
         resize();
         var factory = factories[lastGameId];
         active = factory ? factory({ scene: scene, camera: camera, input: input, options: lastStartOpts || {}, renderer: renderer, container: container }) : null;
@@ -5762,6 +5947,11 @@
             renderer = null;
         }
         if (scene) { disposeObject(scene); scene = null; }
+        if (motionBlurTargets) { motionBlurTargets.forEach(function (t) { t.dispose(); }); motionBlurTargets = null; }
+        if (motionBlurMaterial) { try { motionBlurMaterial.dispose(); } catch (e) {} motionBlurMaterial = null; }
+        if (motionBlurScene) { try { disposeObject(motionBlurScene); } catch (e) {} motionBlurScene = null; }
+        motionBlurTargetSize = '';
+        motionBlurHasPrev = false;
         camera = null;
         container = null;
         input.left = false; input.right = false; input.up = false; input.down = false;
@@ -5799,7 +5989,75 @@
         adaptiveCooldown = 2.5;
     }
 
+    function resetMotionBlurHistory() {
+        motionBlurHasPrev = false;
+    }
+
+    function ensureMotionBlurResources() {
+        if (!renderer || !scene || !camera) return false;
+        if (!motionBlurScene) {
+            motionBlurMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                    currentTex: { value: null },
+                    prevTex: { value: null },
+                    amount: { value: 0.34 }
+                },
+                vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+                fragmentShader: 'uniform sampler2D currentTex; uniform sampler2D prevTex; uniform float amount; varying vec2 vUv; void main(){ vec4 c = texture2D(currentTex, vUv); vec4 p = texture2D(prevTex, vUv); gl_FragColor = mix(c, p, amount); }',
+                depthTest: false,
+                depthWrite: false,
+                toneMapped: false
+            });
+            motionBlurScene = new THREE.Scene();
+            motionBlurCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+            var quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), motionBlurMaterial);
+            motionBlurScene.add(quad);
+        }
+        var size = new THREE.Vector2();
+        renderer.getDrawingBufferSize(size);
+        var key = Math.max(1, Math.floor(size.x)) + 'x' + Math.max(1, Math.floor(size.y));
+        if (motionBlurTargetSize !== key || !motionBlurTargets) {
+            if (motionBlurTargets) {
+                motionBlurTargets.forEach(function (t) { t.dispose(); });
+            }
+            var opts = { depthBuffer: true, stencilBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter };
+            motionBlurTargets = [
+                new THREE.WebGLRenderTarget(Math.max(1, Math.floor(size.x)), Math.max(1, Math.floor(size.y)), opts),
+                new THREE.WebGLRenderTarget(Math.max(1, Math.floor(size.x)), Math.max(1, Math.floor(size.y)), opts)
+            ];
+            motionBlurTargets.forEach(function (t) {
+                if (t.texture) t.texture.colorSpace = THREE.SRGBColorSpace;
+            });
+            motionBlurTargetSize = key;
+            motionBlurHasPrev = false;
+        }
+        return true;
+    }
+
+    function renderFrame() {
+        if (!renderer || !scene || !camera) return;
+        if (!motionBlurEnabled || !ensureMotionBlurResources()) {
+            renderer.setRenderTarget(null);
+            renderer.render(scene, camera);
+            return;
+        }
+        var current = motionBlurTargets[motionBlurIndex];
+        var previous = motionBlurTargets[1 - motionBlurIndex];
+        renderer.setRenderTarget(current);
+        renderer.clear();
+        renderer.render(scene, camera);
+        renderer.setRenderTarget(null);
+        motionBlurMaterial.uniforms.currentTex.value = current.texture;
+        motionBlurMaterial.uniforms.prevTex.value = previous.texture;
+        motionBlurMaterial.uniforms.amount.value = motionBlurHasPrev ? 0.34 : 0.0;
+        renderer.render(motionBlurScene, motionBlurCamera);
+        motionBlurIndex = 1 - motionBlurIndex;
+        motionBlurHasPrev = true;
+    }
+
     function updatePerfHud(fps) {
+        var perfWrap = document.getElementById('g3dPerf');
+        if (perfWrap) perfWrap.style.display = showFps ? '' : 'none';
         var fpsEl = document.getElementById('g3dFps');
         var resEl = document.getElementById('g3dRes');
         if (fpsEl) fpsEl.textContent = Math.round(fps) + ' FPS';
@@ -5815,7 +6073,17 @@
             renderer.setPixelRatio(effectivePixelRatio());
             renderer.setSize(container.clientWidth, container.clientHeight);
             resize();
+            resetMotionBlurHistory();
         }
+    }
+    function setMotionBlur(on) {
+        motionBlurEnabled = !!on;
+        resetMotionBlurHistory();
+    }
+    function setShowFps(on) {
+        showFps = !!on;
+        var perfWrap = document.getElementById('g3dPerf');
+        if (perfWrap) perfWrap.style.display = showFps ? '' : 'none';
     }
     function setSoundEnabled(on) {
         soundEnabled = !!on;
@@ -5911,6 +6179,8 @@
         applyLootedCrate: applyLootedCrate,
         setLocalRacerName: setLocalRacerName,
         setRenderScale: setRenderScale,
+        setMotionBlur: setMotionBlur,
+        setShowFps: setShowFps,
         setSoundEnabled: setSoundEnabled,
         setUnitSystem: setUnitSystem,
         teleportRacer: teleportRacer,

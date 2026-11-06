@@ -49,15 +49,39 @@ const ADMIN_POWER_DEFS = [
 ];
 let avatarCache = {};
 let renderScaleSetting = 0;
+let motionBlurSetting = true;
+let showFpsSetting = true;
 try {
     const savedScale = parseFloat(localStorage.getItem('lessfun_render_scale') || '0');
     if (isFinite(savedScale) && savedScale >= 0 && savedScale <= 1) renderScaleSetting = savedScale;
+    const savedBlur = localStorage.getItem('lessfun_motion_blur');
+    if (savedBlur != null) motionBlurSetting = savedBlur !== '0';
+    const savedFps = localStorage.getItem('lessfun_show_fps');
+    if (savedFps != null) showFpsSetting = savedFps !== '0';
 } catch (e) {}
 
 function applyRenderScaleSetting() {
     if (window.Games3D && window.Games3D.setRenderScale) window.Games3D.setRenderScale(renderScaleSetting);
+    if (window.Games3D && window.Games3D.setMotionBlur) window.Games3D.setMotionBlur(motionBlurSetting);
+    if (window.Games3D && window.Games3D.setShowFps) window.Games3D.setShowFps(showFpsSetting);
     const select = document.getElementById('renderScaleSelect');
     if (select) select.value = String(renderScaleSetting);
+    const blur = document.getElementById('motionBlurToggle');
+    if (blur) blur.checked = motionBlurSetting;
+    const fps = document.getElementById('fpsCounterToggle');
+    if (fps) fps.checked = showFpsSetting;
+}
+
+function setMotionBlurSetting(on) {
+    motionBlurSetting = !!on;
+    try { localStorage.setItem('lessfun_motion_blur', motionBlurSetting ? '1' : '0'); } catch (e) {}
+    if (window.Games3D && window.Games3D.setMotionBlur) window.Games3D.setMotionBlur(motionBlurSetting);
+}
+
+function setFpsCounterSetting(on) {
+    showFpsSetting = !!on;
+    try { localStorage.setItem('lessfun_show_fps', showFpsSetting ? '1' : '0'); } catch (e) {}
+    if (window.Games3D && window.Games3D.setShowFps) window.Games3D.setShowFps(showFpsSetting);
 }
 
 function setRenderScaleSetting(value) {
@@ -560,6 +584,7 @@ function openGame(id) {
             '</div>' +
             '<div id="g3dCanvas" class="game3d-canvas"></div>' +
             '<div class="game3d-remote-cams" id="g3dRemoteCams" style="display:none;"></div>' +
+            (game.id === 1 ? '<canvas class="game3d-map" id="g3dMapCanvas" width="300" height="108"></canvas>' : '') +
             (game.id === 4 ?
                 '<div class="fps-crosshair" id="g3dFpsCrosshair"><span></span></div>' +
                 '<div class="fps-hitmark" id="g3dFpsHit"></div>' +
@@ -6288,8 +6313,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.28.0";
-const UPDATE_NOTES = "Dead Coast co-op is live: shared host-authoritative zombie waves, boss waves, downed teammates with E-to-revive, shared supply crates, extraction zones after every fifth wave, and kill credit for every survivor";
+const APP_VERSION = "LessFun Developer Beta 1.29.0";
+const UPDATE_NOTES = "Beach Racer adds semi-trucks, much longer buses, a scrolling route map, no entry/exit ramps, LOD detail culling, minor-collision sparks, motion blur, and a real FPS toggle. Friends cards now show last seen, friend count, total runs, and favorite game";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
@@ -8291,16 +8316,29 @@ async function renderFriends() {
     });
     const bestRuns = {};
     const runsByUser = {};
+    const runCounts = {};
+    const gameCounts = {};
     (results[5].data || []).forEach(function (row) {
         const key = String(row.username || '').toLowerCase();
         if (!key) return;
         const score = Number(row.score) || 0;
         const game = row.game || 'Game';
         if (!runsByUser[key]) runsByUser[key] = {};
+        if (!gameCounts[key]) gameCounts[key] = {};
+        gameCounts[key][game] = (gameCounts[key][game] || 0) + 1;
+        runCounts[key] = (runCounts[key] || 0) + 1;
         if (!runsByUser[key][game] || score > runsByUser[key][game]) runsByUser[key][game] = score;
         if (!bestRuns[key] || score > bestRuns[key].score) {
             bestRuns[key] = { score: score, game: game };
         }
+    });
+    const friendCounts = {};
+    (results[1].data || []).concat(results[2].data || []).forEach(function (row) {
+        if (String(row.status || '') !== 'accepted') return;
+        [row.requester, row.recipient].forEach(function (name) {
+            const key = String(name || '').toLowerCase();
+            if (key) friendCounts[key] = (friendCounts[key] || 0) + 1;
+        });
     });
 
     function friendDetailsHtml(name) {
@@ -8318,8 +8356,15 @@ async function renderFriends() {
             .slice(0, 2)
             .map(function (game) { return game + ' ' + runs[game].toLocaleString(); })
             .join(' · ');
+        const counts = gameCounts[key] || {};
+        const favorite = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; })[0];
+        const seenText = isOnline(presence[key]) ? 'Online now' : (presence[key] ? 'Last seen ' + formatLastSeen(presence[key]) : 'Offline');
         return '<div class="friend-details">' +
             '<span class="friend-detail">' + escapeHtml(joinedText) + '</span>' +
+            '<span class="friend-detail">' + escapeHtml(seenText) + '</span>' +
+            '<span class="friend-detail">' + (friendCounts[key] || 0) + ' friends</span>' +
+            '<span class="friend-detail">' + (runCounts[key] || 0) + ' runs</span>' +
+            (favorite ? '<span class="friend-detail">Mostly ' + escapeHtml(favorite) + '</span>' : '') +
             '<span class="friend-detail">' + (walletInfo ? escapeHtml(walletInfo.shells.toLocaleString()) + ' Coins' : 'No wallet') + '</span>' +
             (walletInfo ? '<span class="friend-detail">Earned ' + escapeHtml(walletInfo.earned.toLocaleString()) + '</span>' : '') +
             (walletInfo && walletInfo.streak > 0 ? '<span class="friend-detail">' + walletInfo.streak + '-day streak</span>' : '') +
