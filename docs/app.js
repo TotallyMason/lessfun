@@ -6375,8 +6375,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.31.1";
-const UPDATE_NOTES = "Mobile tuning pass: Dead Coast joystick movement is faster and full-stick push sprints, while fewer buildings, zombies, props, lights, and background blurs keep phone frame rates higher";
+const APP_VERSION = "LessFun Developer Beta 1.31.2";
+const UPDATE_NOTES = "Rendering is now hard-capped at 100% of the CSS viewport. Retina supersampling is disabled on every device, so no game renders above its visible screen resolution";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');

@@ -6123,12 +6123,12 @@
         else input.gearDown = true;
     }
     function effectivePixelRatio() {
-        // Cap at the display's native resolution, which on Retina means 2x
-        // CSS pixels instead of the blurry 1x buffer.
-        var base = Math.min(global.devicePixelRatio || 1, isMobileDevice ? 1.25 : 2);
+        // Hard cap at 100% of the CSS viewport. Retina DPR is deliberately
+        // ignored so the game never renders wasteful supersampled pixels.
+        var base = 1;
         var requested = renderScale > 0 ? renderScale : 1;
         var ratio = base * requested * adaptiveScale;
-        return Math.max(base * 0.2, Math.min(base, ratio));
+        return Math.max(0.2, Math.min(1, ratio));
     }
 
     function applyPixelRatio() {
