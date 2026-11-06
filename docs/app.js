@@ -5393,8 +5393,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.23.1";
-const UPDATE_NOTES = "Voice party audio is now boosted with a Web Audio gain and compressor stage, making friends noticeably louder while reducing clipping";
+const APP_VERSION = "LessFun Developer Beta 1.23.2";
+const UPDATE_NOTES = "Friends now has Calls: ring one friend directly, start a group call, invite multiple friends, and accept incoming calls anywhere. Messages start from people search";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
@@ -5968,6 +5968,7 @@ let party = {
 };
 let partyAudioCtx = null;
 let partyGains = {};
+let pendingCall = null;
 
 function partyMakeCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -6054,7 +6055,7 @@ function partyStartChannel(initialStatus) {
             party.connected = true;
             const tracked = channel.track(partyPresencePayload());
             if (tracked && tracked.catch) tracked.catch(function () {});
-            party.status = initialStatus || 'Voice party connected. Press V anywhere to toggle your mic.';
+            party.status = initialStatus || 'Call connected. Press V anywhere to toggle your mic.';
             partyRender();
             partySyncPresence();
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
@@ -6327,7 +6328,126 @@ function leaveParty(quiet) {
     party.code = '';
     party.status = '';
     partyRender();
-    if (!quiet) showGameToast('Left the voice party.');
+    if (!quiet) showGameToast('Call ended.');
+}
+
+function callFriendNames() {
+    const me = friendUsername();
+    if (!me) return [];
+    const names = [];
+    (friendData.friendships || []).forEach(function (row) {
+        if (row.status !== 'accepted') return;
+        const other = row.requester === me ? row.recipient : row.requester;
+        if (other && other !== me && names.indexOf(other) < 0) names.push(other);
+    });
+    return names.sort(function (a, b) { return a.localeCompare(b); });
+}
+
+function sendCallSignal(event, payload) {
+    if (!activityChannel || !activitySubscribed) return false;
+    try {
+        const sent = activityChannel.send({ type: 'broadcast', event: event, payload: payload });
+        if (sent && sent.catch) sent.catch(function () {});
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+function handleCallInvite(payload) {
+    const me = friendUsername();
+    if (!me || !payload || payload.to !== me || payload.from === me) return;
+    if (party.connected) {
+        sendCallSignal('call-decline', { from: me, to: payload.from, code: payload.code, reason: 'busy' });
+        return;
+    }
+    pendingCall = payload;
+    const modal = document.getElementById('callModal');
+    const kicker = document.getElementById('callKicker');
+    const caller = document.getElementById('callCaller');
+    const sub = document.getElementById('callSub');
+    if (kicker) kicker.textContent = payload.group ? 'GROUP CALL INVITE' : 'INCOMING CALL';
+    if (caller) caller.textContent = payload.from;
+    if (sub) sub.textContent = payload.group ? 'invited you to a group call' : 'is calling you';
+    if (modal) modal.style.display = 'flex';
+}
+
+function handleCallDecline(payload) {
+    const me = friendUsername();
+    if (!me || !payload || payload.to !== me) return;
+    showGameToast(payload.from + (payload.reason === 'busy' ? ' is on another call.' : ' declined the call.'));
+}
+
+function acceptIncomingCall() {
+    const call = pendingCall;
+    pendingCall = null;
+    const modal = document.getElementById('callModal');
+    if (modal) modal.style.display = 'none';
+    if (!call) return;
+    partyJoinWithCode(call.code);
+    showGameToast('Joining ' + call.from + '’s call…');
+}
+
+function declineIncomingCall() {
+    const call = pendingCall;
+    pendingCall = null;
+    const modal = document.getElementById('callModal');
+    if (modal) modal.style.display = 'none';
+    const me = friendUsername();
+    if (call && me) {
+        sendCallSignal('call-decline', { from: me, to: call.from, code: call.code, reason: 'declined' });
+    }
+}
+
+async function startDirectCall(name) {
+    if (!friendUsername()) { openAuthModal(); return; }
+    if (!name) return;
+    if (party.connected) {
+        inviteFriendToCall(name, party.code, false);
+        return;
+    }
+    const code = partyMakeCode();
+    showGameToast('Calling ' + name + '…');
+    partyJoinWithCode(code);
+    setTimeout(function () { inviteFriendToCall(name, code, false); }, 450);
+}
+
+function callSelectedFriend() {
+    const select = document.getElementById('callFriendSelect');
+    const name = select ? select.value : '';
+    if (!name) {
+        showGameToast('Add a friend first, then call them.');
+        return;
+    }
+    startDirectCall(name);
+}
+
+function startGroupCall() {
+    if (!friendUsername()) { openAuthModal(); return; }
+    if (party.connected) {
+        showGameToast('Your call is already open — invite friends from the list.');
+        partyRender();
+        return;
+    }
+    partyJoinWithCode(partyMakeCode());
+    showGameToast('Group call started. Invite friends from Calls.');
+}
+
+function inviteFriendToCall(name, code, isGroup) {
+    if (!friendUsername()) { openAuthModal(); return; }
+    if (!name) return;
+    const callCode = code || party.code;
+    if (!callCode) {
+        showGameToast('Start a call first.');
+        return;
+    }
+    const sent = sendCallSignal('call-invite', {
+        from: friendUsername(),
+        to: name,
+        code: callCode,
+        group: !!isGroup || partyMemberList().length > 2
+    });
+    showGameToast(sent ? 'Call invite sent to ' + name + '.' : 'Could not send the call invite.');
 }
 
 function partyMemberList() {
@@ -6341,7 +6461,7 @@ function partyRender() {
     if (widget) {
         widget.style.display = party.connected ? 'flex' : 'none';
         const codeEl = document.getElementById('partyWidgetCode');
-        if (codeEl) codeEl.textContent = 'Party ' + party.code;
+        if (codeEl) codeEl.textContent = 'Call ' + party.code;
         const countEl = document.getElementById('partyWidgetMembers');
         if (countEl) countEl.textContent = partyMemberList().length + '/' + PARTY_MAX;
         const micBtn = document.getElementById('partyWidgetMic');
@@ -6351,23 +6471,34 @@ function partyRender() {
         }
     }
     if (!host) return;
+    const friends = callFriendNames();
     if (!party.connected) {
+        const options = friends.length
+            ? friends.map(function (name) { return '<option value="' + escapeAttr(name) + '">' + escapeHtml(name) + '</option>'; }).join('')
+            : '<option value="">Add friends to call them</option>';
         host.innerHTML =
             '<div class="party-start">' +
-                '<button type="button" class="friends-gift" onclick="createVoiceParty()">Create voice party</button>' +
+                '<div class="call-friend-row">' +
+                    '<select id="callFriendSelect" class="party-code-input" style="letter-spacing:0;text-transform:none;font-weight:500;">' + options + '</select>' +
+                    '<button type="button" class="friends-gift" onclick="callSelectedFriend()">Call</button>' +
+                '</div>' +
+                '<button type="button" class="friends-refresh" onclick="startGroupCall()">Start group call</button>' +
                 '<div class="party-join-row">' +
-                    '<input id="partyCodeInput" class="party-code-input" maxlength="5" placeholder="PARTY CODE" autocapitalize="characters">' +
+                    '<input id="partyCodeInput" class="party-code-input" maxlength="5" placeholder="CALL CODE" autocapitalize="characters">' +
                     '<button type="button" class="friends-refresh" onclick="joinVoicePartyFromInput()">Join</button>' +
                 '</div>' +
-                '<p class="party-status">' + escapeHtml(party.status || 'Create a party or join with a code. Voice stays connected across games.') + '</p>' +
+                '<p class="party-status">' + escapeHtml(party.status || 'Call a friend, start a group call, or join with a code. Calls stay connected across the site.') + '</p>' +
             '</div>';
         return;
     }
     const members = partyMemberList();
+    const memberNames = {};
+    members.forEach(function (member) { memberNames[String(member.username).toLowerCase()] = true; });
+    const invitees = friends.filter(function (name) { return !memberNames[String(name).toLowerCase()]; });
     host.innerHTML =
         '<div class="party-active">' +
             '<div class="party-code-row">' +
-                '<span>Party code</span><strong>' + escapeHtml(party.code) + '</strong>' +
+                '<span>Call code</span><strong>' + escapeHtml(party.code) + '</strong>' +
                 '<button type="button" class="friends-refresh" onclick="copyPartyCode()">Copy</button>' +
             '</div>' +
             '<div class="party-controls">' +
@@ -6384,8 +6515,15 @@ function partyRender() {
                     '</span>';
                 }).join('') +
             '</div>' +
-            '<p class="party-status">' + escapeHtml(party.status || (members.length + ' in the party.')) + '</p>' +
-            '<button type="button" class="friends-refresh party-leave" onclick="leaveParty()">Leave voice party</button>' +
+            (invitees.length
+                ? '<div class="call-invite-list"><span class="call-invite-label">Invite friends</span>' +
+                    invitees.map(function (name) {
+                        return '<span class="call-invite-chip">' + escapeHtml(name) +
+                            '<button type="button" onclick="inviteFriendToCall(\'' + debugArg(name) + '\',\'' + debugArg(party.code) + '\', true)">Call</button></span>';
+                    }).join('') + '</div>'
+                : '') +
+            '<p class="party-status">' + escapeHtml(party.status || (members.length + ' in the call.')) + '</p>' +
+            '<button type="button" class="friends-refresh party-leave" onclick="leaveParty()">End call</button>' +
         '</div>';
 }
 
@@ -6433,6 +6571,12 @@ function startActivityChannel() {
     channel.on('presence', { event: 'sync' }, sync);
     channel.on('presence', { event: 'join' }, sync);
     channel.on('presence', { event: 'leave' }, sync);
+    channel.on('broadcast', { event: 'call-invite' }, function (message) {
+        handleCallInvite(message && message.payload);
+    });
+    channel.on('broadcast', { event: 'call-decline' }, function (message) {
+        handleCallDecline(message && message.payload);
+    });
     channel.subscribe(function (status) {
         if (activityChannel !== channel) return;
         if (status === 'SUBSCRIBED') {

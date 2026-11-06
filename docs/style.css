@@ -7210,3 +7210,125 @@ body.has-avatar-frame .friend-avatar {
         padding: 6px 8px 6px 10px;
     }
 }
+
+/* Calls UI */
+.call-friend-row {
+    display: flex;
+    gap: 7px;
+}
+
+.call-friend-row select {
+    flex: 1;
+    min-width: 0;
+}
+
+.call-invite-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.call-invite-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.4);
+    width: 100%;
+}
+
+.call-invite-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 5px 4px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(80, 210, 255, 0.2);
+    background: rgba(80, 210, 255, 0.06);
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.call-invite-chip button {
+    padding: 3px 9px;
+    border-radius: 999px;
+    border: 1px solid rgba(109, 255, 192, 0.4);
+    background: rgba(109, 255, 192, 0.14);
+    color: #baffdf;
+    font-family: inherit;
+    font-size: 9px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+/* Incoming call modal */
+.call-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(2, 4, 10, 0.72);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+}
+
+.call-card {
+    width: min(360px, 92vw);
+    padding: 28px;
+    border-radius: 22px;
+    border: 1px solid rgba(80, 210, 255, 0.3);
+    background: linear-gradient(155deg, rgba(18, 36, 52, 0.98), rgba(6, 12, 20, 0.99));
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.7), 0 0 40px rgba(50, 190, 255, 0.12);
+    color: #fff;
+    text-align: center;
+}
+
+.call-kicker {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    color: #8affd0;
+}
+
+.call-card h2 {
+    margin: 8px 0 4px;
+    font-size: 27px;
+}
+
+.call-card p {
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.call-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.call-accept,
+.call-decline {
+    flex: 1;
+    padding: 11px 14px;
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.call-accept {
+    border: 1px solid rgba(109, 255, 192, 0.5);
+    background: linear-gradient(145deg, rgba(30, 160, 110, 0.85), rgba(10, 90, 65, 0.9));
+    color: #eafff6;
+}
+
+.call-decline {
+    border: 1px solid rgba(255, 90, 110, 0.5);
+    background: rgba(255, 60, 80, 0.2);
+    color: #ffd0d7;
+}

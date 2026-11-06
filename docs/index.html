@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261162">
+    <link rel="stylesheet" href="style.css?v=20261163">
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -224,8 +224,8 @@
 
                 <section class="friends-section">
                     <div class="friends-section-head">
-                        <h2>Voice party</h2>
-                        <small style="color:rgba(255,255,255,0.4);font-size:11px;">Stays connected across every game and page</small>
+                        <h2>Calls</h2>
+                        <small style="color:rgba(255,255,255,0.4);font-size:11px;">Call friends or start a group call — stays connected across the site</small>
                     </div>
                     <div id="partyBody" class="party-body"></div>
                 </section>
@@ -839,7 +839,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Developer Beta 1.23.1</p>
+                            <p>LessFun Developer Beta 1.23.2</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -1055,6 +1055,18 @@
         </div>
     </div>
 
+    <div id="callModal" class="call-modal" style="display:none;">
+        <div class="call-card">
+            <span class="call-kicker" id="callKicker">INCOMING CALL</span>
+            <h2 id="callCaller">Someone</h2>
+            <p id="callSub">is calling you</p>
+            <div class="call-actions">
+                <button type="button" class="call-accept" onclick="acceptIncomingCall()">Accept</button>
+                <button type="button" class="call-decline" onclick="declineIncomingCall()">Decline</button>
+            </div>
+        </div>
+    </div>
+
     <div id="partyWidget" class="party-widget" style="display:none;">
         <span class="party-widget-dot"></span>
         <span class="party-widget-code" id="partyWidgetCode">PARTY</span>
@@ -1067,7 +1079,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
-    <script src="games3d.js?v=20261162"></script>
-    <script src="app.js?v=20261162"></script>
+    <script src="games3d.js?v=20261163"></script>
+    <script src="app.js?v=20261163"></script>
 </body>
 </html>
