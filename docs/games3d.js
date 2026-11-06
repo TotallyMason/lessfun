@@ -132,8 +132,8 @@
         // feel genuinely fast, especially with a good engine fitted.
         var equippedPerf = cosmetics.performance || {};
         var perf = {
-            topSpeed: 168 * (equippedPerf.topSpeed || 1),
-            accel: 27 * (equippedPerf.accel || 1),
+            topSpeed: 192 * (equippedPerf.topSpeed || 1),
+            accel: 34 * (equippedPerf.accel || 1),
             grip: equippedPerf.grip || 1
         };
         // 7 mph idle creep, in metres per second.
@@ -366,12 +366,28 @@
             scene.add(cloud);
         }
 
-        scene.add(new THREE.HemisphereLight(0xcfeaff, 0xffd9a8, 0.52));
-        scene.add(new THREE.AmbientLight(0xfff2dd, 0.22));
-        var sunLight = new THREE.DirectionalLight(0xfff1d6, 1.0);
-        sunLight.position.set(18, 28, 12); scene.add(sunLight);
-        var rimLight = new THREE.DirectionalLight(0xffc38a, 0.32);
+        scene.add(new THREE.HemisphereLight(0xaedcff, 0xffc58f, 0.46));
+        scene.add(new THREE.AmbientLight(0xffeeda, 0.3));
+        var sunLight = new THREE.DirectionalLight(0xfff1d6, 1.85);
+        sunLight.position.set(18, 28, 12);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 1024;
+        sunLight.shadow.mapSize.height = 1024;
+        sunLight.shadow.camera.near = 1;
+        sunLight.shadow.camera.far = 90;
+        sunLight.shadow.camera.left = -42;
+        sunLight.shadow.camera.right = 42;
+        sunLight.shadow.camera.top = 42;
+        sunLight.shadow.camera.bottom = -42;
+        sunLight.shadow.bias = -0.0006;
+        sunLight.shadow.normalBias = 0.035;
+        sunLight.shadow.radius = 2.2;
+        scene.add(sunLight);
+        scene.add(sunLight.target);
+        var rimLight = new THREE.DirectionalLight(0xffb47a, 0.62);
         rimLight.position.set(-22, 16, -18); scene.add(rimLight);
+        var fillLight = new THREE.DirectionalLight(0x7fd4ff, 0.22);
+        fillLight.position.set(12, 10, 24); scene.add(fillLight);
 
         // Five-lane coastal highway.
         var LANES = [-6.4, -3.2, 0, 3.2, 6.4];
@@ -439,6 +455,7 @@
         );
         track.rotation.x = -Math.PI / 2;
         track.position.set(0, -0.025, -235);
+        track.receiveShadow = true;
         scene.add(track);
 
         [-1, 1].forEach(function (side) {
@@ -710,6 +727,38 @@
             var palmScale = 0.82 + Math.random() * 0.3;
             palm.scale.set(palmScale, palmScale, palmScale);
             addScroller(palm, 252);
+        }
+
+        // Pastel art-deco skyline along the beach side. Low-poly boxes keep the
+        // Miami/GTA-style silhouette cheap while still adding depth to the view.
+        function makeSkylineBuilding(index) {
+            var g = new THREE.Group();
+            var palette = [0xf3c6c8, 0xf6dfb8, 0xbfe3dc, 0xc9d3f2, 0xf1b8d8, 0xe8d3a9];
+            var bodyMat = standard(palette[index % palette.length], { roughness: 0.72, metalness: 0.04 });
+            var neonMat = new THREE.MeshBasicMaterial({ color: index % 3 === 0 ? 0x5fe0ff : (index % 3 === 1 ? 0xff8fd0 : 0xffd166) });
+            var width = 4.5 + (index % 4) * 1.4;
+            var depth = 4 + (index % 3) * 1.3;
+            var height = 7 + (index % 5) * 3.2;
+            var body = boxMesh(width, height, depth, bodyMat);
+            body.position.y = height / 2;
+            g.add(body);
+            var crown = boxMesh(width * 0.52, 2.2 + (index % 3), depth * 0.7, bodyMat);
+            crown.position.y = height + crown.geometry.parameters.height / 2;
+            g.add(crown);
+            var rail = boxMesh(width * 1.02, 0.16, 0.16, neonMat);
+            rail.position.set(0, height - 0.5, depth / 2 + 0.05);
+            g.add(rail);
+            var stripe = boxMesh(width * 0.08, height * 0.82, 0.08, neonMat);
+            stripe.position.set(width * 0.34, height * 0.46, depth / 2 + 0.05);
+            g.add(stripe);
+            return g;
+        }
+
+        for (var bi = 0; bi < 18; bi++) {
+            var bldg = makeSkylineBuilding(bi);
+            bldg.position.set(34 + (bi % 4) * 7.5, 0, 20 - bi * 31);
+            bldg.rotation.y = (bi % 2 ? -1 : 1) * 0.08;
+            addScroller(bldg, 560);
         }
 
         for (var ui = 0; ui < 14; ui++) {
@@ -1303,10 +1352,20 @@
             }
 
             var shadow = new THREE.Mesh(new THREE.PlaneGeometry(spec.width + 0.7, spec.len + 0.7), new THREE.MeshBasicMaterial({
-                color: 0x6b4e2a, transparent: true, opacity: 0.28, depthWrite: false
+                color: 0x5d3f1e, transparent: true, opacity: 0.14, depthWrite: false
             }));
             shadow.rotation.x = -Math.PI / 2;
-            shadow.position.y = 0.012; g.add(shadow);
+            shadow.position.y = 0.012;
+            shadow.userData.fakeShadow = true;
+            g.add(shadow);
+
+            // Real-time shadow casting for the car shell. Opaque meshes only so
+            // glass/lamps do not add extra shadow-map work.
+            g.traverse(function (child) {
+                if (!child || !child.isMesh || child.userData.fakeShadow) return;
+                if (child.material && child.material.transparent) return;
+                child.castShadow = true;
+            });
 
             g.userData.spec = spec;
             g.userData.roofY = spec.ride + spec.hood + (spec.roof ? spec.cabinH : 0) + 0.06;
@@ -2367,6 +2426,12 @@
             }
         }
 
+        function escapeCams(value) {
+            return String(value == null ? '' : value).replace(/[&<>"']/g, function (c) {
+                return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+            });
+        }
+
         function setLocalRacerName(name) {
             if (localNameLabel) {
                 player.remove(localNameLabel);
@@ -3223,7 +3288,7 @@
                 warningT = 0;
             }
 
-            var fov = 64 + Math.min(18, Math.abs(speed) * 0.13);
+            var fov = 68 + Math.min(26, Math.abs(speed) * 0.18);
             if (Math.abs(camera.fov - fov) > 0.1) {
                 camera.fov = fov;
                 camera.updateProjectionMatrix();
@@ -3231,6 +3296,14 @@
 
             camera.position.x += (player.position.x * 0.42 - camera.position.x) * Math.min(1, dt * 5);
             camera.position.y = 5.3 + playerY * 0.78 + (player.userData.bodyGroup ? player.userData.bodyGroup.position.y * 4.0 : 0) - suspensionImpulse * 0.3 + Math.sin(elapsed * 1.4) * 0.035;
+            var speedShake = Math.min(0.055, Math.abs(speed) * 0.0007);
+            camera.position.x += Math.sin(elapsed * 37.0) * speedShake;
+            camera.position.y += Math.cos(elapsed * 43.0) * speedShake * 0.55;
+            if (sunLight && sunLight.target) {
+                sunLight.position.set(player.position.x + 18, 28, player.position.z + 12);
+                sunLight.target.position.set(player.position.x, 0, player.position.z - 10);
+                sunLight.target.updateMatrixWorld();
+            }
             var curveAhead = roadCurveOffset(-80) - roadCurveOffset(0);
             camera.lookAt(player.position.x * 0.5 + vx * 0.22 + curveAhead * 0.22, 0.5 + playerY * 0.9, -12);
             camera.rotateZ(-curveAhead * 0.0016 - bodyRoll * 0.1);
@@ -3331,6 +3404,66 @@
                     bodyPitch: player.userData.bodyGroup ? player.userData.bodyGroup.rotation.x : 0,
                     crashing: crashActive
                 };
+            },
+            renderCameras: function () {
+                if (!renderer || !scene || garageMode || paused) {
+                    var hide = document.getElementById('g3dRemoteCams');
+                    if (hide) hide.style.display = 'none';
+                    return;
+                }
+                var ids = Object.keys(remoteCars);
+                var totalPeople = ids.length + 1;
+                var host = document.getElementById('g3dRemoteCams');
+                // Chase-cam windows only when the lobby has fewer than six people.
+                if (totalPeople >= 6 || !ids.length) {
+                    if (host) host.style.display = 'none';
+                    return;
+                }
+                var compact = (global.innerWidth || 1000) < 640;
+                var maxCams = compact ? 2 : 4;
+                var camW = compact ? 104 : 168;
+                var camH = compact ? 64 : 104;
+                var gap = compact ? 6 : 8;
+                var topPx = compact ? 96 : 112;
+                var rightPx = compact ? 12 : 18;
+                var vw = renderer.domElement.clientWidth || 1;
+                var vh = renderer.domElement.clientHeight || 1;
+                var shown = [];
+                for (var ri = 0; ri < ids.length && shown.length < maxCams; ri++) {
+                    var entry = remoteCars[ids[ri]];
+                    if (!entry || !entry.car || !entry.car.visible) continue;
+                    shown.push(entry);
+                }
+                if (!shown.length) {
+                    if (host) host.style.display = 'none';
+                    return;
+                }
+                if (host) {
+                    host.style.display = 'flex';
+                    host.style.width = camW + 'px';
+                    host.style.top = topPx + 'px';
+                    host.style.right = rightPx + 'px';
+                    host.innerHTML = shown.map(function (entry) {
+                        var name = entry.state && entry.state.name ? String(entry.state.name).slice(0, 16) : 'Racer';
+                        return '<div class="game3d-remote-cam-label" style="height:' + camH + 'px;"><span>' + escapeCams(name) + '</span></div>';
+                    }).join('');
+                }
+                var savedViewport = renderer.getViewport(new THREE.Vector4());
+                renderer.setScissorTest(true);
+                var tempCam = new THREE.PerspectiveCamera(60, camW / camH, 0.1, 220);
+                for (var si = 0; si < shown.length; si++) {
+                    var car = shown[si].car;
+                    var x = vw - rightPx - camW;
+                    var y = vh - topPx - camH - si * (camH + gap);
+                    tempCam.position.set(car.position.x, 2.7, car.position.z + 7.6);
+                    tempCam.lookAt(car.position.x, 0.7, car.position.z - 7);
+                    renderer.setViewport(x, y, camW, camH);
+                    renderer.setScissor(x, y, camW, camH);
+                    renderer.render(scene, tempCam);
+                }
+                renderer.setScissorTest(false);
+                renderer.setViewport(savedViewport);
+                renderer.setScissor(savedViewport);
             },
             getMultiplayerInfo: function () {
                 var names = [];
@@ -3574,15 +3707,17 @@
             score += dt * 10;
 
             var tx = ship.position.x, ty = ship.position.y;
-            if (input.left) tx -= dt * 14;
-            if (input.right) tx += dt * 14;
-            if (input.up) ty += dt * 14;
-            if (input.down) ty -= dt * 14;
+            // Snappy WASD: much higher travel speed and tighter follow so the
+            // ship reacts immediately instead of drifting behind the input.
+            if (input.left) tx -= dt * 38;
+            if (input.right) tx += dt * 38;
+            if (input.up) ty += dt * 38;
+            if (input.down) ty -= dt * 38;
             if (input.pointerActive) { tx = input.pointerX * 8; ty = -input.pointerY * 5; }
             if (tx < -8) tx = -8; if (tx > 8) tx = 8;
             if (ty < -5) ty = -5; if (ty > 5) ty = 5;
-            ship.position.x += (tx - ship.position.x) * Math.min(1, dt * 7);
-            ship.position.y += (ty - ship.position.y) * Math.min(1, dt * 7);
+            ship.position.x += (tx - ship.position.x) * Math.min(1, dt * 17);
+            ship.position.y += (ty - ship.position.y) * Math.min(1, dt * 17);
             ship.rotation.z = (tx - ship.position.x) * -0.35;
             ship.rotation.x = (ty - ship.position.y) * 0.25;
 
@@ -3766,7 +3901,10 @@
             playedSeconds += dt;
             active.update(dt);
         }
-        if (renderer && scene && camera) renderer.render(scene, camera);
+        if (renderer && scene && camera) {
+            renderer.render(scene, camera);
+            if (active && active.renderCameras && !paused && !active.over) active.renderCameras();
+        }
     }
 
     function start(gameId, containerEl, opts) {
@@ -3792,6 +3930,11 @@
 
         resetScene();
         renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.08;
+        if (THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
         renderer.setPixelRatio(effectivePixelRatio());
         renderer.setSize(container.clientWidth || 1, container.clientHeight || 1, false);
         renderer.domElement.style.width = '100%';

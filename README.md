@@ -98,6 +98,8 @@ full file:
   settings.
 - [`supabase/community.sql`](supabase/community.sql) — post attachments, replies,
   post reactions, reply reactions, and the newer owner toggles.
+- [`supabase/dev_console.sql`](supabase/dev_console.sql) — appointed developer
+  accounts and the owner-approved developer request queue.
 - [`supabase/owner_debug.sql`](supabase/owner_debug.sql) — owner delete/update
   permissions.
 
@@ -165,7 +167,11 @@ handling real user data or payments.
 - Ignition bar, synthesized engine/tire/nitrous audio, and a drainable nitrous boost on **Shift** or **N**, with a NITRO SHIFT kick
 - Gold track coins that are collected during a run and paid into the Coins wallet at game over
 - Private messages and group messages with ECDH P-256 + AES-GCM end-to-end encryption, started by searching for a person in the in-game sidebar or creating a group
-- Press **X** once to close the Messages sidebar, and press **X** again to close the game. Voice chat has been removed
+- Press **X** once to close the Messages sidebar, and press **X** again to close the game. A separate **Close Messages** button is also available in-game. Voice chat has been removed
+- Developer Console for owner-appointed developers: send change requests to the owner/AI build queue, see approval status, and let the owner review every message before anything ships
+- Chase-cam windows for remote racers in lobbies with fewer than six people
+- Real-time car shadows, ACES filmic tone mapping, warmer sunset lighting, and a faster top speed with stronger speed-based camera FOV and shake
+- Star Dodger now responds to fast WASD movement as well as arrow keys and drag controls
 - Coin gifting from Friends or a profile, private-message user search, and 50% cosmetic resale
 - Teleport to any racer in a public lobby, and curving highway lane markings for a more dynamic road
 - Single liquid-glass HUD bar for speed/status, gear, checkpoints, and coins; score is shown only on game over

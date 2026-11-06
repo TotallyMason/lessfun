@@ -7,7 +7,7 @@ const games = [
     { id: 1, name: "Beach Racer", description: "Outrun traffic on a five-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · ← → steer · drift is automatic · Shift / N nitrous · F FSD · Q/E gears · right lane exits" },
     { id: 2, name: "Tunnel Rush", description: "Thread the neon tunnel at warp speed", icon: "tunnel", controls: "Left / Right or drag to rotate" },
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
-    { id: 5, name: "Star Dodger", description: "Weave through an asteroid storm", icon: "rocket", controls: "Arrow keys or drag to fly" }
+    { id: 5, name: "Star Dodger", description: "Weave through an asteroid storm", icon: "rocket", controls: "WASD / arrow keys to fly fast, or drag" }
 ];
 
 let currentUser = null;
@@ -223,6 +223,10 @@ async function saveSiteSettings(next) {
 
 function isOwner() {
     return !!(currentUser && currentUser.type === 'user' && currentUser.username === 'TotallyMason' && currentUser.persistScores !== false);
+}
+
+function isDeveloper() {
+    return isOwner() || !!(currentUser && currentUser.type === 'user' && currentUser.developer);
 }
 
 function parseAdminPowers(value) {
@@ -551,6 +555,7 @@ function openGame(id) {
                 '</div>' +
             '</div>' +
             '<div id="g3dCanvas" class="game3d-canvas"></div>' +
+            '<div class="game3d-remote-cams" id="g3dRemoteCams" style="display:none;"></div>' +
             '<div class="game3d-hint">' + (game.controls || '') + '</div>' +
             '<div class="game3d-perf" id="g3dPerf"><span id="g3dFps">-- FPS</span><span id="g3dRes">--</span></div>' +
             (game.hasThrottle ? '<button class="game3d-throttle" id="g3dThrottle" type="button">Throttle</button>' : '') +
@@ -597,6 +602,7 @@ function openGame(id) {
                     '</div>' +
                 '</div>' +
                 '<p class="game3d-dm-status" id="g3dDmStatus"></p>' +
+                '<button type="button" class="game3d-dm-close-btn" onclick="toggleDmSidebar(false)">Close Messages</button>' +
             '</aside>' +
             (game.hasThrottle ?
                 '<button class="game3d-mp-btn" id="g3dMpBtn" type="button" onclick="openRacerMpPanel()">Multiplayer</button>' +
@@ -2446,6 +2452,9 @@ function updateUserSection() {
     if (debugBtn) debugBtn.style.display = isOwner() ? 'inline-flex' : 'none';
     const debugGroup = document.getElementById('debugSettingsGroup');
     if (debugGroup) debugGroup.style.display = isOwner() ? 'block' : 'none';
+    const devBtn = document.getElementById('nav-dev');
+    if (devBtn) devBtn.style.display = isDeveloper() ? 'inline-flex' : 'none';
+    if (!isDeveloper()) closeDevConsole(true);
 
     if (!isOwner()) {
         ownerUnlocked = false;
@@ -2454,6 +2463,222 @@ function updateUserSection() {
 
     // Keep featured/disabled game markers correct after sign-in or logout.
     renderGames();
+}
+
+let devConsoleState = {
+    open: false,
+    rows: [],
+    poll: 0,
+    seen: {},
+    loaded: false
+};
+
+function devSetStatus(message, isError) {
+    const el = document.getElementById('devConsoleStatus');
+    if (!el) return;
+    el.textContent = message || '';
+    el.classList.toggle('is-error', !!isError);
+}
+
+function devTime(value) {
+    if (!value) return '';
+    try { return new Date(value).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+    catch (e) { return ''; }
+}
+
+function devSnippet(text, max) {
+    const value = String(text == null ? '' : text).replace(/\s+/g, ' ').trim();
+    return value.length > (max || 180) ? value.slice(0, max || 180) + '…' : value;
+}
+
+function devCard(row, canReview) {
+    const status = String(row.status || 'pending');
+    const statusLabel = status === 'approved' ? 'Approved' : status === 'rejected' ? 'Rejected' : 'Awaiting owner';
+    return '<article class="dev-request is-' + escapeAttr(status) + '">' +
+        '<div class="dev-request-head">' +
+            '<strong>' + escapeHtml(row.developer || 'Developer') + '</strong>' +
+            '<span class="dev-request-status is-' + escapeAttr(status) + '">' + escapeHtml(statusLabel) + '</span>' +
+            '<time>' + escapeHtml(devTime(row.created_at)) + '</time>' +
+        '</div>' +
+        '<p class="dev-request-message">' + escapeHtml(row.message || '') + '</p>' +
+        (row.owner_note ? '<p class="dev-request-note"><strong>Owner note:</strong> ' + escapeHtml(row.owner_note) + '</p>' : '') +
+        (canReview && status === 'pending' ?
+            '<div class="dev-request-actions">' +
+                '<button type="button" class="dev-approve" onclick="reviewDevRequest(\'' + debugArg(String(row.id)) + '\', \'approved\')">Approve &amp; queue</button>' +
+                '<button type="button" class="dev-reject" onclick="reviewDevRequest(\'' + debugArg(String(row.id)) + '\', \'rejected\')">Reject</button>' +
+            '</div>' : '') +
+    '</article>';
+}
+
+function devRenderConsole() {
+    if (!devConsoleState.open) return;
+    const owner = isOwner();
+    const title = document.getElementById('devConsoleTitle');
+    const subtitle = document.getElementById('devConsoleSubtitle');
+    if (title) title.textContent = owner ? 'Owner build channel' : 'Developer build channel';
+    if (subtitle) subtitle.textContent = owner
+        ? 'Review every developer request, approve what ships, and watch the full activity feed.'
+        : 'Send change requests to the owner/AI build queue. TotallyMason sees every message and must approve it.';
+    const composer = document.getElementById('devComposer');
+    if (composer) composer.style.display = owner ? 'none' : 'flex';
+
+    const rows = devConsoleState.rows || [];
+    const pending = rows.filter(function (row) { return String(row.status || 'pending') === 'pending'; });
+    const queue = document.getElementById('devOwnerQueue');
+    if (queue) {
+        if (!owner) {
+            queue.innerHTML = '';
+        } else {
+            queue.innerHTML = '<div class="dev-section-head"><h3>Pending approvals</h3><span class="dev-count">' + pending.length + '</span></div>' +
+                (pending.length ? pending.map(function (row) { return devCard(row, true); }).join('') :
+                    '<p class="dev-empty">No requests waiting. Approved and rejected items appear below.</p>') +
+                '<div class="dev-section-head"><h3>Developer activity</h3><span class="dev-count">' + rows.length + '</span></div>';
+        }
+    }
+
+    const own = document.getElementById('devOwnRequests');
+    if (own) {
+        if (owner) {
+            const recent = rows.slice(0, 40);
+            own.innerHTML = recent.length ? recent.map(function (row) { return devCard(row, false); }).join('') :
+                '<p class="dev-empty">No developer activity yet.</p>';
+        } else {
+            const mine = rows.filter(function (row) { return row.developer === (currentUser && currentUser.username); });
+            own.innerHTML = '<div class="dev-section-head"><h3>Your requests</h3><span class="dev-count">' + mine.length + '</span></div>' +
+                (mine.length ? mine.map(function (row) { return devCard(row, false); }).join('') :
+                    '<p class="dev-empty">No requests yet. Describe the change you want above.</p>');
+        }
+    }
+}
+
+async function loadDevRequests() {
+    if (!devConsoleState.open || !isDeveloper()) return;
+    if (!supabaseClient) {
+        devSetStatus('Developer console needs an online connection.', true);
+        return;
+    }
+    try {
+        let query = supabaseClient.from('developer_requests').select('*').order('created_at', { ascending: false }).limit(200);
+        if (!isOwner()) query = query.eq('developer', currentUser.username);
+        const res = await socialQuery(query);
+        if (res.error) {
+            devConsoleState.rows = [];
+            devConsoleState.error = res.error;
+            devRenderConsole();
+            devSetStatus('Run supabase/dev_console.sql to enable the developer build channel.', true);
+            return;
+        }
+        devConsoleState.error = null;
+        devConsoleState.rows = res.data || [];
+        // Surface approval/rejection changes to the developer.
+        if (!isOwner()) {
+            devConsoleState.rows.forEach(function (row) {
+                const id = String(row.id);
+                const previous = devConsoleState.seen[id];
+                if (previous && previous !== row.status && (row.status === 'approved' || row.status === 'rejected')) {
+                    const ok = row.status === 'approved';
+                    showTopNotification('<strong>Request ' + (ok ? 'approved' : 'rejected') + '</strong><br>' + devSnippet(row.message, 90), ok ? '✅' : '⛔', openDevConsole);
+                }
+                devConsoleState.seen[id] = row.status;
+            });
+        }
+        devConsoleState.loaded = true;
+        devRenderConsole();
+        devSetStatus(isOwner() ? 'Live approval queue.' : 'Your requests are visible to the owner.', false);
+    } catch (e) {
+        devSetStatus(e.message || 'Could not load developer requests.', true);
+    }
+}
+
+async function openDevConsole() {
+    if (!isDeveloper()) {
+        alert('Only appointed developers can open the developer console.');
+        return;
+    }
+    const modal = document.getElementById('devConsoleModal');
+    if (!modal) return;
+    ensureTopLayer(modal);
+    modal.style.display = 'flex';
+    devConsoleState.open = true;
+    devConsoleState.seen = {};
+    devSetStatus('Loading build channel…', false);
+    await loadDevRequests();
+    if (devConsoleState.poll) clearInterval(devConsoleState.poll);
+    devConsoleState.poll = setInterval(function () {
+        if (devConsoleState.open) loadDevRequests();
+    }, 5000);
+}
+
+function closeDevConsole(silent) {
+    if (devConsoleState.poll) { clearInterval(devConsoleState.poll); devConsoleState.poll = 0; }
+    devConsoleState.open = false;
+    const modal = document.getElementById('devConsoleModal');
+    if (modal) modal.style.display = 'none';
+    if (!silent) devSetStatus('', false);
+}
+
+async function submitDevRequest() {
+    if (!isDeveloper() || isOwner()) return;
+    const input = document.getElementById('devRequestInput');
+    const text = String(input ? input.value : '').trim();
+    if (!text) {
+        devSetStatus('Write a change request first.', true);
+        return;
+    }
+    if (!supabaseClient) {
+        devSetStatus('Developer console needs an online connection.', true);
+        return;
+    }
+    const res = await socialQuery(supabaseClient.from('developer_requests').insert({
+        developer: currentUser.username,
+        message: text,
+        status: 'pending'
+    }));
+    if (res.error) {
+        devSetStatus('Could not send: ' + (res.error.message || 'run supabase/dev_console.sql'), true);
+        return;
+    }
+    if (input) input.value = '';
+    devSetStatus('Request sent to TotallyMason for approval.', false);
+    await loadDevRequests();
+}
+
+async function reviewDevRequest(id, status) {
+    if (!isOwner()) {
+        alert('Only TotallyMason can approve developer requests.');
+        return;
+    }
+    if (!supabaseClient) return;
+    let note = '';
+    if (status === 'rejected') {
+        note = window.prompt('Optional reason for rejecting this request:', '') || '';
+    }
+    const res = await socialQuery(supabaseClient.from('developer_requests').update({
+        status: status,
+        owner_note: note,
+        reviewed_by: currentUser.username,
+        reviewed_at: new Date().toISOString()
+    }).eq('id', id));
+    if (res.error) {
+        devSetStatus('Could not review request: ' + (res.error.message || 'run supabase/dev_console.sql'), true);
+        return;
+    }
+    devSetStatus(status === 'approved' ? 'Approved and added to the build queue.' : 'Request rejected.', false);
+    await loadDevRequests();
+}
+
+async function toggleDeveloper(username, enabled) {
+    if (!isOwner() || !supabaseClient) return;
+    if (!username || username === 'TotallyMason') return;
+    const res = await socialQuery(supabaseClient.from('users').update({ developer: !!enabled }).eq('username', username));
+    if (res.error) {
+        showDebugStatus('Could not update developer access: ' + (res.error.message || 'run supabase/dev_console.sql'), true);
+        return;
+    }
+    const user = (debugData.users || []).filter(function (row) { return row.username === username; })[0];
+    if (user) user.developer = !!enabled;
+    showDebugStatus((enabled ? 'Appointed ' : 'Removed developer access for ') + username + '.', false);
+    renderDebugAdmins();
 }
 
 async function openOwnerDebug() {
@@ -3029,7 +3254,9 @@ function renderDebugAdmins() {
                 '<div class="admin-top">' +
                     '<span class="admin-name">' + escapeHtml(username) + '</span>' +
                     (isOwnerRow ? '<span class="admin-badge is-owner">OWNER</span>' : (enabled ? '<span class="admin-badge">ADMIN</span>' : '')) +
+                    (!isOwnerRow && user.developer ? '<span class="admin-badge is-dev">DEV</span>' : '') +
                     (isOwnerRow ? '' : '<label class="admin-toggle"><input type="checkbox" data-admin-enable="' + escapeAttr(username) + '"' + (user.is_admin ? ' checked' : '') + ' onchange="toggleAdminPowerInputs(this)"> <span>Admin</span></label>') +
+                    (isOwnerRow ? '' : '<label class="admin-toggle dev-toggle"><input type="checkbox"' + (user.developer ? ' checked' : '') + ' onchange="toggleDeveloper(\'' + debugArg(username) + '\', this.checked)"> <span>Developer</span></label>') +
                 '</div>' +
                 '<div class="admin-powers">' + adminPowerCheckboxes(username, powers, enabled) + '</div>' +
             '</div>' +
@@ -4142,7 +4369,7 @@ async function signUp(){
                 alert(error.message);
                 return;
             } 
-            currentUser={type:'user',username: username, persistScores: true, isAdmin: false, adminPowers: [], avatar: ''}; 
+            currentUser={type:'user',username: username, persistScores: true, isAdmin: false, developer: false, adminPowers: [], avatar: ''}; 
             localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); 
             closeAuthModal(); 
             updateUserSection(); 
@@ -4169,7 +4396,7 @@ async function signIn(){
             const {data}=await supabaseClient.from('users').select('*').eq('username',username).eq('password',password).maybeSingle(); 
             if(!data){alert('Invalid username or password');return;} 
             if(data.banned){alert('This account has been banned.');return;}
-            currentUser={type:'user',username:data.username, persistScores: true, isAdmin: !!data.is_admin, adminPowers: parseAdminPowers(data.admin_powers), avatar: data.avatar || ''}; 
+            currentUser={type:'user',username:data.username, persistScores: true, isAdmin: !!data.is_admin, developer: !!data.developer, adminPowers: parseAdminPowers(data.admin_powers), avatar: data.avatar || ''}; 
             rememberAvatar(data.username, data.avatar);
             localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); 
             closeAuthModal(); 
@@ -5746,7 +5973,7 @@ function loadUser(){
 async function verifyAccountState() {
     if (!supabaseClient || !currentUser || currentUser.type !== 'user') return;
     try {
-        let res = await supabaseClient.from('users').select('banned, is_admin, admin_powers, avatar').eq('username', currentUser.username).maybeSingle();
+        let res = await supabaseClient.from('users').select('banned, is_admin, developer, admin_powers, avatar').eq('username', currentUser.username).maybeSingle();
         if (res.error) {
             res = await supabaseClient.from('users').select('banned').eq('username', currentUser.username).maybeSingle();
         }
@@ -5757,6 +5984,7 @@ async function verifyAccountState() {
                 return;
             }
             currentUser.isAdmin = !!res.data.is_admin;
+            currentUser.developer = !!res.data.developer;
             currentUser.adminPowers = parseAdminPowers(res.data.admin_powers);
             currentUser.avatar = res.data.avatar || '';
             rememberAvatar(currentUser.username, currentUser.avatar);
@@ -5777,6 +6005,7 @@ if(supabaseClient){
                 username: username,
                 persistScores: true,
                 isAdmin: false,
+                developer: false,
                 adminPowers: [],
                 avatar: ''
             }; 
@@ -5791,8 +6020,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.23.8";
-const UPDATE_NOTES = "Press X once to close Messages and again to close the game. Group messages are now end-to-end encrypted, voice chat is removed, and FSD has emergency braking plus visible turn signals for you and surrounding traffic";
+const APP_VERSION = "LessFun Developer Beta 1.23.9";
+const UPDATE_NOTES = "GTA-inspired lighting and real car shadows, a faster car with stronger speed camera effects, fast WASD in Star Dodger, chase-cam windows for small lobbies, a separate Close Messages button, and an owner-approved Developer Console for appointed developers";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');

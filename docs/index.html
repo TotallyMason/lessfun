@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261169">
+    <link rel="stylesheet" href="style.css?v=20261170">
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -83,6 +83,12 @@
                         <path d="M3 13c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                     </svg>
                     <span id="navProfileText">Sign In</span>
+                </button>
+                <button class="nav-btn nav-dev" onclick="openDevConsole()" id="nav-dev" style="display:none;" title="Developer Console">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;">
+                        <path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14"/>
+                    </svg>
+                    Dev
                 </button>
                 <button class="nav-btn" onclick="showView('settings')" id="nav-settings">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-right:6px;">
@@ -831,7 +837,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Developer Beta 1.23.8</p>
+                            <p>LessFun Developer Beta 1.23.9</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -870,6 +876,42 @@
                         <button id="nav-debug" class="settings-select" style="display:none;cursor:pointer;" onclick="openOwnerDebug()">Open</button>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Developer Console -->
+    <div id="devConsoleModal" class="modal dev-console-modal" style="display:none;">
+        <div class="modal-backdrop" onclick="closeDevConsole()"></div>
+        <div class="modal-content dev-console-content">
+            <div class="modal-header">
+                <h2>Developer Console</h2>
+                <button class="modal-close" onclick="closeDevConsole()" title="Close">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="dev-console-body">
+                <div class="dev-console-banner">
+                    <span class="dev-console-spark">◈</span>
+                    <div>
+                        <strong id="devConsoleTitle">Developer build channel</strong>
+                        <p id="devConsoleSubtitle">Send change requests to the owner/AI build queue. Nothing ships until TotallyMason approves it.</p>
+                    </div>
+                    <button type="button" class="debug-btn" onclick="loadDevRequests()">Refresh</button>
+                </div>
+                <div id="devOwnerQueue" class="dev-console-section"></div>
+                <div id="devComposer" class="dev-console-composer" style="display:none;">
+                    <label for="devRequestInput">Message the AI developer</label>
+                    <textarea id="devRequestInput" maxlength="1200" placeholder="Example: Make Star Dodger faster, add more neon asteroids, and boost the car exhaust sound."></textarea>
+                    <div class="dev-console-compose-row">
+                        <span class="dev-console-helper">Your message is visible to the owner and needs approval before it is queued.</span>
+                        <button type="button" class="game3d-mp-primary" onclick="submitDevRequest()">Send request</button>
+                    </div>
+                </div>
+                <div id="devOwnRequests" class="dev-console-section"></div>
+                <p id="devConsoleStatus" class="dev-console-status"></p>
             </div>
         </div>
     </div>
@@ -1053,7 +1095,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
-    <script src="games3d.js?v=20261169"></script>
-    <script src="app.js?v=20261169"></script>
+    <script src="games3d.js?v=20261170"></script>
+    <script src="app.js?v=20261170"></script>
 </body>
 </html>
