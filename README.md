@@ -172,7 +172,7 @@ handling real user data or payments.
 - Crash physics with directional crumple zones that absorb impact energy, plus a physically simulated driver ragdoll
 - Star Dodger power-ups: shields, laser weapons, score combos, enemy drones, nebula explosions, and fast WASD movement
 - Play Again restarts the scene without rebuilding the WebGL context for a much faster retry
-- Real-time car shadows, ACES filmic tone mapping, warmer sunset lighting, and a faster top speed with stronger speed-based camera FOV and shake
+- Real-time car shadows, ACES filmic tone mapping, warmer sunset lighting, and a faster top speed with stronger speed-based camera FOV and shake, plus an H-key horn that tells nearby traffic to move over
 - Star Dodger now responds to fast WASD movement as well as arrow keys and drag controls
 - Coin gifting from Friends or a profile, private-message user search, and 50% cosmetic resale
 - Teleport to any racer in a public lobby, and curving highway lane markings for a more dynamic road

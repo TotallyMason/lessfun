@@ -4,7 +4,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_Ev9umZevWcT-AwVHTPQLnw_DHdpDHWR";
 const supabaseClient = (typeof window !== 'undefined' && window.supabase) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 const games = [
-    { id: 1, name: "Beach Racer", description: "Outrun traffic on a six-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · ← → steer · drift is automatic · Shift / N nitrous · F FSD · Q/E gears · right lane exits" },
+    { id: 1, name: "Beach Racer", description: "Outrun traffic on a six-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · ← → steer · Shift / N nitrous · F FSD · H honk · Q/E gears · right lane exits" },
     { id: 2, name: "Tunnel Rush", description: "Thread the neon tunnel at warp speed", icon: "tunnel", controls: "Left / Right or drag to rotate" },
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
     { id: 5, name: "Star Dodger", description: "Weave through an asteroid storm", icon: "rocket", controls: "WASD / arrow keys to fly · drag to steer · Space / click fires when armed" }
@@ -6235,8 +6235,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.24.1";
-const UPDATE_NOTES = "Crash crumple zones and a driver ragdoll absorb impact energy, FSD now tops out at 300 km/h and auto-swerves when braking cannot stop in time, Star Dodger adds shields, lasers, combos and enemy drones, Play Again is much faster, and rendering stays capped at 100% with smoother rescaling";
+const APP_VERSION = "LessFun Developer Beta 1.24.2";
+const UPDATE_NOTES = "Crashes are smoother and now visibly crush the impact zone, H honks the horn and nearby traffic changes lanes to get out of the way, and FSD auto-swerves when emergency braking cannot stop in time";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');

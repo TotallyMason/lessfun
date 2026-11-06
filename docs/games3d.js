@@ -4,7 +4,7 @@
 
     var input = {
         left: false, right: false, up: false, down: false, brake: false,
-        pointerActive: false, pointerX: 0, pointerY: 0, tapQueued: false
+        pointerActive: false, pointerX: 0, pointerY: 0, tapQueued: false, honk: false
     };
 
     var renderer = null, scene = null, camera = null;
@@ -2047,6 +2047,7 @@
         var crashScore = 0;
         var crashVx = 0, crashSpinX = 0, crashSpinY = 0, crashSpinZ = 0;
         var warningT = 0;
+        var honkCooldown = 0;
         var crashCar = null, crashCarVx = 0, crashCarVz = 0, crashCarSpin = 0;
         var crashWheel = null, crashWheelVx = 0, crashWheelVy = 0, crashWheelVz = 0, crashWheelSpin = 0;
         var crashBoard = null, crashBoardVx = 0, crashBoardVy = 0, crashBoardVz = 0, crashBoardSpin = 0;
@@ -2165,31 +2166,48 @@
         function crumpleCarPart(group, zone, severity) {
             if (!group) return;
             var hitCount = 0;
-            group.children.forEach(function (child) {
+            group.traverse(function (child) {
                 if (!child || !child.isMesh) return;
                 if (child.userData && child.userData.fakeShadow) return;
                 if (child.material && child.material.transparent) return;
                 var p = child.position;
-                var hit = zone === 'front' ? p.z < 0.05 :
-                    zone === 'rear' ? p.z > -0.05 :
-                    zone === 'left' ? p.x < 0 : p.x > 0;
+                var hit = zone === 'front' ? p.z < 0.4 :
+                    zone === 'rear' ? p.z > -0.4 :
+                    zone === 'left' ? p.x < 0.2 : p.x > -0.2;
                 if (!hit) return;
                 hitCount++;
                 if (zone === 'front' || zone === 'rear') {
                     var zs = zone === 'front' ? -1 : 1;
-                    child.position.z += zs * severity * 0.3;
-                    child.scale.z *= Math.max(0.25, 1 - severity * 1.15);
-                    child.scale.y *= 1 + severity * 0.16;
-                    child.rotation.x += zs * severity * 0.38;
+                    child.position.z += zs * severity * 0.45;
+                    child.scale.z *= Math.max(0.18, 1 - severity * 1.5);
+                    child.scale.y *= 1 + severity * 0.28;
+                    child.rotation.x += zs * severity * 0.52;
                 } else {
                     var xs = zone === 'left' ? -1 : 1;
-                    child.position.x -= xs * severity * 0.22;
-                    child.scale.x *= Math.max(0.3, 1 - severity * 0.95);
-                    child.scale.y *= 1 + severity * 0.13;
-                    child.rotation.z += xs * severity * 0.42;
+                    child.position.x -= xs * severity * 0.35;
+                    child.scale.x *= Math.max(0.22, 1 - severity * 1.25);
+                    child.scale.y *= 1 + severity * 0.24;
+                    child.rotation.z += xs * severity * 0.55;
                 }
             });
-            if (hitCount) group.scale.y *= 1 - severity * 0.04;
+            // A visible shell crush so damage reads even at a glance.
+            if (zone === 'front') {
+                group.scale.z *= 1 - severity * 0.45;
+                group.scale.x *= 1 + severity * 0.15;
+                group.position.z -= severity * 0.28;
+            } else if (zone === 'rear') {
+                group.scale.z *= 1 - severity * 0.34;
+                group.scale.x *= 1 + severity * 0.12;
+                group.position.z += severity * 0.22;
+            } else if (zone === 'left') {
+                group.scale.x *= 1 - severity * 0.4;
+                group.scale.y *= 1 + severity * 0.12;
+                group.position.x -= severity * 0.24;
+            } else {
+                group.scale.x *= 1 - severity * 0.4;
+                group.scale.y *= 1 + severity * 0.12;
+                group.position.x += severity * 0.24;
+            }
         }
 
         function launchRagdoll(dir, impactSpeed, zone) {
@@ -2297,8 +2315,8 @@
             }
 
             spawnCrashDebris(car.position.x, car.position.z);
-            spawnSparks(car.position.x, 0.9, car.position.z, 110);
-            spawnCrashSmoke(car.position.x, car.position.z, 8);
+            spawnSparks(car.position.x, 0.9, car.position.z, 60);
+            spawnCrashSmoke(car.position.x, car.position.z, 5);
             crashSound();
             tone(70, 0.8, 'sawtooth', 0.12, 30);
             var flash = document.getElementById('g3dCrashFlash');
@@ -3188,6 +3206,38 @@
                 if (fsdSignalT <= 0) fsdSignalSide = 0;
                 fsdSwerveT = Math.max(0, fsdSwerveT - dt);
                 fsdSwerveCooldown = Math.max(0, fsdSwerveCooldown - dt);
+            }
+
+            honkCooldown = Math.max(0, honkCooldown - dt);
+            if (input.honk) {
+                input.honk = false;
+                if (honkCooldown <= 0 && engineOn && !crashActive) {
+                    honkCooldown = 0.6;
+                    tone(410, 0.2, 'square', 0.11, 520);
+                    tone(620, 0.2, 'square', 0.08, 700);
+                    var honkLane = laneIndexOf(player.position.x);
+                    for (var hi = 0; hi < traffic.length; hi++) {
+                        var hc = traffic[hi];
+                        if (!hc || !hc.userData || hc.userData.isRamp || hc.userData.mad) continue;
+                        var hgap = player.position.z - hc.position.z;
+                        if (hgap < 5 || hgap > 140) continue;
+                        var hLane = laneIndexOf(hc.userData.logicalX != null ? hc.userData.logicalX : hc.position.x);
+                        if (Math.abs(hLane - honkLane) > 1) continue;
+                        if (hc.userData.state === 'change' || hc.userData.state === 'merge') continue;
+                        var hTarget = -1;
+                        if (hLane > 0 && !laneBusy(hLane - 1, hc, hc.position.z, 12)) hTarget = hLane - 1;
+                        else if (hLane < LANES.length - 1 && !laneBusy(hLane + 1, hc, hc.position.z, 12)) hTarget = hLane + 1;
+                        if (hTarget >= 0) {
+                            hc.userData.signal = hTarget > hLane ? 1 : -1;
+                            hc.userData.signalT = 0.45;
+                            hc.userData.targetLane = hTarget;
+                            hc.userData.blinkT = 0;
+                            hc.userData.state = 'signal';
+                        } else {
+                            hc.userData.cruiseSpeed = Math.min(48, (hc.userData.cruiseSpeed || 0) + 8);
+                        }
+                    }
+                }
             }
 
             if (!engineOn) {
@@ -4261,6 +4311,7 @@
         var KEY_DRIFT = []; // Drifting is automatic; the mobile Drift button still forces it.
         var KEY_NITRO = ['n', 'N', 'Shift', 'ShiftLeft', 'ShiftRight'];
         var KEY_FSD = ['f', 'F'];
+        var KEY_HONK = ['h', 'H'];
 
         function down(e) {
             if (isTypingTarget(e)) return;
@@ -4276,6 +4327,7 @@
             if (KEY_DRIFT.indexOf(e.key) >= 0) input.drift = true;
             if (KEY_NITRO.indexOf(e.key) >= 0) input.nitro = true;
             if (KEY_FSD.indexOf(e.key) >= 0) { if (!e.repeat) input.fsdToggle = true; e.preventDefault(); }
+            if (KEY_HONK.indexOf(e.key) >= 0) { if (!e.repeat) input.honk = true; e.preventDefault(); }
             if (e.key === ' ' || e.key === 'Enter') { input.tapQueued = true; e.preventDefault(); }
             if (KEY_LEFT.indexOf(e.key) >= 0 || KEY_RIGHT.indexOf(e.key) >= 0 || KEY_UP.indexOf(e.key) >= 0 || KEY_DOWN.indexOf(e.key) >= 0 || KEY_GEAR_DOWN.indexOf(e.key) >= 0 || KEY_GEAR_UP.indexOf(e.key) >= 0) e.preventDefault();
         }
@@ -4305,7 +4357,7 @@
             input.drift = false;
             input.nitro = false;
             input.fsdToggle = false;
-            input.pointerActive = false; input.tapQueued = false;
+            input.pointerActive = false; input.tapQueued = false; input.honk = false;
         }
         listen(global, 'keydown', down);
         listen(global, 'keyup', up);
@@ -4412,6 +4464,7 @@
         input.left = false; input.right = false; input.up = false; input.down = false;
         input.brake = false;
         input.pointerActive = false; input.pointerX = 0; input.pointerY = 0; input.tapQueued = false;
+        input.honk = false;
         playedSeconds = 0;
 
         resetScene();
@@ -4466,6 +4519,7 @@
         input.brake = false; input.gearDown = false; input.gearUp = false;
         input.drift = false; input.nitro = false; input.fsdToggle = false;
         input.pointerActive = false; input.pointerX = 0; input.pointerY = 0; input.tapQueued = false;
+        input.honk = false;
         clock = new THREE.Clock();
         resize();
         var factory = factories[lastGameId];
