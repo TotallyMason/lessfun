@@ -181,6 +181,8 @@ handling real user data or payments.
 - Single liquid-glass HUD bar for speed/status, gear, checkpoints, and coins; score is shown only on game over
 - Expanded friend/profile stats: joined date, online/last seen, friend count, total runs, favorite game, Coins, lifetime earnings, streak, posts, replies, best runs, and admin status
 - Touch controls for NOS, drift, and gear shifts on phones and narrow screens
+- Mobile performance mode: lower pixel-ratio cap, shadows disabled, reduced traffic/zombie/building counts, cheaper particles, and motion blur off by default
+- Full touch controls for Dead Coast: movement stick, drag-to-look, fire, reload, jump, melee, use, and weapon swap
 - Beach Racer opens in a 3D garage orbit view with Play and Garage actions
 - In-game Garage shop for car parts, opened from the Beach Racer garage screen without leaving the game
 - Free downgrade parts for experimenting with slower builds

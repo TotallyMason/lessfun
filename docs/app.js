@@ -49,13 +49,15 @@ const ADMIN_POWER_DEFS = [
 ];
 let avatarCache = {};
 let renderScaleSetting = 0;
-let motionBlurSetting = true;
+const isMobileUI = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || window.innerWidth < 820;
+let motionBlurSetting = !isMobileUI;
 let showFpsSetting = true;
 try {
     const savedScale = parseFloat(localStorage.getItem('lessfun_render_scale') || '0');
     if (isFinite(savedScale) && savedScale >= 0 && savedScale <= 1) renderScaleSetting = savedScale;
     const savedBlur = localStorage.getItem('lessfun_motion_blur');
     if (savedBlur != null) motionBlurSetting = savedBlur !== '0';
+    else motionBlurSetting = !isMobileUI;
     const savedFps = localStorage.getItem('lessfun_show_fps');
     if (savedFps != null) showFpsSetting = savedFps !== '0';
 } catch (e) {}
@@ -546,6 +548,58 @@ function mobileHold(control, on) {
     if (control === 'drift' && window.Games3D.setDrift) window.Games3D.setDrift(!!on);
 }
 
+let fpsStickState = { id: null, el: null, cx: 0, cy: 0 };
+
+function mobileFpsMove(x, y) {
+    if (window.Games3D && window.Games3D.setMobileMove) window.Games3D.setMobileMove(x, y);
+}
+
+function mobileFpsFire(on) {
+    if (window.Games3D && window.Games3D.setMobileFiring) window.Games3D.setMobileFiring(!!on);
+}
+
+function mobileFpsAction(name) {
+    if (window.Games3D && window.Games3D.mobileFpsAction) window.Games3D.mobileFpsAction(name);
+}
+
+function fpsStickStart(event) {
+    event.preventDefault();
+    const el = document.getElementById('g3dFpsStick');
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    fpsStickState.id = event.pointerId;
+    fpsStickState.el = el;
+    fpsStickState.cx = r.left + r.width / 2;
+    fpsStickState.cy = r.top + r.height / 2;
+    try { el.setPointerCapture(event.pointerId); } catch (e) {}
+    fpsStickMove(event);
+}
+
+function fpsStickMove(event) {
+    if (fpsStickState.id === null || event.pointerId !== fpsStickState.id) return;
+    event.preventDefault();
+    let dx = (event.clientX - fpsStickState.cx) / 46;
+    let dy = (fpsStickState.cy - event.clientY) / 46;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len > 1) { dx /= len; dy /= len; }
+    const knob = document.getElementById('g3dFpsKnob');
+    if (knob) { knob.style.transform = 'translate(' + (dx * 28) + 'px,' + (-dy * 28) + 'px)'; }
+    mobileFpsMove(dx, dy);
+}
+
+function fpsStickEnd(event) {
+    if (fpsStickState.id !== null && event.pointerId !== fpsStickState.id) return;
+    fpsStickState.id = null;
+    fpsStickState.el = null;
+    const knob = document.getElementById('g3dFpsKnob');
+    if (knob) knob.style.transform = '';
+    mobileFpsMove(0, 0);
+}
+
+document.addEventListener('pointermove', fpsStickMove, { passive: false });
+document.addEventListener('pointerup', fpsStickEnd);
+document.addEventListener('pointercancel', fpsStickEnd);
+
 function mobileShift(direction) {
     if (window.Games3D && window.Games3D.shiftGear) window.Games3D.shiftGear(direction > 0 ? 1 : -1);
 }
@@ -602,6 +656,15 @@ function openGame(id) {
                     '<div class="fps-need"><span id="g3dFpsBandageLabel">Bandage</span><div class="fps-need-track"><i id="g3dFpsBandage"></i></div></div>' +
                 '</div>' +
                 '<div class="fps-interact" id="g3dFpsInteract"></div>' +
+                '<div class="fps-touch" id="g3dFpsTouch">' +
+                    '<div class="fps-stick" id="g3dFpsStick" onpointerdown="fpsStickStart(event)"><span id="g3dFpsKnob"></span></div>' +
+                    '<button type="button" class="fps-touch-btn is-fire" onpointerdown="event.preventDefault();mobileFpsFire(true)" onpointerup="mobileFpsFire(false)" onpointercancel="mobileFpsFire(false)" onpointerleave="mobileFpsFire(false)">Fire</button>' +
+                    '<button type="button" class="fps-touch-btn is-reload" onpointerdown="event.preventDefault();mobileFpsAction(&quot;reload&quot;)">Reload</button>' +
+                    '<button type="button" class="fps-touch-btn is-jump" onpointerdown="event.preventDefault();mobileFpsAction(&quot;jump&quot;)">Jump</button>' +
+                    '<button type="button" class="fps-touch-btn is-melee" onpointerdown="event.preventDefault();mobileFpsAction(&quot;melee&quot;)">Melee</button>' +
+                    '<button type="button" class="fps-touch-btn is-use" onpointerdown="event.preventDefault();mobileFpsAction(&quot;interact&quot;)">Use</button>' +
+                    '<button type="button" class="fps-touch-btn is-swap" onpointerdown="event.preventDefault();mobileFpsAction(&quot;swap&quot;)">Swap</button>' +
+                '</div>' +
                 '<div class="fps-wave-banner" id="g3dFpsWaveBanner"></div>' +
                 '<div class="fps-damage" id="g3dFpsDamage"></div>' +
                 '<div class="fps-prompt" id="g3dFpsPrompt">Click to aim · WASD · 1/2/3 weapons · V melee · B bandage · E loot · F light</div>' : '') +
@@ -6312,8 +6375,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.30.0";
-const UPDATE_NOTES = "Beach Racer now has a real city district with storefronts, cross streets, overpasses, city lighting, semi-trucks and long buses. The fake route map is gone, rendering uses native Retina resolution again, and motion blur/FPS toggles remain in settings";
+const APP_VERSION = "LessFun Developer Beta 1.31.0";
+const UPDATE_NOTES = "All games now have mobile performance tuning and touch support. Dead Coast adds a movement stick, drag-to-look, fire/reload/jump/melee/use/swap buttons, while every game runs lighter on phones with reduced detail, no shadows, and motion blur off by default";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');

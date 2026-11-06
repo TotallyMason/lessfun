@@ -2,10 +2,12 @@
 (function (global) {
     'use strict';
 
+    var isMobileDevice = (typeof global.matchMedia === 'function' && global.matchMedia('(pointer: coarse)').matches) || (global.innerWidth || 1000) < 820;
     var input = {
         left: false, right: false, up: false, down: false, brake: false,
         pointerActive: false, pointerX: 0, pointerY: 0, tapQueued: false, honk: false,
-        jump: false, reload: false, melee: false, interact: false, weapon: 0, bandage: false
+        jump: false, reload: false, melee: false, interact: false, weapon: 0, bandage: false,
+        mobileX: 0, mobileY: 0
     };
 
     var renderer = null, scene = null, camera = null;
@@ -734,7 +736,7 @@
             return g;
         }
 
-        for (var pa = 0; pa < 14; pa++) {
+        for (var pa = 0; pa < (isMobileDevice ? 10 : 14); pa++) {
             var palm = makePalm();
             palm.position.set(8.5 + Math.random() * 4.8, 0, 12 - pa * 18);
             palm.rotation.y = Math.random() * Math.PI * 2;
@@ -768,7 +770,7 @@
             return g;
         }
 
-        for (var bi = 0; bi < 18; bi++) {
+        for (var bi = 0; bi < (isMobileDevice ? 12 : 18); bi++) {
             var bldg = makeSkylineBuilding(bi);
             bldg.position.set(34 + (bi % 4) * 7.5, 0, 20 - bi * 31);
             bldg.rotation.y = (bi % 2 ? -1 : 1) * 0.08;
@@ -812,7 +814,7 @@
             return g;
         }
 
-        for (var sh = 0; sh < 16; sh++) {
+        for (var sh = 0; sh < (isMobileDevice ? 10 : 16); sh++) {
             var shop = makeShop(sh);
             shop.position.set(22 + (sh % 3) * 5.5, 0, 8 - sh * 36);
             shop.rotation.y = 0;
@@ -831,7 +833,7 @@
             }
             return g;
         }
-        for (var cs = 0; cs < 4; cs++) {
+        for (var cs = 0; cs < (isMobileDevice ? 3 : 4); cs++) {
             var street = makeCrossStreet(cs);
             street.position.set(0, 0, -20 - cs * 168);
             addScroller(street, 672);
@@ -853,13 +855,13 @@
             sign.position.set(0, 7.9, 2.2); g.add(sign);
             return g;
         }
-        for (var ov = 0; ov < 3; ov++) {
+        for (var ov = 0; ov < (isMobileDevice ? 2 : 3); ov++) {
             var bridge = makeOverpass(ov);
             bridge.position.set(0, 0, -90 - ov * 240);
             addScroller(bridge, 720);
         }
 
-        for (var sl = 0; sl < 12; sl++) {
+        for (var sl = 0; sl < (isMobileDevice ? 8 : 12); sl++) {
             var cityLamp = new THREE.Group();
             var pole = cylinderMesh(0.07, 0.1, 6.2, 8, standard(0x2e353c, { metalness: 0.6, roughness: 0.4 }));
             pole.position.y = 3.1; cityLamp.add(pole);
@@ -871,7 +873,7 @@
             addScroller(cityLamp, 528);
         }
 
-        for (var ui = 0; ui < 8; ui++) {
+        for (var ui = 0; ui < (isMobileDevice ? 6 : 8); ui++) {
             var umb = makeUmbrellaCluster(ui);
             umb.position.set(10.8 + (ui % 2) * 1.5 + Math.random() * 0.8, 0, -6 - ui * 58);
             umb.rotation.y = Math.random() * Math.PI * 2;
@@ -2199,7 +2201,7 @@
         var crashWheel = null, crashWheelVx = 0, crashWheelVy = 0, crashWheelVz = 0, crashWheelSpin = 0;
         var crashBoard = null, crashBoardVx = 0, crashBoardVy = 0, crashBoardVz = 0, crashBoardSpin = 0;
         var crashDebris = [];
-        var debrisColors = [0xd9e2ec, 0xff4d5e, 0x2b2b2b, 0xffd166, 0x4cc9f0];        for (var cdi = 0; cdi < 26; cdi++) {
+        var debrisColors = [0xd9e2ec, 0xff4d5e, 0x2b2b2b, 0xffd166, 0x4cc9f0];        for (var cdi = 0; cdi < (isMobileDevice ? 18 : 26); cdi++) {
             var debrisMat = new THREE.MeshBasicMaterial({ color: debrisColors[cdi % debrisColors.length] });
             var debrisMesh = new THREE.Mesh(new THREE.BoxGeometry(0.09 + Math.random() * 0.12, 0.06 + Math.random() * 0.1, 0.05 + Math.random() * 0.1), debrisMat);
             debrisMesh.visible = false;
@@ -2211,7 +2213,7 @@
         }
 
         /* Sparks: cheap additive points that burst on impact and bounces. */
-        var SPARK_COUNT = 160;
+        var SPARK_COUNT = isMobileDevice ? 100 : 160;
         var sparkGeometry = new THREE.BufferGeometry();
         var sparkPositions = new Float32Array(SPARK_COUNT * 3);
         var sparkVelocities = new Float32Array(SPARK_COUNT * 3);
@@ -2599,7 +2601,7 @@
             g.fillRect(0, 0, w, h);
         });
         var driftPuffs = [];
-        for (var dpi = 0; dpi < 20; dpi++) {
+        for (var dpi = 0; dpi < (isMobileDevice ? 12 : 20); dpi++) {
             var puffMat = new THREE.SpriteMaterial({
                 map: driftPuffTex, transparent: true, opacity: 0,
                 depthWrite: false, color: 0xdfe6ee
@@ -2877,7 +2879,7 @@
             traffic.push(car);
         }
 
-        for (var t = 0; t < 8; t++) spawnTraffic(-100 - t * 46);
+        for (var t = 0; t < (isMobileDevice ? 5 : 8); t++) spawnTraffic(-100 - t * 46);
         spawnTraffic(-150, true);
 
         function blink(car, side) {
@@ -2927,7 +2929,7 @@
 
         function applyCarLod(car, distanceToCamera) {
             var details = car.userData.lodDetails || [];
-            var show = distanceToCamera < 65;
+            var show = distanceToCamera < (isMobileDevice ? 42 : 65);
             if (car.userData.lodVisible === show) return;
             car.userData.lodVisible = show;
             for (var i = 0; i < details.length; i++) details[i].visible = show;
@@ -3700,7 +3702,7 @@
             }
 
             spawnT += dt;
-            if (spawnT > Math.max(0.75, 1.5 - elapsed * 0.012)) { spawnT = 0; spawnTraffic(); }
+            if (spawnT > Math.max(isMobileDevice ? 1.0 : 0.75, (isMobileDevice ? 1.9 : 1.5) - elapsed * 0.012)) { spawnT = 0; spawnTraffic(); }
 
             for (var k = traffic.length - 1; k >= 0; k--) {
                 var c = traffic[k];
@@ -4091,7 +4093,7 @@
         var R = 3.0, orbitR = 1.9;
         var ringMat = neon(0x2ff6ff, 1.5);
         var rings = [];
-        var RING_COUNT = 32, RING_SPACING = 5;
+        var RING_COUNT = isMobileDevice ? 24 : 32, RING_SPACING = 5;
         for (var i = 0; i < RING_COUNT; i++) {
             var ring = new THREE.Mesh(new THREE.TorusGeometry(R, 0.06, 6, 48), ringMat);
             ring.position.z = -(i + 1) * RING_SPACING;
@@ -4267,7 +4269,7 @@
 
         var starGeo = new THREE.BufferGeometry();
         var sp = [];
-        for (var i = 0; i < 800; i++) sp.push((Math.random() - 0.5) * 200, (Math.random() - 0.5) * 120, -Math.random() * 300 - 10);
+        for (var i = 0; i < (isMobileDevice ? 420 : 800); i++) sp.push((Math.random() - 0.5) * 200, (Math.random() - 0.5) * 120, -Math.random() * 300 - 10);
         starGeo.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3));
         scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0x9fb8ff, size: 0.45, transparent: true, opacity: 0.9 })));
 
@@ -4360,8 +4362,8 @@
             comboT = 3.6;
         }
 
-        for (var a = 0; a < 5; a++) spawnRock();
-        for (var b = 0; b < 3; b++) spawnOrb();
+        for (var a = 0; a < (isMobileDevice ? 4 : 5); a++) spawnRock();
+        for (var b = 0; b < (isMobileDevice ? 2 : 3); b++) spawnOrb();
 
         var elapsed = 0, speed = 26, spawnT = 0, orbT = 0, pickupT = 7, enemyT = 12;
         var score = 0, weaponT = 0, shieldHits = 0, invulnT = 0, comboT = 0, combo = 1, laserCd = 0;
@@ -4617,7 +4619,7 @@
             [16, -50, 18, 16, 28, 0x2d2a33],
             [-26, 47, 22, 15, 20, 0x2b3037],
             [24, 48, 18, 16, 24, 0x302d34]
-        ].forEach(function (b, index) {
+        ].slice(0, isMobileDevice ? 6 : 10).forEach(function (b, index) {
             var bx = b[0], bz = b[1], bw = b[2], bd = b[3], bh = b[4];
             var bldg = box(bw, bh, bd, std(b[5], { roughness: 0.9, metalness: 0.05, emissive: b[5], emissiveIntensity: 0.16 }));
             bldg.position.set(bx, bh / 2, bz); scene.add(bldg);
@@ -4632,7 +4634,7 @@
             sign.position.set(bx, bh - 2.2, bz + bd / 2 + 0.06); scene.add(sign);
         });
 
-        for (var bi = 0; bi < 12; bi++) {
+        for (var bi = 0; bi < (isMobileDevice ? 8 : 12); bi++) {
             var barrel = cyl(0.38, 0.38, 1.05, 12, std(bi % 3 === 0 ? 0x7a2c1e : 0x2f4a5a, { metalness: 0.45, roughness: 0.55 }));
             var bx = (Math.random() - 0.5) * 54, bz = (Math.random() - 0.5) * 54;
             if (Math.abs(bx) < 8 && Math.abs(bz) < 8) { bx += 12; bz += 12; }
@@ -4883,12 +4885,12 @@
 
         function startWave(n) {
             wave = n;
-            var count = 4 + n * 2;
+            var count = (isMobileDevice ? 3 + n * 1.4 : 4 + n * 2);
             // Director-style mercy/pressure: ease off when the survivor is
             // nearly dead or out of supplies, add pressure when comfortable.
             if (health < 40 || reserve < 20) count = Math.max(3, Math.floor(count * 0.7));
             else if (health > 70 && reserve > 50) count += 2;
-            spawnQueue = Math.min(26, count);
+            spawnQueue = Math.min(isMobileDevice ? 18 : 26, count);
             bossPending = (n % 5 === 0);
             if (bossPending) showBanner('BOSS WAVE ' + n);
             else showBanner('WAVE ' + n);
@@ -4941,6 +4943,30 @@
             g.userData = { id: id, targetX: Number(player.x) || 0, targetZ: Number(player.z) || 0, targetYaw: Number(player.yaw) || 0 };
             scene.add(g);
             remotePlayers[id] = g;
+        }
+
+        function setMobileMove(x, y) {
+            input.mobileX = Math.max(-1, Math.min(1, Number(x) || 0));
+            input.mobileY = Math.max(-1, Math.min(1, Number(y) || 0));
+        }
+
+        function setMobileFiring(on) {
+            firing = !!on;
+        }
+
+        function mobileFpsAction(name) {
+            if (name === 'reload') input.reload = true;
+            else if (name === 'jump') input.jump = true;
+            else if (name === 'melee') input.melee = true;
+            else if (name === 'interact') input.interact = true;
+            else if (name === 'swap') {
+                var order = ['pistol', 'rifle', 'shotgun'];
+                var start = order.indexOf(currentWeapon);
+                for (var i = 1; i <= order.length; i++) {
+                    var key = order[(start + i) % order.length];
+                    if (weaponState[key] && weaponState[key].owned) { switchWeapon(key); break; }
+                }
+            }
         }
 
         function setRemotes(list) {
@@ -5373,6 +5399,10 @@
             if (!downed && input.down) { mx -= fx; mz -= fz; }
             if (!downed && input.left) { mx -= rx; mz -= rz; }
             if (!downed && input.right) { mx += rx; mz += rz; }
+            if (!downed && (input.mobileX || input.mobileY)) {
+                mx += rx * input.mobileX + fx * input.mobileY;
+                mz += rz * input.mobileX + fz * input.mobileY;
+            }
             var moving = !downed && (mx !== 0 || mz !== 0);
             sprinting = !!(input.nitro && moving && stamina > 1);
             if (sprinting) stamina = Math.max(0, stamina - 27 * dt);
@@ -5552,7 +5582,7 @@
             for (var lz = 0; lz < zombies.length; lz++) {
                 var lodZ = zombies[lz];
                 var lodDist = Math.abs(lodZ.position.z - pz);
-                var lodShow = lodDist < 26;
+                var lodShow = lodDist < (isMobileDevice ? 16 : 26);
                 if (lodZ.userData.lodVisible === lodShow) continue;
                 lodZ.userData.lodVisible = lodShow;
                 var zdList = lodZ.userData.lodDetails || [];
@@ -5713,6 +5743,7 @@
             }
         }
         function onMouseDown(e) {
+            if (isMobileDevice) return;
             if (e.button !== 0) return;
             if (document.pointerLockElement === canvas) firing = true;
             else { dragging = true; requestAim(); }
@@ -5730,6 +5761,30 @@
             if (prompt) prompt.style.display = document.pointerLockElement === canvas ? 'none' : 'flex';
         });
 
+        var touchLookId = null, touchLookX = 0, touchLookY = 0;
+        if (canvas) {
+            listen(canvas, 'pointerdown', function (e) {
+                if (e.pointerType !== 'touch') return;
+                touchLookId = e.pointerId;
+                touchLookX = e.clientX;
+                touchLookY = e.clientY;
+            });
+            listen(canvas, 'pointermove', function (e) {
+                if (e.pointerId !== touchLookId) return;
+                yaw -= (e.clientX - touchLookX) * 0.0048;
+                pitch = Math.max(-1.35, Math.min(1.35, pitch - (e.clientY - touchLookY) * 0.0048));
+                touchLookX = e.clientX;
+                touchLookY = e.clientY;
+                if (e.cancelable) e.preventDefault();
+            }, { passive: false });
+            listen(document, 'pointerup', function (e) {
+                if (e.pointerId === touchLookId) touchLookId = null;
+            });
+            listen(document, 'pointercancel', function (e) {
+                if (e.pointerId === touchLookId) touchLookId = null;
+            });
+        }
+
         applyWeaponVisual();
         startWave(1);
         makePickup('ammo');
@@ -5740,6 +5795,9 @@
             update: update,
             setRemotes: setRemotes,
             setZombieNet: setZombieNet,
+            setMobileMove: setMobileMove,
+            setMobileFiring: setMobileFiring,
+            mobileFpsAction: mobileFpsAction,
             getZombieWorld: getZombieWorld,
             applyZombieWorld: applyZombieWorld,
             applyZombieHit: applyZombieHit,
@@ -5957,7 +6015,7 @@
 
         resetScene();
         renderer = new THREE.WebGLRenderer({ antialias: (global.devicePixelRatio || 1) <= 1, powerPreference: 'high-performance' });
-        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.enabled = !isMobileDevice;
         renderer.shadowMap.type = THREE.PCFShadowMap;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.08;
@@ -6065,7 +6123,7 @@
     function effectivePixelRatio() {
         // Cap at the display's native resolution, which on Retina means 2x
         // CSS pixels instead of the blurry 1x buffer.
-        var base = Math.min(global.devicePixelRatio || 1, 2);
+        var base = Math.min(global.devicePixelRatio || 1, isMobileDevice ? 1.5 : 2);
         var requested = renderScale > 0 ? renderScale : 1;
         var ratio = base * requested * adaptiveScale;
         return Math.max(base * 0.2, Math.min(base, ratio));
@@ -6205,6 +6263,15 @@
     function getZombieState() {
         return active && active.getState ? active.getState() : null;
     }
+    function setMobileMove(x, y) {
+        if (active && active.setMobileMove) active.setMobileMove(x, y);
+    }
+    function setMobileFiring(on) {
+        if (active && active.setMobileFiring) active.setMobileFiring(on);
+    }
+    function mobileFpsAction(name) {
+        if (active && active.mobileFpsAction) active.mobileFpsAction(name);
+    }
     function setZombieNet(host, send, enabled) {
         if (active && active.setZombieNet) active.setZombieNet(host, send, enabled);
     }
@@ -6265,6 +6332,9 @@
         setZombieRemotes: setZombieRemotes,
         getZombieState: getZombieState,
         setZombieNet: setZombieNet,
+        setMobileMove: setMobileMove,
+        setMobileFiring: setMobileFiring,
+        mobileFpsAction: mobileFpsAction,
         getZombieWorld: getZombieWorld,
         applyZombieWorld: applyZombieWorld,
         applyZombieHit: applyZombieHit,
