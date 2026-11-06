@@ -98,8 +98,6 @@ full file:
   settings.
 - [`supabase/community.sql`](supabase/community.sql) — post attachments, replies,
   post reactions, reply reactions, and the newer owner toggles.
-- [`supabase/dev_console.sql`](supabase/dev_console.sql) — appointed developer
-  accounts and the owner-approved developer request queue.
 - [`supabase/owner_debug.sql`](supabase/owner_debug.sql) — owner delete/update
   permissions.
 
@@ -168,11 +166,12 @@ handling real user data or payments.
 - Gold track coins that are collected during a run and paid into the Coins wallet at game over
 - Private messages and group messages with ECDH P-256 + AES-GCM end-to-end encryption, started by searching for a person in the in-game sidebar or creating a group
 - Press **X** once to close the Messages sidebar, and press **X** again to close the game. A separate **Close Messages** button is also available in-game. Voice chat has been removed
-- Developer Console for owner-appointed developers, now inside Settings → Developer for developers only: real OpenCode AI replies and thinking traces, owner approval, and a full audit log
-- OpenCode AI bridge with a free default endpoint, owner-configurable endpoint/model/key, and AI plans attached to every developer request
 - Adaptive resolution never supersamples above the device's native resolution, can drop to 20%, and uses a 1-second hold/blend when changing scale to reduce stutter
 - Chase-cam windows for remote racers in lobbies with fewer than six people
-- FSD looks ahead across all six lanes, reads front/rear gaps, tween-animates lane changes, treats ramps as gold jump targets instead of traffic, and can reach 1,800 km/h on a clear lane
+- FSD looks ahead across all six lanes, reads front/rear gaps, tween-animates lane changes, treats ramps as gold jump targets instead of traffic, tops out at 300 km/h, and auto-swerves into a safe adjacent lane when emergency braking cannot stop in time
+- Crash physics with directional crumple zones that absorb impact energy, plus a physically simulated driver ragdoll
+- Star Dodger power-ups: shields, laser weapons, score combos, enemy drones, nebula explosions, and fast WASD movement
+- Play Again restarts the scene without rebuilding the WebGL context for a much faster retry
 - Real-time car shadows, ACES filmic tone mapping, warmer sunset lighting, and a faster top speed with stronger speed-based camera FOV and shake
 - Star Dodger now responds to fast WASD movement as well as arrow keys and drag controls
 - Coin gifting from Friends or a profile, private-message user search, and 50% cosmetic resale

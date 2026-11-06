@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261171">
+    <link rel="stylesheet" href="style.css?v=20261172">
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -83,12 +83,6 @@
                         <path d="M3 13c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                     </svg>
                     <span id="navProfileText">Sign In</span>
-                </button>
-                <button class="nav-btn nav-dev" onclick="openDevConsole()" id="nav-dev" style="display:none;" title="Developer Console">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;">
-                        <path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14"/>
-                    </svg>
-                    Dev
                 </button>
                 <button class="nav-btn" onclick="showView('settings')" id="nav-settings">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-right:6px;">
@@ -837,7 +831,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Developer Beta 1.24.0</p>
+                            <p>LessFun Developer Beta 1.24.1</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -866,105 +860,16 @@
                         <p style="margin-top:8px; color:rgba(255,255,255,0.6); font-size:13px;">Powered by pure web technologies</p>
                     </div>
                 </div>
-                <div class="settings-group" id="developerSettingsGroup" style="display:none;">
+                <div class="settings-group" id="debugSettingsGroup" style="display:none;">
                     <h2>Developer</h2>
-                    <div class="settings-item" id="ownerConsoleSettingsItem" style="display:none;">
+                    <div class="settings-item">
                         <div>
                             <h3>Owner Console</h3>
                             <p>Full-site controls for TotallyMason only.</p>
                         </div>
                         <button id="nav-debug" class="settings-select" style="display:none;cursor:pointer;" onclick="openOwnerDebug()">Open</button>
                     </div>
-                    <div class="settings-item">
-                        <div>
-                            <h3>Developer Console</h3>
-                            <p>Send supervised changes to OpenCode AI and track owner approvals.</p>
-                        </div>
-                        <button class="settings-select" style="cursor:pointer;" onclick="openDevConsole()">Open</button>
-                    </div>
-                    <div class="settings-item">
-                        <div>
-                            <h3>Developer Log</h3>
-                            <p>Every request, AI call, and approval is recorded.</p>
-                        </div>
-                        <button class="settings-select" style="cursor:pointer;" onclick="openDeveloperLog()">View log</button>
-                    </div>
-                    <div class="settings-item">
-                        <div>
-                            <h3>OpenCode AI</h3>
-                            <p>Connect the developer console to the live AI build assistant.</p>
-                        </div>
-                        <button class="settings-select" style="cursor:pointer;" onclick="openDevAISettings()">Configure</button>
-                    </div>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Developer Console -->
-    <div id="devConsoleModal" class="modal dev-console-modal" style="display:none;">
-        <div class="modal-backdrop" onclick="closeDevConsole()"></div>
-        <div class="modal-content dev-console-content">
-            <div class="modal-header">
-                <h2>Developer Console</h2>
-                <button class="modal-close" onclick="closeDevConsole()" title="Close">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
-                </button>
-            </div>
-            <div class="dev-console-body">
-                <div class="dev-console-banner">
-                    <span class="dev-console-spark">◈</span>
-                    <div>
-                        <strong id="devConsoleTitle">Developer build channel</strong>
-                        <p id="devConsoleSubtitle">Send change requests to the owner/AI build queue. Nothing ships until TotallyMason approves it.</p>
-                    </div>
-                    <button type="button" class="debug-btn" onclick="loadDevRequests()">Refresh</button>
-                </div>
-                <div id="devOwnerQueue" class="dev-console-section"></div>
-                <div id="devComposer" class="dev-console-composer" style="display:none;">
-                    <label for="devRequestInput">Message the AI developer</label>
-                    <textarea id="devRequestInput" maxlength="1200" placeholder="Example: Make Star Dodger faster, add more neon asteroids, and boost the car exhaust sound."></textarea>
-                    <div class="dev-console-compose-row">
-                        <span class="dev-console-helper">Your message is visible to the owner and needs approval before it is queued.</span>
-                        <button type="button" class="game3d-mp-primary" onclick="submitDevRequest()">Send request</button>
-                    </div>
-                </div>
-                <div id="devOwnRequests" class="dev-console-section"></div>
-                <div id="devLogList" class="dev-console-section"></div>
-                <p id="devConsoleStatus" class="dev-console-status"></p>
-            </div>
-        </div>
-    </div>
-
-    <!-- OpenCode AI settings -->
-    <div id="devAiSettingsModal" class="modal" style="display:none;">
-        <div class="modal-backdrop" onclick="closeDevAISettings()"></div>
-        <div class="modal-content dev-ai-settings-content">
-            <div class="modal-header">
-                <h2>OpenCode AI Bridge</h2>
-                <button class="modal-close" onclick="closeDevAISettings()">×</button>
-            </div>
-            <div class="dev-ai-settings-body">
-                <p class="dev-ai-help">The Developer Console sends requests to this OpenAI-compatible endpoint. The default free bridge works without a key. Owner-only fields are stored on this device.</p>
-                <label>Endpoint URL
-                    <input id="devAiEndpoint" type="url" placeholder="https://text.pollinations.ai/openai">
-                </label>
-                <label>Model
-                    <input id="devAiModel" type="text" placeholder="openai">
-                </label>
-                <label>API key <span>(optional, owner-only)</span>
-                    <input id="devAiKey" type="password" autocomplete="off" placeholder="Leave blank for the free bridge">
-                </label>
-                <label>System prompt
-                    <textarea id="devAiSystem" rows="4" maxlength="3000"></textarea>
-                </label>
-                <div class="dev-ai-actions">
-                    <button type="button" class="debug-btn" onclick="resetDevAISettings()">Reset defaults</button>
-                    <button type="button" class="game3d-mp-primary" onclick="saveDevAISettings()">Save</button>
-                </div>
-                <p id="devAiSettingsStatus" class="dev-console-status"></p>
             </div>
         </div>
     </div>
@@ -1148,7 +1053,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
-    <script src="games3d.js?v=20261171"></script>
-    <script src="app.js?v=20261171"></script>
+    <script src="games3d.js?v=20261172"></script>
+    <script src="app.js?v=20261172"></script>
 </body>
 </html>

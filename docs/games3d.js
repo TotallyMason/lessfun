@@ -27,6 +27,8 @@
     var running = false;
     var playedSeconds = 0;
     var paused = false;
+    var lastGameId = 0;
+    var lastStartOpts = null;
 
     function addCleanup(fn) { cleanupFns.push(fn); }
 
@@ -1456,9 +1458,58 @@
             return g;
         }
 
+        function makeDriverRagdoll() {
+            var g = new THREE.Group();
+            var skin = standard(0xd9a066, { roughness: 0.78, metalness: 0.02 });
+            var shirt = standard(0x2478d4, { roughness: 0.82, metalness: 0.03 });
+            var pants = standard(0x242a33, { roughness: 0.9, metalness: 0.02 });
+            var shoe = standard(0x111318, { roughness: 0.8 });
+            var torso = boxMesh(0.34, 0.44, 0.21, shirt);
+            torso.position.y = 0.62; g.add(torso);
+            var hips = boxMesh(0.28, 0.18, 0.2, pants);
+            hips.position.y = 0.36; g.add(hips);
+            var head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 14, 12), skin);
+            head.position.y = 0.98; g.add(head);
+            var armL = new THREE.Group();
+            var armLMesh = cylinderMesh(0.055, 0.065, 0.42, 8, shirt);
+            armLMesh.position.y = -0.21; armL.add(armLMesh);
+            armL.position.set(-0.23, 0.8, 0); armL.rotation.z = 0.18; g.add(armL);
+            var armR = new THREE.Group();
+            var armRMesh = cylinderMesh(0.055, 0.065, 0.42, 8, shirt);
+            armRMesh.position.y = -0.21; armR.add(armRMesh);
+            armR.position.set(0.23, 0.8, 0); armR.rotation.z = -0.18; g.add(armR);
+            var legL = new THREE.Group();
+            var legLMesh = cylinderMesh(0.07, 0.08, 0.48, 8, pants);
+            legLMesh.position.y = -0.24; legL.add(legLMesh);
+            var shoeL = boxMesh(0.14, 0.09, 0.24, shoe);
+            shoeL.position.set(0, -0.5, -0.05); legL.add(shoeL);
+            legL.position.set(-0.1, 0.3, 0); g.add(legL);
+            var legR = new THREE.Group();
+            var legRMesh = cylinderMesh(0.07, 0.08, 0.48, 8, pants);
+            legRMesh.position.y = -0.24; legR.add(legRMesh);
+            var shoeR = boxMesh(0.14, 0.09, 0.24, shoe);
+            shoeR.position.set(0, -0.5, -0.05); legR.add(shoeR);
+            legR.position.set(0.1, 0.3, 0); g.add(legR);
+            g.userData.limbs = [
+                { mesh: armL, spin: 0 }, { mesh: armR, spin: 0 },
+                { mesh: legL, spin: 0 }, { mesh: legR, spin: 0 }
+            ];
+            g.userData.head = head;
+            return g;
+        }
+
         var player = buildCar(paintColor, wheelColor, bodyStyle, engineStyle, engineColor, true);
         player.position.set(LANES[2], 0, 5);
         scene.add(player);
+
+        // A visible driver that becomes a physically simulated ragdoll on impact.
+        var driverRagdoll = makeDriverRagdoll();
+        driverRagdoll.position.set(0.32, 0.78, 0.08);
+        driverRagdoll.scale.setScalar(0.9);
+        player.add(driverRagdoll);
+        var ragdollActive = false;
+        var ragdollVx = 0, ragdollVy = 0, ragdollVz = 0;
+        var ragdollSpinX = 0, ragdollSpinY = 0, ragdollSpinZ = 0;
 
         // FSD lane visualization.
         var fsdLinesMat = new THREE.MeshBasicMaterial({
@@ -2111,6 +2162,81 @@
             }
         }
 
+        function crumpleCarPart(group, zone, severity) {
+            if (!group) return;
+            var hitCount = 0;
+            group.children.forEach(function (child) {
+                if (!child || !child.isMesh) return;
+                if (child.userData && child.userData.fakeShadow) return;
+                if (child.material && child.material.transparent) return;
+                var p = child.position;
+                var hit = zone === 'front' ? p.z < 0.05 :
+                    zone === 'rear' ? p.z > -0.05 :
+                    zone === 'left' ? p.x < 0 : p.x > 0;
+                if (!hit) return;
+                hitCount++;
+                if (zone === 'front' || zone === 'rear') {
+                    var zs = zone === 'front' ? -1 : 1;
+                    child.position.z += zs * severity * 0.3;
+                    child.scale.z *= Math.max(0.25, 1 - severity * 1.15);
+                    child.scale.y *= 1 + severity * 0.16;
+                    child.rotation.x += zs * severity * 0.38;
+                } else {
+                    var xs = zone === 'left' ? -1 : 1;
+                    child.position.x -= xs * severity * 0.22;
+                    child.scale.x *= Math.max(0.3, 1 - severity * 0.95);
+                    child.scale.y *= 1 + severity * 0.13;
+                    child.rotation.z += xs * severity * 0.42;
+                }
+            });
+            if (hitCount) group.scale.y *= 1 - severity * 0.04;
+        }
+
+        function launchRagdoll(dir, impactSpeed, zone) {
+            if (!driverRagdoll) return;
+            scene.attach(driverRagdoll);
+            driverRagdoll.position.y += 0.9;
+            ragdollActive = true;
+            var side = zone === 'left' ? -1 : zone === 'right' ? 1 : dir;
+            ragdollVx = side * (3 + Math.min(12, impactSpeed * 0.06)) + dir * 2.0;
+            ragdollVy = 5 + Math.min(11, impactSpeed * 0.055);
+            ragdollVz = (zone === 'front' ? -1 : 1) * (2 + Math.min(10, impactSpeed * 0.045)) + (Math.random() - 0.5) * 3;
+            ragdollSpinX = (Math.random() - 0.5) * 9;
+            ragdollSpinY = (Math.random() - 0.5) * 7;
+            ragdollSpinZ = (Math.random() - 0.5) * 8;
+            (driverRagdoll.userData.limbs || []).forEach(function (limb) {
+                limb.spin = (Math.random() - 0.5) * 18;
+                limb.mesh.rotation.x = (Math.random() - 0.5) * 1.4;
+            });
+        }
+
+        function updateRagdoll(dt) {
+            if (!ragdollActive || !driverRagdoll) return;
+            driverRagdoll.position.x += ragdollVx * dt;
+            driverRagdoll.position.y += ragdollVy * dt;
+            driverRagdoll.position.z += ragdollVz * dt;
+            ragdollVy -= 24 * dt;
+            driverRagdoll.rotation.x += ragdollSpinX * dt;
+            driverRagdoll.rotation.y += ragdollSpinY * dt;
+            driverRagdoll.rotation.z += ragdollSpinZ * dt;
+            ragdollSpinX *= Math.max(0, 1 - dt * 1.1);
+            ragdollSpinY *= Math.max(0, 1 - dt * 0.9);
+            ragdollSpinZ *= Math.max(0, 1 - dt * 1.2);
+            (driverRagdoll.userData.limbs || []).forEach(function (limb) {
+                limb.mesh.rotation.x += limb.spin * dt;
+                limb.spin *= Math.max(0, 1 - dt * 1.4);
+            });
+            if (driverRagdoll.position.y < 0.22) {
+                driverRagdoll.position.y = 0.22;
+                ragdollVy = Math.abs(ragdollVy) * 0.33;
+                ragdollVx *= 0.7;
+                ragdollVz *= 0.7;
+                ragdollSpinX *= 0.6;
+                ragdollSpinY *= 0.6;
+                ragdollSpinZ *= 0.6;
+            }
+        }
+
         function triggerCrash(car, halfWidth) {
             if (crashActive) return;
             fsdActive = false;
@@ -2123,25 +2249,30 @@
             var spec = car.userData && car.userData.spec ? car.userData.spec : {};
             var mass = Math.max(0.8, Math.min(2.2, ((spec.width || 1.8) * (spec.len || 3.2)) / 8));
             var dir = player.position.x >= car.position.x ? 1 : -1;
-            crashVx = dir * (6 + Math.min(18, Math.abs(speed) * 0.08)) * mass;
-            crashSpinX = (Math.random() - 0.5) * 1.0;
-            crashSpinY = dir * (0.9 + Math.random() * 1.1);
-            crashSpinZ = dir * (0.5 + Math.random() * 0.9);
-            vy = 5 + Math.min(10, Math.abs(speed) * 0.045);
-            playerY = 0.3;
-            speed *= 0.25;
+            var impactSpeed = Math.abs(speed - (car.userData.cruiseSpeed || 0));
+            var dz = car.position.z - player.position.z;
+            var zone = Math.abs(dz) > 1.9 ? (dz < 0 ? 'front' : 'rear') : (player.position.x >= car.position.x ? 'right' : 'left');
+            // Each crumple zone absorbs part of the impact. The struck corner
+            // deforms more and the impulse is reduced by the absorbed energy.
+            var absorb = zone === 'front' ? 0.6 : zone === 'rear' ? 0.52 : 0.44;
+            var severity = Math.min(0.44, 0.07 + impactSpeed * 0.0055);
+            var impulse = Math.max(0, impactSpeed * mass * 0.32) * (1 - absorb * 0.55);
+            crashVx = dir * (3 + impulse);
+            crashSpinX = (Math.random() - 0.5) * 1.0 * (1 - absorb * 0.4);
+            crashSpinY = dir * (0.7 + Math.random() * 1.0) * (1 - absorb * 0.35);
+            crashSpinZ = dir * (0.4 + Math.random() * 0.8) * (1 - absorb * 0.4);
+            vy = (3 + Math.min(10, impactSpeed * 0.05)) * (0.55 + absorb * 0.45);
+            playerY = 0.25;
+            speed *= Math.max(0.03, 0.28 - absorb * 0.24);
             crashCar = car;
-            crashCarVx = -dir * (4 + Math.random() * 6) * mass;
-            crashCarVz = 4 + Math.random() * 8;
-            crashCarSpin = -dir * (0.8 + Math.random() * 1.2);
+            crashCarVx = -dir * (3 + Math.random() * 5) * mass * (1 - absorb * 0.35);
+            crashCarVz = 3 + Math.random() * 7;
+            crashCarSpin = -dir * (0.7 + Math.random() * 1.0);
             if (car.userData) car.userData.state = 'hit';
 
-            var body = player.userData.bodyGroup;
-            if (body) {
-                var crumple = Math.min(0.14, Math.abs(speed) * 0.0008 + 0.03);
-                body.scale.z = Math.max(0.86, 1 - crumple);
-                body.scale.x = 1 + crumple * 0.5;
-            }
+            crumpleCarPart(player.userData.bodyGroup, zone, severity);
+            crumpleCarPart(car.userData && car.userData.bodyGroup, zone === 'left' ? 'right' : zone === 'right' ? 'left' : zone, severity * 0.72);
+            launchRagdoll(dir, impactSpeed, zone);
 
             if (Math.abs(speed) > 40) {
                 var pivots = player.userData.suspensionPivots || [];
@@ -2214,6 +2345,7 @@
                 crashCarVz *= Math.max(0, 1 - dt * 0.8);
             }
             updateCrashDebris(dt);
+            updateRagdoll(dt);
             updateSparks(dt);
             updateDriftPuffs(dt, false);
 
@@ -2492,7 +2624,7 @@
             return false;
         }
 
-        function spawnTraffic(forceZ) {
+        function spawnTraffic(forceZ, forceRamp) {
             var z = forceZ != null ? forceZ : (-380 - Math.random() * 180);
             var order = [];
             for (var oi = 0; oi < LANES.length; oi++) order.push(oi);
@@ -2502,7 +2634,7 @@
                 if (!laneBusy(order[i], null, z, 16)) { lane = order[i]; break; }
             }
             var isMad = Math.random() < 0.01;
-            var isRamp = !isMad && Math.random() < 0.055;
+            var isRamp = !!forceRamp || (!isMad && Math.random() < 0.11);
             var style = isMad ? 'cyber' : isRamp ? 'truck' : trafficStyles[Math.floor(Math.random() * trafficStyles.length)];
             var engine = isMad ? 'nitro' : isRamp ? 'diesel' : trafficEngines[Math.floor(Math.random() * trafficEngines.length)];
             var paint = isMad ? 0xff1f1f : isRamp ? 0xffc400 : colors[Math.floor(Math.random() * colors.length)];
@@ -2557,6 +2689,7 @@
         }
 
         for (var t = 0; t < 8; t++) spawnTraffic(-100 - t * 46);
+        spawnTraffic(-150, true);
 
         function blink(car, side) {
             var u = car.userData;
@@ -2590,10 +2723,13 @@
         var fsdSpeed = 0;
         var fsdEmergency = false;
         var fsdEmergencyT = 0;
+        var fsdSwerveT = 0;
+        var fsdSwerveCooldown = 0;
+        var fsdSwerveSide = 0;
         var fsdSignalSide = 0;
         var fsdSignalT = 0;
         var playerBlinkT = 0;
-        var FSD_MAX_KMH = 1800;
+        var FSD_MAX_KMH = 300;
         var FSD_MAX_SPEED = FSD_MAX_KMH / 3.6;
         var fsdChangeP = 1;
         var fsdChangeDur = 0.85;
@@ -2662,6 +2798,24 @@
                 if (gap > 18 && gap < bestGap) { bestGap = gap; best = laneIndexOf(car.position.x); }
             }
             return best;
+        }
+
+        function findFsdEscapeLane(curLane, gapAhead, speed) {
+            var bestLane = -1;
+            var bestGain = 0;
+            for (var side = -1; side <= 1; side += 2) {
+                var lane = curLane + side;
+                if (lane < 0 || lane >= LANES.length) continue;
+                if (laneHasSideCar(lane)) continue;
+                var front = laneGapFor(lane, 500);
+                var rear = laneRearGapFor(lane, 110);
+                if (rear < 16) continue;
+                // Only take a lane that is meaningfully safer than the current one.
+                if (front < Math.max(gapAhead + 18, speed * 0.55 + 22)) continue;
+                var gain = front + Math.min(90, rear) * 0.35;
+                if (gain > bestGain) { bestGain = gain; bestLane = lane; }
+            }
+            return bestLane;
         }
 
         function drawFsdPanel() {
@@ -2799,7 +2953,7 @@
                 ctx.textAlign = 'left';
                 ctx.font = 'bold 9px Arial, sans-serif';
                 ctx.fillStyle = (elapsed * 4) % 1 < 0.6 ? '#ff6b6b' : '#ffd0d0';
-                ctx.fillText('EMERGENCY BRAKE', 8, 13);
+                ctx.fillText(fsdSwerveT > 0 ? 'AUTO-SWERVE' : 'EMERGENCY BRAKE', 8, 13);
             }
         }
 
@@ -2809,12 +2963,14 @@
                 overlay.classList.toggle('is-active', fsdActive);
                 overlay.classList.toggle('is-brake', fsdActive && fsdEmergency);
                 var label = overlay.querySelector('span');
-                if (label) label.textContent = fsdEmergency ? 'FSD · EMERGENCY BRAKE' : 'FSD ACTIVE';
+                if (label) label.textContent = fsdSwerveT > 0 ? 'FSD · AUTO-SWERVE' : (fsdEmergency ? 'FSD · EMERGENCY BRAKE' : 'FSD ACTIVE');
+                overlay.classList.toggle('is-swerve', fsdActive && fsdSwerveT > 0);
             }
             var hud = document.getElementById('g3dFsdHud');
             if (hud) {
                 hud.classList.toggle('is-active', fsdActive);
                 hud.classList.toggle('is-brake', fsdActive && fsdEmergency);
+                hud.classList.toggle('is-swerve', fsdActive && fsdSwerveT > 0);
             }
             // Mirror the planned lane change on the car's indicator lamps.
             var egoLane = laneIndexOf(player.position.x);
@@ -2894,19 +3050,29 @@
                     fsdSpeed = Math.max(20, Math.min(Math.abs(speed), perf.topSpeed * 0.5));
                     fsdEmergency = false;
                     fsdEmergencyT = 0;
+                    fsdSwerveT = 0;
+                    fsdSwerveCooldown = 0;
+                    fsdSwerveSide = 0;
                     fsdSignalSide = 0;
                     fsdSignalT = 0;
                     tone(520, 0.14, 'sine', 0.05, 880);
                 } else {
                     fsdEmergency = false;
                     fsdEmergencyT = 0;
+                    fsdSwerveT = 0;
+                    fsdSwerveCooldown = 0;
+                    fsdSwerveSide = 0;
                     fsdSignalSide = 0;
                     fsdSignalT = 0;
                     tone(280, 0.1, 'sine', 0.04, 220);
                 }
             }
             if (fsdActive && gearMode !== 'D') fsdActive = false;
-            if (!fsdActive) { fsdEmergency = false; fsdEmergencyT = 0; fsdSignalSide = 0; fsdSignalT = 0; }
+            if (!fsdActive) {
+                fsdEmergency = false; fsdEmergencyT = 0;
+                fsdSwerveT = 0; fsdSwerveCooldown = 0; fsdSwerveSide = 0;
+                fsdSignalSide = 0; fsdSignalT = 0;
+            }
 
             var throttleCmd = input.up;
             var brakeCmd = input.brake;
@@ -2985,6 +3151,26 @@
                     }
                     fsdEmergency = true;
                     fsdEmergencyT = 0.7;
+                    fsdSwerveT = Math.max(0, fsdSwerveT - dt);
+                    fsdSwerveCooldown = Math.max(0, fsdSwerveCooldown - dt);
+                    // If the e-brake cannot stop before the obstacle, swerve
+                    // into an adjacent lane only when it has a safe front/rear gap.
+                    var stopDist = (speed * speed) / (2 * 165);
+                    if (fsdChangeP >= 1 && fsdSwerveCooldown <= 0 && gapAhead < stopDist * 1.18 + 6) {
+                        var escapeLane = findFsdEscapeLane(curLane, gapAhead, speed);
+                        if (escapeLane >= 0 && escapeLane !== fsdLane) {
+                            fsdLane = escapeLane;
+                            fsdFromX = player.position.x;
+                            fsdChangeP = 0;
+                            fsdChangeDur = 0.5;
+                            fsdSwerveT = 1.1;
+                            fsdSwerveCooldown = 1.4;
+                            fsdSwerveSide = escapeLane > curLane ? 1 : -1;
+                            fsdSignalSide = fsdSwerveSide;
+                            fsdSignalT = 1.3;
+                            tone(1040, 0.08, 'square', 0.055, 700);
+                        }
+                    }
                 } else if (fsdEmergency) {
                     fsdEmergencyT -= dt;
                     if (fsdEmergencyT <= 0 && (gapAhead > safeGap + 14 || speed < 3)) fsdEmergency = false;
@@ -3000,6 +3186,8 @@
                 else { brakeCmd = false; throttleCmd = false; }
                 fsdSignalT = Math.max(0, fsdSignalT - dt);
                 if (fsdSignalT <= 0) fsdSignalSide = 0;
+                fsdSwerveT = Math.max(0, fsdSwerveT - dt);
+                fsdSwerveCooldown = Math.max(0, fsdSwerveCooldown - dt);
             }
 
             if (!engineOn) {
@@ -3496,6 +3684,7 @@
                     fsd: fsdActive,
                     fsdLane: fsdLane,
                     fsdEmergency: fsdEmergency,
+                    fsdSwerve: fsdSwerveT > 0,
                     signal: fsdSignalSide,
                     fsdChange: fsdChangeP < 1 ? fsdChangeP : 1,
                     fsdRampLane: fsdRampLane,
@@ -3784,9 +3973,21 @@
         wings.position.z = 0.5; ship.add(wings);
         scene.add(ship);
 
-        var obstacles = [], orbs = [];
+        var obstacles = [], orbs = [], pickups = [], lasers = [], enemies = [], blasts = [];
         var rockMat = new THREE.MeshStandardMaterial({ color: 0x6b5b8a, metalness: 0.2, roughness: 0.9, emissive: 0x2a1f3d, emissiveIntensity: 0.6 });
         var orbMat = neon(0xffd166, 1.8);
+        var shieldMat = new THREE.MeshBasicMaterial({ color: 0x5fe0ff, transparent: true, opacity: 0.2, side: THREE.DoubleSide, depthWrite: false });
+        var weaponMat = neon(0x54ff9f, 1.9);
+        var enemyMat = neon(0xff3b5c, 1.5);
+        var laserMat = neon(0x8ffcff, 2.4);
+
+        var shieldMesh = new THREE.Mesh(new THREE.SphereGeometry(1.15, 20, 14), shieldMat);
+        shieldMesh.visible = false;
+        ship.add(shieldMesh);
+        var thruster = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.9, 10), neon(0xff9f1c, 1.7));
+        thruster.rotation.x = -Math.PI / 2;
+        thruster.position.z = 1.1;
+        ship.add(thruster);
 
         function spawnRock() {
             var r = 0.7 + Math.random() * 1.1;
@@ -3801,15 +4002,67 @@
             m.position.set((Math.random() - 0.5) * 14, (Math.random() - 0.5) * 8, -90 - Math.random() * 60);
             scene.add(m); orbs.push(m);
         }
+        function spawnPickup(kind) {
+            var color = kind === 'shield' ? 0x5fe0ff : 0x54ff9f;
+            var g = new THREE.Group();
+            var core = new THREE.Mesh(new THREE.OctahedronGeometry(0.46, 0), neon(color, 2.0));
+            g.add(core);
+            var ring = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.06, 8, 24), neon(color, 1.2));
+            ring.rotation.x = Math.PI / 2; g.add(ring);
+            g.position.set((Math.random() - 0.5) * 14, (Math.random() - 0.5) * 8, -95 - Math.random() * 60);
+            g.userData.kind = kind;
+            g.userData.core = core;
+            g.userData.ring = ring;
+            scene.add(g); pickups.push(g);
+        }
+        function spawnEnemy() {
+            var g = new THREE.Group();
+            var body = new THREE.Mesh(new THREE.ConeGeometry(0.6, 1.5, 5), enemyMat);
+            body.rotation.x = Math.PI / 2; g.add(body);
+            var wing = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.08, 0.35), enemyMat);
+            wing.position.z = 0.35; g.add(wing);
+            var eye = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), neon(0xfff2a0, 2.2));
+            eye.position.set(0, 0, -0.5); g.add(eye);
+            g.position.set((Math.random() - 0.5) * 12, (Math.random() - 0.5) * 8, -150);
+            g.userData.phase = Math.random() * Math.PI * 2;
+            g.userData.baseX = g.position.x;
+            scene.add(g); enemies.push(g);
+        }
+        function blastAt(x, y, z, color) {
+            var mesh = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 8), new THREE.MeshBasicMaterial({
+                color: color, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false
+            }));
+            mesh.position.set(x, y, z);
+            scene.add(mesh);
+            blasts.push({ mesh: mesh, life: 0.34, max: 0.34 });
+        }
+        function fireLaser() {
+            var mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.55, 6), laserMat);
+            mesh.rotation.x = Math.PI / 2;
+            mesh.position.set(ship.position.x, ship.position.y, ship.position.z - 1.3);
+            scene.add(mesh);
+            lasers.push({ mesh: mesh, life: 1.5 });
+            tone(1320, 0.05, 'square', 0.028, 900);
+        }
+        function removeFrom(list, index) {
+            var obj = list[index];
+            scene.remove(obj); disposeObject(obj); list.splice(index, 1);
+        }
+        function addCombo() {
+            combo = Math.min(5, combo + 0.5);
+            comboT = 3.6;
+        }
+
         for (var a = 0; a < 5; a++) spawnRock();
         for (var b = 0; b < 3; b++) spawnOrb();
 
-        var elapsed = 0, speed = 26, spawnT = 0, orbT = 0, score = 0;
+        var elapsed = 0, speed = 26, spawnT = 0, orbT = 0, pickupT = 7, enemyT = 12;
+        var score = 0, weaponT = 0, shieldHits = 0, invulnT = 0, comboT = 0, combo = 1, laserCd = 0;
 
         function update(dt) {
             elapsed += dt;
-            speed = Math.min(26 + elapsed * 1.1, 72);
-            score += dt * 10;
+            speed = Math.min(26 + elapsed * 1.1, 78);
+            score += dt * 10 * combo;
 
             var tx = ship.position.x, ty = ship.position.y;
             // Snappy WASD: much higher travel speed and tighter follow so the
@@ -3825,39 +4078,151 @@
             ship.position.y += (ty - ship.position.y) * Math.min(1, dt * 17);
             ship.rotation.z = (tx - ship.position.x) * -0.35;
             ship.rotation.x = (ty - ship.position.y) * 0.25;
+            thruster.scale.set(1 + Math.abs(tx - ship.position.x) * 0.6, 1 + Math.sin(elapsed * 22) * 0.12, 1);
+
+            if (weaponT > 0) weaponT = Math.max(0, weaponT - dt);
+            if (invulnT > 0) invulnT -= dt;
+            if (comboT > 0) { comboT -= dt; if (comboT <= 0) combo = 1; }
+            laserCd = Math.max(0, laserCd - dt);
+            if (input.tapQueued) {
+                input.tapQueued = false;
+                if (weaponT > 0 && laserCd <= 0) { fireLaser(); laserCd = 0.17; }
+            }
 
             spawnT += dt;
             if (spawnT > Math.max(0.32, 0.9 - elapsed * 0.008)) { spawnT = 0; spawnRock(); }
             orbT += dt;
             if (orbT > 1.6) { orbT = 0; spawnOrb(); }
+            pickupT -= dt;
+            if (pickupT <= 0) { spawnPickup(Math.random() < 0.5 ? 'shield' : 'weapon'); pickupT = 8 + Math.random() * 5; }
+            enemyT -= dt;
+            if (enemyT <= 0 && elapsed > 8) { spawnEnemy(); enemyT = 9 + Math.random() * 6; }
+
+            shieldMesh.visible = shieldHits > 0 || invulnT > 0;
+            if (shieldMesh.visible) {
+                shieldMat.opacity = 0.16 + Math.sin(elapsed * 9) * 0.06;
+                shieldMesh.rotation.y += dt * 1.4;
+            }
 
             for (var i = obstacles.length - 1; i >= 0; i--) {
                 var o = obstacles[i];
                 o.position.z += speed * dt;
                 o.rotation.x += o.userData.spin * dt;
                 o.rotation.y += o.userData.spin * dt * 0.7;
-                if (o.position.z > 10) { scene.remove(o); obstacles.splice(i, 1); continue; }
+                if (o.position.z > 10) { removeFrom(obstacles, i); continue; }
                 var dx = o.position.x - ship.position.x;
                 var dy = o.position.y - ship.position.y;
                 var dz = o.position.z - ship.position.z;
                 var rad = o.userData.r + 0.7;
-                if (dx * dx + dy * dy + dz * dz < rad * rad) { endGame(score); return; }
+                if (dx * dx + dy * dy + dz * dz < rad * rad && invulnT <= 0) {
+                    if (shieldHits > 0 || invulnT > 0.01) {
+                        if (shieldHits > 0) shieldHits--;
+                        invulnT = 0.9;
+                        blastAt(o.position.x, o.position.y, o.position.z, 0x5fe0ff);
+                        tone(520, 0.2, 'sine', 0.05, 240);
+                        removeFrom(obstacles, i);
+                    } else {
+                        endGame(Math.round(score));
+                        return;
+                    }
+                }
             }
             for (var k = orbs.length - 1; k >= 0; k--) {
                 var ob = orbs[k];
                 ob.position.z += speed * dt;
                 ob.rotation.y += dt * 3;
-                if (ob.position.z > 10) { scene.remove(ob); orbs.splice(k, 1); continue; }
+                if (ob.position.z > 10) { removeFrom(orbs, k); continue; }
                 var ox = ob.position.x - ship.position.x;
                 var oy = ob.position.y - ship.position.y;
                 var oz = ob.position.z - ship.position.z;
-                if (ox * ox + oy * oy + oz * oz < 2.2) { scene.remove(ob); orbs.splice(k, 1); score += 50; }
+                if (ox * ox + oy * oy + oz * oz < 2.2) {
+                    scene.remove(ob); disposeObject(ob); orbs.splice(k, 1);
+                    score += 50 * combo; addCombo(); blastAt(ob.position.x, ob.position.y, ob.position.z, 0xffd166);
+                }
+            }
+            for (var p = pickups.length - 1; p >= 0; p--) {
+                var pu = pickups[p];
+                pu.position.z += speed * dt;
+                pu.userData.core.rotation.y += dt * 2.5;
+                pu.userData.ring.rotation.z += dt * 3;
+                if (pu.position.z > 10) { removeFrom(pickups, p); continue; }
+                if (pu.position.distanceTo(ship.position) < 2.4) {
+                    if (pu.userData.kind === 'shield') shieldHits = Math.min(2, shieldHits + 1);
+                    else weaponT = Math.max(weaponT, 11);
+                    score += 35 * combo; addCombo();
+                    blastAt(pu.position.x, pu.position.y, pu.position.z, pu.userData.kind === 'shield' ? 0x5fe0ff : 0x54ff9f);
+                    removeFrom(pickups, p);
+                }
+            }
+            for (var e = enemies.length - 1; e >= 0; e--) {
+                var en = enemies[e];
+                en.position.z += (speed + 16) * dt;
+                en.position.x = en.userData.baseX + Math.sin(elapsed * 1.7 + en.userData.phase) * 2.4;
+                en.position.y += Math.sin(elapsed * 1.3 + en.userData.phase) * 3.5 * dt;
+                en.rotation.z += dt * 1.2;
+                if (en.position.z > 10) { removeFrom(enemies, e); continue; }
+                var ex = en.position.x - ship.position.x;
+                var ey = en.position.y - ship.position.y;
+                var ez = en.position.z - ship.position.z;
+                if (ex * ex + ey * ey + ez * ez < 2.6 && invulnT <= 0) {
+                    if (shieldHits > 0) {
+                        shieldHits--; invulnT = 0.9;
+                        blastAt(en.position.x, en.position.y, en.position.z, 0xff3b5c);
+                        removeFrom(enemies, e);
+                    } else {
+                        endGame(Math.round(score));
+                        return;
+                    }
+                }
+            }
+            for (var l = lasers.length - 1; l >= 0; l--) {
+                var la = lasers[l];
+                la.life -= dt;
+                la.mesh.position.z -= 110 * dt;
+                if (la.life <= 0 || la.mesh.position.z < -170) { removeFrom(lasers, l); continue; }
+                var hit = false;
+                for (var ri = obstacles.length - 1; ri >= 0; ri--) {
+                    var rock = obstacles[ri];
+                    if (Math.abs(rock.position.z - la.mesh.position.z) < rock.userData.r + 0.8 &&
+                        Math.abs(rock.position.x - la.mesh.position.x) < rock.userData.r + 0.5 &&
+                        Math.abs(rock.position.y - la.mesh.position.y) < rock.userData.r + 0.5) {
+                        score += 25 * combo; addCombo();
+                        blastAt(rock.position.x, rock.position.y, rock.position.z, 0xff7a45);
+                        removeFrom(obstacles, ri);
+                        hit = true; break;
+                    }
+                }
+                if (!hit) {
+                    for (var ei = enemies.length - 1; ei >= 0; ei--) {
+                        var enemy = enemies[ei];
+                        if (enemy.position.distanceTo(la.mesh.position) < 2.0) {
+                            score += 150 * combo; addCombo();
+                            blastAt(enemy.position.x, enemy.position.y, enemy.position.z, 0xff3b5c);
+                            removeFrom(enemies, ei);
+                            hit = true; break;
+                        }
+                    }
+                }
+                if (hit) removeFrom(lasers, l);
+            }
+            for (var bl = blasts.length - 1; bl >= 0; bl--) {
+                var blast = blasts[bl];
+                blast.life -= dt;
+                var bp = 1 - blast.life / blast.max;
+                blast.mesh.scale.setScalar(1 + bp * 5);
+                blast.mesh.material.opacity = Math.max(0, 0.9 * (1 - bp));
+                if (blast.life <= 0) { scene.remove(blast.mesh); disposeObject(blast.mesh); blasts.splice(bl, 1); }
             }
 
             camera.position.x += (ship.position.x * 0.5 - camera.position.x) * Math.min(1, dt * 4);
             camera.position.y += (ship.position.y * 0.5 + 1.6 - camera.position.y) * Math.min(1, dt * 4);
+            camera.position.x += Math.sin(elapsed * 31) * 0.012;
             camera.lookAt(ship.position.x * 0.4, ship.position.y * 0.4, -14);
-            setHud(score, '');
+            var status = [];
+            if (shieldHits > 0) status.push('SHIELD ' + shieldHits);
+            if (weaponT > 0) status.push('LASER ' + Math.ceil(weaponT));
+            status.push('x' + combo.toFixed(1));
+            setHud(Math.round(score), Math.round(score) + ' PTS · ' + status.join(' · '));
         }
 
         return { over: false, update: update, getScore: function () { return score; } };
@@ -4034,6 +4399,8 @@
             return;
         }
         container = containerEl;
+        lastGameId = gameId;
+        lastStartOpts = opts || null;
         gameMeta = { name: 'Game', onScore: null, onGameOver: null, onCoins: null };
         if (opts) {
             if (opts.name) gameMeta.name = opts.name;
@@ -4076,6 +4443,39 @@
         bindInput();
         running = true;
         raf = requestAnimationFrame(loop);
+    }
+
+    function restart() {
+        if (!container || !renderer || !lastGameId) return false;
+        running = false;
+        paused = false;
+        playedSeconds = 0;
+        if (raf) { cancelAnimationFrame(raf); raf = 0; }
+        for (var i = 0; i < cleanupFns.length; i++) {
+            try { cleanupFns[i](); } catch (e) {}
+        }
+        cleanupFns = [];
+        if (audioCleanup) { try { audioCleanup(); } catch (e) {} audioCleanup = null; }
+        audioMuteHandler = null;
+        active = null;
+        if (scene) disposeObject(scene);
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x05020c);
+        camera = new THREE.PerspectiveCamera(65, 1, 0.1, 700);
+        input.left = false; input.right = false; input.up = false; input.down = false;
+        input.brake = false; input.gearDown = false; input.gearUp = false;
+        input.drift = false; input.nitro = false; input.fsdToggle = false;
+        input.pointerActive = false; input.pointerX = 0; input.pointerY = 0; input.tapQueued = false;
+        clock = new THREE.Clock();
+        resize();
+        var factory = factories[lastGameId];
+        active = factory ? factory({ scene: scene, camera: camera, input: input, options: lastStartOpts || {} }) : null;
+        if (!active) return false;
+        resize();
+        bindInput();
+        running = true;
+        raf = requestAnimationFrame(loop);
+        return true;
     }
 
     function stop() {
@@ -4196,6 +4596,7 @@
 
     global.Games3D = {
         start: start,
+        restart: restart,
         stop: stop,
         setBrake: setBrake,
         setThrottle: setThrottle,

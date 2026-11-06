@@ -7,7 +7,7 @@ const games = [
     { id: 1, name: "Beach Racer", description: "Outrun traffic on a six-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · ← → steer · drift is automatic · Shift / N nitrous · F FSD · Q/E gears · right lane exits" },
     { id: 2, name: "Tunnel Rush", description: "Thread the neon tunnel at warp speed", icon: "tunnel", controls: "Left / Right or drag to rotate" },
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
-    { id: 5, name: "Star Dodger", description: "Weave through an asteroid storm", icon: "rocket", controls: "WASD / arrow keys to fly fast, or drag" }
+    { id: 5, name: "Star Dodger", description: "Weave through an asteroid storm", icon: "rocket", controls: "WASD / arrow keys to fly · drag to steer · Space / click fires when armed" }
 ];
 
 let currentUser = null;
@@ -788,6 +788,17 @@ function openGame(id) {
 }
 
 function restartGame3D() {
+    const over = document.getElementById('g3dOver');
+    if (over) over.style.display = 'none';
+    const flash = document.getElementById('g3dCrashFlash');
+    if (flash) flash.classList.remove('is-active');
+    const warning = document.getElementById('g3dWarning');
+    if (warning) warning.classList.remove('is-active');
+    lastRunCoins = 0;
+    // Keep the existing WebGL context and DOM; only rebuild the game scene.
+    if (window.Games3D && window.Games3D.restart && currentGameId != null) {
+        if (window.Games3D.restart()) { touchPresence(); return; }
+    }
     if (currentGameId != null) openGame(currentGameId);
 }
 
@@ -2450,13 +2461,10 @@ function updateUserSection() {
 
     const debugBtn = document.getElementById('nav-debug');
     if (debugBtn) debugBtn.style.display = isOwner() ? 'inline-flex' : 'none';
-    const devGroup = document.getElementById('developerSettingsGroup');
-    if (devGroup) devGroup.style.display = isDeveloper() ? 'block' : 'none';
-    const ownerConsoleItem = document.getElementById('ownerConsoleSettingsItem');
-    if (ownerConsoleItem) ownerConsoleItem.style.display = isOwner() ? 'flex' : 'none';
-    const devBtn = document.getElementById('nav-dev');
-    if (devBtn) devBtn.style.display = isDeveloper() ? 'inline-flex' : 'none';
-    if (!isDeveloper()) { closeDevConsole(true); closeDevAISettings(); }
+    const debugGroup = document.getElementById('debugSettingsGroup');
+    if (debugGroup) debugGroup.style.display = isOwner() ? 'block' : 'none';
+    closeDevConsole(true);
+    closeDevAISettings();
 
     if (!isOwner()) {
         ownerUnlocked = false;
@@ -3463,9 +3471,7 @@ function renderDebugAdmins() {
                 '<div class="admin-top">' +
                     '<span class="admin-name">' + escapeHtml(username) + '</span>' +
                     (isOwnerRow ? '<span class="admin-badge is-owner">OWNER</span>' : (enabled ? '<span class="admin-badge">ADMIN</span>' : '')) +
-                    (!isOwnerRow && user.developer ? '<span class="admin-badge is-dev">DEV</span>' : '') +
                     (isOwnerRow ? '' : '<label class="admin-toggle"><input type="checkbox" data-admin-enable="' + escapeAttr(username) + '"' + (user.is_admin ? ' checked' : '') + ' onchange="toggleAdminPowerInputs(this)"> <span>Admin</span></label>') +
-                    (isOwnerRow ? '' : '<label class="admin-toggle dev-toggle"><input type="checkbox"' + (user.developer ? ' checked' : '') + ' onchange="toggleDeveloper(\'' + debugArg(username) + '\', this.checked)"> <span>Developer</span></label>') +
                 '</div>' +
                 '<div class="admin-powers">' + adminPowerCheckboxes(username, powers, enabled) + '</div>' +
             '</div>' +
@@ -6229,8 +6235,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.24.0";
-const UPDATE_NOTES = "Six-lane highway, 1,800 km/h FSD with animated lane changes and safer surroundings awareness, ramps as jump targets, native-resolution capped rendering down to 20% with smooth scale transitions, OpenCode AI in Settings for developers only, real AI thinking logs, and better FPS";
+const APP_VERSION = "LessFun Developer Beta 1.24.1";
+const UPDATE_NOTES = "Crash crumple zones and a driver ragdoll absorb impact energy, FSD now tops out at 300 km/h and auto-swerves when braking cannot stop in time, Star Dodger adds shields, lasers, combos and enemy drones, Play Again is much faster, and rendering stays capped at 100% with smoother rescaling";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
