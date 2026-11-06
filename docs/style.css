@@ -8591,3 +8591,73 @@ body.has-avatar-frame .friend-avatar {
         backdrop-filter: none !important;
     }
 }
+
+/* Automatic update / shutdown mode */
+.update-shutdown {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 50% 35%, #113044 0%, #060b12 62%, #03060a 100%);
+    color: #eafaff;
+    text-align: center;
+    padding: 24px;
+}
+.update-shutdown-card {
+    max-width: 440px;
+    padding: 34px 30px;
+    border-radius: 20px;
+    border: 1px solid rgba(95,224,255,0.25);
+    background: rgba(5, 14, 22, 0.76);
+    box-shadow: 0 24px 80px rgba(0,0,0,0.55), 0 0 40px rgba(95,224,255,0.08);
+}
+.update-shutdown-kicker {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.32em;
+    color: #5fe0ff;
+}
+.update-spinner {
+    width: 28px;
+    height: 28px;
+    margin: 18px auto;
+    border-radius: 50%;
+    border: 3px solid rgba(95,224,255,0.2);
+    border-top-color: #5fe0ff;
+    animation: updateSpin 0.8s linear infinite;
+}
+@keyframes updateSpin { to { transform: rotate(360deg); } }
+.update-shutdown h1 { margin: 0 0 8px; font-size: 22px; }
+.update-shutdown p { margin: 0; color: rgba(220,245,255,0.62); font-size: 12px; line-height: 1.6; }
+
+/* Live multiplayer camera thumbnails */
+.game3d-remote-cam-card {
+    position: relative;
+    width: 164px;
+    height: 92px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(120,220,255,0.45);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.38);
+    background: #04101a;
+}
+.game3d-remote-cam-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.game3d-remote-cam-card span {
+    position: absolute;
+    left: 5px;
+    bottom: 5px;
+    padding: 2px 6px;
+    border-radius: 5px;
+    background: rgba(2, 10, 16, 0.78);
+    color: #bfefff;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}

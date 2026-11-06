@@ -194,6 +194,8 @@ handling real user data or payments.
 - mph/km-h setting, a live FPS/resolution counter, 60 FPS-targeted automatic resolution scaling, one-piece road geometry, and throttled ocean/HUD updates
 - Friend activity presence with a Join button for their current game or public lobby
 - Live public multiplayer for Tunnel Rush and Star Dodger with real-time score boards, selectable from each game’s start menu
+- Beach Racer multiplayer uses live low-res camera thumbnails streamed by each player instead of rendering extra local cameras
+- Automatic update shutdown: clients check `version.json`, show a full-screen update screen when a new build ships, and reload themselves; set `"shutdown": true` in `docs/version.json` to take the site offline
 - AI traffic emergency braking with brake lights; human players get a red flash and warning beep instead of auto-braking
 - Real 3D suspension on Beach Racer cars: coilover springs, control arms, independent wheel travel, body roll, brake dive, acceleration squat, and landing compression
 - Longer cinematic crashes with tumbling, debris, sparks, smoke, wheel and surfboard detachment, body crumple, bounced landings, and a delayed game-over sequence (no camera shake, no slow-mo label)

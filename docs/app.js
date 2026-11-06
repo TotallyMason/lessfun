@@ -110,6 +110,9 @@ let racerMp = {
     publicProbing: false,
     players: [],
     remotes: {},
+    camFrames: {},
+    camLastSend: 0,
+    camRequested: false,
     status: ''
 };
 
@@ -1251,6 +1254,18 @@ function racerMpConnect(code, name, publicInfo) {
     channel.on('broadcast', { event: 'start' }, function (message) {
         racerMpHandleStart(message && message.payload);
     });
+    channel.on('broadcast', { event: 'cam-frame' }, function (message) {
+        var payload = message && message.payload;
+        if (!payload || !payload.id || String(payload.id) === racerMp.id) return;
+        if (!payload.image || String(payload.image).indexOf('data:image/') !== 0) return;
+        racerMp.camFrames[String(payload.id)] = {
+            id: String(payload.id),
+            name: racerMpSanitizeName(payload.name) || 'Racer',
+            image: payload.image,
+            at: Date.now()
+        };
+        racerMpRenderCamFrames();
+    });
     channel.on('presence', { event: 'sync' }, function () { racerMpSyncPresence(); });
     channel.on('presence', { event: 'join' }, function () { racerMpSyncPresence(); });
     channel.on('presence', { event: 'leave' }, function () { racerMpSyncPresence(); });
@@ -1281,7 +1296,7 @@ function racerMpConnect(code, name, publicInfo) {
     });
 
     if (racerMp.timer) clearInterval(racerMp.timer);
-    racerMp.timer = setInterval(racerMpTick, 100);
+    racerMp.timer = setInterval(racerMpTick, 140);
     racerMpApplyToGame();
     racerMpUpdateUi();
 }
@@ -1463,6 +1478,56 @@ function racerMpTick() {
         list = list.slice(0, 16);
     }
     if (window.Games3D) window.Games3D.setRemoteRacers(list);
+
+    // Live camera thumbnails: capture the player's own rendered view and
+    // broadcast a tiny JPEG. No extra scene cameras are rendered locally.
+    if (racerMp.connected && racerMp.players.length < 6 && list.length) {
+        if (!racerMp.camRequested && now - racerMp.camLastSend > 380) {
+            if (window.Games3D && window.Games3D.requestFrameCapture) {
+                window.Games3D.requestFrameCapture();
+                racerMp.camRequested = true;
+            }
+        } else if (racerMp.camRequested && window.Games3D && window.Games3D.getCapturedFrame) {
+            var frame = window.Games3D.getCapturedFrame();
+            if (frame) {
+                var sentCam = racerMp.channel.send({
+                    type: 'broadcast', event: 'cam-frame',
+                    payload: { id: racerMp.id, name: racerMp.name, image: frame }
+                });
+                if (sentCam && sentCam.catch) sentCam.catch(function () {});
+                racerMp.camLastSend = now;
+                racerMp.camRequested = false;
+            }
+        }
+    } else {
+        racerMp.camRequested = false;
+    }
+    racerMpRenderCamFrames();
+}
+
+function racerMpRenderCamFrames() {
+    var host = document.getElementById('g3dRemoteCams');
+    if (!host) return;
+    if (!racerMp.connected || racerMp.players.length >= 6 || isMobileUI) {
+        host.style.display = 'none';
+        return;
+    }
+    var now = Date.now();
+    var frames = Object.keys(racerMp.camFrames).map(function (id) { return racerMp.camFrames[id]; })
+        .filter(function (frame) { return frame && now - frame.at < 3500; })
+        .sort(function (a, b) { return b.at - a.at; })
+        .slice(0, 3);
+    if (!frames.length) { host.style.display = 'none'; return; }
+    host.style.display = 'flex';
+    host.style.width = '164px';
+    host.style.top = '112px';
+    host.style.right = '18px';
+    host.innerHTML = frames.map(function (frame) {
+        return '<div class="game3d-remote-cam-card">' +
+            '<img src="' + frame.image + '" alt="' + escapeAttr(frame.name) + ' live view">' +
+            '<span>' + escapeHtml(frame.name) + ' · live</span>' +
+        '</div>';
+    }).join('');
 }
 
 function racerMpLeave(quiet) {
@@ -1473,6 +1538,10 @@ function racerMpLeave(quiet) {
     var channel = racerMp.channel;
     racerMp.channel = null;
     racerMp.connected = false;
+    racerMp.camFrames = {};
+    racerMp.camRequested = false;
+    var camHost = document.getElementById('g3dRemoteCams');
+    if (camHost) camHost.style.display = 'none';
     if (channel) {
         try {
             var left = channel.untrack();
@@ -6375,15 +6444,62 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.31.2";
-const UPDATE_NOTES = "Rendering is now hard-capped at 100% of the CSS viewport. Retina supersampling is disabled on every device, so no game renders above its visible screen resolution";
+const APP_VERSION = "LessFun Developer Beta 1.33.0";
+const UPDATE_NOTES = "Multiplayer camera thumbnails now come from each player live rendered view instead of extra local cameras, cutting multiplayer GPU cost. Updates now automatically put clients into a reload/shutdown screen, and motion blur disables itself when FPS drops";
+
+let updateShutdownTimer = 0;
+let updateReloadTimer = 0;
+let updateShutdownActive = false;
+
+function showUpdateShutdown(title, text, reloading) {
+    updateShutdownActive = true;
+    const overlay = document.getElementById('updateShutdown');
+    const titleEl = document.getElementById('updateShutdownTitle');
+    const textEl = document.getElementById('updateShutdownText');
+    if (titleEl) titleEl.textContent = title;
+    if (textEl) textEl.textContent = text;
+    if (overlay) overlay.style.display = 'flex';
+    if (window.Games3D && window.Games3D.setPaused) window.Games3D.setPaused(true);
+    if (!reloading && !updateShutdownTimer) {
+        updateShutdownTimer = setTimeout(function () {
+            updateShutdownTimer = 0;
+            checkForServerUpdate();
+        }, 8000);
+    }
+}
+
+function hideUpdateShutdown() {
+    updateShutdownActive = false;
+    if (updateShutdownTimer) { clearTimeout(updateShutdownTimer); updateShutdownTimer = 0; }
+    if (updateReloadTimer) { clearTimeout(updateReloadTimer); updateReloadTimer = 0; }
+    const overlay = document.getElementById('updateShutdown');
+    if (overlay) overlay.style.display = 'none';
+}
+
+async function checkForServerUpdate() {
+    if (isOwner()) { hideUpdateShutdown(); return; }
+    try {
+        const res = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.shutdown) {
+            showUpdateShutdown('LessFun is temporarily offline', data.message || 'The site is shut down for an update. It will reopen automatically.', false);
+            return;
+        }
+        if (data && data.version && data.version !== APP_VERSION) {
+            showUpdateShutdown('Updating LessFun', 'A new version has been deployed. Reloading automatically…', true);
+            if (!updateReloadTimer) {
+                updateReloadTimer = setTimeout(function () { location.reload(); }, 4200);
+            }
+            return;
+        }
+        hideUpdateShutdown();
+    } catch (e) {}
+}
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
     if (lastVersion !== APP_VERSION) {
-        setTimeout(function() {
-            alert('New Update!\nVersion: ' + APP_VERSION);
-        }, 500);
         localStorage.setItem('lessfun_version', APP_VERSION);
     }
 }
@@ -6399,13 +6515,18 @@ document.addEventListener('DOMContentLoaded', ()=>{
     startPresence();
     loadAvatarCache();
     checkForUpdates();
+    checkForServerUpdate();
+    setInterval(checkForServerUpdate, 60000);
     applyRenderScaleSetting();
     applySoundSetting();
     applyUnitSetting();
 });
 
 document.addEventListener('visibilitychange', function () {
-    if (!document.hidden) touchPresence();
+    if (!document.hidden) {
+        touchPresence();
+        checkForServerUpdate();
+    }
 });
 
 function openProfile(username) {
@@ -7893,7 +8014,7 @@ function zombieMpJoin(roomId) {
             const tracked = channel.track({ id: zombieMp.id, name: zombieMp.name, joinedAt: Date.now() });
             if (tracked && tracked.catch) tracked.catch(function () {});
             if (zombieMp.timer) clearInterval(zombieMp.timer);
-            zombieMp.timer = setInterval(zombieMpTick, 150);
+            zombieMp.timer = setInterval(zombieMpTick, 200);
             zombieMp.host = null;
             zombieMpSyncAuthority();
             zombieMpSetStatus('Connected to ' + room.name + ' · public room');

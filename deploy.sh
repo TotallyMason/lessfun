@@ -48,6 +48,30 @@ if ! git config user.email >/dev/null 2>&1; then
   git config user.email "$(gh api user --jq '.email // (.login + "@users.noreply.github.com")')"
 fi
 
+step "Writing update manifest"
+python3 - <<'PY'
+import json, re, datetime, os
+app = open('docs/app.js', encoding='utf-8').read()
+version = re.search(r'const APP_VERSION = "([^"]+)";', app).group(1)
+previous = {}
+if os.path.exists('docs/version.json'):
+    try:
+        with open('docs/version.json', encoding='utf-8') as f:
+            previous = json.load(f) or {}
+    except Exception:
+        previous = {}
+manifest = {
+    'version': version,
+    'shutdown': bool(previous.get('shutdown', False)),
+    'message': previous.get('message', ''),
+    'updated_at': datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z')
+}
+with open('docs/version.json', 'w', encoding='utf-8') as f:
+    json.dump(manifest, f, indent=2)
+    f.write('\n')
+print('  ' + version + (' · SHUTDOWN' if manifest['shutdown'] else ''))
+PY
+
 git add -A
 if git diff --cached --quiet; then
   echo "No file changes to commit."

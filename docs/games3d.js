@@ -16,9 +16,13 @@
     var adaptiveTransition = null;
     var adaptiveCooldown = 0;
     var motionBlurEnabled = true;
+    var motionBlurAutoOff = isMobileDevice;
+    var lowFpsTime = 0;
     var showFps = true;
     var motionBlurTargets = null;
     var motionBlurTargetSize = '';
+    var pendingFrameCapture = false;
+    var lastCapturedFrame = null;
     var motionBlurIndex = 0;
     var motionBlurHasPrev = false;
     var motionBlurScene = null;
@@ -2644,6 +2648,8 @@
 
         /* ---------------- Multiplayer ghost racers ---------------- */
         var remoteCars = {};
+        var remoteCamCache = {};
+        var remoteCamLastTime = -1;
         var localNameLabel = null;
         var localNameText = '';
 
@@ -4008,9 +4014,19 @@
                     crashing: crashActive
                 };
             },
+            captureFrame: function () {
+                if (!renderer) return null;
+                var src = renderer.domElement;
+                if (!src || !src.width || !src.height) return null;
+                var canvas = document.createElement('canvas');
+                canvas.width = 160; canvas.height = 90;
+                var ctx2 = canvas.getContext('2d');
+                if (!ctx2) return null;
+                try { ctx2.drawImage(src, 0, 0, 160, 90); return canvas.toDataURL('image/jpeg', 0.42); } catch (e) { return null; }
+            },
             renderCameras: function () {
-                if (!renderer || !scene || garageMode || paused) {
-                    var hide = document.getElementById('g3dRemoteCams');
+                var hide = document.getElementById('g3dRemoteCams');
+                if (!renderer || !scene || garageMode || paused || isMobileDevice) {
                     if (hide) hide.style.display = 'none';
                     return;
                 }
@@ -4018,14 +4034,17 @@
                 var totalPeople = ids.length + 1;
                 var host = document.getElementById('g3dRemoteCams');
                 // Chase-cam windows only when the lobby has fewer than six people.
-                if (totalPeople >= 6 || !ids.length) {
+                if (totalPeople >= 6 || !ids.length || (lastFps && lastFps < 42)) {
                     if (host) host.style.display = 'none';
                     return;
                 }
+                var nowCam = elapsed;
+                if (remoteCamLastTime >= 0 && nowCam - remoteCamLastTime < 0.14) return;
+                remoteCamLastTime = nowCam;
                 var compact = (global.innerWidth || 1000) < 640;
-                var maxCams = compact ? 2 : 4;
-                var camW = compact ? 104 : 168;
-                var camH = compact ? 64 : 104;
+                var maxCams = compact ? 1 : 2;
+                var camW = compact ? 96 : 142;
+                var camH = compact ? 58 : 86;
                 var gap = compact ? 6 : 8;
                 var topPx = compact ? 96 : 112;
                 var rightPx = compact ? 12 : 18;
@@ -4046,18 +4065,29 @@
                     host.style.width = camW + 'px';
                     host.style.top = topPx + 'px';
                     host.style.right = rightPx + 'px';
-                    host.innerHTML = shown.map(function (entry) {
-                        var name = entry.state && entry.state.name ? String(entry.state.name).slice(0, 16) : 'Racer';
-                        return '<div class="game3d-remote-cam-label" style="height:' + camH + 'px;"><span>' + escapeCams(name) + '</span></div>';
-                    }).join('');
+                    var labelKey = shown.map(function (entry) { return entry.id + '|' + camH; }).join(',');
+                    if (host.userData && host.userData.labelKey === labelKey) {
+                        // labels are already up to date
+                    } else {
+                        host.userData = host.userData || {};
+                        host.userData.labelKey = labelKey;
+                        host.innerHTML = shown.map(function (entry) {
+                            var name = entry.state && entry.state.name ? String(entry.state.name).slice(0, 16) : 'Racer';
+                            return '<div class="game3d-remote-cam-label" style="height:' + camH + 'px;"><span>' + escapeCams(name) + '</span></div>';
+                        }).join('');
+                    }
                 }
                 var savedViewport = renderer.getViewport(new THREE.Vector4());
                 renderer.setScissorTest(true);
-                var tempCam = new THREE.PerspectiveCamera(60, camW / camH, 0.1, 220);
                 for (var si = 0; si < shown.length; si++) {
                     var car = shown[si].car;
                     var x = vw - rightPx - camW;
                     var y = vh - topPx - camH - si * (camH + gap);
+                    var camKey = 'cam' + si;
+                    if (!remoteCamCache[camKey]) remoteCamCache[camKey] = new THREE.PerspectiveCamera(60, camW / camH, 0.1, 220);
+                    var tempCam = remoteCamCache[camKey];
+                    tempCam.aspect = camW / camH;
+                    tempCam.updateProjectionMatrix();
                     tempCam.position.set(car.position.x, 2.7, car.position.z + 7.6);
                     tempCam.lookAt(car.position.x, 0.7, car.position.z - 7);
                     renderer.setViewport(x, y, camW, camH);
@@ -5954,6 +5984,12 @@
         if (fpsTime >= 1) {
             var fps = fpsFrames / fpsTime;
             lastFps = fps;
+            if (fps < 45) lowFpsTime += fpsTime;
+            else lowFpsTime = 0;
+            if (lowFpsTime >= 2 && motionBlurEnabled && !motionBlurAutoOff) {
+                motionBlurAutoOff = true;
+                resetMotionBlurHistory();
+            }
             adaptiveCooldown = Math.max(0, adaptiveCooldown - fpsTime);
             if (adaptiveTransition) {
                 // Hold the current resolution briefly, render a blended scale,
@@ -5987,7 +6023,12 @@
         }
         if (renderer && scene && camera) {
             renderFrame();
-            if (active && active.renderCameras && !paused && !active.over) active.renderCameras();
+            if (pendingFrameCapture) {
+                pendingFrameCapture = false;
+                if (active && active.captureFrame) {
+                    try { lastCapturedFrame = active.captureFrame(); } catch (e) { lastCapturedFrame = null; }
+                }
+            }
         }
     }
 
@@ -6037,6 +6078,8 @@
 
         clock = new THREE.Clock();
         resetMotionBlurHistory();
+        motionBlurAutoOff = isMobileDevice;
+        lowFpsTime = 0;
         var factory = factories[gameId];
         active = factory ? factory({ scene: scene, camera: camera, input: input, options: opts || {}, renderer: renderer, container: container }) : null;
         if (!active) return;
@@ -6191,7 +6234,7 @@
 
     function renderFrame() {
         if (!renderer || !scene || !camera) return;
-        if (!motionBlurEnabled || !ensureMotionBlurResources()) {
+        if (!motionBlurEnabled || motionBlurAutoOff || !ensureMotionBlurResources()) {
             renderer.setRenderTarget(null);
             renderer.render(scene, camera);
             return;
@@ -6233,6 +6276,8 @@
     }
     function setMotionBlur(on) {
         motionBlurEnabled = !!on;
+        motionBlurAutoOff = false;
+        lowFpsTime = 0;
         resetMotionBlurHistory();
     }
     function setShowFps(on) {
@@ -6261,6 +6306,14 @@
     }
     function setZombieRemotes(list) {
         if (active && active.setRemotes) active.setRemotes(list || []);
+    }
+    function requestFrameCapture() {
+        pendingFrameCapture = true;
+    }
+    function getCapturedFrame() {
+        var frame = lastCapturedFrame;
+        lastCapturedFrame = null;
+        return frame;
     }
     function getZombieState() {
         return active && active.getState ? active.getState() : null;
@@ -6331,6 +6384,8 @@
         shiftGear: shiftGear,
         setPaused: setPaused,
         setRemoteRacers: setRemoteRacers,
+        requestFrameCapture: requestFrameCapture,
+        getCapturedFrame: getCapturedFrame,
         setZombieRemotes: setZombieRemotes,
         getZombieState: getZombieState,
         setZombieNet: setZombieNet,
