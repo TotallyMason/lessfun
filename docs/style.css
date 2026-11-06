@@ -8417,3 +8417,52 @@ body.has-avatar-frame .friend-avatar {
 .fps-interact.is-active {
     opacity: 1;
 }
+
+.fps-needs {
+    position: absolute;
+    right: 18px;
+    bottom: 18px;
+    z-index: 6;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    width: 148px;
+    pointer-events: none;
+}
+.fps-need {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.48);
+}
+.fps-need span { width: 62px; flex-shrink: 0; white-space: nowrap; overflow: hidden; }
+.fps-need-track {
+    flex: 1;
+    height: 5px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.09);
+    overflow: hidden;
+}
+.fps-need-track i {
+    display: block;
+    height: 100%;
+    width: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #54ff9f, #9fffd0);
+    transition: width 0.2s linear;
+}
+.fps-need:nth-child(2) .fps-need-track i { background: linear-gradient(90deg, #5fb8ff, #a9e4ff); }
+.fps-need-track i.is-bleeding { background: linear-gradient(90deg, #ff3b3b, #ff8a6a) !important; }
+.fps-need-track i.is-empty { background: rgba(255,255,255,0.12); }
+.fps-weapon-stat { min-width: 84px; }
+.fps-weapon-stat strong { font-size: 13px; color: #ffe6a8; }
+
+@media (max-width: 640px) {
+    .fps-needs { right: 10px; bottom: 10px; width: 112px; gap: 3px; }
+    .fps-need { font-size: 7px; gap: 4px; }
+    .fps-need span { width: 46px; }
+}

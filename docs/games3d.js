@@ -5,7 +5,7 @@
     var input = {
         left: false, right: false, up: false, down: false, brake: false,
         pointerActive: false, pointerX: 0, pointerY: 0, tapQueued: false, honk: false,
-        jump: false, reload: false, melee: false, interact: false
+        jump: false, reload: false, melee: false, interact: false, weapon: 0, bandage: false
     };
 
     var renderer = null, scene = null, camera = null;
@@ -4442,7 +4442,19 @@
 
         var px = 0, pz = 0, eyeY = 1.68, vy = 0, onGround = true;
         var yaw = 0, pitch = 0;
-        var health = 100, ammo = 30, reserve = 150, reloadT = 0, fireCd = 0;
+        var WEAPONS = {
+            pistol: { name: 'Pistol', mag: 12, damage: 42, headshot: 120, rate: 0.23, spread: 0.006, pellets: 1, reload: 1.0, noise: 28 },
+            rifle: { name: 'Rifle', mag: 30, damage: 27, headshot: 85, rate: 0.095, spread: 0.004, pellets: 1, reload: 1.15, noise: 34 },
+            shotgun: { name: 'Shotgun', mag: 6, damage: 18, headshot: 48, rate: 0.82, spread: 0.06, pellets: 7, reload: 1.5, noise: 38 }
+        };
+        var weaponState = {
+            pistol: { owned: true, ammo: 12, reserve: 60 },
+            rifle: { owned: false, ammo: 0, reserve: 0 },
+            shotgun: { owned: false, ammo: 0, reserve: 0 }
+        };
+        var currentWeapon = 'pistol';
+        var health = 100, ammo = 12, reserve = 60, reloadT = 0, fireCd = 0;
+        var hunger = 100, thirst = 100, bleed = 0, bandages = 1;
         var stamina = 100, sprinting = false, flashlightOn = false, meleeCd = 0, noiseTimer = 0, meleeAnim = 0;
         var score = 0, kills = 0, wave = 1, spawnQueue = 0, spawnTimer = 0, intermission = 1.5;
         var elapsed = 0, firing = false;
@@ -4669,46 +4681,97 @@
             });
         }
 
+        function weaponCfg() { return WEAPONS[currentWeapon]; }
+
+        function applyWeaponVisual() {
+            var cfg = weaponCfg();
+            gun.scale.setScalar(currentWeapon === 'shotgun' ? 0.82 : (currentWeapon === 'rifle' ? 0.74 : 0.62));
+            gunBarrel.scale.y = currentWeapon === 'shotgun' ? 0.72 : (currentWeapon === 'rifle' ? 1.15 : 0.85);
+            gunBody.scale.z = currentWeapon === 'rifle' ? 1.2 : (currentWeapon === 'shotgun' ? 1.0 : 0.82);
+        }
+
+        function switchWeapon(key) {
+            if (!WEAPONS[key] || !weaponState[key] || !weaponState[key].owned || key === currentWeapon) return;
+            weaponState[currentWeapon].ammo = ammo;
+            weaponState[currentWeapon].reserve = reserve;
+            currentWeapon = key;
+            ammo = weaponState[key].ammo;
+            reserve = weaponState[key].reserve;
+            reloadT = 0;
+            fireCd = 0.25;
+            applyWeaponVisual();
+            showBanner(WEAPONS[key].name.toUpperCase());
+            sfx(520, 0.08, 0.035, 'square', 760);
+        }
+
+        function unlockWeapon(key) {
+            if (!weaponState[key] || weaponState[key].owned) return false;
+            weaponState[key].owned = true;
+            weaponState[key].ammo = WEAPONS[key].mag;
+            weaponState[key].reserve = key === 'shotgun' ? 18 : 60;
+            return true;
+        }
+
         function fire() {
             if (dead || reloadT > 0 || fireCd > 0) return;
             if (ammo <= 0) { startReload(); return; }
+            var cfg = weaponCfg();
             ammo--;
-            fireCd = 0.1;
-            muzzle.intensity = 2.4;
-            sfx(140, 0.08, 0.11, 'square', 60);
-            makeNoise(px, pz, 32, 1.4);
-            var dir = new THREE.Vector3(
+            fireCd = cfg.rate;
+            muzzle.intensity = 2.8;
+            sfx(currentWeapon === 'shotgun' ? 95 : (currentWeapon === 'rifle' ? 150 : 190), 0.08, 0.11, 'square', 55);
+            makeNoise(px, pz, cfg.noise, 1.4);
+            var baseDir = new THREE.Vector3(
                 -Math.sin(yaw) * Math.cos(pitch),
                 Math.sin(pitch),
                 -Math.cos(yaw) * Math.cos(pitch)
             ).normalize();
             var origin = new THREE.Vector3(px, eyeY, pz);
-            lastShotDir.copy(dir);
-            var best = null, bestT = 60, headshot = false;
-            for (var i = 0; i < zombies.length; i++) {
-                var z = zombies[i];
-                var rel = new THREE.Vector3(z.position.x - origin.x, 1.05 - origin.y, z.position.z - origin.z);
-                var t = rel.dot(dir);
-                if (t <= 0.5 || t > bestT) continue;
-                var perp = rel.clone().sub(dir.clone().multiplyScalar(t)).length();
-                if (perp < 0.55) {
-                    var hitY = origin.y + dir.y * t;
-                    headshot = hitY > 1.3;
-                    best = z; bestT = t;
+            lastShotDir.copy(baseDir);
+            var hitAny = false;
+            var traced = false;
+            for (var pellet = 0; pellet < cfg.pellets; pellet++) {
+                var dir = baseDir.clone();
+                if (cfg.spread > 0 || cfg.pellets > 1) {
+                    dir.x += (Math.random() - 0.5) * cfg.spread * 2;
+                    dir.y += (Math.random() - 0.5) * cfg.spread * 2;
+                    dir.z += (Math.random() - 0.5) * cfg.spread * 2;
+                    dir.normalize();
+                }
+                var best = null, bestT = 60, headshot = false;
+                for (var i = 0; i < zombies.length; i++) {
+                    var z = zombies[i];
+                    var rel = new THREE.Vector3(z.position.x - origin.x, 1.05 - origin.y, z.position.z - origin.z);
+                    var t = rel.dot(dir);
+                    if (t <= 0.5 || t > bestT) continue;
+                    var perp = rel.clone().sub(dir.clone().multiplyScalar(t)).length();
+                    if (perp < (cfg.pellets > 1 ? 0.72 : 0.55)) {
+                        var hitY = origin.y + dir.y * t;
+                        headshot = hitY > 1.3;
+                        best = z; bestT = t;
+                    }
+                }
+                if (!traced) {
+                    var end = origin.clone().add(dir.clone().multiplyScalar(bestT));
+                    var tracerGeo = new THREE.BufferGeometry().setFromPoints([
+                        new THREE.Vector3(px + dir.x * 0.5, eyeY - 0.15 + dir.y * 0.5, pz + dir.z * 0.5), end
+                    ]);
+                    var tracer = new THREE.Line(tracerGeo, new THREE.LineBasicMaterial({ color: 0xffe6a0, transparent: true, opacity: 0.9 }));
+                    scene.add(tracer); tracers.push({ line: tracer, life: 0.08 });
+                    traced = true;
+                }
+                if (best) {
+                    best.userData.health -= headshot ? cfg.headshot : cfg.damage;
+                    hitAny = true;
+                    if (best.userData.health <= 0) killZombie(best, headshot);
                 }
             }
-            var end = origin.clone().add(dir.clone().multiplyScalar(bestT));
-            var tracerGeo = new THREE.BufferGeometry().setFromPoints([
-                new THREE.Vector3(px + dir.x * 0.5, eyeY - 0.15 + dir.y * 0.5, pz + dir.z * 0.5), end
-            ]);
-            var tracer = new THREE.Line(tracerGeo, new THREE.LineBasicMaterial({ color: 0xffe6a0, transparent: true, opacity: 0.9 }));
-            scene.add(tracer); tracers.push({ line: tracer, life: 0.08 });
-            if (best) {
-                best.userData.health -= headshot ? 115 : 38;
-                sfx(headshot ? 900 : 520, 0.07, 0.045, 'sine', 300);
+            pitch = Math.min(1.35, pitch + (cfg.pellets > 1 ? 0.045 : 0.012));
+            yaw += (Math.random() - 0.5) * (cfg.pellets > 1 ? 0.012 : 0.004);
+            if (hitAny) {
+                sfx(900, 0.07, 0.045, 'sine', 300);
                 var hit = document.getElementById('g3dFpsHit');
                 if (hit) { hit.classList.remove('is-active'); void hit.offsetWidth; hit.classList.add('is-active'); hitTimer = 0.13; }
-                if (best.userData.health <= 0) killZombie(best, headshot);
             }
         }
 
@@ -4747,8 +4810,9 @@
         }
 
         function startReload() {
-            if (reloadT > 0 || ammo >= 30 || reserve <= 0) return;
-            reloadT = 1.15;
+            var cfg = weaponCfg();
+            if (reloadT > 0 || ammo >= cfg.mag || reserve <= 0) return;
+            reloadT = cfg.reload;
             sfx(300, 0.1, 0.035, 'square', 180);
             makeNoise(px, pz, 9, 0.4);
         }
@@ -4810,9 +4874,18 @@
             crate.userData.lid.position.y = 0.92;
             crate.userData.glow.visible = false;
             var roll = Math.random();
-            if (roll < 0.42) { reserve += 75; showBanner('+75 AMMO'); }
-            else if (roll < 0.78) { health = Math.min(100, health + 40); showBanner('+40 HEALTH'); }
-            else { ammo = 30; reserve += 40; score += 100; showBanner('SUPPLY CACHE'); }
+            var locked = Object.keys(weaponState).filter(function (key) { return !weaponState[key].owned; });
+            if (locked.length && roll < 0.46) {
+                var found = locked[Math.floor(Math.random() * locked.length)];
+                unlockWeapon(found);
+                switchWeapon(found);
+                showBanner('FOUND ' + WEAPONS[found].name.toUpperCase());
+            } else if (roll < 0.62) { reserve += 50; showBanner('+50 AMMO'); }
+            else if (roll < 0.78) { health = Math.min(100, health + 35); showBanner('+35 HEALTH'); }
+            else if (roll < 0.88) { hunger = Math.min(100, hunger + 45); showBanner('FOOD +45'); }
+            else if (roll < 0.96) { thirst = Math.min(100, thirst + 50); showBanner('WATER +50'); }
+            else { bandages++; showBanner('BANDAGE +1'); }
+            score += 100;
             sfx(760, 0.12, 0.05, 'sine', 1100);
             makeNoise(px, pz, 8, 0.4);
         }
@@ -4854,10 +4927,31 @@
             if (eyeY <= 1.68) { eyeY = 1.68; vy = 0; onGround = true; }
 
             if (input.reload) { input.reload = false; startReload(); }
+            if (input.weapon) {
+                var weaponKeys = ['pistol', 'rifle', 'shotgun'];
+                switchWeapon(weaponKeys[Math.max(0, Math.min(2, input.weapon - 1))]);
+                input.weapon = 0;
+            }
+            if (input.bandage) {
+                input.bandage = false;
+                if (bleed > 0 && bandages > 0) {
+                    bandages--;
+                    bleed = 0;
+                    health = Math.min(100, health + 14);
+                    showBanner('BANDAGED');
+                    sfx(620, 0.18, 0.045, 'sine', 420);
+                }
+            }
+            hunger = Math.max(0, hunger - 0.055 * dt);
+            thirst = Math.max(0, thirst - 0.08 * dt);
+            if (hunger <= 0) health -= 1.1 * dt;
+            if (thirst <= 0) health -= 1.5 * dt;
+            if (bleed > 0) health -= bleed * 1.15 * dt;
             if (reloadT > 0) {
                 reloadT -= dt;
                 if (reloadT <= 0) {
-                    var need = Math.min(30 - ammo, reserve);
+                    var reloadCfg = weaponCfg();
+                    var need = Math.min(reloadCfg.mag - ammo, reserve);
                     ammo += need; reserve -= need;
                     sfx(600, 0.09, 0.04, 'square', 900);
                 }
@@ -4929,6 +5023,7 @@
                     if (u.attackCd <= 0) {
                         u.attackCd = 0.95;
                         health -= (u.damage || 8) + wave * 1.1;
+                        bleed = Math.min(3, bleed + (u.type === 'brute' ? 1.1 : 0.45));
                         damageTimer = 0.28;
                         var dmg = document.getElementById('g3dFpsDamage');
                         if (dmg) { dmg.classList.remove('is-active'); void dmg.offsetWidth; dmg.classList.add('is-active'); }
@@ -5023,12 +5118,26 @@
             var elK = document.getElementById('g3dFpsKills');
             var elS = document.getElementById('g3dFpsScore');
             var elSt = document.getElementById('g3dFpsStamina');
+            var elWpn = document.getElementById('g3dFpsWeapon');
+            var elFood = document.getElementById('g3dFpsFood');
+            var elWater = document.getElementById('g3dFpsWater');
+            var elBand = document.getElementById('g3dFpsBandage');
+            var elBandLabel = document.getElementById('g3dFpsBandageLabel');
             if (elH) { elH.textContent = Math.max(0, Math.round(health)); elH.classList.toggle('is-low', health < 35); }
             if (elA) elA.textContent = reloadT > 0 ? 'RELOAD' : (ammo + ' / ' + reserve);
             if (elW) elW.textContent = wave;
             if (elK) elK.textContent = kills;
             if (elS) elS.textContent = Math.round(score).toLocaleString();
             if (elSt) { elSt.textContent = Math.round(stamina); elSt.classList.toggle('is-low', stamina < 25); }
+            if (elWpn) elWpn.textContent = weaponCfg().name;
+            if (elFood) elFood.style.width = Math.round(hunger) + '%';
+            if (elWater) elWater.style.width = Math.round(thirst) + '%';
+            if (elBand) {
+                elBand.style.width = (bleed > 0 ? 100 : (bandages > 0 ? 100 : 0)) + '%';
+                elBand.classList.toggle('is-bleeding', bleed > 0);
+                elBand.classList.toggle('is-empty', bleed <= 0 && bandages <= 0);
+            }
+            if (elBandLabel) elBandLabel.textContent = bleed > 0 ? 'BLEEDING' : ('Bandage x' + bandages);
         }
 
         // Pointer lock / trackpad look.
@@ -5066,6 +5175,7 @@
             if (prompt) prompt.style.display = document.pointerLockElement === canvas ? 'none' : 'flex';
         });
 
+        applyWeaponVisual();
         startWave(1);
         makePickup('ammo');
         makePickup('health');
@@ -5075,7 +5185,7 @@
             update: update,
             setRemotes: setRemotes,
             getScore: function () { return score; },
-            getState: function () { return { x: px, z: pz, yaw: yaw, health: Math.max(0, health), stamina: Math.round(stamina), score: score, wave: wave, kills: kills }; }
+            getState: function () { return { x: px, z: pz, yaw: yaw, health: Math.max(0, health), stamina: Math.round(stamina), hunger: Math.round(hunger), thirst: Math.round(thirst), weapon: currentWeapon, score: score, wave: wave, kills: kills }; }
         };
     }
 
@@ -5117,6 +5227,7 @@
         var KEY_RELOAD = ['r', 'R'];
         var KEY_MELEE = ['v', 'V'];
         var KEY_INTERACT = ['e', 'E'];
+        var KEY_BANDAGE = ['b', 'B'];
 
         function down(e) {
             if (isTypingTarget(e)) return;
@@ -5136,6 +5247,10 @@
             if (KEY_RELOAD.indexOf(e.key) >= 0) { if (!e.repeat) input.reload = true; }
             if (KEY_MELEE.indexOf(e.key) >= 0) { if (!e.repeat) input.melee = true; }
             if (KEY_INTERACT.indexOf(e.key) >= 0) { if (!e.repeat) input.interact = true; }
+            if (KEY_BANDAGE.indexOf(e.key) >= 0) { if (!e.repeat) input.bandage = true; }
+            if (e.key === '1') { if (!e.repeat) input.weapon = 1; }
+            if (e.key === '2') { if (!e.repeat) input.weapon = 2; }
+            if (e.key === '3') { if (!e.repeat) input.weapon = 3; }
             if (e.key === ' ') { input.jump = true; input.tapQueued = true; e.preventDefault(); }
             else if (e.key === 'Enter') { input.tapQueued = true; e.preventDefault(); }
             if (KEY_LEFT.indexOf(e.key) >= 0 || KEY_RIGHT.indexOf(e.key) >= 0 || KEY_UP.indexOf(e.key) >= 0 || KEY_DOWN.indexOf(e.key) >= 0 || KEY_GEAR_DOWN.indexOf(e.key) >= 0 || KEY_GEAR_UP.indexOf(e.key) >= 0) e.preventDefault();
@@ -5274,7 +5389,7 @@
         input.left = false; input.right = false; input.up = false; input.down = false;
         input.brake = false;
         input.pointerActive = false; input.pointerX = 0; input.pointerY = 0; input.tapQueued = false;
-        input.honk = false; input.jump = false; input.reload = false; input.melee = false; input.interact = false;
+        input.honk = false; input.jump = false; input.reload = false; input.melee = false; input.interact = false; input.weapon = 0; input.bandage = false;
         playedSeconds = 0;
 
         resetScene();
@@ -5329,7 +5444,7 @@
         input.brake = false; input.gearDown = false; input.gearUp = false;
         input.drift = false; input.nitro = false; input.fsdToggle = false;
         input.pointerActive = false; input.pointerX = 0; input.pointerY = 0; input.tapQueued = false;
-        input.honk = false; input.jump = false; input.reload = false; input.melee = false; input.interact = false;
+        input.honk = false; input.jump = false; input.reload = false; input.melee = false; input.interact = false; input.weapon = 0; input.bandage = false;
         clock = new THREE.Clock();
         resize();
         var factory = factories[lastGameId];
