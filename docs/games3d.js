@@ -100,6 +100,12 @@
         } catch (e) {}
         try { if (gameMeta.onScore) gameMeta.onScore(gameMeta.name, rounded); } catch (e) {}
         try { if (gameMeta.onGameOver) gameMeta.onGameOver(rounded, seconds); } catch (e) {}
+        // Stop all engine/wind/noise nodes so nothing keeps buzzing after the run.
+        if (audioCleanup) {
+            try { audioCleanup(); } catch (e) {}
+            audioCleanup = null;
+            audioMuteHandler = null;
+        }
     }
 
     /* ---------------- Beach Racer ---------------- */
@@ -2122,6 +2128,7 @@
 
             if (window.Games3D) { /* keeps HUD update cheap */ }
             setHud(crashScore, 'CRASH', 'X');
+            updateAudio();
 
             if (crashRealT > 5.5) {
                 var flash = document.getElementById('g3dCrashFlash');
@@ -3607,7 +3614,10 @@
             ? Math.round(Math.abs(mps) * 3.6) + ' km/h'
             : Math.round(Math.abs(mps) * 2.23694) + ' mph';
     }
-    function setPaused(on) { paused = !!on; }
+    function setPaused(on) {
+        paused = !!on;
+        if (audioMuteHandler) audioMuteHandler(!paused && soundEnabled);
+    }
     function setRemoteRacers(list) {
         if (active && active.setRemotes) active.setRemotes(list || []);
     }

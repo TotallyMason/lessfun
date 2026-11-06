@@ -5393,8 +5393,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.23.2";
-const UPDATE_NOTES = "Friends now has Calls: ring one friend directly, start a group call, invite multiple friends, and accept incoming calls anywhere. Messages start from people search";
+const APP_VERSION = "LessFun Developer Beta 1.23.3";
+const UPDATE_NOTES = "Fixed the lingering engine buzzing sound: game audio now mutes when paused or crashed and shuts down completely when a run ends";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
