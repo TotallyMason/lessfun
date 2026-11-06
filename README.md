@@ -157,7 +157,7 @@ handling real user data or payments.
 ## Features
 
 - Five real-time 3D games powered by Three.js
-- Six-lane coastal highway with guardrails, streetlights, overhead signs, SUVs, semis, long buses, no entry/exit ramps, a scrolling route map, and a much faster top speed in Beach Racer
+- Six-lane coastal highway with guardrails, streetlights, overhead signs, SUVs, semis, long buses, no entry/exit ramps, a real city district with storefronts/cross streets/overpasses, and a much faster top speed in Beach Racer
 - Beach Racer multiplayer for 2–3 players: create or join a five-character room code, race together, see each driver's name floating above their car, and pass through other players without collisions
 - Checkpoint gates every 500 m with a CP counter and a +250 score bonus per gate, plus a host-only start and restart button
 - Manual Q/E gear selector (P, R, N, D) with reverse and park in Beach Racer
@@ -174,7 +174,7 @@ handling real user data or payments.
 - Dead Coast FPS co-op: host-authoritative shared zombie waves and boss waves, downed teammates and E-to-revive, shared loot crates, extraction zones after every fifth wave, WASD movement, trackpad/mouse look with pointer lock, stamina sprint, jump, reload, melee, flashlight, three weapons, hunger/thirst, bleeding/bandages, detailed zombie ragdolls, runner/brute/boss infected, sound-driven attraction, a mercy director, remote survivor avatars, and three public co-op rooms
 - Star Dodger power-ups: shields, laser weapons, score combos, enemy drones, nebula explosions, and fast WASD movement
 - Play Again restarts the scene without rebuilding the WebGL context for a much faster retry
-- Real-time car shadows, ACES filmic tone mapping, warmer sunset lighting, and a faster top speed with stronger speed-based camera FOV and shake, a route minimap, detailed LOD culling, a motion-blur toggle, a real FPS overlay, minor-collision sparks/debris, and an H-key horn that tells nearby traffic to move over
+- Real-time car shadows, ACES filmic tone mapping, warmer sunset lighting, and a faster top speed with stronger speed-based camera FOV and shake, a real city streetscape, detailed LOD culling, a motion-blur toggle, a real FPS overlay, minor-collision sparks/debris, and an H-key horn that tells nearby traffic to move over
 - Star Dodger now responds to fast WASD movement as well as arrow keys and drag controls
 - Coin gifting from Friends or a profile, private-message user search, and 50% cosmetic resale
 - Teleport to any racer in a public lobby, and curving highway lane markings for a more dynamic road

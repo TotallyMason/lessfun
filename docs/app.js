@@ -4,7 +4,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_Ev9umZevWcT-AwVHTPQLnw_DHdpDHWR";
 const supabaseClient = (typeof window !== 'undefined' && window.supabase) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 const games = [
-    { id: 1, name: "Beach Racer", description: "Outrun traffic on a six-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · ← → steer · Shift / N nitrous · F FSD · H honk · Q/E gears · right lane exits" },
+    { id: 1, name: "Beach Racer", description: "Outrun traffic on a six-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · ← → steer · Shift / N nitrous · F FSD · H honk · Q/E gears" },
     { id: 2, name: "Tunnel Rush", description: "Thread the neon tunnel at warp speed", icon: "tunnel", controls: "Left / Right or drag to rotate" },
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
     { id: 4, name: "Dead Coast", description: "Survive endless zombie waves in first person", icon: "skull", controls: "WASD move · trackpad look · click fire · 1/2/3 weapons · R reload · V melee · B bandage · E loot · F light · Shift sprint" },
@@ -584,7 +584,6 @@ function openGame(id) {
             '</div>' +
             '<div id="g3dCanvas" class="game3d-canvas"></div>' +
             '<div class="game3d-remote-cams" id="g3dRemoteCams" style="display:none;"></div>' +
-            (game.id === 1 ? '<canvas class="game3d-map" id="g3dMapCanvas" width="300" height="108"></canvas>' : '') +
             (game.id === 4 ?
                 '<div class="fps-crosshair" id="g3dFpsCrosshair"><span></span></div>' +
                 '<div class="fps-hitmark" id="g3dFpsHit"></div>' +
@@ -6313,8 +6312,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.29.0";
-const UPDATE_NOTES = "Beach Racer adds semi-trucks, much longer buses, a scrolling route map, no entry/exit ramps, LOD detail culling, minor-collision sparks, motion blur, and a real FPS toggle. Friends cards now show last seen, friend count, total runs, and favorite game";
+const APP_VERSION = "LessFun Developer Beta 1.30.0";
+const UPDATE_NOTES = "Beach Racer now has a real city district with storefronts, cross streets, overpasses, city lighting, semi-trucks and long buses. The fake route map is gone, rendering uses native Retina resolution again, and motion blur/FPS toggles remain in settings";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');

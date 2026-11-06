@@ -775,12 +775,108 @@
             addScroller(bldg, 560);
         }
 
-        for (var ui = 0; ui < 14; ui++) {
+        // Real city district: storefronts, sidewalks, cross streets, and overpasses.
+        var citySidewalk = boxMesh(6.5, 0.1, 500, standard(0x9aa0a6, { roughness: 0.9 }));
+        citySidewalk.position.set(16.2, 0.04, -235);
+        scene.add(citySidewalk);
+        var curb = boxMesh(0.28, 0.22, 500, standard(0xd7dde5, { roughness: 0.8 }));
+        curb.position.set(12.95, 0.11, -235);
+        scene.add(curb);
+
+        function makeShop(index) {
+            var g = new THREE.Group();
+            var palette = [0xe8c7a8, 0xb8d8d0, 0xe9b9c7, 0xc8c6e8, 0xf2dfb0, 0xb7d7ea];
+            var w = 7 + (index % 3) * 1.8;
+            var d = 5.5 + (index % 2) * 1.8;
+            var h = 5.5 + (index % 4) * 1.8;
+            var bodyMat = standard(palette[index % palette.length], { roughness: 0.78, metalness: 0.04 });
+            var body = boxMesh(w, h, d, bodyMat); body.position.y = h / 2; g.add(body);
+            var roof = boxMesh(w * 0.82, 0.35, d * 0.82, standard(0x39424a, { roughness: 0.7 }));
+            roof.position.y = h + 0.17; g.add(roof);
+            var windowMat = new THREE.MeshBasicMaterial({ color: 0xffd88a, transparent: true, opacity: 0.82 });
+            var windowDark = new THREE.MeshBasicMaterial({ color: 0x16303c, transparent: true, opacity: 0.86 });
+            for (var wr = 0; wr < 3; wr++) {
+                for (var wc = 0; wc < 2; wc++) {
+                    var win = boxMesh(0.08, 1.15, 1.6, (wr + wc + index) % 4 === 0 ? windowDark : windowMat);
+                    win.position.set(-w / 2 - 0.04, 1.9 + wr * 1.45, -d * 0.25 + wc * 2.3);
+                    g.add(win);
+                }
+            }
+            var door = boxMesh(0.09, 2.1, 1.1, windowDark);
+            door.position.set(-w / 2 - 0.05, 1.05, d * 0.28); g.add(door);
+            var awningMat = new THREE.MeshBasicMaterial({ color: index % 2 ? 0xff5a5a : 0x54d6b0 });
+            var awning = boxMesh(0.16, 0.18, d * 0.72, awningMat);
+            awning.position.set(-w / 2 - 0.45, 2.95, 0); g.add(awning);
+            var sign = boxMesh(0.08, 0.85, w * 0.62, new THREE.MeshBasicMaterial({ color: index % 3 === 0 ? 0x5fe0ff : (index % 3 === 1 ? 0xff8fd0 : 0xffd166) }));
+            sign.position.set(-w / 2 - 0.08, h - 0.85, 0); g.add(sign);
+            return g;
+        }
+
+        for (var sh = 0; sh < 16; sh++) {
+            var shop = makeShop(sh);
+            shop.position.set(22 + (sh % 3) * 5.5, 0, 8 - sh * 36);
+            shop.rotation.y = 0;
+            addScroller(shop, 576);
+        }
+
+        function makeCrossStreet(index) {
+            var g = new THREE.Group();
+            var asphalt = new THREE.Mesh(new THREE.PlaneGeometry(31, 8.5), standard(0x30343a, { roughness: 0.94 }));
+            asphalt.rotation.x = -Math.PI / 2;
+            asphalt.position.set(24, 0.025, 0); g.add(asphalt);
+            for (var l = 0; l < 4; l++) {
+                var stripe = new THREE.Mesh(new THREE.PlaneGeometry(31, 0.12), new THREE.MeshBasicMaterial({ color: 0xf4f1d5 }));
+                stripe.rotation.x = -Math.PI / 2;
+                stripe.position.set(24, 0.04, -2.1 + l * 1.4); g.add(stripe);
+            }
+            return g;
+        }
+        for (var cs = 0; cs < 4; cs++) {
+            var street = makeCrossStreet(cs);
+            street.position.set(0, 0, -20 - cs * 168);
+            addScroller(street, 672);
+        }
+
+        function makeOverpass(index) {
+            var g = new THREE.Group();
+            var deckMat = standard(0x555d66, { roughness: 0.9, metalness: 0.12 });
+            var deck = boxMesh(48, 0.8, 4.2, deckMat);
+            deck.position.set(0, 7.2, 0); g.add(deck);
+            var railMat = standard(0xd9e0e7, { metalness: 0.4, roughness: 0.45 });
+            [-1, 1].forEach(function (side) {
+                var rail = boxMesh(48, 0.18, 0.15, railMat);
+                rail.position.set(0, 8.1, side * 1.95); g.add(rail);
+                var col = boxMesh(1.0, 7.2, 1.4, deckMat);
+                col.position.set(side * 11.5, 3.6, 0); g.add(col);
+            });
+            var sign = boxMesh(7.2, 1.15, 0.18, new THREE.MeshBasicMaterial({ color: 0x1f8f5f }));
+            sign.position.set(0, 7.9, 2.2); g.add(sign);
+            return g;
+        }
+        for (var ov = 0; ov < 3; ov++) {
+            var bridge = makeOverpass(ov);
+            bridge.position.set(0, 0, -90 - ov * 240);
+            addScroller(bridge, 720);
+        }
+
+        for (var sl = 0; sl < 12; sl++) {
+            var cityLamp = new THREE.Group();
+            var pole = cylinderMesh(0.07, 0.1, 6.2, 8, standard(0x2e353c, { metalness: 0.6, roughness: 0.4 }));
+            pole.position.y = 3.1; cityLamp.add(pole);
+            var arm = boxMesh(1.6, 0.08, 0.08, standard(0x2e353c, { metalness: 0.6 }));
+            arm.position.set(-0.75, 6.1, 0); cityLamp.add(arm);
+            var head = boxMesh(0.7, 0.16, 0.3, new THREE.MeshBasicMaterial({ color: 0xffe6b0 }));
+            head.position.set(-1.45, 6.05, 0); cityLamp.add(head);
+            cityLamp.position.set(13.9, 0, -8 - sl * 44);
+            addScroller(cityLamp, 528);
+        }
+
+        for (var ui = 0; ui < 8; ui++) {
             var umb = makeUmbrellaCluster(ui);
-            var row = ui % 2;
-            umb.position.set((row ? 24 : 15) + Math.random() * 4, 0, -6 - Math.floor(ui / 2) * 46);
+            umb.position.set(10.8 + (ui % 2) * 1.5 + Math.random() * 0.8, 0, -6 - ui * 58);
             umb.rotation.y = Math.random() * Math.PI * 2;
-            addScroller(umb, 322);
+            umb.scale.setScalar(0.82);
+            addScroller(umb, 464);
         }
 
         // Rocks and driftwood along the shoreline.
@@ -3833,7 +3929,6 @@
             }
             updateRaceHud();
             updateFsdVisual();
-            drawRouteMap();
             updateAudio();
         }
 
@@ -5968,12 +6063,12 @@
         else input.gearDown = true;
     }
     function effectivePixelRatio() {
-        // Never render more pixels than the visible CSS viewport. On Retina
-        // displays this keeps the drawing buffer at 1x while CSS scales it.
-        var base = 1;
+        // Cap at the display's native resolution, which on Retina means 2x
+        // CSS pixels instead of the blurry 1x buffer.
+        var base = Math.min(global.devicePixelRatio || 1, 2);
         var requested = renderScale > 0 ? renderScale : 1;
         var ratio = base * requested * adaptiveScale;
-        return Math.max(0.2, Math.min(1, ratio));
+        return Math.max(base * 0.2, Math.min(base, ratio));
     }
 
     function applyPixelRatio() {
