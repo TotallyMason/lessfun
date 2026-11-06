@@ -1947,7 +1947,8 @@ function toggleDmSidebar(force) {
         clearInterval(dmState.poll);
         dmState.poll = 0;
     }
-    if (window.Games3D) window.Games3D.setPaused(wantOpen || racerMp.panelOpen);
+    // Messages do not pause the game. Typing is ignored by game controls while
+    // an input/textarea is focused.
 }
 
 function dmClose() {
@@ -5393,8 +5394,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.23.5";
-const UPDATE_NOTES = "Call invites are now a user dropdown that works with anyone, and the engine buzz is removed by deleting the low sub-oscillator and keeping all audio sources stopped until the engine actually starts";
+const APP_VERSION = "LessFun Developer Beta 1.23.6";
+const UPDATE_NOTES = "Messages moved to the top-right and no longer pause the game, so you can chat while driving. Gift notifications now pop up at the top and fade away automatically, even outside a game";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
@@ -5718,6 +5719,11 @@ async function sendCoinsGift(target, amount) {
                 recipient: target,
                 amount: amount
             });
+            sendCallSignal('gift-notify', {
+                from: currentUser.username,
+                to: target,
+                amount: amount
+            });
         } catch (e) {}
     }
     return { ok: true, message: 'Gifted ' + amount.toLocaleString() + ' Coins to ' + target + '.' };
@@ -5857,6 +5863,56 @@ let presenceUnavailable = false;
 let notifRows = [];
 let notifPoll = 0;
 let notifLoading = false;
+let notifShownIds = {};
+let topNotifTimers = {};
+
+function ensureTopLayer(el) {
+    if (!el) return;
+    const fs = document.fullscreenElement;
+    if (fs && fs.appendChild && el.parentNode !== fs) {
+        try { fs.appendChild(el); } catch (e) {}
+    } else if (!fs && el.parentNode !== document.body) {
+        try { document.body.appendChild(el); } catch (e) {}
+    }
+}
+
+function showTopNotification(html, icon, onClick) {
+    const host = document.getElementById('topNotifications');
+    if (!host) return;
+    ensureTopLayer(host);
+    const card = document.createElement('div');
+    card.className = 'top-notification';
+    card.innerHTML = '<span class="top-notification-icon">' + (icon || '🔔') + '</span><span class="top-notification-text">' + html + '</span>';
+    card.onclick = function () {
+        if (onClick) onClick();
+        else openNotifications();
+        dismissTopNotification(card);
+    };
+    host.appendChild(card);
+    const timer = setTimeout(function () { dismissTopNotification(card); }, 5200);
+    topNotifTimers[card] = timer;
+}
+
+function dismissTopNotification(card) {
+    if (!card || !card.parentNode) return;
+    if (topNotifTimers[card]) { clearTimeout(topNotifTimers[card]); delete topNotifTimers[card]; }
+    card.classList.add('is-leaving');
+    setTimeout(function () {
+        if (card.parentNode) card.parentNode.removeChild(card);
+    }, 320);
+}
+
+function showGiftNotification(row) {
+    const sender = escapeHtml(row.sender || 'Someone');
+    const amount = escapeHtml((Number(row.amount) || 0).toLocaleString());
+    showTopNotification('<strong>' + sender + '</strong> gifted you ' + amount + ' Coins', '🎁');
+}
+
+function handleGiftNotify(payload) {
+    const me = friendUsername();
+    if (!me || !payload || payload.to !== me || payload.from === me) return;
+    loadNotifications(true);
+}
 
 function updateNotifBadge() {
     const badge = document.getElementById('notifBadge');
@@ -5876,7 +5932,18 @@ async function loadNotifications(quiet) {
             .eq('recipient', me)
             .order('created_at', { ascending: false })
             .limit(40));
-        if (!res.error) notifRows = res.data || [];
+        if (!res.error) {
+            notifRows = res.data || [];
+            let shownCount = 0;
+            notifRows.forEach(function (row) {
+                const id = String(row.id);
+                if (!row.seen && !notifShownIds[id] && shownCount < 4) {
+                    notifShownIds[id] = true;
+                    shownCount++;
+                    showGiftNotification(row);
+                }
+            });
+        }
         updateNotifBadge();
         if (!quiet && document.getElementById('notificationsModal') && document.getElementById('notificationsModal').style.display !== 'none') {
             renderNotifications();
@@ -5912,6 +5979,7 @@ function renderNotifications() {
 
 async function openNotifications() {
     const modal = document.getElementById('notificationsModal');
+    ensureTopLayer(modal);
     if (modal) modal.style.display = 'flex';
     await loadNotifications(false);
     renderNotifications();
@@ -5944,6 +6012,7 @@ function startNotifications() {
 function stopNotifications() {
     if (notifPoll) { clearInterval(notifPoll); notifPoll = 0; }
     notifRows = [];
+    notifShownIds = {};
     updateNotifBadge();
 }
 
@@ -6741,6 +6810,9 @@ function startActivityChannel() {
     });
     channel.on('broadcast', { event: 'call-decline' }, function (message) {
         handleCallDecline(message && message.payload);
+    });
+    channel.on('broadcast', { event: 'gift-notify' }, function (message) {
+        handleGiftNotify(message && message.payload);
     });
     channel.subscribe(function (status) {
         if (activityChannel !== channel) return;

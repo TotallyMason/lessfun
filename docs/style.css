@@ -7375,3 +7375,78 @@ body.has-avatar-frame .friend-avatar {
     flex: 1;
     min-width: 0;
 }
+
+/* Messages button top-right */
+.game3d-msg-btn {
+    top: 58px;
+    right: 18px;
+    left: auto;
+}
+
+@media (max-width: 640px) {
+    .game3d-msg-btn {
+        top: 54px;
+        right: 12px;
+        left: auto;
+        bottom: auto;
+    }
+}
+
+/* Auto-dismissing top notifications */
+.top-notifications {
+    position: fixed;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10001;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: min(440px, calc(100vw - 24px));
+    pointer-events: none;
+}
+
+.top-notification {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 209, 102, 0.4);
+    background: linear-gradient(145deg, rgba(34, 30, 16, 0.97), rgba(10, 9, 6, 0.98));
+    color: #ffe6a8;
+    font-size: 12px;
+    line-height: 1.4;
+    font-weight: 600;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5), 0 0 24px rgba(255, 200, 80, 0.12);
+    animation: topNotifIn 0.28s cubic-bezier(.22,1,.36,1);
+    cursor: pointer;
+}
+
+.top-notification.is-leaving {
+    animation: topNotifOut 0.3s ease forwards;
+}
+
+.top-notification-icon {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.top-notification-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.top-notification-text strong {
+    color: #fff;
+}
+
+@keyframes topNotifIn {
+    from { opacity: 0; transform: translateY(-14px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes topNotifOut {
+    to { opacity: 0; transform: translateY(-12px) scale(0.98); }
+}
