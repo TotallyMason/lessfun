@@ -171,7 +171,7 @@ handling real user data or payments.
 - Chase-cam windows for remote racers in lobbies with fewer than six people
 - FSD looks ahead across all six lanes, reads front/rear gaps, tween-animates lane changes, treats ramps as gold jump targets instead of traffic, tops out at 300 km/h, and auto-swerves into a safe adjacent lane when emergency braking cannot stop in time
 - Crash physics with directional crumple zones that absorb impact energy, plus a physically simulated driver ragdoll
-- Dead Coast FPS co-op: host-authoritative shared zombie waves and boss waves, downed teammates and E-to-revive, shared loot crates, extraction zones after every fifth wave, WASD movement, trackpad/mouse look with pointer lock, stamina sprint, jump, reload, melee, flashlight, three weapons, hunger/thirst, bleeding/bandages, detailed zombie ragdolls, runner/brute/boss infected, sound-driven attraction, a mercy director, remote survivor avatars, and three public co-op rooms
+- Dead Coast FPS co-op: an Armory to buy/sell/equip/upgrade weapons with Coins, a 360° orbiting weapon showcase, host-authoritative shared zombie waves and boss waves, downed teammates and E-to-revive, shared loot crates, extraction zones after every fifth wave, WASD movement, trackpad/mouse look with pointer lock, stamina sprint, jump, reload, melee, flashlight, three weapons, hunger/thirst, bleeding/bandages, detailed zombie ragdolls, runner/brute/boss infected, sound-driven attraction, a mercy director, remote survivor avatars, and three public co-op rooms
 - Star Dodger power-ups: shields, laser weapons, score combos, enemy drones, nebula explosions, and fast WASD movement
 - Play Again restarts the scene without rebuilding the WebGL context for a much faster retry
 - Real-time car shadows, ACES filmic tone mapping, warmer sunset lighting, and a faster top speed with stronger speed-based camera FOV and shake, a real city streetscape, detailed LOD culling, a motion-blur toggle, a real FPS overlay, minor-collision sparks/debris, and an H-key horn that tells nearby traffic to move over
@@ -196,6 +196,7 @@ handling real user data or payments.
 - Live public multiplayer for Tunnel Rush and Star Dodger with real-time score boards, selectable from each game’s start menu
 - Beach Racer multiplayer uses live low-res camera thumbnails streamed by each player instead of rendering extra local cameras
 - Automatic update shutdown: clients check `version.json`, show a full-screen update screen when a new build ships, and reload themselves; set `"shutdown": true` in `docs/version.json` to take the site offline
+- Graphics presets: Potato, Medium, High, Ultra, and Your Computer Will Die, each with its own resolution/detail/shadow level; Auto Graphics can be toggled on or off
 - AI traffic emergency braking with brake lights; human players get a red flash and warning beep instead of auto-braking
 - Real 3D suspension on Beach Racer cars: coilover springs, control arms, independent wheel travel, body roll, brake dive, acceleration squat, and landing compression
 - Longer cinematic crashes with tumbling, debris, sparks, smoke, wheel and surfboard detachment, body crumple, bounced landings, and a delayed game-over sequence (no camera shake, no slow-mo label)

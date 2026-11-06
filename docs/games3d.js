@@ -15,6 +15,9 @@
     var adaptiveScale = isMobileDevice ? 0.85 : 1;
     var adaptiveTransition = null;
     var adaptiveCooldown = 0;
+    var graphicsPreset = 'high';
+    var qualityLevel = 2;
+    var autoGraphics = true;
     var motionBlurEnabled = true;
     var motionBlurAutoOff = isMobileDevice;
     var lowFpsTime = 0;
@@ -2935,7 +2938,8 @@
 
         function applyCarLod(car, distanceToCamera) {
             var details = car.userData.lodDetails || [];
-            var show = distanceToCamera < (isMobileDevice ? 42 : 65);
+            var lodRange = [24, 40, 65, 90, 120][qualityLevel] != null ? [24, 40, 65, 90, 120][qualityLevel] : 65;
+            var show = distanceToCamera < (isMobileDevice ? Math.min(lodRange, 42) : lodRange);
             if (car.userData.lodVisible === show) return;
             car.userData.lodVisible = show;
             for (var i = 0; i < details.length; i++) details[i].visible = show;
@@ -4609,7 +4613,7 @@
             t.repeat.set(10, 10);
             return t;
         })();
-        var ground = new THREE.Mesh(new THREE.PlaneGeometry(72, 72), std(0xffffff, { map: groundTex, roughness: 0.96, metalness: 0.02 }));
+        var ground = new THREE.Mesh(new THREE.PlaneGeometry(72, 72), std(0xffffff, { map: groundTex, roughness: 0.78, metalness: 0.12 }));
         ground.rotation.x = -Math.PI / 2;
         scene.add(ground);
 
@@ -4679,10 +4683,28 @@
             var head = box(0.8, 0.24, 0.38, lampMat);
             head.position.set(lp[0], 7.0, lp[1]); scene.add(head);
             if (i < (isMobileDevice ? 1 : 3)) {
-                var pl = new THREE.PointLight(0xffd9a0, 1.4, 22);
+                var pl = new THREE.PointLight(0xffd9a0, 1.6, 24);
                 pl.position.set(lp[0], 6.7, lp[1]); scene.add(pl);
+                if (!isMobileDevice) {
+                    var cone = new THREE.Mesh(
+                        new THREE.ConeGeometry(3.1, 6.4, 18, 1, true),
+                        new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0.055, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending })
+                    );
+                    cone.position.set(lp[0], 3.4, lp[1]);
+                    scene.add(cone);
+                }
             }
         });
+
+        for (var pu = 0; pu < (isMobileDevice ? 3 : 6); pu++) {
+            var puddle = new THREE.Mesh(
+                new THREE.CircleGeometry(1.3 + Math.random() * 2.2, 18),
+                new THREE.MeshBasicMaterial({ color: 0x163244, transparent: true, opacity: 0.24, depthWrite: false })
+            );
+            puddle.rotation.x = -Math.PI / 2;
+            puddle.position.set((Math.random() - 0.5) * 46, 0.012, (Math.random() - 0.5) * 46);
+            scene.add(puddle);
+        }
 
         // Loot crates: scarce supplies that must be searched with E.
         var lootCrates = [];
@@ -4741,7 +4763,22 @@
             shotgun: { owned: false, ammo: 0, reserve: 0 }
         };
         var currentWeapon = 'pistol';
-        var health = 100, ammo = 12, reserve = 60, reloadT = 0, fireCd = 0;
+        var weaponUpgrades = {};
+        var loadoutOpt = (ctx.options && ctx.options.zombieLoadout) || null;
+        if (loadoutOpt) {
+            weaponUpgrades = loadoutOpt.upgrades || {};
+            var ownedOpt = Array.isArray(loadoutOpt.owned) ? loadoutOpt.owned : ['pistol'];
+            Object.keys(weaponState).forEach(function (key) {
+                var owned = ownedOpt.indexOf(key) >= 0;
+                weaponState[key].owned = owned;
+                if (owned) {
+                    weaponState[key].ammo = WEAPONS[key].mag;
+                    weaponState[key].reserve = key === 'pistol' ? 60 : (key === 'shotgun' ? 18 : 60);
+                }
+            });
+            if (weaponState[loadoutOpt.equipped] && weaponState[loadoutOpt.equipped].owned) currentWeapon = loadoutOpt.equipped;
+        }
+        var health = 100, ammo = weaponState[currentWeapon].ammo, reserve = weaponState[currentWeapon].reserve, reloadT = 0, fireCd = 0;
         var hunger = 100, thirst = 100, bleed = 0, bandages = 1;
         var stamina = 100, sprinting = false, flashlightOn = false, meleeCd = 0, noiseTimer = 0, meleeAnim = 0;
         var score = 0, kills = 0, wave = 1, spawnQueue = 0, spawnTimer = 0, intermission = 1.5;
@@ -5099,7 +5136,8 @@
                     traced = true;
                 }
                 if (best) {
-                    var dmgAmount = headshot ? cfg.headshot : cfg.damage;
+                    var upgradeMul = 1 + (Number(weaponUpgrades[currentWeapon]) || 0) * 0.15;
+                    var dmgAmount = (headshot ? cfg.headshot : cfg.damage) * upgradeMul;
                     if (multiplayer && !netHost) {
                         netSendEvent('hit', { zid: best.userData.id, damage: dmgAmount, headshot: headshot });
                     } else {
@@ -5614,7 +5652,8 @@
             for (var lz = 0; lz < zombies.length; lz++) {
                 var lodZ = zombies[lz];
                 var lodDist = Math.abs(lodZ.position.z - pz);
-                var lodShow = lodDist < (isMobileDevice ? 16 : 26);
+                var zRange = [12, 18, 26, 36, 48][qualityLevel] != null ? [12, 18, 26, 36, 48][qualityLevel] : 26;
+                var lodShow = lodDist < (isMobileDevice ? Math.min(zRange, 16) : zRange);
                 if (lodZ.userData.lodVisible === lodShow) continue;
                 lodZ.userData.lodVisible = lodShow;
                 var zdList = lodZ.userData.lodDetails || [];
@@ -5746,7 +5785,10 @@
             if (elK) elK.textContent = kills;
             if (elS) elS.textContent = Math.round(score).toLocaleString();
             if (elSt) { elSt.textContent = Math.round(stamina); elSt.classList.toggle('is-low', stamina < 25); }
-            if (elWpn) elWpn.textContent = weaponCfg().name;
+            if (elWpn) {
+                var wlvl = Number(weaponUpgrades[currentWeapon]) || 0;
+                elWpn.textContent = weaponCfg().name + (wlvl ? ' +' + wlvl : '');
+            }
             if (elFood) elFood.style.width = Math.round(hunger) + '%';
             if (elWater) elWater.style.width = Math.round(thirst) + '%';
             if (elBand) {
@@ -5991,7 +6033,9 @@
                 resetMotionBlurHistory();
             }
             adaptiveCooldown = Math.max(0, adaptiveCooldown - fpsTime);
-            if (adaptiveTransition) {
+            if (!autoGraphics) {
+                adaptiveTransition = null;
+            } else if (adaptiveTransition) {
                 // Hold the current resolution briefly, render a blended scale,
                 // then settle on the target. This avoids reallocating the drawing
                 // buffer every time FPS wobbles.
@@ -6170,7 +6214,7 @@
         // ignored so the game never renders wasteful supersampled pixels.
         var base = 1;
         var requested = renderScale > 0 ? renderScale : 1;
-        var ratio = base * requested * adaptiveScale;
+        var ratio = base * requested * (autoGraphics ? adaptiveScale : 1);
         return Math.max(0.2, Math.min(1, ratio));
     }
 
@@ -6264,6 +6308,26 @@
             var ratio = renderer.getPixelRatio();
             resEl.textContent = Math.round(ratio * 100) + '% · ' + canvas.width + '×' + canvas.height;
         }
+    }
+    function setGraphicsPreset(name, auto) {
+        var presets = {
+            potato: { scale: 0.5, level: 0, shadows: false },
+            medium: { scale: 0.7, level: 1, shadows: false },
+            high: { scale: 0.85, level: 2, shadows: true },
+            ultra: { scale: 1.0, level: 3, shadows: true },
+            extreme: { scale: 1.0, level: 4, shadows: true }
+        };
+        var preset = presets[name] || presets.high;
+        graphicsPreset = name;
+        qualityLevel = preset.level;
+        autoGraphics = auto !== false;
+        renderScale = preset.scale;
+        if (!autoGraphics) adaptiveScale = 1;
+        if (renderer) {
+            renderer.shadowMap.enabled = preset.shadows && !isMobileDevice;
+            applyPixelRatio();
+        }
+        resetMotionBlurHistory();
     }
     function setRenderScale(scale) {
         renderScale = Math.max(0, Math.min(1, Number(scale) || 0));
@@ -6400,6 +6464,7 @@
         reviveZombiePlayer: reviveZombiePlayer,
         applyLootedCrate: applyLootedCrate,
         setLocalRacerName: setLocalRacerName,
+        setGraphicsPreset: setGraphicsPreset,
         setRenderScale: setRenderScale,
         setMotionBlur: setMotionBlur,
         setShowFps: setShowFps,

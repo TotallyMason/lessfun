@@ -48,8 +48,17 @@ const ADMIN_POWER_DEFS = [
     { id: 'manage_users', label: 'Ban and unban users' }
 ];
 let avatarCache = {};
+const GRAPHICS_PRESETS = {
+    potato: { scale: 0.5, shadows: false, level: 0, blur: false, label: 'Potato' },
+    medium: { scale: 0.7, shadows: false, level: 1, blur: false, label: 'Medium' },
+    high: { scale: 0.85, shadows: true, level: 2, blur: true, label: 'High' },
+    ultra: { scale: 1.0, shadows: true, level: 3, blur: true, label: 'Ultra' },
+    extreme: { scale: 1.0, shadows: true, level: 4, blur: true, label: 'Your Computer Will Die' }
+};
 let renderScaleSetting = 0;
 const isMobileUI = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || window.innerWidth < 820;
+let graphicsPresetSetting = isMobileUI ? 'medium' : 'high';
+let autoGraphicsSetting = true;
 let motionBlurSetting = !isMobileUI;
 let showFpsSetting = true;
 try {
@@ -60,18 +69,48 @@ try {
     else motionBlurSetting = !isMobileUI;
     const savedFps = localStorage.getItem('lessfun_show_fps');
     if (savedFps != null) showFpsSetting = savedFps !== '0';
+    const savedPreset = localStorage.getItem('lessfun_graphics_preset');
+    if (savedPreset && GRAPHICS_PRESETS[savedPreset]) graphicsPresetSetting = savedPreset;
+    const savedAuto = localStorage.getItem('lessfun_auto_graphics');
+    if (savedAuto != null) autoGraphicsSetting = savedAuto !== '0';
+    renderScaleSetting = GRAPHICS_PRESETS[graphicsPresetSetting].scale;
 } catch (e) {}
 
 function applyRenderScaleSetting() {
+    const preset = GRAPHICS_PRESETS[graphicsPresetSetting] || GRAPHICS_PRESETS.high;
+    renderScaleSetting = preset.scale;
+    if (window.Games3D && window.Games3D.setGraphicsPreset) window.Games3D.setGraphicsPreset(graphicsPresetSetting, autoGraphicsSetting);
     if (window.Games3D && window.Games3D.setRenderScale) window.Games3D.setRenderScale(renderScaleSetting);
     if (window.Games3D && window.Games3D.setMotionBlur) window.Games3D.setMotionBlur(motionBlurSetting);
     if (window.Games3D && window.Games3D.setShowFps) window.Games3D.setShowFps(showFpsSetting);
     const select = document.getElementById('renderScaleSelect');
     if (select) select.value = String(renderScaleSetting);
+    const presetSelect = document.getElementById('graphicsPresetSelect');
+    if (presetSelect) presetSelect.value = graphicsPresetSetting;
+    const autoToggle = document.getElementById('autoGraphicsToggle');
+    if (autoToggle) autoToggle.checked = autoGraphicsSetting;
     const blur = document.getElementById('motionBlurToggle');
     if (blur) blur.checked = motionBlurSetting;
     const fps = document.getElementById('fpsCounterToggle');
     if (fps) fps.checked = showFpsSetting;
+}
+
+function setGraphicsPresetSetting(value) {
+    if (!GRAPHICS_PRESETS[value]) return;
+    graphicsPresetSetting = value;
+    const preset = GRAPHICS_PRESETS[value];
+    motionBlurSetting = preset.blur && !isMobileUI;
+    try {
+        localStorage.setItem('lessfun_graphics_preset', value);
+        localStorage.setItem('lessfun_motion_blur', motionBlurSetting ? '1' : '0');
+    } catch (e) {}
+    applyRenderScaleSetting();
+}
+
+function setAutoGraphicsSetting(on) {
+    autoGraphicsSetting = !!on;
+    try { localStorage.setItem('lessfun_auto_graphics', autoGraphicsSetting ? '1' : '0'); } catch (e) {}
+    applyRenderScaleSetting();
 }
 
 function setMotionBlurSetting(on) {
@@ -603,6 +642,157 @@ document.addEventListener('pointermove', fpsStickMove, { passive: false });
 document.addEventListener('pointerup', fpsStickEnd);
 document.addEventListener('pointercancel', fpsStickEnd);
 
+const ZOMBIE_SHOP = {
+    pistol: { name: 'Pistol', price: 0, sell: 0, damage: 42, mag: 12, note: 'Reliable semi-auto', auto: false },
+    rifle: { name: 'Rifle', price: 300, sell: 150, damage: 27, mag: 30, note: 'Full-auto suppression', auto: true },
+    shotgun: { name: 'Shotgun', price: 500, sell: 250, damage: 18, mag: 6, note: '7-pellet close range', auto: false }
+};
+const ZOMBIE_UPGRADE_COSTS = [200, 350, 550];
+
+function zombieLoadoutKey() {
+    return 'lessfun_zombie_loadout_' + ((currentUser && currentUser.username) || 'guest');
+}
+
+function getZombieLoadout() {
+    let data = null;
+    try { data = JSON.parse(localStorage.getItem(zombieLoadoutKey()) || 'null'); } catch (e) {}
+    if (!data || typeof data !== 'object') data = {};
+    const owned = Array.isArray(data.owned) && data.owned.length ? data.owned.slice() : ['pistol'];
+    if (owned.indexOf('pistol') < 0) owned.unshift('pistol');
+    const upgrades = data.upgrades && typeof data.upgrades === 'object' ? data.upgrades : {};
+    const equipped = owned.indexOf(data.equipped) >= 0 ? data.equipped : 'pistol';
+    return { owned: owned, equipped: equipped, upgrades: upgrades };
+}
+
+function saveZombieLoadout(data) {
+    try { localStorage.setItem(zombieLoadoutKey(), JSON.stringify(data)); } catch (e) {}
+}
+
+function zombieArmoryStatus(message, isError) {
+    const el = document.getElementById('g3dArmoryStatus');
+    if (!el) return;
+    el.textContent = message || '';
+    el.classList.toggle('is-error', !!isError);
+}
+
+function openZombieArmory() {
+    const panel = document.getElementById('g3dZombieArmory');
+    if (!panel) return;
+    if (window.Games3D) window.Games3D.setPaused(true);
+    panel.style.display = 'flex';
+    renderZombieArmory();
+    zombieArmoryStatus('Buy, sell, equip, and upgrade weapons.', false);
+}
+
+function closeZombieArmory() {
+    const panel = document.getElementById('g3dZombieArmory');
+    if (panel) panel.style.display = 'none';
+    const menu = document.getElementById('g3dStartMenu');
+    if (window.Games3D) window.Games3D.setPaused(!!(menu && menu.style.display !== 'none'));
+}
+
+function renderZombieArmory() {
+    const list = document.getElementById('g3dArmoryList');
+    const balance = document.getElementById('g3dArmoryBalance');
+    const label = document.getElementById('g3dArmoryWeaponLabel');
+    if (!list) return;
+    const loadout = getZombieLoadout();
+    const coins = wallet ? Number(wallet.shells) || 0 : 0;
+    if (balance) balance.textContent = coins.toLocaleString() + ' Coins';
+    if (label) {
+        const level = Number(loadout.upgrades[loadout.equipped] || 0) + 1;
+        label.textContent = ZOMBIE_SHOP[loadout.equipped].name + ' · MK ' + level;
+    }
+    list.innerHTML = Object.keys(ZOMBIE_SHOP).map(function (key) {
+        const weapon = ZOMBIE_SHOP[key];
+        const owned = loadout.owned.indexOf(key) >= 0;
+        const equipped = loadout.equipped === key;
+        const level = Number(loadout.upgrades[key] || 0);
+        const nextCost = level < ZOMBIE_UPGRADE_COSTS.length ? ZOMBIE_UPGRADE_COSTS[level] : 0;
+        const damage = Math.round(weapon.damage * (1 + level * 0.15));
+        return '<article class="zombie-weapon-card' + (owned ? ' is-owned' : '') + (equipped ? ' is-equipped' : '') + '">' +
+            '<div class="zombie-weapon-top">' +
+                '<div><h3>' + escapeHtml(weapon.name) + '</h3><p>' + escapeHtml(weapon.note) + '</p></div>' +
+                (equipped ? '<span class="zombie-weapon-equipped">EQUIPPED</span>' : '') +
+            '</div>' +
+            '<div class="zombie-weapon-stats">' +
+                '<span><strong>' + damage + '</strong> damage</span>' +
+                '<span><strong>' + weapon.mag + '</strong> mag</span>' +
+                '<span>MK ' + (level + 1) + '</span>' +
+            '</div>' +
+            '<div class="zombie-weapon-actions">' +
+                (!owned ? '<button type="button" class="zombie-weapon-buy" onclick="zombieBuyWeapon(\'' + key + '\')">Buy · ' + weapon.price + '</button>' :
+                    (equipped ? '<button type="button" disabled class="zombie-weapon-equipped-btn">Equipped</button>' :
+                        '<button type="button" class="zombie-weapon-equip" onclick="zombieEquipWeapon(\'' + key + '\')">Equip</button>') +
+                    '<button type="button" class="zombie-weapon-upgrade" onclick="zombieUpgradeWeapon(\'' + key + '\')"' + (level >= 3 ? ' disabled' : '') + '>' + (level >= 3 ? 'Max upgrade' : 'Upgrade · ' + nextCost) + '</button>' +
+                    (key !== 'pistol' ? '<button type="button" class="zombie-weapon-sell" onclick="zombieSellWeapon(\'' + key + '\')">Sell · ' + weapon.sell + '</button>' : '')) +
+            '</div>' +
+        '</article>';
+    }).join('');
+}
+
+async function zombieBuyWeapon(key) {
+    const weapon = ZOMBIE_SHOP[key];
+    const loadout = getZombieLoadout();
+    if (!weapon || loadout.owned.indexOf(key) >= 0) return;
+    if (!wallet) { zombieArmoryStatus('Wallet is still loading.', true); return; }
+    if (Number(wallet.shells) < weapon.price) {
+        zombieArmoryStatus('Not enough Coins. You need ' + (weapon.price - Number(wallet.shells)).toLocaleString() + ' more.', true);
+        return;
+    }
+    wallet.shells -= weapon.price;
+    loadout.owned.push(key);
+    loadout.equipped = key;
+    saveZombieLoadout(loadout);
+    await saveWallet();
+    renderZombieArmory();
+    zombieArmoryStatus('Purchased and equipped ' + weapon.name + '.', false);
+}
+
+async function zombieSellWeapon(key) {
+    const weapon = ZOMBIE_SHOP[key];
+    const loadout = getZombieLoadout();
+    if (!weapon || key === 'pistol' || loadout.owned.indexOf(key) < 0) return;
+    if (wallet) {
+        wallet.shells = Number(wallet.shells) + weapon.sell;
+        await saveWallet();
+    }
+    loadout.owned = loadout.owned.filter(function (entry) { return entry !== key; });
+    delete loadout.upgrades[key];
+    if (loadout.equipped === key) loadout.equipped = 'pistol';
+    saveZombieLoadout(loadout);
+    renderZombieArmory();
+    zombieArmoryStatus('Sold ' + weapon.name + ' for ' + weapon.sell + ' Coins.', false);
+}
+
+async function zombieUpgradeWeapon(key) {
+    const weapon = ZOMBIE_SHOP[key];
+    const loadout = getZombieLoadout();
+    if (!weapon || loadout.owned.indexOf(key) < 0) return;
+    const level = Number(loadout.upgrades[key] || 0);
+    const cost = ZOMBIE_UPGRADE_COSTS[level];
+    if (!cost) { zombieArmoryStatus('This weapon is fully upgraded.', false); return; }
+    if (!wallet || Number(wallet.shells) < cost) {
+        zombieArmoryStatus('Not enough Coins. Upgrade costs ' + cost + '.', true);
+        return;
+    }
+    wallet.shells -= cost;
+    loadout.upgrades[key] = level + 1;
+    saveZombieLoadout(loadout);
+    await saveWallet();
+    renderZombieArmory();
+    zombieArmoryStatus(weapon.name + ' upgraded to MK ' + (level + 2) + '.', false);
+}
+
+function zombieEquipWeapon(key) {
+    const loadout = getZombieLoadout();
+    if (loadout.owned.indexOf(key) < 0) return;
+    loadout.equipped = key;
+    saveZombieLoadout(loadout);
+    renderZombieArmory();
+    zombieArmoryStatus(ZOMBIE_SHOP[key].name + ' equipped.', false);
+}
+
 function mobileShift(direction) {
     if (window.Games3D && window.Games3D.shiftGear) window.Games3D.shiftGear(direction > 0 ? 1 : -1);
 }
@@ -670,6 +860,7 @@ function openGame(id) {
                 '</div>' +
                 '<div class="fps-wave-banner" id="g3dFpsWaveBanner"></div>' +
                 '<div class="fps-damage" id="g3dFpsDamage"></div>' +
+                '<div class="fps-grade" id="g3dFpsGrade"></div>' +
                 '<div class="fps-prompt" id="g3dFpsPrompt">Click to aim · WASD · 1/2/3 weapons · V melee · B bandage · E loot · F light</div>' : '') +
             (game.id === 4 ? '' : '<div class="game3d-hint">' + (game.controls || '') + '</div>') +
             '<div class="game3d-perf" id="g3dPerf"><span id="g3dFps">-- FPS</span><span id="g3dRes">--</span></div>' +
@@ -790,7 +981,24 @@ function openGame(id) {
                         '<div class="game3d-start-actions">' +
                             '<button type="button" class="game3d-mp-primary" onclick="startMenuSolo()">Play Solo</button>' +
                             '<button type="button" class="game3d-mp-secondary" onclick="openZombieMpPanel()">Public Rooms</button>' +
+                            '<button type="button" class="game3d-mp-secondary" onclick="openZombieArmory()">Armory</button>' +
                         '</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="zombie-armory" id="g3dZombieArmory" style="display:none;">' +
+                    '<div class="zombie-armory-inner">' +
+                        '<div class="zombie-armory-head">' +
+                            '<div><span class="game3d-garage-kicker">DEAD COAST · ARMORY</span><h2>Weapons &amp; upgrades</h2></div>' +
+                            '<div class="zombie-armory-balance" id="g3dArmoryBalance">— Coins</div>' +
+                            '<button type="button" class="game3d-mp-x" onclick="closeZombieArmory()">×</button>' +
+                        '</div>' +
+                        '<div class="zombie-armory-showcase">' +
+                            '<div class="zombie-orbit-avatar"><span class="zombie-avatar-head"></span><span class="zombie-avatar-body"></span></div>' +
+                            '<div class="zombie-orbit-gun" id="g3dArmoryGun"><span class="gun-body"></span><span class="gun-barrel"></span><span class="gun-grip"></span><span class="gun-mag"></span></div>' +
+                            '<div class="zombie-armory-showcase-label" id="g3dArmoryWeaponLabel">Pistol · MK 1</div>' +
+                        '</div>' +
+                        '<div class="zombie-armory-list" id="g3dArmoryList"></div>' +
+                        '<p class="game3d-mp-status" id="g3dArmoryStatus"></p>' +
                     '</div>' +
                 '</div>' : '') +
             ((game.id === 2 || game.id === 5) ?
@@ -852,6 +1060,7 @@ function openGame(id) {
         window.Games3D.start(id, document.getElementById('g3dCanvas'), {
             name: game.name,
             cosmetics: getEquippedCosmetics(),
+            zombieLoadout: getZombieLoadout(),
             onScore: function (name, score) { saveScore(name, score); },
             onCoins: function (amount) { awardRunCoins(amount); },
             onGameOver: function (score, seconds) { handleGameOver(score, seconds); }
@@ -6444,8 +6653,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.33.0";
-const UPDATE_NOTES = "Multiplayer camera thumbnails now come from each player live rendered view instead of extra local cameras, cutting multiplayer GPU cost. Updates now automatically put clients into a reload/shutdown screen, and motion blur disables itself when FPS drops";
+const APP_VERSION = "LessFun Developer Beta 1.34.0";
+const UPDATE_NOTES = "Dead Coast adds a Coin-powered Armory with buy, sell, equip and MK upgrades plus a 360-degree weapon showcase. Graphics presets range from Potato to Your Computer Will Die, with Auto Graphics control, and multiplayer now uses live camera snapshots instead of extra 3D cameras";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
