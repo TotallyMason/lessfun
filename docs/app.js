@@ -676,6 +676,7 @@ function openGame(id) {
                 '</div>' : '') +
             '<div class="game3d-crash" id="g3dCrashFlash"></div>' +
             (game.hasThrottle ? '<div class="game3d-fsd" id="g3dFsd"><span>FSD ACTIVE</span></div>' : '') +
+            (game.hasThrottle ? '<div class="game3d-fsd-hud" id="g3dFsdHud"><span>FSD</span><canvas id="g3dFsdCanvas" width="260" height="156"></canvas></div>' : '') +
             '<div class="game3d-warning" id="g3dWarning"></div>' +
             '<div class="game3d-over" id="g3dOver" style="display:none;">' +
                 '<div class="game3d-over-card">' +
@@ -5394,8 +5395,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.23.6";
-const UPDATE_NOTES = "Messages moved to the top-right and no longer pause the game, so you can chat while driving. Gift notifications now pop up at the top and fade away automatically, even outside a game";
+const APP_VERSION = "LessFun Developer Beta 1.23.7";
+const UPDATE_NOTES = "FSD is smarter with safer lane choices, a Tesla-style lane and traffic display, and animated blue chevrons. Engine audio now has richer multi-oscillator notes with gear-shift sounds, plus tire-screech drift audio";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');

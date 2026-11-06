@@ -7450,3 +7450,51 @@ body.has-avatar-frame .friend-avatar {
 @keyframes topNotifOut {
     to { opacity: 0; transform: translateY(-12px) scale(0.98); }
 }
+
+/* Tesla-style FSD visualization panel */
+.game3d-fsd-hud {
+    position: absolute;
+    top: 112px;
+    left: 18px;
+    z-index: 6;
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    width: 224px;
+    padding: 7px;
+    border-radius: 14px;
+    border: 1px solid rgba(80, 210, 255, 0.35);
+    background: rgba(3, 12, 20, 0.78);
+    box-shadow: 0 14px 38px rgba(0, 0, 0, 0.45), 0 0 26px rgba(40, 170, 255, 0.14);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    pointer-events: none;
+}
+
+.game3d-fsd-hud.is-active {
+    display: flex;
+}
+
+.game3d-fsd-hud > span {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: #8fdfff;
+}
+
+.game3d-fsd-hud canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 9px;
+    background: #04101a;
+}
+
+@media (max-width: 640px) {
+    .game3d-fsd-hud {
+        top: 96px;
+        left: 12px;
+        width: 160px;
+        padding: 5px;
+    }
+}

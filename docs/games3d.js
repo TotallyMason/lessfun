@@ -143,10 +143,13 @@
 
         /* ---------------- Synthesized car audio ---------------- */
         var audioCtx = null, audioMaster = null;
-        var engineOsc = null, engineGain = null, engineFilter = null;
-        var windGain = null, nitroGain = null;
-        var windSrc = null, nitroSrc = null;
+        var engineOsc = null, engineOsc2 = null, engineGain = null, engineGain2 = null, engineFilter = null;
+        var windGain = null, nitroGain = null, driftGain = null, driftFilter = null;
+        var windSrc = null, nitroSrc = null, driftSrc = null;
         var engineOscStarted = false, audioNoiseStarted = false;
+        var lastAudioGear = 0;
+        var audioDriftLevel = 0;
+        var currentVx = 0;
 
         function initAudio() {
             if (audioCtx || !soundEnabled) return;
@@ -176,6 +179,13 @@
                 engineOsc.type = 'sawtooth';
                 engineOsc.frequency.value = 55;
                 engineOsc.connect(engineFilter);
+                engineGain2 = audioCtx.createGain();
+                engineGain2.gain.value = 0.38;
+                engineGain2.connect(engineFilter);
+                engineOsc2 = audioCtx.createOscillator();
+                engineOsc2.type = 'triangle';
+                engineOsc2.frequency.value = 82;
+                engineOsc2.connect(engineGain2);
 
                 var length = Math.floor(audioCtx.sampleRate * 1.2);
                 var buffer = audioCtx.createBuffer(1, length, audioCtx.sampleRate);
@@ -207,6 +217,19 @@
                 nitroSrc.connect(nitroFilter);
                 nitroFilter.connect(nitroGain);
                 nitroGain.connect(audioMaster);
+
+                driftFilter = audioCtx.createBiquadFilter();
+                driftFilter.type = 'bandpass';
+                driftFilter.frequency.value = 1450;
+                driftFilter.Q.value = 1.1;
+                driftGain = audioCtx.createGain();
+                driftGain.gain.value = 0;
+                driftSrc = audioCtx.createBufferSource();
+                driftSrc.buffer = buffer;
+                driftSrc.loop = true;
+                driftSrc.connect(driftFilter);
+                driftFilter.connect(driftGain);
+                driftGain.connect(audioMaster);
 
                 if (audioCtx.state === 'suspended') audioCtx.resume();
             } catch (e) {
@@ -245,18 +268,35 @@
                 var absSpeed = Math.abs(speed);
                 var rpm = 52 + absSpeed * 1.05 + (nitroActive ? 55 : 0);
                 if (running && !engineOscStarted) {
-                    try { engineOsc.start(); engineOscStarted = true; } catch (e) {}
+                    try { engineOsc.start(); } catch (e) {}
+                    try { engineOsc2.start(); } catch (e) {}
+                    engineOscStarted = true;
                 }
                 if (running && !audioNoiseStarted) {
                     try { windSrc.start(); } catch (e) {}
                     try { nitroSrc.start(); } catch (e) {}
+                    try { driftSrc.start(); } catch (e) {}
                     audioNoiseStarted = true;
                 }
-                engineGain.gain.setTargetAtTime(running ? 0.05 + Math.min(0.04, absSpeed / 2800) : 0, now, 0.08);
-                engineOsc.frequency.setTargetAtTime(rpm, now, 0.06);
-                engineFilter.frequency.setTargetAtTime(520 + absSpeed * 9, now, 0.1);
+                var frac = Math.min(1, absSpeed / perf.topSpeed);
+                var audioGear = 0;
+                while (audioGear < GEAR_FRACTIONS.length && frac >= GEAR_FRACTIONS[audioGear]) audioGear++;
+                var lowerF = audioGear === 0 ? 0 : GEAR_FRACTIONS[audioGear - 1];
+                var upperF = audioGear < GEAR_FRACTIONS.length ? GEAR_FRACTIONS[audioGear] : 1;
+                var within = Math.max(0, Math.min(1, (frac - lowerF) / Math.max(0.01, upperF - lowerF)));
+                var liveRpm = 48 + within * 108 + audioGear * 9 + (nitroActive ? 28 : 0);
+                if (engineOn && audioGear + 1 !== lastAudioGear) {
+                    if (lastAudioGear) tone(130, 0.05, 'square', 0.028, 90);
+                    lastAudioGear = audioGear + 1;
+                }
+                engineGain.gain.setTargetAtTime(running ? 0.045 + Math.min(0.038, absSpeed / 3000) : 0, now, 0.08);
+                engineOsc.frequency.setTargetAtTime(liveRpm, now, 0.055);
+                engineOsc2.frequency.setTargetAtTime(liveRpm * 1.5 + 7, now, 0.06);
+                engineFilter.frequency.setTargetAtTime(430 + absSpeed * 10 + (nitroActive ? 320 : 0), now, 0.1);
                 windGain.gain.setTargetAtTime(running ? Math.min(0.075, absSpeed / 1700) : 0, now, 0.15);
                 nitroGain.gain.setTargetAtTime(running && nitroActive ? 0.05 : 0, now, 0.1);
+                driftGain.gain.setTargetAtTime(running ? Math.min(0.1, audioDriftLevel * 0.1) : 0, now, 0.08);
+                driftFilter.frequency.setTargetAtTime(1200 + Math.abs(currentVx) * 55, now, 0.1);
             } catch (e) {}
         }
 
@@ -1379,8 +1419,37 @@
         fsdFill.rotation.x = -Math.PI / 2;
         fsdFill.position.set(0, 0.05, -55);
         fsdGroup.add(fsdFill);
+
+        var fsdChevronTex = makeCanvasTexture(128, 256, function (g, w, h) {
+            g.clearRect(0, 0, w, h);
+            g.strokeStyle = '#5fe0ff';
+            g.lineWidth = 13;
+            g.lineCap = 'round';
+            g.lineJoin = 'round';
+            for (var i = 0; i < 4; i++) {
+                var cy = 26 + i * 64;
+                g.beginPath();
+                g.moveTo(22, cy + 26);
+                g.lineTo(64, cy);
+                g.lineTo(106, cy + 26);
+                g.stroke();
+            }
+        }, 1, 3);
+        fsdChevronTex.wrapS = THREE.RepeatWrapping;
+        fsdChevronTex.wrapT = THREE.RepeatWrapping;
+        fsdChevronTex.repeat.set(1, 3);
+        var fsdChevronMat = new THREE.MeshBasicMaterial({
+            map: fsdChevronTex, transparent: true, opacity: 0.55,
+            blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+        });
+        var fsdChevrons = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 120), fsdChevronMat);
+        fsdChevrons.rotation.x = -Math.PI / 2;
+        fsdChevrons.position.set(0, 0.08, -55);
+        fsdGroup.add(fsdChevrons);
+
         fsdGroup.visible = false;
         scene.add(fsdGroup);
+        var fsdPanelLast = 0;
 
         // Surfboard and roof rack.
         var board = buildSurfboard(boardColor);
@@ -2451,6 +2520,7 @@
         var fsdThink = 0;
         var fsdCooldown = 0;
         var fsdSteerX = 0;
+        var fsdSpeed = 0;
 
         function laneIndexOf(x) {
             var best = 0;
@@ -2476,16 +2546,93 @@
             return gap;
         }
 
+        function drawFsdPanel() {
+            var canvas = document.getElementById('g3dFsdCanvas');
+            if (!canvas || !canvas.getContext) return;
+            var ctx = canvas.getContext('2d');
+            var w = canvas.width, h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+            ctx.fillStyle = '#04101a';
+            ctx.fillRect(0, 0, w, h);
+
+            var laneX = [];
+            for (var i = 0; i < LANES.length; i++) laneX.push(26 + i * ((w - 52) / (LANES.length - 1)));
+            // Target lane blue corridor.
+            var tx = laneX[fsdLane];
+            var grad = ctx.createLinearGradient(0, h, 0, 0);
+            grad.addColorStop(0, 'rgba(47, 212, 255, 0.24)');
+            grad.addColorStop(1, 'rgba(47, 212, 255, 0.02)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(tx - 18, 4, 36, h - 8);
+            ctx.strokeStyle = 'rgba(95, 224, 255, 0.85)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(tx - 18, h - 10); ctx.lineTo(tx - 15, 8); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(tx + 18, h - 10); ctx.lineTo(tx + 15, 8); ctx.stroke();
+
+            // Lane dividers.
+            ctx.strokeStyle = 'rgba(150, 200, 220, 0.22)';
+            ctx.lineWidth = 1;
+            for (var l = 0; l < laneX.length; l++) {
+                ctx.beginPath();
+                ctx.moveTo(laneX[l], h - 8);
+                ctx.lineTo(laneX[l] + (laneX[l] - w / 2) * 0.18, 6);
+                ctx.stroke();
+            }
+
+            // Chevrons on the planned path.
+            ctx.strokeStyle = 'rgba(95, 224, 255, 0.55)';
+            ctx.lineWidth = 2.5;
+            for (var c = 0; c < 4; c++) {
+                var cy = h - 30 - c * 26;
+                ctx.beginPath();
+                ctx.moveTo(tx - 8, cy);
+                ctx.lineTo(tx, cy - 7);
+                ctx.lineTo(tx + 8, cy);
+                ctx.stroke();
+            }
+
+            // Traffic from the live scene.
+            for (var t = 0; t < traffic.length; t++) {
+                var car = traffic[t];
+                if (!car) continue;
+                var gap = player.position.z - car.position.z;
+                if (gap < -10 || gap > 200) continue;
+                var lane = laneIndexOf(car.userData.logicalX != null ? car.userData.logicalX : car.position.x);
+                var y = h - 26 - (Math.max(0, gap) / 200) * (h - 46);
+                var mad = !!car.userData.mad;
+                ctx.fillStyle = mad ? 'rgba(255, 70, 70, 0.9)' : 'rgba(190, 220, 235, 0.7)';
+                ctx.fillRect(laneX[lane] - 6, y - 9, 12, 18);
+            }
+
+            // Ego car.
+            ctx.fillStyle = 'rgba(60, 200, 255, 0.95)';
+            ctx.beginPath();
+            ctx.roundRect ? ctx.roundRect(tx - 10, h - 30, 20, 24, 5) : ctx.rect(tx - 10, h - 30, 20, 24);
+            ctx.fill();
+            ctx.fillStyle = '#8fe8ff';
+            ctx.font = 'bold 9px Arial, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(Math.round(Math.abs(speed) * 2.23694) + ' mph', w - 7, 13);
+        }
+
         function updateFsdVisual() {
             var overlay = document.getElementById('g3dFsd');
             if (overlay) overlay.classList.toggle('is-active', fsdActive);
+            var hud = document.getElementById('g3dFsdHud');
+            if (hud) hud.classList.toggle('is-active', fsdActive);
             if (!fsdGroup) return;
             fsdGroup.visible = fsdActive;
             if (!fsdActive) return;
             fsdGroup.position.set(LANES[fsdLane], 0, player.position.z);
             var pulse = 0.45 + Math.sin(elapsed * 6) * 0.18;
             fsdLinesMat.opacity = pulse;
-            fsdFillMat.opacity = 0.04 + Math.sin(elapsed * 6) * 0.018;
+            fsdFillMat.opacity = 0.05 + Math.sin(elapsed * 6) * 0.02;
+            fsdChevronTex.offset.y = -(elapsed * 0.5) % 1;
+            fsdChevronMat.opacity = 0.35 + Math.sin(elapsed * 7) * 0.15;
+            if (elapsed - fsdPanelLast > 0.1) {
+                fsdPanelLast = elapsed;
+                drawFsdPanel();
+            }
         }
 
         function gearFor(v) {
@@ -2538,6 +2685,7 @@
                     fsdLane = laneIndexOf(player.position.x);
                     fsdThink = 0;
                     fsdCooldown = 2.5;
+                    fsdSpeed = Math.max(20, Math.min(Math.abs(speed), perf.topSpeed * 0.5));
                     tone(520, 0.14, 'sine', 0.05, 880);
                 } else {
                     tone(280, 0.1, 'sine', 0.04, 220);
@@ -2552,37 +2700,42 @@
                 fsdCooldown -= dt;
                 var curLane = laneIndexOf(player.position.x);
                 if (fsdThink <= 0) {
-                    fsdThink = 0.5;
-                    var curGap = laneGapFor(curLane, 200);
-                    var bestLane = curLane;
-                    var bestGap = curGap;
-                    for (var fl = Math.max(0, curLane - 1); fl <= Math.min(LANES.length - 1, curLane + 1); fl++) {
+                    fsdThink = 0.45;
+                    var curGap = laneGapFor(curLane, 220);
+                    var globalBest = curLane;
+                    var globalGap = curGap;
+                    for (var fl = 0; fl < LANES.length; fl++) {
                         if (fl === curLane) continue;
-                        var fg = laneGapFor(fl, 200);
-                        if (fg > bestGap + 20) { bestGap = fg; bestLane = fl; }
+                        var fg = laneGapFor(fl, 220);
+                        if (fg > globalGap + 30) { globalGap = fg; globalBest = fl; }
                     }
-                    if (bestLane !== curLane && fsdCooldown <= 0) {
-                        fsdLane = bestLane;
-                        fsdCooldown = (curGap < 80 ? 2.5 : 6) + Math.random() * 3;
-                    } else if (fsdCooldown <= 0 && curGap > 140 && Math.random() < 0.14) {
+                    if (globalBest !== curLane && fsdCooldown <= 0) {
+                        var step = globalBest > curLane ? curLane + 1 : curLane - 1;
+                        var stepGap = laneGapFor(step, 200);
+                        if (stepGap > curGap + 15 || stepGap > 115) {
+                            fsdLane = step;
+                            fsdCooldown = (curGap < 80 ? 2.2 : 4.5) + Math.random() * 2;
+                        }
+                    } else if (fsdCooldown <= 0 && curGap > 150 && Math.random() < 0.12) {
                         var options = [];
                         if (curLane > 0) options.push(curLane - 1);
                         if (curLane < LANES.length - 1) options.push(curLane + 1);
                         if (options.length) {
                             fsdLane = options[Math.floor(Math.random() * options.length)];
-                            fsdCooldown = 7 + Math.random() * 4;
+                            fsdCooldown = 6 + Math.random() * 3;
                         }
-                    } else if (laneGapFor(fsdLane, 200) < 45) {
+                    } else if (laneGapFor(fsdLane, 220) < 45) {
                         fsdLane = curLane;
                     }
                 }
                 fsdLane = Math.max(0, Math.min(LANES.length - 1, fsdLane));
                 fsdSteerX = LANES[fsdLane];
-                var gapAhead = laneGapFor(fsdLane, 240);
-                var safeSpeed = Math.min(perf.topSpeed * 0.5, Math.max(10, gapAhead * 0.6));
-                if (gapAhead < 50) { brakeCmd = true; throttleCmd = false; }
-                else if (speed > safeSpeed + 5) { brakeCmd = true; throttleCmd = false; }
-                else if (speed < safeSpeed - 3) { brakeCmd = false; throttleCmd = true; }
+                var gapAhead = laneGapFor(fsdLane, 260);
+                var desiredSpeed = Math.min(perf.topSpeed * 0.52, Math.max(8, gapAhead * 0.62));
+                fsdSpeed += (desiredSpeed - fsdSpeed) * Math.min(1, dt * 1.8);
+                if (gapAhead < 42) { brakeCmd = true; throttleCmd = false; }
+                else if (speed > fsdSpeed + 4) { brakeCmd = true; throttleCmd = false; }
+                else if (speed < fsdSpeed - 3) { brakeCmd = false; throttleCmd = true; }
                 else { brakeCmd = false; throttleCmd = false; }
             }
 
@@ -2680,6 +2833,10 @@
             player.position.x += (steerX - player.position.x) * Math.min(1, dt * (driftIntent ? 6.5 : 10));
             player.position.x = Math.max(-maxX, Math.min(maxX, player.position.x));
             var vx = (player.position.x - beforeX) / (dt || 0.016);
+            currentVx = vx;
+            var driftAudioTarget = driftIntent ? Math.min(1, Math.abs(vx) / 12) : 0;
+            if (driftAudioTarget > 0.2 && audioDriftLevel < 0.12) tone(480, 0.12, 'sawtooth', 0.032, 220);
+            audioDriftLevel += (driftAudioTarget - audioDriftLevel) * Math.min(1, dt * 9);
 
             var yawLimit = driftIntent ? 0.78 : 0.42;
             var rollLimit = driftIntent ? 0.34 : 0.2;
