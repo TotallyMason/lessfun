@@ -4283,8 +4283,8 @@
     function createFPS(ctx) {
         var scene = ctx.scene, camera = ctx.camera, renderer = ctx.renderer;
         if (renderer) renderer.shadowMap.enabled = false;
-        scene.background = new THREE.Color(0x05070c);
-        scene.fog = new THREE.FogExp2(0x080c14, 0.026);
+        scene.background = new THREE.Color(0x04060b);
+        scene.fog = new THREE.FogExp2(0x080d16, 0.036);
         camera.fov = 76;
         camera.near = 0.05;
         camera.far = 190;
@@ -4347,6 +4347,35 @@
             wall.position.set(w[0], 2.1, w[1]); scene.add(wall);
         });
 
+        // City blocks and abandoned towers around the arena.
+        var windowMat = new THREE.MeshBasicMaterial({ color: 0xffc46a, transparent: true, opacity: 0.55 });
+        var windowCold = new THREE.MeshBasicMaterial({ color: 0x87c8ff, transparent: true, opacity: 0.35 });
+        [
+            [-40, -30, 16, 13, 30, 0x2b3038],
+            [-44, -4, 20, 14, 22, 0x34313a],
+            [-38, 24, 14, 12, 17, 0x262d34],
+            [40, -34, 18, 15, 26, 0x2e2a30],
+            [45, 2, 15, 13, 19, 0x272e36],
+            [38, 30, 21, 14, 23, 0x332b2d],
+            [-8, -48, 24, 15, 34, 0x252a31],
+            [16, -50, 18, 16, 28, 0x2d2a33],
+            [-26, 47, 22, 15, 20, 0x2b3037],
+            [24, 48, 18, 16, 24, 0x302d34]
+        ].forEach(function (b, index) {
+            var bx = b[0], bz = b[1], bw = b[2], bd = b[3], bh = b[4];
+            var bldg = box(bw, bh, bd, std(b[5], { roughness: 0.9, metalness: 0.05, emissive: b[5], emissiveIntensity: 0.16 }));
+            bldg.position.set(bx, bh / 2, bz); scene.add(bldg);
+            var roof = box(bw * 0.36, 3.2, bd * 0.36, std(0x1c2026));
+            roof.position.set(bx + bw * 0.16, bh + 1.6, bz - bd * 0.12); scene.add(roof);
+            for (var wi = 0; wi < 4; wi++) {
+                var win = box(bw * 0.74, 0.18, 0.06, (wi + index) % 3 === 0 ? windowCold : windowMat);
+                win.position.set(bx, 4 + wi * 3.4, bz + bd / 2 + 0.04); scene.add(win);
+            }
+            var signMat = new THREE.MeshBasicMaterial({ color: index % 2 ? 0xff3b5c : 0x5fe0ff, transparent: true, opacity: 0.55 });
+            var sign = box(bw * 0.5, 0.5, 0.08, signMat);
+            sign.position.set(bx, bh - 2.2, bz + bd / 2 + 0.06); scene.add(sign);
+        });
+
         for (var bi = 0; bi < 12; bi++) {
             var barrel = cyl(0.38, 0.38, 1.05, 12, std(bi % 3 === 0 ? 0x7a2c1e : 0x2f4a5a, { metalness: 0.45, roughness: 0.55 }));
             var bx = (Math.random() - 0.5) * 54, bz = (Math.random() - 0.5) * 54;
@@ -4388,7 +4417,8 @@
         var health = 100, ammo = 30, reserve = 150, reloadT = 0, fireCd = 0;
         var score = 0, kills = 0, wave = 1, spawnQueue = 0, spawnTimer = 0, intermission = 1.5;
         var elapsed = 0, firing = false;
-        var zombies = [], pickups = [], tracers = [], remotePlayers = {};
+        var zombies = [], corpses = [], pickups = [], tracers = [], remotePlayers = {};
+        var lastShotDir = new THREE.Vector3(0, 0, -1);
         var hitTimer = 0, damageTimer = 0, bannerTimer = 0, locked = false, dragging = false;
         var dead = false;
 
@@ -4433,22 +4463,76 @@
 
         function makeZombie() {
             var g = new THREE.Group();
-            var skin = std(0x5b7a45, { roughness: 0.95 });
-            var shirt = std(0x3d4434, { roughness: 0.9 });
-            var body = box(0.55, 0.72, 0.32, shirt); body.position.y = 0.95; g.add(body);
-            var head = new THREE.Mesh(new THREE.SphereGeometry(0.19, 12, 10), skin); head.position.y = 1.47; g.add(head);
-            var eyeMat = new THREE.MeshBasicMaterial({ color: 0xff3b3b });
-            [-0.07, 0.07].forEach(function (ex) {
-                var e = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 6), eyeMat);
-                e.position.set(ex, 1.5, -0.17); g.add(e);
+            var skins = [0x64814d, 0x6f8264, 0x7d8a64, 0x566b48, 0x8a9478];
+            var shirts = [0x3d4434, 0x4a3b35, 0x354450, 0x513f4a, 0x3b4a44];
+            var skin = std(skins[Math.floor(Math.random() * skins.length)], { roughness: 0.96 });
+            var shirt = std(shirts[Math.floor(Math.random() * shirts.length)], { roughness: 0.92 });
+            var pants = std(0x252b36, { roughness: 0.94 });
+            var shoe = std(0x111419, { roughness: 0.85 });
+            var blood = std(0x561018, { roughness: 0.7, metalness: 0.05 });
+            var dark = std(0x1a1f24, { roughness: 0.9 });
+
+            var torso = box(0.56, 0.64, 0.31, shirt); torso.position.y = 1.03; g.add(torso);
+            var belly = box(0.46, 0.24, 0.3, shirt); belly.position.y = 0.7; g.add(belly);
+            var wound = box(0.2, 0.24, 0.02, blood); wound.position.set(-0.08, 1.02, -0.162); g.add(wound);
+            var ribs = box(0.16, 0.05, 0.02, dark); ribs.position.set(0.12, 0.94, -0.163); g.add(ribs);
+            var neck = cyl(0.09, 0.11, 0.16, 8, skin); neck.position.y = 1.4; g.add(neck);
+
+            var headGroup = new THREE.Group();
+            headGroup.position.y = 1.52; g.add(headGroup);
+            var skull = new THREE.Mesh(new THREE.SphereGeometry(0.2, 14, 12), skin);
+            skull.scale.set(0.92, 1.06, 0.96); headGroup.add(skull);
+            var jaw = box(0.2, 0.1, 0.18, skin); jaw.position.set(0, -0.12, -0.05); headGroup.add(jaw);
+            var mouth = box(0.13, 0.045, 0.02, dark); mouth.position.set(0, -0.105, -0.145); headGroup.add(mouth);
+            for (var ti = -1; ti <= 1; ti++) {
+                var tooth = box(0.027, 0.045, 0.012, std(0xe9e3c8, { roughness: 0.55 }));
+                tooth.position.set(ti * 0.04, -0.095, -0.157); headGroup.add(tooth);
+            }
+            var eyeMat = new THREE.MeshBasicMaterial({ color: 0xff3b32 });
+            [-0.075, 0.075].forEach(function (ex) {
+                var socket = new THREE.Mesh(new THREE.SphereGeometry(0.052, 8, 6), dark);
+                socket.position.set(ex, 0.035, -0.17); headGroup.add(socket);
+                var e = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 6), eyeMat);
+                e.position.set(ex, 0.035, -0.205); headGroup.add(e);
             });
-            var armL = box(0.12, 0.52, 0.12, skin); armL.position.set(-0.36, 1.08, -0.03); g.add(armL);
-            var armR = box(0.12, 0.52, 0.12, skin); armR.position.set(0.36, 1.08, -0.03); g.add(armR);
-            var legL = box(0.15, 0.58, 0.15, shirt); legL.position.set(-0.15, 0.3, 0); g.add(legL);
-            var legR = box(0.15, 0.58, 0.15, shirt); legR.position.set(0.15, 0.3, 0); g.add(legR);
-            var shadow = new THREE.Mesh(new THREE.CircleGeometry(0.55, 12), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false }));
+            var hair = box(0.22, 0.07, 0.18, dark); hair.position.set(0, 0.17, -0.015); headGroup.add(hair);
+
+            function limb(pxp, pyp, pzp, upperLen, foreLen, upperMat, foreMat, handMat) {
+                var pivot = new THREE.Group();
+                pivot.position.set(pxp, pyp, pzp);
+                var upper = cyl(0.06, 0.075, upperLen, 8, upperMat);
+                upper.position.y = -upperLen / 2; pivot.add(upper);
+                var fore = cyl(0.05, 0.065, foreLen, 8, foreMat);
+                fore.position.y = -upperLen - foreLen / 2 + 0.02; pivot.add(fore);
+                var hand = new THREE.Mesh(new THREE.SphereGeometry(0.075, 8, 6), handMat);
+                hand.position.y = -upperLen - foreLen; pivot.add(hand);
+                g.add(pivot);
+                return pivot;
+            }
+            var armL = limb(-0.36, 1.24, 0, 0.34, 0.34, shirt, skin, skin);
+            var armR = limb(0.36, 1.24, 0, 0.34, 0.34, shirt, skin, skin);
+            var legL = limb(-0.15, 0.78, 0, 0.4, 0.38, pants, pants, shoe);
+            var legR = limb(0.15, 0.78, 0, 0.4, 0.38, pants, pants, shoe);
+            var footL = box(0.15, 0.09, 0.28, shoe); footL.position.set(0, -0.76, -0.07); legL.add(footL);
+            var footR = box(0.15, 0.09, 0.28, shoe); footR.position.set(0, -0.76, -0.07); legR.add(footR);
+            var shadow = new THREE.Mesh(new THREE.CircleGeometry(0.58, 12), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false }));
             shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.015; g.add(shadow);
-            g.userData = { health: 100 + wave * 8, speed: 1.5 + Math.random() * 0.5 + wave * 0.05, attackCd: 0, armL: armL, armR: armR, legL: legL, legR: legR, phase: Math.random() * Math.PI * 2 };
+
+            var scale = 0.88 + Math.random() * 0.22;
+            g.scale.setScalar(scale);
+            g.userData = {
+                health: 100 + wave * 8,
+                speed: 1.5 + Math.random() * 0.5 + wave * 0.05,
+                attackCd: Math.random() * 0.6,
+                armL: armL, armR: armR, legL: legL, legR: legR,
+                head: headGroup, torso: torso,
+                limbs: [
+                    { mesh: armL, spin: 0 }, { mesh: armR, spin: 0 },
+                    { mesh: legL, spin: 0 }, { mesh: legR, spin: 0 }
+                ],
+                phase: Math.random() * Math.PI * 2,
+                dead: false
+            };
             scene.add(g);
             zombies.push(g);
         }
@@ -4551,6 +4635,7 @@
                 -Math.cos(yaw) * Math.cos(pitch)
             ).normalize();
             var origin = new THREE.Vector3(px, eyeY, pz);
+            lastShotDir.copy(dir);
             var best = null, bestT = 60, headshot = false;
             for (var i = 0; i < zombies.length; i++) {
                 var z = zombies[i];
@@ -4582,7 +4667,32 @@
         function killZombie(zombie, headshot) {
             var index = zombies.indexOf(zombie);
             if (index >= 0) zombies.splice(index, 1);
-            scene.remove(zombie); disposeObject(zombie);
+            var u = zombie.userData;
+            u.dead = true;
+            var dir = lastShotDir;
+            var corpse = {
+                group: zombie,
+                vx: dir.x * (3 + Math.random() * 3) + (Math.random() - 0.5) * 2,
+                vy: 2.2 + Math.random() * 2.2,
+                vz: dir.z * (3 + Math.random() * 3) + (Math.random() - 0.5) * 2,
+                spinX: (Math.random() - 0.5) * 6,
+                spinY: (Math.random() - 0.5) * 5,
+                spinZ: (Math.random() - 0.5) * 6,
+                life: 9,
+                limbs: u.limbs || []
+            };
+            (u.limbs || []).forEach(function (limb) {
+                limb.spin = (Math.random() - 0.5) * 12;
+            });
+            var blood = new THREE.Mesh(
+                new THREE.CircleGeometry(0.55 + Math.random() * 0.35, 12),
+                new THREE.MeshBasicMaterial({ color: 0x4a080d, transparent: true, opacity: 0.72, depthWrite: false })
+            );
+            blood.rotation.x = -Math.PI / 2;
+            blood.position.set(zombie.position.x, 0.02, zombie.position.z);
+            scene.add(blood);
+            corpse.blood = blood;
+            corpses.push(corpse);
             kills++;
             score += (headshot ? 150 : 100) + wave * 10;
             if (Math.random() < 0.22) makePickup(Math.random() < 0.55 ? 'ammo' : 'health');
@@ -4678,6 +4788,47 @@
                     }
                 }
                 z.position.y = 0;
+            }
+
+            // Zombie corpses are physical ragdolls: gravity, bounce, friction,
+            // angular momentum, and flailing limbs before they settle.
+            for (var ci = corpses.length - 1; ci >= 0; ci--) {
+                var corpse = corpses[ci];
+                corpse.life -= dt;
+                var cg = corpse.group;
+                cg.position.x += corpse.vx * dt;
+                cg.position.y += corpse.vy * dt;
+                cg.position.z += corpse.vz * dt;
+                corpse.vy -= 22 * dt;
+                cg.rotation.x += corpse.spinX * dt;
+                cg.rotation.y += corpse.spinY * dt;
+                cg.rotation.z += corpse.spinZ * dt;
+                corpse.spinX *= Math.max(0, 1 - dt * 0.7);
+                corpse.spinY *= Math.max(0, 1 - dt * 0.8);
+                corpse.spinZ *= Math.max(0, 1 - dt * 0.7);
+                if (cg.position.y < 0) {
+                    cg.position.y = 0;
+                    corpse.vy = Math.abs(corpse.vy) * 0.22;
+                    corpse.vx *= 0.66;
+                    corpse.vz *= 0.66;
+                    corpse.spinX *= 0.62;
+                    corpse.spinY *= 0.7;
+                    corpse.spinZ *= 0.62;
+                }
+                if (cg.position.x < -34) cg.position.x = -34;
+                if (cg.position.x > 34) cg.position.x = 34;
+                if (cg.position.z < -34) cg.position.z = -34;
+                if (cg.position.z > 34) cg.position.z = 34;
+                (corpse.limbs || []).forEach(function (limb) {
+                    limb.mesh.rotation.x += limb.spin * dt;
+                    limb.spin *= Math.max(0, 1 - dt * 0.55);
+                });
+                if (corpse.life < 1.2) cg.position.y -= dt * 0.45;
+                if (corpse.life <= 0) {
+                    scene.remove(cg); disposeObject(cg);
+                    if (corpse.blood) { scene.remove(corpse.blood); disposeObject(corpse.blood); }
+                    corpses.splice(ci, 1);
+                }
             }
 
             for (var pi = pickups.length - 1; pi >= 0; pi--) {
@@ -5073,12 +5224,12 @@
         else input.gearDown = true;
     }
     function effectivePixelRatio() {
-        var base = Math.min(global.devicePixelRatio || 1, 2);
+        // Never render more pixels than the visible CSS viewport. On Retina
+        // displays this keeps the drawing buffer at 1x while CSS scales it.
+        var base = 1;
         var requested = renderScale > 0 ? renderScale : 1;
         var ratio = base * requested * adaptiveScale;
-        // Never supersample above the device's normal resolution, and allow
-        // adaptive scaling all the way down to 20%.
-        return Math.max(base * 0.2, Math.min(base, ratio));
+        return Math.max(0.2, Math.min(1, ratio));
     }
 
     function applyPixelRatio() {

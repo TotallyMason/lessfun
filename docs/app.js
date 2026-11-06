@@ -6279,8 +6279,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.25.0";
-const UPDATE_NOTES = "Dead Coast is here: a first-person zombie survival game with WASD movement, trackpad aim, waves, pickups, sprint, jump, reload, and three public co-op rooms";
+const APP_VERSION = "LessFun Developer Beta 1.25.1";
+const UPDATE_NOTES = "Dead Coast now has detailed zombie models, physical death ragdolls, a foggy city skyline with buildings, and rendering capped at exactly the visible screen resolution";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
