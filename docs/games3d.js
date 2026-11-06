@@ -2521,6 +2521,11 @@
         var fsdCooldown = 0;
         var fsdSteerX = 0;
         var fsdSpeed = 0;
+        var fsdEmergency = false;
+        var fsdEmergencyT = 0;
+        var fsdSignalSide = 0;
+        var fsdSignalT = 0;
+        var playerBlinkT = 0;
 
         function laneIndexOf(x) {
             var best = 0;
@@ -2592,6 +2597,7 @@
             }
 
             // Traffic from the live scene.
+            var blinkOn = (elapsed * 5.4) % 1 < 0.55;
             for (var t = 0; t < traffic.length; t++) {
                 var car = traffic[t];
                 if (!car) continue;
@@ -2602,6 +2608,24 @@
                 var mad = !!car.userData.mad;
                 ctx.fillStyle = mad ? 'rgba(255, 70, 70, 0.9)' : 'rgba(190, 220, 235, 0.7)';
                 ctx.fillRect(laneX[lane] - 6, y - 9, 12, 18);
+                // Turn signals on traffic, mirrored from the 3D scene.
+                var signal = car.userData.signal || 0;
+                if (signal && (car.userData.state === 'signal' || car.userData.state === 'change')) {
+                    if (blinkOn) {
+                        ctx.fillStyle = '#ffb020';
+                        var sx = laneX[lane] + (signal > 0 ? 9 : -9);
+                        ctx.beginPath();
+                        if (signal > 0) { ctx.moveTo(sx - 3, y - 4); ctx.lineTo(sx + 3, y); ctx.lineTo(sx - 3, y + 4); }
+                        else { ctx.moveTo(sx + 3, y - 4); ctx.lineTo(sx - 3, y); ctx.lineTo(sx + 3, y + 4); }
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                }
+                if (mad && blinkOn) {
+                    ctx.fillStyle = 'rgba(255, 70, 70, 0.85)';
+                    ctx.fillRect(laneX[lane] - 9, y - 3, 3, 6);
+                    ctx.fillRect(laneX[lane] + 6, y - 3, 3, 6);
+                }
             }
 
             // Ego car.
@@ -2609,17 +2633,60 @@
             ctx.beginPath();
             ctx.roundRect ? ctx.roundRect(tx - 10, h - 30, 20, 24, 5) : ctx.rect(tx - 10, h - 30, 20, 24);
             ctx.fill();
+
+            // Planned lane-change / turn signal.
+            var egoLane = laneIndexOf(player.position.x);
+            var pendingSide = fsdLane > egoLane ? 1 : (fsdLane < egoLane ? -1 : 0);
+            if (!pendingSide) pendingSide = fsdSignalT > 0 ? fsdSignalSide : 0;
+            if (pendingSide && blinkOn) {
+                ctx.fillStyle = '#ffb020';
+                var ax = tx + (pendingSide > 0 ? 15 : -15);
+                ctx.beginPath();
+                if (pendingSide > 0) { ctx.moveTo(ax - 3, h - 27); ctx.lineTo(ax + 3, h - 21); ctx.lineTo(ax - 3, h - 15); }
+                else { ctx.moveTo(ax + 3, h - 27); ctx.lineTo(ax - 3, h - 21); ctx.lineTo(ax + 3, h - 15); }
+                ctx.closePath();
+                ctx.fill();
+            }
+
             ctx.fillStyle = '#8fe8ff';
             ctx.font = 'bold 9px Arial, sans-serif';
             ctx.textAlign = 'right';
             ctx.fillText(Math.round(Math.abs(speed) * 2.23694) + ' mph', w - 7, 13);
+
+            if (fsdEmergency) {
+                ctx.fillStyle = 'rgba(255, 46, 46, 0.18)';
+                ctx.fillRect(0, 0, w, h);
+                ctx.strokeStyle = 'rgba(255, 70, 70, 0.9)';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(1, 1, w - 2, h - 2);
+                ctx.textAlign = 'left';
+                ctx.font = 'bold 9px Arial, sans-serif';
+                ctx.fillStyle = (elapsed * 4) % 1 < 0.6 ? '#ff6b6b' : '#ffd0d0';
+                ctx.fillText('EMERGENCY BRAKE', 8, 13);
+            }
         }
 
         function updateFsdVisual() {
             var overlay = document.getElementById('g3dFsd');
-            if (overlay) overlay.classList.toggle('is-active', fsdActive);
+            if (overlay) {
+                overlay.classList.toggle('is-active', fsdActive);
+                overlay.classList.toggle('is-brake', fsdActive && fsdEmergency);
+                var label = overlay.querySelector('span');
+                if (label) label.textContent = fsdEmergency ? 'FSD · EMERGENCY BRAKE' : 'FSD ACTIVE';
+            }
             var hud = document.getElementById('g3dFsdHud');
-            if (hud) hud.classList.toggle('is-active', fsdActive);
+            if (hud) {
+                hud.classList.toggle('is-active', fsdActive);
+                hud.classList.toggle('is-brake', fsdActive && fsdEmergency);
+            }
+            // Mirror the planned lane change on the car's indicator lamps.
+            var egoLane = laneIndexOf(player.position.x);
+            var signalSide = fsdLane > egoLane ? 1 : (fsdLane < egoLane ? -1 : 0);
+            if (!signalSide && fsdSignalT > 0) signalSide = fsdSignalSide;
+            playerBlinkT += 0.016;
+            var blinkOn = (playerBlinkT * 4.8) % 1 < 0.55;
+            if (player.userData.leftLamp) player.userData.leftLamp.visible = fsdActive && signalSide < 0 && blinkOn;
+            if (player.userData.rightLamp) player.userData.rightLamp.visible = fsdActive && signalSide > 0 && blinkOn;
             if (!fsdGroup) return;
             fsdGroup.visible = fsdActive;
             if (!fsdActive) return;
@@ -2686,12 +2753,21 @@
                     fsdThink = 0;
                     fsdCooldown = 2.5;
                     fsdSpeed = Math.max(20, Math.min(Math.abs(speed), perf.topSpeed * 0.5));
+                    fsdEmergency = false;
+                    fsdEmergencyT = 0;
+                    fsdSignalSide = 0;
+                    fsdSignalT = 0;
                     tone(520, 0.14, 'sine', 0.05, 880);
                 } else {
+                    fsdEmergency = false;
+                    fsdEmergencyT = 0;
+                    fsdSignalSide = 0;
+                    fsdSignalT = 0;
                     tone(280, 0.1, 'sine', 0.04, 220);
                 }
             }
             if (fsdActive && gearMode !== 'D') fsdActive = false;
+            if (!fsdActive) { fsdEmergency = false; fsdEmergencyT = 0; fsdSignalSide = 0; fsdSignalT = 0; }
 
             var throttleCmd = input.up;
             var brakeCmd = input.brake;
@@ -2714,6 +2790,8 @@
                         var stepGap = laneGapFor(step, 200);
                         if (stepGap > curGap + 15 || stepGap > 115) {
                             fsdLane = step;
+                            fsdSignalSide = step > curLane ? 1 : -1;
+                            fsdSignalT = 1.5;
                             fsdCooldown = (curGap < 80 ? 2.2 : 4.5) + Math.random() * 2;
                         }
                     } else if (fsdCooldown <= 0 && curGap > 150 && Math.random() < 0.12) {
@@ -2722,6 +2800,8 @@
                         if (curLane < LANES.length - 1) options.push(curLane + 1);
                         if (options.length) {
                             fsdLane = options[Math.floor(Math.random() * options.length)];
+                            fsdSignalSide = fsdLane > curLane ? 1 : -1;
+                            fsdSignalT = 1.5;
                             fsdCooldown = 6 + Math.random() * 3;
                         }
                     } else if (laneGapFor(fsdLane, 220) < 45) {
@@ -2731,12 +2811,28 @@
                 fsdLane = Math.max(0, Math.min(LANES.length - 1, fsdLane));
                 fsdSteerX = LANES[fsdLane];
                 var gapAhead = laneGapFor(fsdLane, 260);
-                var desiredSpeed = Math.min(perf.topSpeed * 0.52, Math.max(8, gapAhead * 0.62));
-                fsdSpeed += (desiredSpeed - fsdSpeed) * Math.min(1, dt * 1.8);
-                if (gapAhead < 42) { brakeCmd = true; throttleCmd = false; }
+                var closingSpeed = Math.max(0, speed * 0.62 - gapAhead * 0.22);
+                var needEmergency = (gapAhead < 34 && speed > 7) || (gapAhead < 70 && closingSpeed > 24);
+                if (needEmergency) {
+                    if (!fsdEmergency) {
+                        tone(880, 0.12, 'square', 0.05, 640);
+                        tone(640, 0.18, 'square', 0.045, 420);
+                    }
+                    fsdEmergency = true;
+                    fsdEmergencyT = 0.7;
+                } else if (fsdEmergency) {
+                    fsdEmergencyT -= dt;
+                    if (fsdEmergencyT <= 0 && (gapAhead > 44 || speed < 3)) fsdEmergency = false;
+                }
+                var desiredSpeed = Math.min(perf.topSpeed * 0.52, Math.max(0, (gapAhead - 28) * 0.52));
+                if (fsdEmergency) desiredSpeed = 0;
+                fsdSpeed += (desiredSpeed - fsdSpeed) * Math.min(1, dt * (fsdEmergency ? 7 : 1.8));
+                if (fsdEmergency || gapAhead < 42) { brakeCmd = true; throttleCmd = false; }
                 else if (speed > fsdSpeed + 4) { brakeCmd = true; throttleCmd = false; }
                 else if (speed < fsdSpeed - 3) { brakeCmd = false; throttleCmd = true; }
                 else { brakeCmd = false; throttleCmd = false; }
+                fsdSignalT = Math.max(0, fsdSignalT - dt);
+                if (fsdSignalT <= 0) fsdSignalSide = 0;
             }
 
             if (!engineOn) {
@@ -2777,7 +2873,8 @@
             } else if (gearMode === 'N') {
                 speed += (0 - speed) * Math.min(1, dt * 1.4);
             } else if (brakeCmd) {
-                speed = Math.max(0, speed - 58 * dt);
+                var brakeDecel = (fsdActive && fsdEmergency) ? 165 : 58;
+                speed = Math.max(0, speed - brakeDecel * dt);
             } else if (throttleCmd) {
                 var topSpeedNow = perf.topSpeed * (nitroActive ? 1.32 : 1);
                 var pull = perf.accel * (nitroActive ? 2.35 : 1) * (1 - 0.55 * Math.min(1, speed / topSpeedNow));
@@ -2845,7 +2942,7 @@
 
             player.rotation.z = Math.max(-rollLimit, Math.min(rollLimit, -vx * 0.022 * (driftIntent ? 1.7 : 1)));
             player.rotation.x = (brakeCmd ? 0.035 : 0) + Math.max(-0.03, Math.min(0.03, -vx * 0.002));
-            if (player.userData.brakeMat) player.userData.brakeMat.color.setHex(input.brake ? 0xff2438 : 0x5a1018);
+            if (player.userData.brakeMat) player.userData.brakeMat.color.setHex((input.brake || (fsdActive && brakeCmd)) ? 0xff2438 : 0x5a1018);
 
             // Airborne physics from ramp cars.
             if (playerY > 0 || vy !== 0) {
@@ -3223,6 +3320,8 @@
                     coins: coinsCollected,
                     fsd: fsdActive,
                     fsdLane: fsdLane,
+                    fsdEmergency: fsdEmergency,
+                    signal: fsdSignalSide,
                     suspension: player.userData.bodyGroup ? player.userData.bodyGroup.position.y : 0,
                     wheelTravel: (player.userData.suspensionPivots || []).reduce(function (maxTravel, pv) {
                         return Math.max(maxTravel, Math.abs(pv.userData.travel || 0));

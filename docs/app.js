@@ -574,6 +574,17 @@ function openGame(id) {
                 '<div class="game3d-dm-search">' +
                     '<input class="game3d-mp-input" id="g3dDmSearch" type="text" maxlength="24" placeholder="Search users…" oninput="dmSearchUsers(this.value)">' +
                     '<div class="game3d-dm-results" id="g3dDmResults"></div>' +
+                    '<button type="button" class="game3d-dm-newgroup" onclick="dmToggleGroupForm()">+ New group</button>' +
+                    '<div class="game3d-dm-groupform" id="g3dDmGroupForm" style="display:none;">' +
+                        '<input class="game3d-mp-input" id="g3dDmGroupName" type="text" maxlength="32" placeholder="Group name">' +
+                        '<input class="game3d-mp-input" id="g3dDmGroupSearch" type="text" maxlength="24" placeholder="Add people…" oninput="dmSearchGroupUsers(this.value)">' +
+                        '<div class="game3d-dm-results" id="g3dDmGroupResults"></div>' +
+                        '<div class="game3d-dm-group-selected" id="g3dDmGroupSelected"></div>' +
+                        '<div class="game3d-dm-group-actions">' +
+                            '<button type="button" class="game3d-mp-secondary" onclick="dmToggleGroupForm(false)">Cancel</button>' +
+                            '<button type="button" class="game3d-mp-primary" onclick="dmCreateGroup()">Create group</button>' +
+                        '</div>' +
+                    '</div>' +
                 '</div>' +
                 '<div class="game3d-dm-body">' +
                     '<div class="game3d-dm-list" id="g3dDmList"></div>' +
@@ -581,7 +592,7 @@ function openGame(id) {
                         '<div class="game3d-dm-thread" id="g3dDmThread"><p class="game3d-dm-empty">Search for a person above to start an encrypted chat.</p></div>' +
                         '<div class="game3d-dm-compose">' +
                             '<input class="game3d-mp-input" id="g3dDmInput" type="text" maxlength="500" placeholder="Write a message…" onkeydown="if(event.key===\'Enter\'){event.preventDefault();dmSend();}">' +
-                            '<button type="button" class="game3d-mp-primary" onclick="dmSend()">Send</button>' +
+                            '<button type="button" class="game3d-dm-send" onclick="dmSend()">Send</button>' +
                         '</div>' +
                     '</div>' +
                 '</div>' +
@@ -1596,6 +1607,9 @@ function arcadeMpLeave(quiet) {
 let dmState = {
     open: false,
     contact: '',
+    groupId: '',
+    groups: {},
+    groupSelected: [],
     rows: [],
     poll: 0,
     myKeys: null,
@@ -1626,6 +1640,102 @@ function dmUnb64(text) {
 
 function dmCryptoAvailable() {
     return !!(window.crypto && window.crypto.subtle && window.TextEncoder && window.TextDecoder);
+}
+
+function dmMakeId() {
+    try {
+        if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+    } catch (e) {}
+    return 'm' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+}
+
+function dmGroupsStorageKey() {
+    return currentUser && currentUser.username ? 'lessfun_dm_groups_' + currentUser.username : '';
+}
+
+function dmLoadGroups() {
+    dmState.groups = {};
+    dmState.groupId = '';
+    dmState.groupSelected = [];
+    const key = dmGroupsStorageKey();
+    if (!key) return;
+    try {
+        const raw = localStorage.getItem(key);
+        if (raw) dmState.groups = JSON.parse(raw) || {};
+    } catch (e) { dmState.groups = {}; }
+}
+
+function dmSaveGroups() {
+    const key = dmGroupsStorageKey();
+    if (!key) return;
+    try { localStorage.setItem(key, JSON.stringify(dmState.groups)); } catch (e) {}
+}
+
+function dmAddGroup(id, name, members) {
+    if (!id) return null;
+    const cleanMembers = [];
+    (members || []).forEach(function (member) {
+        const value = String(member || '').trim();
+        if (value && cleanMembers.indexOf(value) < 0) cleanMembers.push(value);
+    });
+    const me = currentUser && currentUser.username;
+    if (me && cleanMembers.indexOf(me) < 0) cleanMembers.unshift(me);
+    const existing = dmState.groups[id] || {};
+    const group = {
+        id: id,
+        name: String(name || existing.name || 'Group').slice(0, 40),
+        members: cleanMembers.length ? cleanMembers : (existing.members || []),
+        updated_at: Date.now()
+    };
+    dmState.groups[id] = group;
+    dmSaveGroups();
+    return group;
+}
+
+async function dmDecodeRow(row) {
+    if (!row || !row.ciphertext || !row.iv || !currentUser || currentUser.type !== 'user') return null;
+    const me = currentUser.username;
+    const other = row.sender === me ? row.recipient : row.sender;
+    if (!other) return null;
+    let key = null;
+    try { key = await dmDeriveKey(other); } catch (e) { return null; }
+    let text = null;
+    try {
+        const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: dmUnb64(row.iv) }, key, dmUnb64(row.ciphertext));
+        text = new TextDecoder().decode(plain);
+    } catch (e) { return null; }
+    let envelope = null;
+    if (text && text.charAt(0) === '{') {
+        try {
+            const parsed = JSON.parse(text);
+            if (parsed && parsed.k === 'g' && parsed.g) envelope = parsed;
+        } catch (e) {}
+    }
+    return {
+        envelope: envelope,
+        text: envelope ? String(envelope.t || '') : text,
+        sender: row.sender,
+        created_at: row.created_at
+    };
+}
+
+async function dmScanGroups(rows) {
+    let changed = false;
+    for (let i = 0; i < (rows || []).length; i++) {
+        const row = rows[i];
+        if (!row) continue;
+        const decoded = await dmDecodeRow(row);
+        if (!decoded || !decoded.envelope) continue;
+        row.__group = decoded.envelope.g;
+        row.__text = decoded.text;
+        row.__sender = decoded.sender;
+        row.__mid = decoded.envelope.mid || '';
+        row.__envelope = decoded.envelope;
+        const before = dmState.groups[decoded.envelope.g];
+        const group = dmAddGroup(decoded.envelope.g, decoded.envelope.n, decoded.envelope.m);
+        if (!before || !group) changed = true;
+    }
+    return changed;
 }
 
 async function dmEnsureKeys() {
@@ -1712,6 +1822,7 @@ function dmPartners() {
     const partners = [];
     const seen = {};
     dmState.rows.forEach(function (row) {
+        if (row.__group) return;
         const other = row.sender === me ? row.recipient : row.sender;
         if (!other || other === me || seen[other]) return;
         seen[other] = true;
@@ -1725,25 +1836,73 @@ function dmRenderList() {
     const list = document.getElementById('g3dDmList');
     if (!list) return;
     const partners = dmPartners();
-    if (!partners.length) {
+    const groups = Object.keys(dmState.groups).map(function (id) {
+        return dmState.groups[id];
+    }).filter(Boolean).sort(function (a, b) {
+        return (b.updated_at || 0) - (a.updated_at || 0);
+    });
+    if (!partners.length && !groups.length) {
         list.innerHTML = '<p class="game3d-dm-empty">No conversations yet.</p>';
         return;
     }
-    list.innerHTML = partners.map(function (name) {
-        return '<button type="button" class="game3d-dm-contact' + (name === dmState.contact ? ' is-active' : '') + '" onclick="dmOpenConversation(\'' + debugArg(name) + '\')">' +
-            '<span class="game3d-dm-contact-dot"></span>' + escapeHtml(name) +
-        '</button>';
-    }).join('');
+    let html = '';
+    if (groups.length) {
+        html += '<p class="game3d-dm-label">Groups</p>';
+        html += groups.map(function (group) {
+            const count = Math.max(0, (group.members || []).length);
+            return '<button type="button" class="game3d-dm-contact is-group' + (group.id === dmState.groupId ? ' is-active' : '') + '" onclick="dmOpenGroup(\'' + debugArg(group.id) + '\')">' +
+                '<span class="game3d-dm-contact-icon">#</span>' +
+                '<span class="game3d-dm-contact-name">' + escapeHtml(group.name || 'Group') + '</span>' +
+                '<span class="game3d-dm-contact-count">' + count + '</span>' +
+            '</button>';
+        }).join('');
+    }
+    if (partners.length) {
+        html += '<p class="game3d-dm-label">Direct</p>';
+        html += partners.map(function (name) {
+            return '<button type="button" class="game3d-dm-contact' + (!dmState.groupId && name === dmState.contact ? ' is-active' : '') + '" onclick="dmOpenConversation(\'' + debugArg(name) + '\')">' +
+                '<span class="game3d-dm-contact-dot"></span>' + escapeHtml(name) +
+            '</button>';
+        }).join('');
+    }
+    list.innerHTML = html;
 }
 
 function dmRenderThread() {
     const thread = document.getElementById('g3dDmThread');
     if (!thread) return;
+    const me = currentUser ? currentUser.username : '';
+    if (dmState.groupId) {
+        const group = dmState.groups[dmState.groupId];
+        if (!group) {
+            thread.innerHTML = '<p class="game3d-dm-empty">This group is unavailable.</p>';
+            return;
+        }
+        const rows = dmState.groupThread || [];
+        let html = '<div class="game3d-dm-group-head">' +
+            '<strong># ' + escapeHtml(group.name || 'Group') + '</strong>' +
+            '<span>' + Math.max(0, (group.members || []).length) + ' members · end-to-end encrypted</span>' +
+        '</div>';
+        if (!rows.length) {
+            html += '<p class="game3d-dm-empty">No group messages yet. Say hello.</p>';
+        } else {
+            html += rows.map(function (row) {
+                const mine = row.sender === me;
+                return '<div class="game3d-dm-msg' + (mine ? ' is-mine' : '') + '">' +
+                    (!mine ? '<span class="game3d-dm-msg-from">' + escapeHtml(row.sender) + '</span>' : '') +
+                    '<span class="game3d-dm-msg-text">' + escapeHtml(row.text) + '</span>' +
+                    '<span class="game3d-dm-msg-time">' + escapeHtml(new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) + '</span>' +
+                '</div>';
+            }).join('');
+        }
+        thread.innerHTML = html;
+        thread.scrollTop = thread.scrollHeight;
+        return;
+    }
     if (!dmState.contact) {
         thread.innerHTML = '<p class="game3d-dm-empty">Pick a conversation or enter a username.</p>';
         return;
     }
-    const me = currentUser ? currentUser.username : '';
     const rows = dmState.thread || [];
     if (!rows.length) {
         thread.innerHTML = '<p class="game3d-dm-empty">No messages with ' + escapeHtml(dmState.contact) + ' yet.</p>';
@@ -1766,9 +1925,12 @@ async function dmLoadInbox() {
     }
     try {
         await dmEnsureKeys();
-        await dmFetchRows();
+        dmLoadGroups();
+        const rows = await dmFetchRows();
+        await dmScanGroups(rows);
         dmRenderList();
-        if (dmState.contact) await dmRefreshThread(true);
+        if (dmState.groupId) await dmRefreshGroup(true);
+        else if (dmState.contact) await dmRefreshThread(true);
         else dmRenderThread();
         dmSetStatus('Encrypted on this device.', false);
     } catch (e) {
@@ -1779,6 +1941,7 @@ async function dmLoadInbox() {
 async function dmOpenConversation(username) {
     const name = String(username || '').trim();
     if (!name) return;
+    dmState.groupId = '';
     dmState.contact = name;
     localStorage.setItem('lessfun_dm_contact', name);
     dmRenderList();
@@ -1787,13 +1950,59 @@ async function dmOpenConversation(username) {
     if (input) input.focus();
 }
 
+async function dmOpenGroup(id) {
+    const group = dmState.groups[id];
+    if (!group) return;
+    dmState.groupId = id;
+    dmState.contact = '';
+    dmRenderList();
+    await dmRefreshGroup();
+    const input = document.getElementById('g3dDmInput');
+    if (input) input.focus();
+}
+
+async function dmRefreshGroup(quiet) {
+    const groupId = dmState.groupId;
+    if (!groupId || !currentUser || currentUser.type !== 'user') return;
+    try {
+        const rows = await dmFetchRows();
+        await dmScanGroups(rows);
+        const group = dmState.groups[groupId] || {};
+        const collection = [];
+        const seen = {};
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            if (row.__group !== groupId) continue;
+            const envelope = row.__envelope || null;
+            const text = row.__text;
+            const mid = (envelope && envelope.mid) || row.__mid || 'row-' + i;
+            if (seen[mid]) continue;
+            seen[mid] = true;
+            collection.push({
+                sender: row.sender,
+                text: text == null ? '🔒 Encrypted message — key unavailable' : text,
+                created_at: row.created_at
+            });
+        }
+        collection.sort(function (a, b) { return new Date(a.created_at) - new Date(b.created_at); });
+        dmState.groupThread = collection;
+        dmRenderList();
+        dmRenderThread();
+        if (!quiet) dmSetStatus('Group · end-to-end encrypted.', false);
+    } catch (e) {
+        if (!quiet) dmSetStatus(e.message || 'Could not load the group.', true);
+    }
+}
+
 async function dmRefreshThread(quiet) {
     if (!dmState.contact || !currentUser || currentUser.type !== 'user') return;
     try {
         const rows = await dmFetchRows();
+        await dmScanGroups(rows);
         const me = currentUser.username;
         const contact = dmState.contact;
         const pair = rows.filter(function (row) {
+            if (row.__group) return false;
             return (row.sender === me && row.recipient === contact) || (row.sender === contact && row.recipient === me);
         });
         let key = null;
@@ -1829,7 +2038,8 @@ async function dmSend() {
         dmSetStatus('Sign in to send private messages.', true);
         return;
     }
-    if (!dmState.contact) {
+    const groupId = dmState.groupId;
+    if (!groupId && !dmState.contact) {
         dmSetStatus('Choose who to message first.', true);
         return;
     }
@@ -1838,6 +2048,70 @@ async function dmSend() {
     if (!text) return;
     if (text.length > 500) {
         dmSetStatus('Messages are limited to 500 characters.', true);
+        return;
+    }
+    if (groupId) {
+        const group = dmState.groups[groupId];
+        if (!group) {
+            dmSetStatus('This group is unavailable.', true);
+            return;
+        }
+        const me = currentUser.username;
+        const members = (group.members || []).filter(function (name) { return name && name !== me; });
+        if (!members.length) {
+            dmSetStatus('Add someone to this group first.', true);
+            return;
+        }
+        const mid = dmMakeId();
+        const envelope = JSON.stringify({
+            v: 1,
+            k: 'g',
+            g: groupId,
+            n: group.name,
+            m: group.members,
+            mid: mid,
+            t: text,
+            at: new Date().toISOString()
+        });
+        let sent = 0;
+        let failed = 0;
+        try {
+            for (let i = 0; i < members.length; i++) {
+                const member = members[i];
+                try {
+                    const key = await dmDeriveKey(member);
+                    const iv = crypto.getRandomValues(new Uint8Array(12));
+                    const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, new TextEncoder().encode(envelope));
+                    const res = await socialQuery(supabaseClient.from('direct_messages').insert({
+                        sender: me,
+                        recipient: member,
+                        ciphertext: dmB64(cipher),
+                        iv: dmB64(iv)
+                    }));
+                    if (res && !res.error) sent++;
+                    else failed++;
+                } catch (e) {
+                    failed++;
+                }
+            }
+        } catch (e) {
+            dmSetStatus(e.message || 'Could not encrypt that message.', true);
+            return;
+        }
+        if (!sent) {
+            dmSetStatus(failed ? 'Could not send to the group. Run supabase/messages.sql.' : 'Could not send to the group.', true);
+            return;
+        }
+        if (input) input.value = '';
+        dmState.groupThread = (dmState.groupThread || []).concat([{
+            sender: me,
+            text: text,
+            created_at: new Date().toISOString()
+        }]);
+        group.updated_at = Date.now();
+        dmSaveGroups();
+        dmRenderThread();
+        dmSetStatus(failed ? 'Sent to ' + sent + ', failed for ' + failed + '.' : 'Sent to ' + sent + ' group member' + (sent === 1 ? '' : 's') + '.', !!failed);
         return;
     }
     try {
@@ -1866,6 +2140,124 @@ async function dmSend() {
     } catch (e) {
         dmSetStatus(e.message || 'Could not encrypt that message.', true);
     }
+}
+
+function dmToggleGroupForm(force) {
+    const form = document.getElementById('g3dDmGroupForm');
+    if (!form) return;
+    const show = force === false ? false : (force === true ? true : form.style.display === 'none');
+    form.style.display = show ? 'flex' : 'none';
+    if (show) {
+        dmState.groupSelected = [];
+        dmRenderGroupSelected();
+        const results = document.getElementById('g3dDmGroupResults');
+        if (results) results.innerHTML = '';
+        const nameInput = document.getElementById('g3dDmGroupName');
+        if (nameInput) nameInput.focus();
+    }
+}
+
+function dmRenderGroupSelected() {
+    const host = document.getElementById('g3dDmGroupSelected');
+    if (!host) return;
+    if (!dmState.groupSelected.length) {
+        host.innerHTML = '<span class="game3d-dm-hint">Pick at least one person.</span>';
+        return;
+    }
+    host.innerHTML = dmState.groupSelected.map(function (name) {
+        return '<button type="button" class="game3d-dm-chip" onclick="dmRemoveGroupMember(\'' + debugArg(name) + '\')">' +
+            escapeHtml(name) + ' ×</button>';
+    }).join('');
+}
+
+function dmRemoveGroupMember(name) {
+    dmState.groupSelected = dmState.groupSelected.filter(function (entry) { return entry !== name; });
+    dmRenderGroupSelected();
+}
+
+let dmGroupSearchTimer = 0;
+let dmGroupSearchToken = 0;
+
+function dmSearchGroupUsers(value) {
+    const results = document.getElementById('g3dDmGroupResults');
+    const query = String(value || '').trim();
+    if (!query) {
+        if (results) results.innerHTML = '';
+        return;
+    }
+    if (dmGroupSearchTimer) clearTimeout(dmGroupSearchTimer);
+    dmGroupSearchTimer = setTimeout(function () { dmRunGroupSearch(query); }, 250);
+}
+
+async function dmRunGroupSearch(query) {
+    const results = document.getElementById('g3dDmGroupResults');
+    if (!results || !supabaseClient) return;
+    const token = ++dmGroupSearchToken;
+    const safe = query.replace(/[%_]/g, '');
+    let res = await socialQuery(supabaseClient.from('users').select('username, avatar').ilike('username', '%' + safe + '%').limit(8));
+    if (res.error) {
+        res = await socialQuery(supabaseClient.from('users').select('username').ilike('username', '%' + safe + '%').limit(8));
+    }
+    if (token !== dmGroupSearchToken) return;
+    if (res.error) {
+        results.innerHTML = '<p class="game3d-dm-empty">Search unavailable. Run supabase/messages.sql.</p>';
+        return;
+    }
+    const me = currentUser && currentUser.username;
+    const users = (res.data || []).filter(function (row) {
+        return row.username && row.username !== me && dmState.groupSelected.indexOf(row.username) < 0;
+    });
+    if (!users.length) {
+        results.innerHTML = '<p class="game3d-dm-empty">No users match.</p>';
+        return;
+    }
+    results.innerHTML = users.map(function (row) {
+        rememberAvatar(row.username, row.avatar);
+        return '<button type="button" class="game3d-dm-result" onclick="dmAddGroupMember(\'' + debugArg(row.username) + '\')">' +
+            userAvatarHtml(row.username, 'reply-avatar') +
+            '<span>' + escapeHtml(row.username) + '</span>' +
+        '</button>';
+    }).join('');
+}
+
+function dmAddGroupMember(name) {
+    if (!name || dmState.groupSelected.indexOf(name) >= 0) return;
+    if (dmState.groupSelected.length >= 16) {
+        dmSetStatus('Groups are limited to 16 people.', true);
+        return;
+    }
+    dmState.groupSelected.push(name);
+    dmRenderGroupSelected();
+    const results = document.getElementById('g3dDmGroupResults');
+    if (results) results.innerHTML = '';
+    const search = document.getElementById('g3dDmGroupSearch');
+    if (search) search.value = '';
+}
+
+function dmCreateGroup() {
+    if (!dmState.groupSelected.length) {
+        dmSetStatus('Pick at least one person for the group.', true);
+        return;
+    }
+    const nameInput = document.getElementById('g3dDmGroupName');
+    const name = String(nameInput ? nameInput.value : '').trim() || 'Group';
+    const me = currentUser ? currentUser.username : '';
+    const members = [me].concat(dmState.groupSelected).filter(Boolean);
+    const id = 'g-' + dmMakeId();
+    dmAddGroup(id, name, members);
+    dmState.groupId = id;
+    dmState.contact = '';
+    dmState.groupThread = [];
+    dmToggleGroupForm(false);
+    if (nameInput) nameInput.value = '';
+    const search = document.getElementById('g3dDmGroupSearch');
+    if (search) search.value = '';
+    dmState.groupSelected = [];
+    dmRenderList();
+    dmRenderThread();
+    dmSetStatus('Group created. Send the first message.', false);
+    const input = document.getElementById('g3dDmInput');
+    if (input) input.focus();
 }
 
 function dmStartConversation() {
@@ -1942,7 +2334,9 @@ function toggleDmSidebar(force) {
         dmLoadInbox();
         if (dmState.poll) clearInterval(dmState.poll);
         dmState.poll = setInterval(function () {
-            if (dmState.open && dmState.contact) dmRefreshThread(true);
+            if (!dmState.open) return;
+            if (dmState.groupId) dmRefreshGroup(true);
+            else if (dmState.contact) dmRefreshThread(true);
         }, 5000);
     } else if (dmState.poll) {
         clearInterval(dmState.poll);
@@ -1955,10 +2349,12 @@ function toggleDmSidebar(force) {
 function dmClose() {
     if (dmState.poll) { clearInterval(dmState.poll); dmState.poll = 0; }
     dmState.open = false;
+    dmState.groupId = '';
     const panel = document.getElementById('g3dDmSidebar');
     const btn = document.getElementById('g3dMsgBtn');
     if (panel) panel.style.display = 'none';
     if (btn) btn.classList.remove('is-open');
+    dmToggleGroupForm(false);
 }
 
 
@@ -5395,8 +5791,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.23.7";
-const UPDATE_NOTES = "FSD is smarter with safer lane choices, a Tesla-style lane and traffic display, and animated blue chevrons. Engine audio now has richer multi-oscillator notes with gear-shift sounds, plus tire-screech drift audio";
+const APP_VERSION = "LessFun Developer Beta 1.23.8";
+const UPDATE_NOTES = "Press X once to close Messages and again to close the game. Group messages are now end-to-end encrypted, voice chat is removed, and FSD has emergency braking plus visible turn signals for you and surrounding traffic";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
@@ -6455,23 +6851,10 @@ function sendCallSignal(event, payload) {
 }
 
 function handleCallInvite(payload) {
-    const me = friendUsername();
-    if (!me || !payload || payload.to !== me || payload.from === me) return;
-    if (party.connected) {
-        sendCallSignal('call-decline', { from: me, to: payload.from, code: payload.code, reason: 'busy' });
-        return;
-    }
-    pendingCall = payload;
-    const modal = document.getElementById('callModal');
-    const kicker = document.getElementById('callKicker');
-    const caller = document.getElementById('callCaller');
-    const sub = document.getElementById('callSub');
-    if (kicker) kicker.textContent = payload.group ? 'GROUP CALL INVITE' : 'INCOMING CALL';
-    if (caller) caller.textContent = payload.from;
-    if (sub) sub.textContent = payload.group ? 'invited you to a group call' : 'is calling you';
-    ensureCallLayer(modal);
-    if (modal) modal.style.display = 'flex';
+    // Voice chat has been removed. Incoming call invites are ignored.
+    return;
 }
+/* Voice-chat helpers remain below but have no UI entry points. */
 
 function handleCallDecline(payload) {
     const me = friendUsername();
@@ -6761,10 +7144,18 @@ function isEditableKeyTarget(target) {
 
 document.addEventListener('keydown', function (event) {
     if (event.repeat) return;
-    if ((event.key === 'v' || event.key === 'V') && party.connected && !isEditableKeyTarget(event.target)) {
-        event.preventDefault();
-        togglePartyMic();
+    if (event.key !== 'x' && event.key !== 'X') return;
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    if (isEditableKeyTarget(event.target)) return;
+    const modal = document.getElementById('gameModal');
+    if (!modal || modal.style.display === 'none') return;
+    event.preventDefault();
+    // Layered close: first the Messages sidebar, then the game itself.
+    if (dmState.open) {
+        toggleDmSidebar(false);
+        return;
     }
+    closeGame();
 });
 
 function resumePartyAudio() {
@@ -6806,9 +7197,6 @@ function startActivityChannel() {
     channel.on('presence', { event: 'sync' }, sync);
     channel.on('presence', { event: 'join' }, sync);
     channel.on('presence', { event: 'leave' }, sync);
-    channel.on('broadcast', { event: 'call-invite' }, function (message) {
-        handleCallInvite(message && message.payload);
-    });
     channel.on('broadcast', { event: 'call-decline' }, function (message) {
         handleCallDecline(message && message.payload);
     });

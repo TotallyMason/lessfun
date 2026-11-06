@@ -7498,3 +7498,169 @@ body.has-avatar-frame .friend-avatar {
         padding: 5px;
     }
 }
+
+/* Group messages */
+.game3d-dm-newgroup {
+    width: 100%;
+    margin-top: 6px;
+    padding: 7px 10px;
+    border-radius: 9px;
+    border: 1px solid rgba(255, 209, 102, 0.35);
+    background: rgba(255, 209, 102, 0.09);
+    color: #ffe2a0;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.game3d-dm-newgroup:hover {
+    background: rgba(255, 209, 102, 0.18);
+}
+
+.game3d-dm-groupform {
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 6px;
+    padding: 8px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.28);
+}
+
+.game3d-dm-groupform .game3d-mp-input {
+    width: 100%;
+}
+
+.game3d-dm-group-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.game3d-dm-group-actions button {
+    flex: 1;
+}
+
+.game3d-dm-group-selected {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-height: 20px;
+}
+
+.game3d-dm-chip {
+    border: 1px solid rgba(95, 224, 255, 0.4);
+    background: rgba(95, 224, 255, 0.12);
+    color: #bdefff;
+    border-radius: 999px;
+    padding: 3px 8px;
+    font: inherit;
+    font-size: 10px;
+    cursor: pointer;
+}
+
+.game3d-dm-hint {
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 10px;
+}
+
+.game3d-dm-label {
+    margin: 8px 0 4px;
+    padding: 0 4px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.42);
+}
+
+.game3d-dm-contact.is-group {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.game3d-dm-contact-icon {
+    color: #8fdfff;
+    font-weight: 800;
+}
+
+.game3d-dm-contact-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+}
+
+.game3d-dm-contact-count {
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.game3d-dm-group-head {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 8px;
+    margin-bottom: 8px;
+    border-radius: 9px;
+    background: rgba(95, 224, 255, 0.08);
+    border: 1px solid rgba(95, 224, 255, 0.18);
+}
+
+.game3d-dm-group-head strong {
+    color: #d9f6ff;
+    font-size: 12px;
+}
+
+.game3d-dm-group-head span {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 9px;
+}
+
+.game3d-dm-msg-from {
+    display: block;
+    margin-bottom: 2px;
+    color: #8fdfff;
+    font-size: 9px;
+    font-weight: 700;
+}
+
+.game3d-dm-send {
+    padding: 0 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(95, 224, 255, 0.4);
+    background: linear-gradient(160deg, #1a8fbd, #0c5c7d);
+    color: #eafaff;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+/* FSD emergency brake */
+.game3d-fsd.is-brake {
+    background: radial-gradient(circle at 50% 60%, transparent 36%, rgba(255, 40, 40, 0.28) 100%);
+}
+
+.game3d-fsd.is-brake span {
+    border-color: rgba(255, 90, 90, 0.8);
+    background: rgba(70, 6, 6, 0.72);
+    color: #ffd7d7;
+    text-shadow: 0 0 16px rgba(255, 70, 70, 0.9);
+    box-shadow: 0 0 26px rgba(255, 50, 50, 0.4);
+    animation: fsdBrakePulse 0.55s ease-in-out infinite alternate;
+}
+
+.game3d-fsd-hud.is-brake {
+    border-color: rgba(255, 80, 80, 0.75);
+    box-shadow: 0 14px 38px rgba(0, 0, 0, 0.5), 0 0 30px rgba(255, 50, 50, 0.3);
+}
+
+@keyframes fsdBrakePulse {
+    from { opacity: 0.72; }
+    to { opacity: 1; }
+}

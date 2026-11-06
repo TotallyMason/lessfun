@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261168">
+    <link rel="stylesheet" href="style.css?v=20261169">
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -221,14 +221,6 @@
                     Sign in to add friends and see when they were last online.
                     <button type="button" onclick="openAuthModal()">Sign in</button>
                 </div>
-
-                <section class="friends-section">
-                    <div class="friends-section-head">
-                        <h2>Calls</h2>
-                        <small style="color:rgba(255,255,255,0.4);font-size:11px;">Call friends or start a group call — stays connected across the site</small>
-                    </div>
-                    <div id="partyBody" class="party-body"></div>
-                </section>
 
                 <section class="friends-section">
                     <div class="friends-section-head">
@@ -839,7 +831,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Developer Beta 1.23.7</p>
+                            <p>LessFun Developer Beta 1.23.8</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -1055,49 +1047,13 @@
         </div>
     </div>
 
-    <div id="callModal" class="call-modal" style="display:none;">
-        <div class="call-card">
-            <span class="call-kicker" id="callKicker">INCOMING CALL</span>
-            <h2 id="callCaller">Someone</h2>
-            <p id="callSub">is calling you</p>
-            <div class="call-actions">
-                <button type="button" class="call-accept" onclick="acceptIncomingCall()">Accept</button>
-                <button type="button" class="call-decline" onclick="declineIncomingCall()">Decline</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="callInviteModal" class="call-modal" style="display:none;">
-        <div class="call-card">
-            <span class="call-kicker">INVITE TO CALL</span>
-            <h2>Invite anyone</h2>
-            <p>They don’t need to be on your friends list.</p>
-            <div class="call-invite-form">
-                <input id="callInviteUser" class="party-code-input" style="letter-spacing:0;text-transform:none;font-weight:500;" maxlength="24" placeholder="username" autocomplete="off">
-                <div id="callInviteResults" class="call-invite-results"></div>
-                <div class="call-actions">
-                    <button type="button" class="call-accept" onclick="sendCallInviteFromModal()">Send invite</button>
-                    <button type="button" class="call-decline" onclick="closeCallInviteModal()">Cancel</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="partyWidget" class="party-widget" style="display:none;">
-        <span class="party-widget-dot"></span>
-        <span class="party-widget-code" id="partyWidgetCode">PARTY</span>
-        <span class="party-widget-members" id="partyWidgetMembers">0</span>
-        <button type="button" id="partyWidgetMic" class="party-widget-mic" onclick="togglePartyMic()">Mic On</button>
-        <button type="button" class="party-widget-leave" onclick="leaveParty()">Leave</button>
-    </div>
-
     <div id="topNotifications" class="top-notifications"></div>
 
     <div id="globalToast" class="global-toast"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
-    <script src="games3d.js?v=20261168"></script>
-    <script src="app.js?v=20261168"></script>
+    <script src="games3d.js?v=20261169"></script>
+    <script src="app.js?v=20261169"></script>
 </body>
 </html>
