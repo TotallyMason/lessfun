@@ -34,7 +34,8 @@ let arcadeMp = {
     players: {},
     timer: 0,
     panelOpen: false,
-    status: ''
+    status: '',
+    host: null
 };
 const RACER_MP_PUBLIC_LOBBIES = [
     { id: 'public-1', name: 'Sunset Highway', channel: 'lessfun-racer-public-1' },
@@ -6287,8 +6288,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.27.0";
-const UPDATE_NOTES = "Dead Coast adds pistol, rifle and shotgun loadouts with 1/2/3 switching, hunger and thirst meters, bleeding with B-to-bandage, and expanded supply crates that can unlock new weapons or survival supplies";
+const APP_VERSION = "LessFun Developer Beta 1.28.0";
+const UPDATE_NOTES = "Dead Coast co-op is live: shared host-authoritative zombie waves, boss waves, downed teammates with E-to-revive, shared supply crates, extraction zones after every fifth wave, and kill credit for every survivor";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
@@ -7700,6 +7701,33 @@ function zombieMpDisplayName() {
     return racerMpSanitizeName(racerMpSuggestedName()) || 'Survivor';
 }
 
+function zombieMpIsHost() {
+    if (!zombieMp.connected) return true;
+    const ids = Object.keys(zombieMp.players).concat([zombieMp.id]).filter(Boolean).sort();
+    return ids.length === 0 || ids[0] === zombieMp.id;
+}
+
+function zombieMpSend(name, payload) {
+    if (!zombieMp.connected || !zombieMp.channel) return;
+    const events = { hit: 'zombie-hit', attack: 'zombie-attack', revive: 'zombie-revive', loot: 'zombie-loot', kill: 'zombie-kill' };
+    const event = events[name];
+    if (!event) return;
+    const body = Object.assign({ from: zombieMp.id }, payload || {});
+    const sent = zombieMp.channel.send({ type: 'broadcast', event: event, payload: body });
+    if (sent && sent.catch) sent.catch(function () {});
+}
+
+function zombieMpSyncAuthority() {
+    if (!zombieMp.connected) return;
+    const host = zombieMpIsHost();
+    if (zombieMp.host === host) return;
+    zombieMp.host = host;
+    if (window.Games3D && window.Games3D.setZombieNet) {
+        window.Games3D.setZombieNet(host, zombieMpSend, true);
+    }
+    if (host) zombieMpSetStatus('You are the host · zombies are shared with the room.');
+}
+
 function openZombieMpPanel() {
     zombieMp.panelOpen = true;
     const panel = document.getElementById('g3dZombieMpPanel');
@@ -7733,6 +7761,41 @@ function zombieMpJoin(roomId) {
     channel.on('broadcast', { event: 'zombie-state' }, function (message) {
         zombieMpHandleState(message && message.payload);
     });
+    channel.on('broadcast', { event: 'zombie-world' }, function (message) {
+        if (!zombieMpIsHost() && window.Games3D && window.Games3D.applyZombieWorld) {
+            window.Games3D.applyZombieWorld(message && message.payload);
+        }
+    });
+    channel.on('broadcast', { event: 'zombie-hit' }, function (message) {
+        if (zombieMpIsHost() && window.Games3D && window.Games3D.applyZombieHit) {
+            const payload = message && message.payload || {};
+            window.Games3D.applyZombieHit(payload.zid, payload.damage, payload.headshot, payload.from);
+        }
+    });
+    channel.on('broadcast', { event: 'zombie-kill' }, function (message) {
+        const payload = message && message.payload || {};
+        if (String(payload.target) === zombieMp.id && window.Games3D && window.Games3D.addZombieScore) {
+            window.Games3D.addZombieScore(payload.points);
+        }
+    });
+    channel.on('broadcast', { event: 'zombie-attack' }, function (message) {
+        const payload = message && message.payload || {};
+        if (String(payload.target) === zombieMp.id && window.Games3D && window.Games3D.applyZombieAttack) {
+            window.Games3D.applyZombieAttack(payload.damage);
+        }
+    });
+    channel.on('broadcast', { event: 'zombie-revive' }, function (message) {
+        const payload = message && message.payload || {};
+        if (String(payload.target) === zombieMp.id && window.Games3D && window.Games3D.reviveZombiePlayer) {
+            window.Games3D.reviveZombiePlayer();
+        }
+    });
+    channel.on('broadcast', { event: 'zombie-loot' }, function (message) {
+        if (zombieMpIsHost() && window.Games3D && window.Games3D.applyLootedCrate) {
+            const payload = message && message.payload || {};
+            window.Games3D.applyLootedCrate(payload.index);
+        }
+    });
     channel.on('presence', { event: 'sync' }, zombieMpSyncPresence);
     channel.on('presence', { event: 'join' }, zombieMpSyncPresence);
     channel.on('presence', { event: 'leave' }, zombieMpSyncPresence);
@@ -7744,6 +7807,8 @@ function zombieMpJoin(roomId) {
             if (tracked && tracked.catch) tracked.catch(function () {});
             if (zombieMp.timer) clearInterval(zombieMp.timer);
             zombieMp.timer = setInterval(zombieMpTick, 150);
+            zombieMp.host = null;
+            zombieMpSyncAuthority();
             zombieMpSetStatus('Connected to ' + room.name + ' · public room');
             closeZombieMpPanel(true);
             const menu = document.getElementById('g3dStartMenu');
@@ -7776,16 +7841,19 @@ function zombieMpHandleState(payload) {
         lastSeen: Date.now()
     };
     zombieMpPushRemotes();
+    zombieMpSyncAuthority();
     if (zombieMp.panelOpen) zombieMpRenderUi();
 }
 
 function zombieMpSyncPresence() {
     if (!zombieMp.channel || !zombieMp.connected) return;
     const state = zombieMp.channel.presenceState() || {};
+    const seen = {};
     Object.keys(state).forEach(function (key) {
         (state[key] || []).forEach(function (entry) {
             if (!entry || !entry.id || String(entry.id) === zombieMp.id) return;
             const id = String(entry.id);
+            seen[id] = true;
             if (zombieMp.players[id]) {
                 zombieMp.players[id].name = racerMpSanitizeName(entry.name) || zombieMp.players[id].name;
             } else {
@@ -7793,13 +7861,19 @@ function zombieMpSyncPresence() {
             }
         });
     });
+    Object.keys(zombieMp.players).forEach(function (id) {
+        if (id !== zombieMp.id && !seen[id]) delete zombieMp.players[id];
+    });
     zombieMpPushRemotes();
+    zombieMpSyncAuthority();
     if (zombieMp.panelOpen) zombieMpRenderUi();
 }
 
 function zombieMpPushRemotes() {
     if (!window.Games3D || !window.Games3D.setZombieRemotes) return;
-    const list = Object.keys(zombieMp.players).map(function (id) { return zombieMp.players[id]; });
+    const list = Object.keys(zombieMp.players)
+        .filter(function (id) { return id !== zombieMp.id; })
+        .map(function (id) { return zombieMp.players[id]; });
     window.Games3D.setZombieRemotes(list);
 }
 
@@ -7830,6 +7904,13 @@ function zombieMpTick() {
     };
     const sent = zombieMp.channel.send({ type: 'broadcast', event: 'zombie-state', payload: payload });
     if (sent && sent.catch) sent.catch(function () {});
+    if (zombieMpIsHost() && window.Games3D && window.Games3D.getZombieWorld) {
+        const world = window.Games3D.getZombieWorld();
+        if (world) {
+            const worldSent = zombieMp.channel.send({ type: 'broadcast', event: 'zombie-world', payload: world });
+            if (worldSent && worldSent.catch) worldSent.catch(function () {});
+        }
+    }
     if (zombieMp.panelOpen) zombieMpRenderUi();
 }
 
@@ -7882,6 +7963,8 @@ function zombieMpLeave(quiet) {
         }
     }
     if (window.Games3D && window.Games3D.setZombieRemotes) window.Games3D.setZombieRemotes([]);
+    if (window.Games3D && window.Games3D.setZombieNet) window.Games3D.setZombieNet(true, null, false);
+    zombieMp.host = null;
     const panel = document.getElementById('g3dZombieMpPanel');
     if (panel && !quiet) panel.style.display = 'none';
     zombieMp.panelOpen = false;
