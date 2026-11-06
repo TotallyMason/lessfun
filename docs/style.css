@@ -8576,3 +8576,18 @@ body.has-avatar-frame .friend-avatar {
         font-size: 8px;
     }
 }
+
+/* Mobile: backdrop blur is expensive on phone GPUs. */
+@media (pointer: coarse), (max-width: 820px) {
+    .game3d-hud,
+    .game3d-dm,
+    .game3d-mp-card,
+    .game3d-map,
+    .fps-stat,
+    .fps-needs,
+    .game3d-remote-cams,
+    .game3d-fsd-hud {
+        -webkit-backdrop-filter: none !important;
+        backdrop-filter: none !important;
+    }
+}

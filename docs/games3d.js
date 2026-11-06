@@ -12,7 +12,7 @@
 
     var renderer = null, scene = null, camera = null;
     var renderScale = 0; // 0 = auto cap, otherwise a multiplier on the device pixel ratio.
-    var adaptiveScale = 1;
+    var adaptiveScale = isMobileDevice ? 0.85 : 1;
     var adaptiveTransition = null;
     var adaptiveCooldown = 0;
     var motionBlurEnabled = true;
@@ -770,7 +770,7 @@
             return g;
         }
 
-        for (var bi = 0; bi < (isMobileDevice ? 12 : 18); bi++) {
+        for (var bi = 0; bi < (isMobileDevice ? 8 : 18); bi++) {
             var bldg = makeSkylineBuilding(bi);
             bldg.position.set(34 + (bi % 4) * 7.5, 0, 20 - bi * 31);
             bldg.rotation.y = (bi % 2 ? -1 : 1) * 0.08;
@@ -814,7 +814,7 @@
             return g;
         }
 
-        for (var sh = 0; sh < (isMobileDevice ? 10 : 16); sh++) {
+        for (var sh = 0; sh < (isMobileDevice ? 7 : 16); sh++) {
             var shop = makeShop(sh);
             shop.position.set(22 + (sh % 3) * 5.5, 0, 8 - sh * 36);
             shop.rotation.y = 0;
@@ -2879,7 +2879,7 @@
             traffic.push(car);
         }
 
-        for (var t = 0; t < (isMobileDevice ? 5 : 8); t++) spawnTraffic(-100 - t * 46);
+        for (var t = 0; t < (isMobileDevice ? 4 : 8); t++) spawnTraffic(-100 - t * 46);
         spawnTraffic(-150, true);
 
         function blink(car, side) {
@@ -4619,7 +4619,7 @@
             [16, -50, 18, 16, 28, 0x2d2a33],
             [-26, 47, 22, 15, 20, 0x2b3037],
             [24, 48, 18, 16, 24, 0x302d34]
-        ].slice(0, isMobileDevice ? 6 : 10).forEach(function (b, index) {
+        ].slice(0, isMobileDevice ? 4 : 10).forEach(function (b, index) {
             var bx = b[0], bz = b[1], bw = b[2], bd = b[3], bh = b[4];
             var bldg = box(bw, bh, bd, std(b[5], { roughness: 0.9, metalness: 0.05, emissive: b[5], emissiveIntensity: 0.16 }));
             bldg.position.set(bx, bh / 2, bz); scene.add(bldg);
@@ -4634,7 +4634,7 @@
             sign.position.set(bx, bh - 2.2, bz + bd / 2 + 0.06); scene.add(sign);
         });
 
-        for (var bi = 0; bi < (isMobileDevice ? 8 : 12); bi++) {
+        for (var bi = 0; bi < (isMobileDevice ? 5 : 12); bi++) {
             var barrel = cyl(0.38, 0.38, 1.05, 12, std(bi % 3 === 0 ? 0x7a2c1e : 0x2f4a5a, { metalness: 0.45, roughness: 0.55 }));
             var bx = (Math.random() - 0.5) * 54, bz = (Math.random() - 0.5) * 54;
             if (Math.abs(bx) < 8 && Math.abs(bz) < 8) { bx += 12; bz += 12; }
@@ -4648,7 +4648,7 @@
             pole.position.set(lp[0], 3.5, lp[1]); scene.add(pole);
             var head = box(0.8, 0.24, 0.38, lampMat);
             head.position.set(lp[0], 7.0, lp[1]); scene.add(head);
-            if (i < 3) {
+            if (i < (isMobileDevice ? 1 : 3)) {
                 var pl = new THREE.PointLight(0xffd9a0, 1.4, 22);
                 pl.position.set(lp[0], 6.7, lp[1]); scene.add(pl);
             }
@@ -5404,12 +5404,14 @@
                 mz += rz * input.mobileX + fz * input.mobileY;
             }
             var moving = !downed && (mx !== 0 || mz !== 0);
-            sprinting = !!(input.nitro && moving && stamina > 1);
+            var mobileMag = Math.min(1, Math.sqrt(input.mobileX * input.mobileX + input.mobileY * input.mobileY));
+            var wantSprint = input.nitro || (isMobileDevice && mobileMag > 0.78);
+            sprinting = !!(wantSprint && moving && stamina > 1);
             if (sprinting) stamina = Math.max(0, stamina - 27 * dt);
             else stamina = Math.min(100, stamina + (moving ? 8 : 16) * dt);
             if (moving) {
                 var len = Math.sqrt(mx * mx + mz * mz); mx /= len; mz /= len;
-                var speed = sprinting ? 7.4 : 4.0;
+                var speed = sprinting ? 7.4 : (isMobileDevice ? 5.0 : 4.0);
                 var nx = px + mx * speed * dt, nz = pz + mz * speed * dt;
                 if (!blockedAt(nx, pz)) px = nx;
                 if (!blockedAt(px, nz)) pz = nz;
@@ -6123,7 +6125,7 @@
     function effectivePixelRatio() {
         // Cap at the display's native resolution, which on Retina means 2x
         // CSS pixels instead of the blurry 1x buffer.
-        var base = Math.min(global.devicePixelRatio || 1, isMobileDevice ? 1.5 : 2);
+        var base = Math.min(global.devicePixelRatio || 1, isMobileDevice ? 1.25 : 2);
         var requested = renderScale > 0 ? renderScale : 1;
         var ratio = base * requested * adaptiveScale;
         return Math.max(base * 0.2, Math.min(base, ratio));

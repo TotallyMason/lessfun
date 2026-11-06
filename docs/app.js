@@ -6375,8 +6375,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.31.0";
-const UPDATE_NOTES = "All games now have mobile performance tuning and touch support. Dead Coast adds a movement stick, drag-to-look, fire/reload/jump/melee/use/swap buttons, while every game runs lighter on phones with reduced detail, no shadows, and motion blur off by default";
+const APP_VERSION = "LessFun Developer Beta 1.31.1";
+const UPDATE_NOTES = "Mobile tuning pass: Dead Coast joystick movement is faster and full-stick push sprints, while fewer buildings, zombies, props, lights, and background blurs keep phone frame rates higher";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
