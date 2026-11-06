@@ -5,7 +5,7 @@
     var input = {
         left: false, right: false, up: false, down: false, brake: false,
         pointerActive: false, pointerX: 0, pointerY: 0, tapQueued: false, honk: false,
-        jump: false, reload: false
+        jump: false, reload: false, melee: false, interact: false
     };
 
     var renderer = null, scene = null, camera = null;
@@ -4396,6 +4396,28 @@
             }
         });
 
+        // Loot crates: scarce supplies that must be searched with E.
+        var lootCrates = [];
+        function makeLootCrate(x, z) {
+            var g = new THREE.Group();
+            var crateMat = std(0x4a3d2a, { roughness: 0.88, metalness: 0.12 });
+            var base = box(1.1, 0.7, 0.82, crateMat); base.position.y = 0.35; g.add(base);
+            var lid = box(1.14, 0.12, 0.86, std(0x5a4a32, { roughness: 0.8 }));
+            lid.position.set(0, 0.74, 0); lid.rotation.x = 0; g.add(lid);
+            var strap = box(1.16, 0.09, 0.12, std(0x24201a)); strap.position.set(0, 0.4, 0); g.add(strap);
+            var glow = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.0), new THREE.MeshBasicMaterial({ color: 0xffc46a, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false }));
+            glow.rotation.x = -Math.PI / 2; glow.position.y = 0.02; g.add(glow);
+            g.position.set(x, 0, z);
+            g.userData = { looted: false, lid: lid, glow: glow };
+            scene.add(g);
+            lootCrates.push(g);
+            obstacles.push({ minX: x - 0.6, maxX: x + 0.6, minZ: z - 0.48, maxZ: z + 0.48 });
+        }
+        makeLootCrate(-9, -4);
+        makeLootCrate(7, 5);
+        makeLootCrate(-2, 25);
+        makeLootCrate(21, -16);
+
         // First-person weapon.
         var gun = new THREE.Group();
         var gunMetal = std(0x22262b, { metalness: 0.8, roughness: 0.25 });
@@ -4412,9 +4434,16 @@
         var muzzle = new THREE.PointLight(0xffc46a, 0, 8);
         muzzle.position.set(0.3, -0.18, -1.15); camera.add(muzzle);
 
+        var flashlight = new THREE.SpotLight(0xffe6b0, 0, 48, Math.PI / 4.4, 0.55, 1.25);
+        flashlight.position.set(0.08, -0.05, 0);
+        flashlight.target.position.set(0, 0, -2);
+        camera.add(flashlight);
+        camera.add(flashlight.target);
+
         var px = 0, pz = 0, eyeY = 1.68, vy = 0, onGround = true;
         var yaw = 0, pitch = 0;
         var health = 100, ammo = 30, reserve = 150, reloadT = 0, fireCd = 0;
+        var stamina = 100, sprinting = false, flashlightOn = false, meleeCd = 0, noiseTimer = 0, meleeAnim = 0;
         var score = 0, kills = 0, wave = 1, spawnQueue = 0, spawnTimer = 0, intermission = 1.5;
         var elapsed = 0, firing = false;
         var zombies = [], corpses = [], pickups = [], tracers = [], remotePlayers = {};
@@ -4465,8 +4494,12 @@
             var g = new THREE.Group();
             var skins = [0x64814d, 0x6f8264, 0x7d8a64, 0x566b48, 0x8a9478];
             var shirts = [0x3d4434, 0x4a3b35, 0x354450, 0x513f4a, 0x3b4a44];
-            var skin = std(skins[Math.floor(Math.random() * skins.length)], { roughness: 0.96 });
-            var shirt = std(shirts[Math.floor(Math.random() * shirts.length)], { roughness: 0.92 });
+            var typeRoll = Math.random();
+            var ztype = 'walker';
+            if (wave >= 2 && typeRoll < 0.2) ztype = 'runner';
+            else if (wave >= 3 && typeRoll > 0.72) ztype = 'brute';
+            var skin = std(ztype === 'runner' ? 0x8a7454 : (ztype === 'brute' ? 0x4d6244 : skins[Math.floor(Math.random() * skins.length)]), { roughness: 0.96 });
+            var shirt = std(ztype === 'runner' ? 0x5c2c2c : (ztype === 'brute' ? 0x38242a : shirts[Math.floor(Math.random() * shirts.length)]), { roughness: 0.92 });
             var pants = std(0x252b36, { roughness: 0.94 });
             var shoe = std(0x111419, { roughness: 0.85 });
             var blood = std(0x561018, { roughness: 0.7, metalness: 0.05 });
@@ -4519,10 +4552,19 @@
             shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.015; g.add(shadow);
 
             var scale = 0.88 + Math.random() * 0.22;
+            if (ztype === 'runner') scale *= 0.9;
+            else if (ztype === 'brute') scale *= 1.3;
             g.scale.setScalar(scale);
+            var hpMul = ztype === 'runner' ? 0.65 : (ztype === 'brute' ? 2.5 : 1);
+            var speedMul = ztype === 'runner' ? 1.85 : (ztype === 'brute' ? 0.68 : 1);
+            var zDamage = ztype === 'runner' ? 6 : (ztype === 'brute' ? 19 : 8);
+            var zScore = ztype === 'runner' ? 60 : (ztype === 'brute' ? 180 : 0);
             g.userData = {
-                health: 100 + wave * 8,
-                speed: 1.5 + Math.random() * 0.5 + wave * 0.05,
+                type: ztype,
+                damage: zDamage,
+                scoreValue: zScore,
+                health: (100 + wave * 8) * hpMul,
+                speed: (1.5 + Math.random() * 0.5 + wave * 0.05) * speedMul,
                 attackCd: Math.random() * 0.6,
                 armL: armL, armR: armR, legL: legL, legR: legR,
                 head: headGroup, torso: torso,
@@ -4552,7 +4594,12 @@
 
         function startWave(n) {
             wave = n;
-            spawnQueue = Math.min(26, 4 + n * 2);
+            var count = 4 + n * 2;
+            // Director-style mercy/pressure: ease off when the survivor is
+            // nearly dead or out of supplies, add pressure when comfortable.
+            if (health < 40 || reserve < 20) count = Math.max(3, Math.floor(count * 0.7));
+            else if (health > 70 && reserve > 50) count += 2;
+            spawnQueue = Math.min(26, count);
             spawnTimer = 0;
             intermission = 0;
             score += 150 * n;
@@ -4629,6 +4676,7 @@
             fireCd = 0.1;
             muzzle.intensity = 2.4;
             sfx(140, 0.08, 0.11, 'square', 60);
+            makeNoise(px, pz, 32, 1.4);
             var dir = new THREE.Vector3(
                 -Math.sin(yaw) * Math.cos(pitch),
                 Math.sin(pitch),
@@ -4694,7 +4742,7 @@
             corpse.blood = blood;
             corpses.push(corpse);
             kills++;
-            score += (headshot ? 150 : 100) + wave * 10;
+            score += (headshot ? 150 : 100) + wave * 10 + (zombie.userData.scoreValue || 0);
             if (Math.random() < 0.22) makePickup(Math.random() < 0.55 ? 'ammo' : 'health');
         }
 
@@ -4702,6 +4750,71 @@
             if (reloadT > 0 || ammo >= 30 || reserve <= 0) return;
             reloadT = 1.15;
             sfx(300, 0.1, 0.035, 'square', 180);
+            makeNoise(px, pz, 9, 0.4);
+        }
+
+        function makeNoise(x, z, radius, strength) {
+            for (var i = 0; i < zombies.length; i++) {
+                var zed = zombies[i];
+                var ddx = zed.position.x - x;
+                var ddz = zed.position.z - z;
+                var dist = Math.sqrt(ddx * ddx + ddz * ddz);
+                if (dist < radius) {
+                    zed.userData.alertT = Math.max(zed.userData.alertT || 0, 3.5 + (strength || 1) * 2);
+                    zed.userData.noiseX = x;
+                    zed.userData.noiseZ = z;
+                }
+            }
+        }
+
+        function doMelee() {
+            if (meleeCd > 0) return;
+            meleeCd = 0.55;
+            meleeAnim = 0.22;
+            sfx(180, 0.1, 0.07, 'sawtooth', 70);
+            makeNoise(px, pz, 13, 0.5);
+            var dir = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+            var best = null, bestDist = 2.7;
+            for (var i = 0; i < zombies.length; i++) {
+                var z = zombies[i];
+                var rel = new THREE.Vector3(z.position.x - px, 1.0 - eyeY, z.position.z - pz);
+                var t = rel.dot(dir);
+                if (t <= 0 || t > bestDist) continue;
+                var perp = rel.clone().sub(dir.clone().multiplyScalar(t)).length();
+                if (perp < 0.7) { best = z; bestDist = t; }
+            }
+            if (best) {
+                best.userData.health -= 92;
+                if (best.userData.health <= 0) killZombie(best, false);
+                var hit = document.getElementById('g3dFpsHit');
+                if (hit) { hit.classList.remove('is-active'); void hit.offsetWidth; hit.classList.add('is-active'); hitTimer = 0.13; }
+            }
+        }
+
+        function nearestLoot() {
+            var best = null, bestD = 2.5;
+            for (var i = 0; i < lootCrates.length; i++) {
+                var crate = lootCrates[i];
+                if (crate.userData.looted) continue;
+                var dx = crate.position.x - px, dz = crate.position.z - pz;
+                var d = Math.sqrt(dx * dx + dz * dz);
+                if (d < bestD) { bestD = d; best = crate; }
+            }
+            return best;
+        }
+
+        function lootCrate(crate) {
+            if (!crate || crate.userData.looted) return;
+            crate.userData.looted = true;
+            crate.userData.lid.rotation.x = -1.15;
+            crate.userData.lid.position.y = 0.92;
+            crate.userData.glow.visible = false;
+            var roll = Math.random();
+            if (roll < 0.42) { reserve += 75; showBanner('+75 AMMO'); }
+            else if (roll < 0.78) { health = Math.min(100, health + 40); showBanner('+40 HEALTH'); }
+            else { ammo = 30; reserve += 40; score += 100; showBanner('SUPPLY CACHE'); }
+            sfx(760, 0.12, 0.05, 'sine', 1100);
+            makeNoise(px, pz, 8, 0.4);
         }
 
         var promptTimer = 0;
@@ -4723,13 +4836,18 @@
             if (input.left) { mx -= rx; mz -= rz; }
             if (input.right) { mx += rx; mz += rz; }
             var moving = mx !== 0 || mz !== 0;
+            sprinting = !!(input.nitro && moving && stamina > 1);
+            if (sprinting) stamina = Math.max(0, stamina - 27 * dt);
+            else stamina = Math.min(100, stamina + (moving ? 8 : 16) * dt);
             if (moving) {
                 var len = Math.sqrt(mx * mx + mz * mz); mx /= len; mz /= len;
-                var speed = input.nitro ? 7.2 : 4.0;
+                var speed = sprinting ? 7.4 : 4.0;
                 var nx = px + mx * speed * dt, nz = pz + mz * speed * dt;
                 if (!blockedAt(nx, pz)) px = nx;
                 if (!blockedAt(px, nz)) pz = nz;
             }
+            noiseTimer -= dt;
+            if (sprinting && noiseTimer <= 0) { noiseTimer = 0.85; makeNoise(px, pz, 13, 0.5); }
             if (input.jump && onGround) { vy = 6.4; onGround = false; }
             vy -= 19 * dt;
             eyeY += vy * dt;
@@ -4744,13 +4862,34 @@
                     sfx(600, 0.09, 0.04, 'square', 900);
                 }
             }
+            if (input.fsdToggle) {
+                input.fsdToggle = false;
+                flashlightOn = !flashlightOn;
+                flashlight.intensity = flashlightOn ? 3.4 : 0;
+                sfx(flashlightOn ? 720 : 520, 0.07, 0.03, 'square', flashlightOn ? 980 : 300);
+            }
+            meleeCd = Math.max(0, meleeCd - dt);
+            meleeAnim = Math.max(0, meleeAnim - dt);
+            if (input.melee) { input.melee = false; doMelee(); }
+            if (input.interact) {
+                input.interact = false;
+                var crateToLoot = nearestLoot();
+                if (crateToLoot) lootCrate(crateToLoot);
+            }
+            var nearCrate = nearestLoot();
+            var interactEl = document.getElementById('g3dFpsInteract');
+            if (interactEl) {
+                if (nearCrate) { interactEl.textContent = 'E · Search crate'; interactEl.classList.add('is-active'); }
+                else interactEl.classList.remove('is-active');
+            }
             if (firing) fire();
 
             var bob = moving && onGround ? Math.sin(elapsed * 11) * 0.035 : 0;
             camera.position.set(px, eyeY + bob, pz);
             camera.rotation.set(pitch, yaw, 0);
-            gun.position.y = -0.28 + bob * 0.5;
-            gun.position.x = 0.3 + (moving ? Math.sin(elapsed * 5.5) * 0.012 : 0);
+            gun.position.y = -0.34 + bob * 0.5 - (meleeAnim > 0 ? meleeAnim * 0.7 : 0);
+            gun.position.x = 0.34 + (moving ? Math.sin(elapsed * 5.5) * 0.012 : 0);
+            gun.rotation.z = meleeAnim > 0 ? -meleeAnim * 2.2 : 0;
 
             // Zombie waves.
             if (spawnQueue > 0) {
@@ -4765,22 +4904,31 @@
             for (var zi = zombies.length - 1; zi >= 0; zi--) {
                 var z = zombies[zi];
                 var u = z.userData;
-                var dx = px - z.position.x, dz = pz - z.position.z;
+                if (u.alertT > 0) u.alertT -= dt;
+                var pdx = px - z.position.x, pdz = pz - z.position.z;
+                var playerDist = Math.sqrt(pdx * pdx + pdz * pdz);
+                // Gunfire, sprinting, and melee sounds pull zombies toward the
+                // noise before they reacquire the survivor at close range.
+                var targetX = px, targetZ = pz;
+                if (u.alertT > 0 && playerDist > 5.5) { targetX = u.noiseX != null ? u.noiseX : px; targetZ = u.noiseZ != null ? u.noiseZ : pz; }
+                var dx = targetX - z.position.x, dz = targetZ - z.position.z;
                 var dist = Math.sqrt(dx * dx + dz * dz);
-                if (dist > 1.15) {
+                if (playerDist > 1.15) {
                     var zs = u.speed * (1 + wave * 0.025);
-                    var stepX = (dx / dist) * zs * dt, stepZ = (dz / dist) * zs * dt;
-                    if (!blockedAt(z.position.x + stepX, z.position.z, 0.46)) z.position.x += stepX;
-                    if (!blockedAt(z.position.x, z.position.z + stepZ, 0.46)) z.position.z += stepZ;
-                    z.rotation.y = Math.atan2(dx, dz);
-                    var swing = Math.sin(elapsed * 7 + u.phase) * 0.65;
+                    if (dist > 0.25) {
+                        var stepX = (dx / dist) * zs * dt, stepZ = (dz / dist) * zs * dt;
+                        if (!blockedAt(z.position.x + stepX, z.position.z, 0.46)) z.position.x += stepX;
+                        if (!blockedAt(z.position.x, z.position.z + stepZ, 0.46)) z.position.z += stepZ;
+                        z.rotation.y = Math.atan2(dx, dz);
+                    }
+                    var swing = Math.sin(elapsed * (u.type === 'runner' ? 11 : 7) + u.phase) * 0.65;
                     u.armL.rotation.x = swing; u.armR.rotation.x = -swing;
                     u.legL.rotation.x = -swing * 0.7; u.legR.rotation.x = swing * 0.7;
                 } else {
                     u.attackCd -= dt;
                     if (u.attackCd <= 0) {
                         u.attackCd = 0.95;
-                        health -= 7 + wave * 1.1;
+                        health -= (u.damage || 8) + wave * 1.1;
                         damageTimer = 0.28;
                         var dmg = document.getElementById('g3dFpsDamage');
                         if (dmg) { dmg.classList.remove('is-active'); void dmg.offsetWidth; dmg.classList.add('is-active'); }
@@ -4874,11 +5022,13 @@
             var elW = document.getElementById('g3dFpsWave');
             var elK = document.getElementById('g3dFpsKills');
             var elS = document.getElementById('g3dFpsScore');
+            var elSt = document.getElementById('g3dFpsStamina');
             if (elH) { elH.textContent = Math.max(0, Math.round(health)); elH.classList.toggle('is-low', health < 35); }
             if (elA) elA.textContent = reloadT > 0 ? 'RELOAD' : (ammo + ' / ' + reserve);
             if (elW) elW.textContent = wave;
             if (elK) elK.textContent = kills;
             if (elS) elS.textContent = Math.round(score).toLocaleString();
+            if (elSt) { elSt.textContent = Math.round(stamina); elSt.classList.toggle('is-low', stamina < 25); }
         }
 
         // Pointer lock / trackpad look.
@@ -4925,7 +5075,7 @@
             update: update,
             setRemotes: setRemotes,
             getScore: function () { return score; },
-            getState: function () { return { x: px, z: pz, yaw: yaw, health: Math.max(0, health), score: score, wave: wave, kills: kills }; }
+            getState: function () { return { x: px, z: pz, yaw: yaw, health: Math.max(0, health), stamina: Math.round(stamina), score: score, wave: wave, kills: kills }; }
         };
     }
 
@@ -4965,6 +5115,8 @@
         var KEY_FSD = ['f', 'F'];
         var KEY_HONK = ['h', 'H'];
         var KEY_RELOAD = ['r', 'R'];
+        var KEY_MELEE = ['v', 'V'];
+        var KEY_INTERACT = ['e', 'E'];
 
         function down(e) {
             if (isTypingTarget(e)) return;
@@ -4982,6 +5134,8 @@
             if (KEY_FSD.indexOf(e.key) >= 0) { if (!e.repeat) input.fsdToggle = true; e.preventDefault(); }
             if (KEY_HONK.indexOf(e.key) >= 0) { if (!e.repeat) input.honk = true; e.preventDefault(); }
             if (KEY_RELOAD.indexOf(e.key) >= 0) { if (!e.repeat) input.reload = true; }
+            if (KEY_MELEE.indexOf(e.key) >= 0) { if (!e.repeat) input.melee = true; }
+            if (KEY_INTERACT.indexOf(e.key) >= 0) { if (!e.repeat) input.interact = true; }
             if (e.key === ' ') { input.jump = true; input.tapQueued = true; e.preventDefault(); }
             else if (e.key === 'Enter') { input.tapQueued = true; e.preventDefault(); }
             if (KEY_LEFT.indexOf(e.key) >= 0 || KEY_RIGHT.indexOf(e.key) >= 0 || KEY_UP.indexOf(e.key) >= 0 || KEY_DOWN.indexOf(e.key) >= 0 || KEY_GEAR_DOWN.indexOf(e.key) >= 0 || KEY_GEAR_UP.indexOf(e.key) >= 0) e.preventDefault();
@@ -5120,7 +5274,7 @@
         input.left = false; input.right = false; input.up = false; input.down = false;
         input.brake = false;
         input.pointerActive = false; input.pointerX = 0; input.pointerY = 0; input.tapQueued = false;
-        input.honk = false; input.jump = false; input.reload = false;
+        input.honk = false; input.jump = false; input.reload = false; input.melee = false; input.interact = false;
         playedSeconds = 0;
 
         resetScene();
@@ -5175,7 +5329,7 @@
         input.brake = false; input.gearDown = false; input.gearUp = false;
         input.drift = false; input.nitro = false; input.fsdToggle = false;
         input.pointerActive = false; input.pointerX = 0; input.pointerY = 0; input.tapQueued = false;
-        input.honk = false; input.jump = false; input.reload = false;
+        input.honk = false; input.jump = false; input.reload = false; input.melee = false; input.interact = false;
         clock = new THREE.Clock();
         resize();
         var factory = factories[lastGameId];

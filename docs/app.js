@@ -7,7 +7,7 @@ const games = [
     { id: 1, name: "Beach Racer", description: "Outrun traffic on a six-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · ← → steer · Shift / N nitrous · F FSD · H honk · Q/E gears · right lane exits" },
     { id: 2, name: "Tunnel Rush", description: "Thread the neon tunnel at warp speed", icon: "tunnel", controls: "Left / Right or drag to rotate" },
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
-    { id: 4, name: "Dead Coast", description: "Survive endless zombie waves in first person", icon: "skull", controls: "WASD move · trackpad look · click fire · R reload · Shift sprint · Space jump" },
+    { id: 4, name: "Dead Coast", description: "Survive endless zombie waves in first person", icon: "skull", controls: "WASD move · trackpad look · click fire · R reload · V melee · E loot · F flashlight · Shift sprint · Space jump" },
     { id: 5, name: "Star Dodger", description: "Weave through an asteroid storm", icon: "rocket", controls: "WASD / arrow keys to fly · drag to steer · Space / click fires when armed" }
 ];
 
@@ -568,10 +568,12 @@ function openGame(id) {
                     '<div class="fps-stat"><small>Wave</small><strong id="g3dFpsWave">1</strong></div>' +
                     '<div class="fps-stat"><small>Kills</small><strong id="g3dFpsKills">0</strong></div>' +
                     '<div class="fps-stat"><small>Score</small><strong id="g3dFpsScore">0</strong></div>' +
+                    '<div class="fps-stat"><small>Stamina</small><strong id="g3dFpsStamina">100</strong></div>' +
                 '</div>' +
+                '<div class="fps-interact" id="g3dFpsInteract"></div>' +
                 '<div class="fps-wave-banner" id="g3dFpsWaveBanner"></div>' +
                 '<div class="fps-damage" id="g3dFpsDamage"></div>' +
-                '<div class="fps-prompt" id="g3dFpsPrompt">Click to aim · WASD move · Shift sprint · R reload</div>' : '') +
+                '<div class="fps-prompt" id="g3dFpsPrompt">Click to aim · WASD move · V melee · E loot · F light · Shift sprint</div>' : '') +
             (game.id === 4 ? '' : '<div class="game3d-hint">' + (game.controls || '') + '</div>') +
             '<div class="game3d-perf" id="g3dPerf"><span id="g3dFps">-- FPS</span><span id="g3dRes">--</span></div>' +
             (game.hasThrottle ? '<button class="game3d-throttle" id="g3dThrottle" type="button">Throttle</button>' : '') +
@@ -6279,8 +6281,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.25.1";
-const UPDATE_NOTES = "Dead Coast now has detailed zombie models, physical death ragdolls, a foggy city skyline with buildings, and rendering capped at exactly the visible screen resolution";
+const APP_VERSION = "LessFun Developer Beta 1.26.0";
+const UPDATE_NOTES = "Dead Coast now borrows survival mechanics from DayZ, Project Zomboid, and Left 4 Dead: gunfire and sprinting attract zombies, supply crates must be looted, stamina limits sprinting, new runner and brute infected appear, a mercy director adjusts waves, and V melee / F flashlight are live";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
