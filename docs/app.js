@@ -5393,8 +5393,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.23.3";
-const UPDATE_NOTES = "Fixed the lingering engine buzzing sound: game audio now mutes when paused or crashed and shuts down completely when a run ends";
+const APP_VERSION = "LessFun Developer Beta 1.23.4";
+const UPDATE_NOTES = "Call invites are now a popup and work with anyone, not just friends. Added TURN servers, connection retries, audio resume, and stronger audio cleanup to fix unreliable calls and lingering buzzing";
 
 function checkForUpdates() {
     var lastVersion = localStorage.getItem('lessfun_version');
@@ -5951,7 +5951,12 @@ function stopNotifications() {
    Voice parties — WebRTC mesh with Supabase signaling
    ============================================================ */
 const PARTY_MAX = 8;
-const PARTY_ICE = { iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }] };
+const PARTY_ICE = { iceServers: [
+    { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
+    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+] };
 let party = {
     code: '',
     id: '',
@@ -5969,6 +5974,8 @@ let party = {
 let partyAudioCtx = null;
 let partyGains = {};
 let pendingCall = null;
+let partyRetryTimer = 0;
+let callInviteSearchTimer = 0;
 
 function partyMakeCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -6058,6 +6065,8 @@ function partyStartChannel(initialStatus) {
             party.status = initialStatus || 'Call connected. Press V anywhere to toggle your mic.';
             partyRender();
             partySyncPresence();
+            if (partyRetryTimer) clearInterval(partyRetryTimer);
+            partyRetryTimer = setInterval(partyRetryConnections, 5000);
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
             party.connected = false;
             party.status = 'Could not connect to that voice party.';
@@ -6120,6 +6129,20 @@ function partySyncPresence() {
     partyRender();
 }
 
+function partyRetryConnections() {
+    if (!party.connected) return;
+    Object.keys(party.members).forEach(function (peerId) {
+        if (peerId === party.id) return;
+        const pc = partyEnsurePeer(peerId);
+        if (String(party.id) >= String(peerId)) return;
+        const lastOffer = pc.userData.lastOffer || 0;
+        if (pc.connectionState !== 'connected' && Date.now() - lastOffer > 5500) {
+            pc.userData.offered = false;
+            partyOffer(peerId);
+        }
+    });
+}
+
 function partyEnsurePeer(peerId) {
     if (party.pcs[peerId]) return party.pcs[peerId];
     const pc = new RTCPeerConnection(PARTY_ICE);
@@ -6132,7 +6155,10 @@ function partyEnsurePeer(peerId) {
         partyAttachStream(peerId, event.streams && event.streams[0] ? event.streams[0] : new MediaStream([event.track]));
     };
     pc.onconnectionstatechange = function () {
-        if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+        if (pc.connectionState === 'failed') {
+            try { pc.close(); } catch (e) {}
+            delete party.pcs[peerId];
+        } else if (pc.connectionState === 'disconnected') {
             pc.restartIce && pc.restartIce();
         }
     };
@@ -6151,6 +6177,7 @@ async function partyOffer(peerId) {
     try {
         const offer = await pc.createOffer({ offerToReceiveAudio: true });
         await pc.setLocalDescription(offer);
+        pc.userData.lastOffer = Date.now();
         partySend(peerId, { kind: 'offer', sdp: pc.localDescription });
     } catch (e) {
         pc.userData.offered = false;
@@ -6301,6 +6328,7 @@ function copyPartyCode() {
 }
 
 function leaveParty(quiet) {
+    if (partyRetryTimer) { clearInterval(partyRetryTimer); partyRetryTimer = 0; }
     Object.keys(party.pcs).forEach(partyClosePeer);
     const channel = party.channel;
     party.channel = null;
@@ -6369,6 +6397,7 @@ function handleCallInvite(payload) {
     if (kicker) kicker.textContent = payload.group ? 'GROUP CALL INVITE' : 'INCOMING CALL';
     if (caller) caller.textContent = payload.from;
     if (sub) sub.textContent = payload.group ? 'invited you to a group call' : 'is calling you';
+    ensureCallLayer(modal);
     if (modal) modal.style.display = 'flex';
 }
 
@@ -6441,13 +6470,94 @@ function inviteFriendToCall(name, code, isGroup) {
         showGameToast('Start a call first.');
         return;
     }
+    sendInviteWithRetry(name, callCode, !!isGroup || partyMemberList().length > 2, 0);
+}
+
+function sendInviteWithRetry(name, code, isGroup, attempt) {
     const sent = sendCallSignal('call-invite', {
         from: friendUsername(),
         to: name,
-        code: callCode,
-        group: !!isGroup || partyMemberList().length > 2
+        code: code,
+        group: !!isGroup
     });
-    showGameToast(sent ? 'Call invite sent to ' + name + '.' : 'Could not send the call invite.');
+    if (sent) {
+        showGameToast('Call invite sent to ' + name + '.');
+        return;
+    }
+    if (attempt < 5) {
+        setTimeout(function () { sendInviteWithRetry(name, code, isGroup, attempt + 1); }, 800);
+    } else {
+        showGameToast('Could not reach ' + name + '. They need to be signed in.');
+    }
+}
+
+function ensureCallLayer(el) {
+    if (!el) return;
+    const fs = document.fullscreenElement;
+    if (fs && fs.appendChild && el.parentNode !== fs) {
+        try { fs.appendChild(el); } catch (e) {}
+    } else if (!fs && el.parentNode !== document.body) {
+        try { document.body.appendChild(el); } catch (e) {}
+    }
+}
+
+function openCallInviteModal() {
+    const modal = document.getElementById('callInviteModal');
+    if (!modal) return;
+    ensureCallLayer(modal);
+    modal.style.display = 'flex';
+    const input = document.getElementById('callInviteUser');
+    if (input) {
+        input.value = '';
+        input.oninput = function () { searchCallUsers(this.value); };
+    }
+    const results = document.getElementById('callInviteResults');
+    if (results) results.innerHTML = '';
+    setTimeout(function () { if (input) input.focus(); }, 60);
+}
+
+function closeCallInviteModal() {
+    const modal = document.getElementById('callInviteModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function searchCallUsers(value) {
+    const query = String(value || '').trim().replace(/[%_]/g, '');
+    const results = document.getElementById('callInviteResults');
+    if (!results) return;
+    if (!query || !supabaseClient) { results.innerHTML = ''; return; }
+    if (callInviteSearchTimer) clearTimeout(callInviteSearchTimer);
+    callInviteSearchTimer = setTimeout(async function () {
+        const res = await socialQuery(supabaseClient.from('users').select('username').ilike('username', '%' + query + '%').limit(8));
+        const me = friendUsername();
+        if (res.error) { results.innerHTML = '<p class="party-status">Search unavailable.</p>'; return; }
+        const names = (res.data || []).map(function (row) { return row.username; }).filter(function (name) { return name && name !== me; });
+        results.innerHTML = names.map(function (name) {
+            return '<button type="button" class="call-invite-result" onclick="pickCallInvite(\'' + debugArg(name) + '\')">' + escapeHtml(name) + '</button>';
+        }).join('');
+    }, 220);
+}
+
+function pickCallInvite(name) {
+    const input = document.getElementById('callInviteUser');
+    if (input) input.value = name;
+    const results = document.getElementById('callInviteResults');
+    if (results) results.innerHTML = '';
+}
+
+function sendCallInviteFromModal() {
+    const input = document.getElementById('callInviteUser');
+    const name = String(input ? input.value : '').trim();
+    if (!name) { showGameToast('Enter a username.'); return; }
+    if (!friendUsername()) { openAuthModal(); return; }
+    closeCallInviteModal();
+    if (!party.connected) {
+        partyJoinWithCode(partyMakeCode());
+        showGameToast('Starting a call and inviting ' + name + '…');
+        setTimeout(function () { sendInviteWithRetry(name, party.code, true, 0); }, 600);
+    } else {
+        sendInviteWithRetry(name, party.code, true, 0);
+    }
 }
 
 function partyMemberList() {
@@ -6483,6 +6593,7 @@ function partyRender() {
                     '<button type="button" class="friends-gift" onclick="callSelectedFriend()">Call</button>' +
                 '</div>' +
                 '<button type="button" class="friends-refresh" onclick="startGroupCall()">Start group call</button>' +
+                '<button type="button" class="friends-refresh" onclick="openCallInviteModal()">Invite anyone</button>' +
                 '<div class="party-join-row">' +
                     '<input id="partyCodeInput" class="party-code-input" maxlength="5" placeholder="CALL CODE" autocapitalize="characters">' +
                     '<button type="button" class="friends-refresh" onclick="joinVoicePartyFromInput()">Join</button>' +
@@ -6522,6 +6633,7 @@ function partyRender() {
                             '<button type="button" onclick="inviteFriendToCall(\'' + debugArg(name) + '\',\'' + debugArg(party.code) + '\', true)">Call</button></span>';
                     }).join('') + '</div>'
                 : '') +
+            '<button type="button" class="friends-refresh" onclick="openCallInviteModal()">Invite anyone</button>' +
             '<p class="party-status">' + escapeHtml(party.status || (members.length + ' in the call.')) + '</p>' +
             '<button type="button" class="friends-refresh party-leave" onclick="leaveParty()">End call</button>' +
         '</div>';
@@ -6540,6 +6652,15 @@ document.addEventListener('keydown', function (event) {
         togglePartyMic();
     }
 });
+
+function resumePartyAudio() {
+    if (partyAudioCtx && partyAudioCtx.state === 'suspended') {
+        const resumed = partyAudioCtx.resume();
+        if (resumed && resumed.catch) resumed.catch(function () {});
+    }
+}
+document.addEventListener('pointerdown', resumePartyAudio, true);
+document.addEventListener('keydown', resumePartyAudio, true);
 
 function startActivityChannel() {
     if (!friendUsername() || !supabaseClient || activityChannel) return;

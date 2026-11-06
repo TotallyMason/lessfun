@@ -7332,3 +7332,35 @@ body.has-avatar-frame .friend-avatar {
     background: rgba(255, 60, 80, 0.2);
     color: #ffd0d7;
 }
+
+.call-invite-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-align: left;
+}
+
+.call-invite-results {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 140px;
+    overflow-y: auto;
+}
+
+.call-invite-result {
+    padding: 7px 10px;
+    border-radius: 9px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.78);
+    font-family: inherit;
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.call-invite-result:hover {
+    border-color: rgba(80, 210, 255, 0.4);
+    background: rgba(80, 210, 255, 0.1);
+}

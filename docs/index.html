@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261164">
+    <link rel="stylesheet" href="style.css?v=20261165">
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -839,7 +839,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Developer Beta 1.23.3</p>
+                            <p>LessFun Developer Beta 1.23.4</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -1067,6 +1067,22 @@
         </div>
     </div>
 
+    <div id="callInviteModal" class="call-modal" style="display:none;">
+        <div class="call-card">
+            <span class="call-kicker">INVITE TO CALL</span>
+            <h2>Invite anyone</h2>
+            <p>They don’t need to be on your friends list.</p>
+            <div class="call-invite-form">
+                <input id="callInviteUser" class="party-code-input" style="letter-spacing:0;text-transform:none;font-weight:500;" maxlength="24" placeholder="username" autocomplete="off">
+                <div id="callInviteResults" class="call-invite-results"></div>
+                <div class="call-actions">
+                    <button type="button" class="call-accept" onclick="sendCallInviteFromModal()">Send invite</button>
+                    <button type="button" class="call-decline" onclick="closeCallInviteModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="partyWidget" class="party-widget" style="display:none;">
         <span class="party-widget-dot"></span>
         <span class="party-widget-code" id="partyWidgetCode">PARTY</span>
@@ -1079,7 +1095,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
-    <script src="games3d.js?v=20261164"></script>
-    <script src="app.js?v=20261164"></script>
+    <script src="games3d.js?v=20261165"></script>
+    <script src="app.js?v=20261165"></script>
 </body>
 </html>

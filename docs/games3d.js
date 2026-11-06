@@ -176,7 +176,7 @@
                 engineOsc.connect(engineFilter);
                 engineOsc.start();
                 engineSub = audioCtx.createOscillator();
-                engineSub.type = 'square';
+                engineSub.type = 'sine';
                 engineSub.frequency.value = 27;
                 engineSub.connect(engineFilter);
                 engineSub.start();
@@ -3466,6 +3466,22 @@
         listen(el, 'pointerup', function () { input.pointerActive = false; });
         listen(el, 'pointercancel', function () { input.pointerActive = false; });
         listen(el, 'pointerleave', function () { input.pointerActive = false; });
+    }
+
+    if (typeof document !== 'undefined' && document.addEventListener) {
+        document.addEventListener('visibilitychange', function () {
+            if (!audioMuteHandler) return;
+            audioMuteHandler(!document.hidden && soundEnabled && !!active && !active.over && !paused);
+        });
+    }
+    if (typeof global.addEventListener === 'function') {
+        global.addEventListener('pagehide', function () {
+            if (audioCleanup) {
+                try { audioCleanup(); } catch (e) {}
+                audioCleanup = null;
+                audioMuteHandler = null;
+            }
+        });
     }
 
     function loop() {
