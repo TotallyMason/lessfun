@@ -5353,6 +5353,7 @@
         var hunger = 100, thirst = 100, bleed = 0, bandages = 1;
         var stamina = 100, sprinting = false, flashlightOn = false, meleeCd = 0, noiseTimer = 0, meleeAnim = 0;
         var score = 0, kills = 0, wave = 1, spawnQueue = 0, spawnTimer = 0, intermission = 1.5;
+        var comboKills = 0, comboTimer = 0, comboMult = 1, frenzyT = 0;
         var elapsed = 0, firing = false;
         var zombies = [], corpses = [], pickups = [], tracers = [], remotePlayers = {};
         var lastShotDir = new THREE.Vector3(0, 0, -1);
@@ -5480,7 +5481,9 @@
                 damage: zDamage,
                 scoreValue: zScore,
                 health: (100 + wave * 8) * hpMul,
-                speed: (1.5 + Math.random() * 0.5 + wave * 0.05) * speedMul,
+                maxHealth: (100 + wave * 8) * hpMul,
+                speed: (2.3 + Math.random() * 0.7 + wave * 0.07) * speedMul,
+                lungeCd: 1.5 + Math.random() * 2.5,
                 attackCd: Math.random() * 0.6,
                 armL: armL, armR: armR, legL: legL, legR: legR,
                 head: headGroup, torso: torso,
@@ -5685,7 +5688,7 @@
             if (ammo <= 0) { startReload(); return; }
             var cfg = weaponCfg();
             ammo--;
-            fireCd = cfg.rate;
+            fireCd = cfg.rate * (frenzyT > 0 ? 0.58 : 1);
             muzzle.intensity = 2.8;
             sfx(currentWeapon === 'shotgun' ? 95 : (currentWeapon === 'rifle' ? 150 : 190), 0.08, 0.11, 'square', 55);
             makeNoise(px, pz, cfg.noise, 1.4);
@@ -5781,9 +5784,20 @@
             corpses.push(corpse);
             if (!noCredit) {
                 kills++;
-                score += (headshot ? 150 : 100) + wave * 10 + (zombie.userData.scoreValue || 0);
+                if (comboTimer > 0) comboKills++;
+                else comboKills = 1;
+                comboTimer = 2.8;
+                comboMult = Math.min(5, 1 + Math.floor(comboKills / 3) * 0.5);
+                if (comboKills >= 10 && frenzyT <= 0) {
+                    frenzyT = 5;
+                    showBanner('FRENZY');
+                    sfx(840, 0.25, 0.07, 'square', 480);
+                }
+                var killPoints = ((headshot ? 150 : 100) + wave * 10 + (zombie.userData.scoreValue || 0)) * comboMult;
+                score += Math.round(killPoints);
+                if (comboKills % 5 === 0) health = Math.min(100, health + 8);
             }
-            if (Math.random() < 0.22) makePickup(Math.random() < 0.55 ? 'ammo' : 'health');
+            if (Math.random() < 0.3) makePickup(Math.random() < 0.55 ? 'ammo' : 'health');
         }
 
         function startReload() {
@@ -6063,6 +6077,11 @@
             fireCd = Math.max(0, fireCd - dt);
             muzzle.intensity = Math.max(0, muzzle.intensity - dt * 22);
             if (hitTimer > 0) hitTimer -= dt;
+            if (comboTimer > 0) {
+                comboTimer -= dt;
+                if (comboTimer <= 0) { comboKills = 0; comboMult = 1; }
+            }
+            if (frenzyT > 0) frenzyT = Math.max(0, frenzyT - dt);
             if (bannerTimer > 0) { bannerTimer -= dt; if (bannerTimer <= 0) { var b = document.getElementById('g3dFpsWaveBanner'); if (b) b.classList.remove('is-active'); } }
             if (damageTimer > 0) { damageTimer -= dt; if (damageTimer <= 0) { var dmg = document.getElementById('g3dFpsDamage'); if (dmg) dmg.classList.remove('is-active'); } }
             if (downed) {
@@ -6084,18 +6103,18 @@
             }
             var moving = !downed && (mx !== 0 || mz !== 0);
             var mobileMag = Math.min(1, Math.sqrt(input.mobileX * input.mobileX + input.mobileY * input.mobileY));
-            var wantSprint = input.nitro || (isMobileDevice && mobileMag > 0.78);
+            var wantSprint = input.nitro || (isMobileDevice && mobileMag > 0.65);
             sprinting = !!(wantSprint && moving && stamina > 1);
-            if (sprinting) stamina = Math.max(0, stamina - 27 * dt);
+            if (sprinting) stamina = Math.max(0, stamina - 20 * dt);
             else stamina = Math.min(100, stamina + (moving ? 8 : 16) * dt);
-            var moveSpeed = sprinting ? 7.4 : (isMobileDevice ? 5.0 : 4.0);
+            var moveSpeed = sprinting ? 9.6 : (isMobileDevice ? 6.4 : 5.8);
             if (moving) {
                 var len = Math.sqrt(mx * mx + mz * mz); mx /= len; mz /= len;
             }
             if (playerBody) {
                 playerBody.velocity.x = moving && !downed ? mx * moveSpeed : 0;
                 playerBody.velocity.z = moving && !downed ? mz * moveSpeed : 0;
-                if (!downed && input.jump && onGround) { playerBody.velocity.y = 6.4; onGround = false; }
+                if (!downed && input.jump && onGround) { playerBody.velocity.y = 7.2; onGround = false; input.jump = false; }
                 physicsWorld.step(1 / 60, dt, 3);
                 px = playerBody.position.x;
                 pz = playerBody.position.z;
@@ -6246,6 +6265,12 @@
                     var dist = Math.sqrt(dx * dx + dz * dz);
                     if (targetDist > 1.15 && targetDist < 9999) {
                         var zs = u.speed * (1 + wave * 0.025);
+                        u.lungeCd = Math.max(0, (u.lungeCd || 0) - dt);
+                        if (u.type === 'runner' && u.lungeCd <= 0 && playerDist > 2.2 && playerDist < 11 && u.body) {
+                            u.lungeCd = 4.5 + Math.random() * 2;
+                            zs *= 2.6;
+                            tone(160, 0.08, 'sawtooth', 0.035, 110);
+                        }
                         if (u.body) {
                             if (dist > 0.25) {
                                 u.body.velocity.x = (dx / dist) * zs;
@@ -6425,6 +6450,24 @@
             if (elK) elK.textContent = kills;
             if (elS) elS.textContent = Math.round(score).toLocaleString();
             if (elSt) { elSt.textContent = Math.round(stamina); elSt.classList.toggle('is-low', stamina < 25); }
+            var comboEl = document.getElementById('g3dFpsCombo');
+            if (comboEl) {
+                var showCombo = comboKills > 1 || frenzyT > 0;
+                comboEl.classList.toggle('is-active', showCombo);
+                comboEl.classList.toggle('is-frenzy', frenzyT > 0);
+                comboEl.textContent = frenzyT > 0 ? ('FRENZY · x' + comboMult.toFixed(1)) : ('x' + comboMult.toFixed(1) + ' · ' + comboKills + ' KILL STREAK');
+            }
+            var bossWrap = document.getElementById('g3dFpsBoss');
+            var bossFill = document.getElementById('g3dFpsBossFill');
+            var boss = null;
+            for (var bz = 0; bz < zombies.length; bz++) {
+                if (zombies[bz].userData.type === 'boss') { boss = zombies[bz]; break; }
+            }
+            if (bossWrap) bossWrap.classList.toggle('is-active', !!boss);
+            if (bossFill && boss) {
+                var bossMax = boss.userData.maxHealth || 1;
+                bossFill.style.width = Math.max(0, Math.min(100, (boss.userData.health / bossMax) * 100)) + '%';
+            }
             if (elWpn) {
                 var wlvl = Number(weaponUpgrades[currentWeapon]) || 0;
                 elWpn.textContent = weaponCfg().name + (wlvl ? ' +' + wlvl : '');

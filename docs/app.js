@@ -850,6 +850,8 @@ function openGame(id) {
                     '<div class="fps-need"><span id="g3dFpsBandageLabel">Bandage</span><div class="fps-need-track"><i id="g3dFpsBandage"></i></div></div>' +
                 '</div>' +
                 '<div class="fps-interact" id="g3dFpsInteract"></div>' +
+                '<div class="fps-combo" id="g3dFpsCombo"></div>' +
+                '<div class="fps-boss" id="g3dFpsBoss"><span>BOSS</span><div class="fps-boss-track"><i id="g3dFpsBossFill"></i></div></div>' +
                 '<div class="fps-touch" id="g3dFpsTouch">' +
                     '<div class="fps-stick" id="g3dFpsStick" onpointerdown="fpsStickStart(event)"><span id="g3dFpsKnob"></span></div>' +
                     '<button type="button" class="fps-touch-btn is-fire" onpointerdown="event.preventDefault();mobileFpsFire(true)" onpointerup="mobileFpsFire(false)" onpointercancel="mobileFpsFire(false)" onpointerleave="mobileFpsFire(false)">Fire</button>' +
@@ -6655,8 +6657,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.10";
-const UPDATE_NOTES = "Beach Racer gets a real city streetscape with parked cars, bus stops, traffic lights, signs and storefronts, plus proper steering angle that turns the front wheels and yaws the chase camera";
+const APP_VERSION = "LessFun Public Beta 1.32.11";
+const UPDATE_NOTES = "Dead Coast is faster and more fun: quicker walking and sprinting, working jump, faster zombies with runner lunges, killstreak multipliers, frenzy mode, boss health bar, and more frequent drops";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

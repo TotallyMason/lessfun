@@ -8878,3 +8878,65 @@ body.has-avatar-frame .friend-avatar {
     letter-spacing: 0.18em;
     white-space: nowrap;
 }
+
+/* Dead Coast combo + boss HUD */
+.fps-combo {
+    position: absolute;
+    top: 18%;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 7;
+    padding: 5px 13px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 210, 120, 0.4);
+    background: rgba(28, 18, 2, 0.66);
+    color: #ffe2a0;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+}
+.fps-combo.is-active { opacity: 1; }
+.fps-combo.is-frenzy {
+    border-color: rgba(255, 80, 80, 0.7);
+    color: #ffb0b0;
+    animation: fpsComboPulse 0.3s ease-in-out infinite alternate;
+}
+@keyframes fpsComboPulse { from { transform: translateX(-50%) scale(0.98); } to { transform: translateX(-50%) scale(1.04); } }
+
+.fps-boss {
+    position: absolute;
+    top: 12%;
+    left: 50%;
+    z-index: 7;
+    width: min(380px, 50vw);
+    transform: translateX(-50%);
+    display: none;
+    align-items: center;
+    gap: 8px;
+    pointer-events: none;
+}
+.fps-boss.is-active { display: flex; }
+.fps-boss span {
+    color: #ff8a8a;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+}
+.fps-boss-track {
+    flex: 1;
+    height: 7px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 90, 90, 0.35);
+}
+.fps-boss-track i {
+    display: block;
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #ff3b3b, #ff9a5a);
+    transition: width 0.12s linear;
+}
