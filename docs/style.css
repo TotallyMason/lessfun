@@ -10059,3 +10059,11 @@ body.film-grain-on .g3d-grain { display: block; }
 @media (max-width: 640px) {
     .dc-foot-hint { bottom: 224px; font-size: 8px; padding: 5px 9px; }
 }
+
+/* Long changelog list */
+.updates-list.is-long {
+    max-height: 340px;
+    overflow-y: auto;
+    padding-right: 6px;
+}
+.updates-list.is-long li { margin-bottom: 4px; }

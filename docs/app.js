@@ -7705,8 +7705,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.45";
-const UPDATE_NOTES = "Added the database migration for 20,000-character community posts. If the old posts_content_check constraint is still active, run supabase/posts_content_20000.sql in the Supabase SQL Editor";
+const APP_VERSION = "LessFun Public Beta 1.32.46";
+const UPDATE_NOTES = "The site changelog now lists every 1.32 update through 1.32.45, including Beach Racer racing, Dead Coast survival and fuel stations, LessFun Radio, showroom cars, Funtutu, messages and graphics changes";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
