@@ -2577,6 +2577,7 @@ let dmState = {
     contact: '',
     groupId: '',
     groups: {},
+    hiddenGroups: {},
     groupSelected: [],
     rows: [],
     poll: 0,
@@ -2631,6 +2632,17 @@ function dmLoadGroups() {
         const raw = localStorage.getItem(key);
         if (raw) dmState.groups = JSON.parse(raw) || {};
     } catch (e) { dmState.groups = {}; }
+    dmState.hiddenGroups = {};
+    try {
+        const hidden = localStorage.getItem('lessfun_dm_hidden_groups_' + (currentUser ? currentUser.username : ''));
+        if (hidden) dmState.hiddenGroups = JSON.parse(hidden) || {};
+    } catch (e) { dmState.hiddenGroups = {}; }
+}
+
+function dmSaveHiddenGroups() {
+    const key = currentUser && currentUser.username ? 'lessfun_dm_hidden_groups_' + currentUser.username : '';
+    if (!key) return;
+    try { localStorage.setItem(key, JSON.stringify(dmState.hiddenGroups || {})); } catch (e) {}
 }
 
 function dmSaveGroups() {
@@ -2641,6 +2653,7 @@ function dmSaveGroups() {
 
 function dmAddGroup(id, name, members) {
     if (!id) return null;
+    if (dmState.hiddenGroups && dmState.hiddenGroups[id]) return null;
     const cleanMembers = [];
     (members || []).forEach(function (member) {
         const value = String(member || '').trim();
@@ -2656,6 +2669,7 @@ function dmAddGroup(id, name, members) {
         creator: existing.creator || (currentUser && currentUser.username) || '',
         updated_at: Date.now()
     };
+    if (dmState.hiddenGroups && dmState.hiddenGroups[id]) delete dmState.hiddenGroups[id];
     dmState.groups[id] = group;
     dmSaveGroups();
     return group;
@@ -3243,6 +3257,8 @@ async function dmDeleteGroup(id) {
     if (!group) return;
     if (!window.confirm('Delete group "' + (group.name || 'Group') + '"? This removes it from your Messages.')) return;
     delete dmState.groups[id];
+    dmState.hiddenGroups[id] = Date.now();
+    dmSaveHiddenGroups();
     if (dmState.groupId === id) {
         dmState.groupId = '';
         dmState.groupThread = [];
@@ -3260,8 +3276,10 @@ async function dmLeaveGroup(id) {
     const me = currentUser ? currentUser.username : '';
     group.members = (group.members || []).filter(function (member) { return member !== me; });
     // Groups are stored locally, so leaving removes the group from this
-    // device's message list.
+    // device's message list. Keep a tombstone so old messages cannot re-add it.
     delete dmState.groups[id];
+    dmState.hiddenGroups[id] = Date.now();
+    dmSaveHiddenGroups();
     if (dmState.groupId === id) {
         dmState.groupId = '';
         dmState.groupThread = [];
@@ -7678,8 +7696,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.34";
-const UPDATE_NOTES = "The radio panel now shows who is tuned in and which station they are listening to. Group Leave moved to the bottom of the group thread, while Delete stays in the header";
+const APP_VERSION = "LessFun Public Beta 1.32.35";
+const UPDATE_NOTES = "Deleted or left message groups no longer reappear when you open another group. Also includes the radio listener list showing who is tuned in, and the Leave button moved to the bottom of the group thread";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
