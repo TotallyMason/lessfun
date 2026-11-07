@@ -8863,6 +8863,20 @@ body.has-avatar-frame .friend-avatar {
     box-shadow: inset 0 0 140px rgba(0, 0, 0, 0.55);
 }
 .g3d-cinema.is-active { display: block; }
+.g3d-cinema::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: #000;
+    opacity: 0;
+    pointer-events: none;
+}
+.g3d-cinema.is-active::after { animation: cinemaFadeIn 1.15s ease-out forwards; }
+@keyframes cinemaFadeIn {
+    0% { opacity: 1; }
+    55% { opacity: 0.62; }
+    100% { opacity: 0; }
+}
 .g3d-cinema span {
     position: absolute;
     top: 8%;
@@ -8939,4 +8953,442 @@ body.has-avatar-frame .friend-avatar {
     width: 100%;
     background: linear-gradient(90deg, #ff3b3b, #ff9a5a);
     transition: width 0.12s linear;
+}
+
+/* Beach Racer racing mode */
+.g3d-race-load {
+    position: absolute;
+    inset: 0;
+    z-index: 9;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 50% 45%, rgba(7, 30, 44, 0.82), rgba(2, 6, 10, 0.96));
+    pointer-events: none;
+}
+.g3d-race-load.is-active { display: flex; }
+.g3d-race-load-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 9px;
+    padding: 24px 34px;
+    border-radius: 18px;
+    border: 1px solid rgba(95, 224, 255, 0.28);
+    background: rgba(4, 14, 22, 0.82);
+    box-shadow: 0 22px 70px rgba(0, 0, 0, 0.55);
+}
+.g3d-race-spinner {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 3px solid rgba(95, 224, 255, 0.16);
+    border-top-color: #5fe0ff;
+    animation: updateSpin 0.75s linear infinite;
+}
+.g3d-race-load-card strong {
+    color: #eafaff;
+    font-size: 14px;
+    letter-spacing: 0.2em;
+}
+.g3d-race-load-card span { color: rgba(220,245,255,0.55); font-size: 10px; }
+
+.g3d-race-hud {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 6;
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(95, 224, 255, 0.28);
+    background: rgba(4, 15, 24, 0.72);
+    color: #eafaff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    pointer-events: none;
+}
+.g3d-race-hud.is-active { display: flex; }
+.g3d-race-hud strong { color: #ffe2a0; }
+.g3d-race-hud span:last-child { color: rgba(220,245,255,0.55); }
+@media (max-width: 820px) {
+    .g3d-race-hud { top: 92px; font-size: 9px; gap: 8px; padding: 6px 10px; }
+}
+
+/* Beach Racer showroom */
+.game3d-showroom {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    display: none;
+    align-items: stretch;
+    justify-content: center;
+    padding: 18px;
+    background: radial-gradient(circle at 50% 0%, rgba(8, 34, 48, 0.9), rgba(2, 7, 12, 0.97));
+    overflow: hidden;
+}
+.game3d-showroom-inner {
+    width: min(1180px, 100%);
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+}
+.game3d-showroom-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.game3d-showroom-head h2 {
+    margin: 2px 0 0;
+    color: #eafaff;
+    font-size: 20px;
+    letter-spacing: 0.02em;
+}
+.game3d-showroom-head > div:first-child { flex: 1; }
+.game3d-showroom-balance {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 13px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 209, 102, 0.34);
+    background: rgba(255, 209, 102, 0.08);
+    color: #ffe2a0;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.game3d-showroom-tools {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.game3d-showroom-tools .game3d-mp-input { flex: 1; }
+.game3d-showroom-tools span {
+    color: rgba(220, 245, 255, 0.55);
+    font-size: 11px;
+    white-space: nowrap;
+}
+.game3d-showroom-grid {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    overflow-y: auto;
+    padding: 2px 4px 6px 2px;
+    align-content: start;
+}
+.showroom-card {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 14px;
+    border: 1px solid rgba(95, 224, 255, 0.16);
+    background: linear-gradient(180deg, rgba(14, 34, 46, 0.9), rgba(6, 16, 24, 0.94));
+}
+.showroom-card.is-equipped {
+    border-color: rgba(255, 209, 102, 0.6);
+    box-shadow: 0 0 0 1px rgba(255, 209, 102, 0.22), 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+.showroom-thumb {
+    position: relative;
+    height: 92px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+        radial-gradient(ellipse at 50% 78%, color-mix(in srgb, var(--swatch) 26%, transparent), transparent 62%),
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.028) 0 1px, transparent 1px 22px),
+        linear-gradient(180deg, #0b1d28, #061019);
+    overflow: hidden;
+}
+.showroom-thumb::after {
+    content: '';
+    position: absolute;
+    left: 8%; right: 8%; bottom: 18px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(95, 224, 255, 0.3), transparent);
+}
+.showroom-car {
+    position: relative;
+    width: 74%;
+    height: 34px;
+    border-radius: 16px 26px 8px 8px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--swatch) 88%, white), var(--swatch));
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.45), inset 0 -5px 8px rgba(0, 0, 0, 0.28);
+    transform: translateY(3px);
+}
+.showroom-car::before {
+    content: '';
+    position: absolute;
+    left: 22%; right: 20%; top: -13px;
+    height: 17px;
+    border-radius: 12px 18px 3px 3px;
+    background: linear-gradient(180deg, rgba(196, 240, 255, 0.82), rgba(74, 120, 140, 0.6));
+    box-shadow: inset 0 -3px 4px rgba(0, 0, 0, 0.2);
+}
+.showroom-car::after {
+    content: '';
+    position: absolute;
+    left: 10%; right: 10%; bottom: -7px;
+    height: 11px;
+    background:
+        radial-gradient(circle at 14% 50%, #0a0d10 0 46%, transparent 48%),
+        radial-gradient(circle at 86% 50%, #0a0d10 0 46%, transparent 48%);
+}
+.showroom-tier {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: rgba(3, 10, 16, 0.7);
+    border: 1px solid rgba(95, 224, 255, 0.24);
+    color: rgba(220, 245, 255, 0.78);
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+.showroom-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 9px 10px 11px;
+}
+.showroom-brand {
+    color: rgba(220, 245, 255, 0.5);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.showroom-name {
+    margin: 0;
+    color: #f2fbff;
+    font-size: 13px;
+    line-height: 1.18;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.showroom-specs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 3px 6px;
+    padding: 6px 0 2px;
+}
+.showroom-specs span {
+    color: rgba(220, 245, 255, 0.48);
+    font-size: 9px;
+    white-space: nowrap;
+}
+.showroom-specs b { color: #d9f6ff; font-size: 10px; }
+.showroom-price {
+    color: #ffe2a0;
+    font-size: 11px;
+    font-weight: 700;
+    margin-top: 1px;
+}
+.showroom-card .cosmetic-btn { width: 100%; margin-top: 2px; }
+.showroom-card .cosmetic-sell { width: 100%; }
+.game3d-showroom-pager {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+}
+.game3d-showroom-pager span {
+    color: rgba(220, 245, 255, 0.6);
+    font-size: 11px;
+    min-width: 46px;
+    text-align: center;
+}
+.game3d-showroom .game3d-mp-status { margin: 0; text-align: center; min-height: 15px; }
+
+@media (max-width: 900px) {
+    .game3d-showroom-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+    .game3d-showroom { padding: 10px; }
+    .game3d-showroom-head h2 { font-size: 15px; }
+    .game3d-showroom-balance { font-size: 10px; padding: 5px 9px; }
+    .game3d-showroom-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .showroom-thumb { height: 74px; }
+    .showroom-name { font-size: 11px; }
+    .showroom-specs span { font-size: 8px; }
+    .showroom-specs b { font-size: 9px; }
+    .showroom-card-body { padding: 7px 8px 9px; }
+}
+@media (max-width: 380px) {
+    .game3d-showroom-grid { grid-template-columns: 1fr; }
+}
+
+/* Optional cinematic film grain over 3D games */
+.g3d-grain {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    display: none;
+    pointer-events: none;
+    opacity: 0.16;
+    mix-blend-mode: overlay;
+    background-image:
+        repeating-radial-gradient(circle at 17% 32%, rgba(255,255,255,0.5) 0 0.6px, transparent 0.9px 3px),
+        repeating-radial-gradient(circle at 73% 61%, rgba(255,255,255,0.34) 0 0.5px, transparent 0.8px 2.6px);
+    background-size: 5px 5px, 7px 7px;
+    animation: filmGrainShift 0.42s steps(3) infinite;
+}
+body.film-grain-on .g3d-grain { display: block; }
+@keyframes filmGrainShift {
+    0% { transform: translate(0, 0); }
+    33% { transform: translate(-1.5%, 1%); }
+    66% { transform: translate(1%, -1.5%); }
+    100% { transform: translate(0, 0); }
+}
+
+/* Funtutu Test benchmark */
+.funtutu {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    padding: 18px;
+    background: radial-gradient(circle at 50% 0%, rgba(8, 34, 48, 0.92), rgba(2, 7, 12, 0.98));
+    overflow: hidden;
+}
+.funtutu-card {
+    width: min(880px, 100%);
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 18px;
+    border-radius: 18px;
+    border: 1px solid rgba(95, 224, 255, 0.22);
+    background: linear-gradient(180deg, rgba(12, 30, 42, 0.92), rgba(4, 12, 19, 0.96));
+    overflow-y: auto;
+}
+.funtutu-head { display: flex; align-items: flex-start; gap: 12px; }
+.funtutu-head > div { flex: 1; }
+.funtutu-head h2 { margin: 3px 0 0; color: #eafaff; font-size: 18px; }
+.funtutu-canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 12px;
+    border: 1px solid rgba(95, 224, 255, 0.22);
+    background: #04121b;
+    aspect-ratio: 640 / 230;
+}
+.funtutu-progress {
+    height: 5px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.08);
+}
+.funtutu-progress i {
+    display: block;
+    height: 100%;
+    width: 0;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #1d6fa5, #5fe0ff);
+    transition: width 0.3s ease;
+}
+.funtutu-steps { display: grid; gap: 5px; }
+.funtutu-step {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 10px;
+    border-radius: 9px;
+    border: 1px solid rgba(95, 224, 255, 0.1);
+    background: rgba(4, 16, 24, 0.6);
+    color: rgba(220, 245, 255, 0.6);
+    font-size: 11px;
+}
+.funtutu-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: rgba(220, 245, 255, 0.28);
+    flex: none;
+}
+.funtutu-step.is-running { border-color: rgba(95, 224, 255, 0.45); color: #d9f6ff; }
+.funtutu-step.is-running .funtutu-dot { background: #5fe0ff; animation: funtutuPulse 0.6s ease-in-out infinite alternate; }
+.funtutu-step.is-done .funtutu-dot { background: #7dff9d; }
+.funtutu-step.is-done { color: rgba(220, 245, 255, 0.82); }
+.funtutu-step-name { flex: 1; }
+.funtutu-step-value { color: #ffe2a0; font-variant-numeric: tabular-nums; }
+@keyframes funtutuPulse { from { opacity: 0.35; } to { opacity: 1; } }
+.funtutu-result { display: grid; gap: 10px; }
+.funtutu-score {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 209, 102, 0.32);
+    background: rgba(255, 209, 102, 0.06);
+}
+.funtutu-score span { color: rgba(255, 226, 160, 0.66); font-size: 10px; font-weight: 800; letter-spacing: 0.16em; }
+.funtutu-score strong { color: #ffe2a0; font-size: 26px; line-height: 1; }
+.funtutu-breakdown { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.funtutu-breakdown span {
+    padding: 6px 8px; border-radius: 8px; background: rgba(4, 16, 24, 0.6);
+    border: 1px solid rgba(95, 224, 255, 0.1);
+    color: rgba(220, 245, 255, 0.55); font-size: 9px; text-align: center;
+}
+.funtutu-breakdown b { display: block; color: #d9f6ff; font-size: 13px; margin-top: 2px; }
+.funtutu-verdict {
+    padding: 10px 13px; border-radius: 10px;
+    border: 1px solid rgba(95, 224, 255, 0.2);
+    background: rgba(6, 22, 32, 0.7);
+}
+.funtutu-verdict strong { color: #5fe0ff; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
+.funtutu-verdict p { margin: 4px 0 6px; color: rgba(220, 245, 255, 0.62); font-size: 11px; line-height: 1.45; }
+.funtutu-rec-tags { color: rgba(255, 226, 160, 0.72); font-size: 10px; }
+.funtutu-applied { margin: 2px 0 0; color: #7dff9d; font-size: 11px; }
+.funtutu-actions { display: flex; gap: 10px; }
+.funtutu-actions button { flex: 1; }
+@media (max-width: 600px) {
+    .funtutu { padding: 8px; }
+    .funtutu-card { padding: 12px; gap: 9px; }
+    .funtutu-head h2 { font-size: 14px; }
+    .funtutu-breakdown { grid-template-columns: repeat(2, 1fr); }
+    .funtutu-actions { flex-direction: column; }
+}
+
+/* ============================================================
+   Site-wide mobile polish
+   ============================================================ */
+@media (max-width: 820px), (pointer: coarse) {
+    html, body { -webkit-text-size-adjust: 100%; overscroll-behavior-y: contain; }
+    #gameModal .modal-body { height: 100dvh; }
+    #gameModal .modal-header { top: env(safe-area-inset-top, 8px); right: calc(10px + env(safe-area-inset-right, 0px)); }
+    .game3d-hud { top: calc(10px + env(safe-area-inset-top, 0px)); }
+    .game3d-mp-btn { top: calc(14px + env(safe-area-inset-top, 0px)); }
+    .g3d-race-hud { top: calc(84px + env(safe-area-inset-top, 0px)); }
+    input, select, textarea { font-size: 16px; }
+    .store-toolbar { flex-direction: column; align-items: stretch; gap: 8px; }
+    .store-search { width: 100%; max-width: none; }
+    .store-tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+    .store-tab { flex: 0 0 auto; }
+    .settings-item { gap: 10px; }
+    .settings-select { max-width: 52%; }
+    .nav-btn, .game-btn-3d, .cosmetic-btn, .game3d-mp-primary, .game3d-mp-secondary { min-height: 40px; touch-action: manipulation; }
+    .game3d-touch-controls { padding-bottom: env(safe-area-inset-bottom, 0px); }
+    .modal-content { max-height: calc(100dvh - env(safe-area-inset-top, 0px)); }
+    .funtutu-actions button { min-height: 46px; }
+    .game3d-showroom { padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+    .game3d-showroom-pager button { min-width: 74px; min-height: 40px; }
+    .g3d-cinema span { font-size: 8px; padding: 4px 9px; }
 }

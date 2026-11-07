@@ -19,6 +19,8 @@
     var qualityLevel = 2;
     var autoGraphics = true;
     var motionBlurEnabled = true;
+    var crashSlowmoEnabled = true;
+    var shadowQuality = !isMobileDevice;
     var motionBlurAutoOff = isMobileDevice;
     var lowFpsTime = 0;
     var showFps = true;
@@ -150,7 +152,19 @@
     /* ---------------- Beach Racer ---------------- */
     function createRacer(ctx) {
         var scene = ctx.scene, camera = ctx.camera, renderer = ctx.renderer;
+        var raceMode = !!(ctx.options && ctx.options.raceMode);
+        var raceAi = !!(ctx.options && ctx.options.raceAi);
+        var RACE_LOOP = 2400, RACE_LAPS = 3;
+        var playerLap = 1, raceStartDelay = raceMode ? 2.4 : 0, raceFinished = false, raceEndT = 0;
+        var raceStartTime = 0, raceHudT = 0;
+        var aiRacers = [];
         var cosmetics = (ctx.options && ctx.options.cosmetics) || {};
+        if (!raceMode) {
+            var raceHudEl = document.getElementById('g3dRaceHud');
+            if (raceHudEl) raceHudEl.classList.remove('is-active');
+            var raceLoadEl = document.getElementById('g3dRaceLoad');
+            if (raceLoadEl) raceLoadEl.classList.remove('is-active');
+        }
         var paintColor = cosmetics.paint != null ? cosmetics.paint : 0xef476f;
         var boardColor = cosmetics.board != null ? cosmetics.board : 0x06d6a0;
         var glowColor = cosmetics.glow != null ? cosmetics.glow : null;
@@ -1764,6 +1778,33 @@
         player.position.set(LANES[2], 0, 5);
         scene.add(player);
 
+        function makeAiRacers() {
+            var defs = [
+                { name: 'Apex', style: 'racer', color: 0x4cc9f0, lane: 0, skill: 1.0 },
+                { name: 'Nova', style: 'gt', color: 0xff5d8f, lane: 1, skill: 0.94 },
+                { name: 'Blaze', style: 'super', color: 0xffd166, lane: 3, skill: 1.04 },
+                { name: 'Viper', style: 'phantom', color: 0x7dff4d, lane: 4, skill: 0.9 }
+            ];
+            defs.forEach(function (def, i) {
+                var car = buildCar(def.color, null, def.style, 'v8', null, false);
+                car.position.set(LANES[def.lane], 0, player.position.z - (8 + i * 7));
+                scene.add(car);
+                aiRacers.push({
+                    car: car,
+                    lane: def.lane,
+                    targetLane: def.lane,
+                    distance: -(8 + i * 7),
+                    lap: 1,
+                    speed: 0,
+                    skill: def.skill,
+                    changeT: 2 + Math.random() * 3,
+                    finished: false,
+                    name: def.name
+                });
+            });
+        }
+        if (raceMode && raceAi) makeAiRacers();
+
         // A visible driver that becomes a physically simulated ragdoll on impact.
         var driverRagdoll = makeDriverRagdoll();
         driverRagdoll.position.set(0.32, 0.78, 0.08);
@@ -3322,6 +3363,7 @@
         }
 
         function spawnTraffic(forceZ, forceRamp) {
+            if (raceMode) return;
             var z = forceZ != null ? forceZ : (-380 - Math.random() * 180);
             var order = [];
             for (var oi = 0; oi < LANES.length; oi++) order.push(oi);
@@ -3416,6 +3458,7 @@
         var playerY = 0, vy = 0, driftScore = 0;
         var suspensionImpulse = 0;
         var ignition = 0, engineOn = false;
+        if (raceMode) { ignition = 1; engineOn = true; gearMode = 'D'; }
         var nitro = 100, nitroActive = false;
         var nitroWasActive = false, nitroShiftT = 0;
         var coinsCollected = 0;
@@ -3790,6 +3833,74 @@
             }
         }
 
+        function updateAiRacers(dt) {
+            if (!raceMode || !raceAi || raceStartDelay > 0 || raceFinished) return;
+            var playerTotal = (playerLap - 1) * RACE_LOOP + distance;
+            for (var i = 0; i < aiRacers.length; i++) {
+                var ai = aiRacers[i];
+                if (ai.finished) {
+                    ai.speed = Math.max(0, ai.speed - 35 * dt);
+                } else {
+                    var aiTotal = (ai.lap - 1) * RACE_LOOP + ai.distance;
+                    var target = 68 + ai.skill * 28;
+                    var diff = playerTotal - aiTotal;
+                    if (diff > 70) target += Math.min(24, diff * 0.09);
+                    else if (diff < -80) target -= Math.min(18, -diff * 0.07);
+                    target = Math.max(52, Math.min(118, target));
+                    ai.speed += (target - ai.speed) * Math.min(1, dt * 0.9);
+                    ai.distance += ai.speed * dt;
+                    if (ai.distance >= RACE_LOOP) {
+                        ai.distance -= RACE_LOOP;
+                        ai.lap++;
+                        if (ai.lap > RACE_LAPS) { ai.finished = true; ai.lap = RACE_LAPS; }
+                    }
+                    ai.changeT -= dt;
+                    if (ai.changeT <= 0) {
+                        ai.changeT = 3 + Math.random() * 4;
+                        var dir = Math.random() < 0.5 ? -1 : 1;
+                        var next = ai.lane + dir;
+                        if (next >= 0 && next < LANES.length) ai.targetLane = next;
+                    }
+                    if (ai.targetLane !== ai.lane && Math.abs(ai.car.position.x - LANES[ai.targetLane]) < 0.4) ai.lane = ai.targetLane;
+                    ai.car.position.x += (LANES[ai.targetLane] - ai.car.position.x) * Math.min(1, dt * 2.8);
+                    ai.car.rotation.y = -roadTangentAt(ai.car.position.z);
+                    var wheels = ai.car.userData.wheels || [];
+                    for (var w = 0; w < wheels.length; w++) wheels[w].rotation.x += ai.speed * dt * 1.2;
+                }
+                var aiTotal2 = (ai.lap - 1) * RACE_LOOP + ai.distance;
+                var rel = aiTotal2 - playerTotal;
+                ai.car.position.z = player.position.z - rel;
+                ai.car.visible = Math.abs(rel) < 560;
+                animateSuspension(ai.car, dt, ai.speed, ai.distance, 0, 0, 0);
+            }
+        }
+
+        function updateRaceHud() {
+            if (!raceMode) return;
+            var hud = document.getElementById('g3dRaceHud');
+            if (!hud) return;
+            hud.classList.add('is-active');
+            var lapEl = document.getElementById('g3dRaceLap');
+            var posEl = document.getElementById('g3dRacePos');
+            var timeEl = document.getElementById('g3dRaceTime');
+            var playerTotal = (playerLap - 1) * RACE_LOOP + distance;
+            var pos = 1;
+            if (raceAi) {
+                for (var i = 0; i < aiRacers.length; i++) {
+                    var aiTotal = (aiRacers[i].lap - 1) * RACE_LOOP + aiRacers[i].distance;
+                    if (aiTotal > playerTotal) pos++;
+                }
+            }
+            if (lapEl) lapEl.textContent = 'LAP ' + Math.min(playerLap, RACE_LAPS) + '/' + RACE_LAPS;
+            if (posEl) posEl.textContent = raceAi ? ('POS ' + pos + '/' + (aiRacers.length + 1)) : 'RACE';
+            if (timeEl) {
+                var secs = Math.max(0, elapsed - raceStartTime);
+                var mins = Math.floor(secs / 60);
+                var rem = (secs % 60);
+                timeEl.textContent = mins + ':' + (rem < 10 ? '0' : '') + rem.toFixed(1);
+            }
+        }
+
         function gearFor(v) {
             var gear = 1;
             for (var g = 0; g < GEAR_FRACTIONS.length; g++) {
@@ -3812,12 +3923,27 @@
                 return;
             }
             if (crashActive) {
-                dt *= 0.22;
+                dt *= crashSlowmoEnabled ? 0.22 : 0.55;
                 elapsed += dt;
                 updateCrash(dt);
                 return;
             }
             elapsed += dt;
+            if (raceMode) {
+                if (raceStartDelay > 0) {
+                    raceStartDelay -= dt;
+                    var raceLoad = document.getElementById('g3dRaceLoad');
+                    if (raceLoad) raceLoad.classList.add('is-active');
+                    if (raceStartDelay <= 0) {
+                        if (raceLoad) raceLoad.classList.remove('is-active');
+                        raceStartTime = elapsed;
+                        showBanner('GO');
+                        tone(620, 0.12, 'square', 0.05, 880);
+                    }
+                }
+                updateAiRacers(dt);
+                updateRaceHud();
+            }
 
             // Gear selector: Q shifts down (D → N → R → P), E shifts up
             // (P → R → N → D). D keeps the 6-speed automatic.
@@ -3871,6 +3997,7 @@
 
             var throttleCmd = input.up;
             var brakeCmd = input.brake;
+            if (raceMode && raceStartDelay > 0) { throttleCmd = false; brakeCmd = true; speed = 0; }
             if (fsdActive) {
                 fsdThink -= dt;
                 fsdCooldown -= dt;
@@ -4069,10 +4196,28 @@
             var prevDistance = distance;
             distance += speed * dt;
             if (distance < 0) distance = 0;
-            updateCheckpoints();
-            if (updateRamps()) return;
-            updateCoins(prevDistance);
-            updateJumpRamps(prevDistance);
+            if (raceMode) {
+                if (distance >= RACE_LOOP) {
+                    distance -= RACE_LOOP;
+                    playerLap++;
+                    if (playerLap > RACE_LAPS && !raceFinished) {
+                        raceFinished = true;
+                        raceEndT = 2.2;
+                        showBanner('FINISH');
+                        tone(660, 0.35, 'triangle', 0.08, 990);
+                    }
+                }
+                if (raceFinished) {
+                    raceEndT -= dt;
+                    if (raceEndT <= 0) { endGame(score + 6000); return; }
+                }
+            }
+            if (!raceMode) {
+                updateCheckpoints();
+                if (updateRamps()) return;
+                updateCoins(prevDistance);
+                updateJumpRamps(prevDistance);
+            }
 
             var speedSteerFactor = Math.min(1, Math.sqrt(Math.abs(speed) / 65));
 
@@ -6752,7 +6897,7 @@
             var shouldRender = true;
             if (active && active.isCinematic && active.isCinematic()) {
                 var nowCinema = (global.performance && global.performance.now) ? global.performance.now() : Date.now();
-                if (nowCinema - lastCinemaFrame < 33.3) shouldRender = false;
+                if (nowCinema - lastCinemaFrame < 16.7) shouldRender = false;
                 else lastCinemaFrame = nowCinema;
             }
             if (shouldRender) renderFrame();
@@ -7014,7 +7159,8 @@
         renderScale = preset.scale;
         if (!autoGraphics) adaptiveScale = 1;
         if (renderer) {
-            renderer.shadowMap.enabled = preset.shadows && !isMobileDevice;
+            shadowQuality = preset.shadows && !isMobileDevice;
+            renderer.shadowMap.enabled = shadowQuality;
             applyPixelRatio();
         }
         resetMotionBlurHistory();
@@ -7038,6 +7184,16 @@
         showFps = !!on;
         var perfWrap = document.getElementById('g3dPerf');
         if (perfWrap) perfWrap.style.display = showFps ? '' : 'none';
+    }
+    function setShadows(on) {
+        shadowQuality = !!on;
+        if (renderer) {
+            renderer.shadowMap.enabled = !!on && !isMobileDevice;
+            renderer.shadowMap.needsUpdate = true;
+        }
+    }
+    function setCrashSlowmo(on) {
+        crashSlowmoEnabled = !!on;
     }
     function setSoundEnabled(on) {
         soundEnabled = !!on;
@@ -7161,6 +7317,8 @@
         setRenderScale: setRenderScale,
         setMotionBlur: setMotionBlur,
         setShowFps: setShowFps,
+        setShadows: setShadows,
+        setCrashSlowmo: setCrashSlowmo,
         setSoundEnabled: setSoundEnabled,
         setUnitSystem: setUnitSystem,
         teleportRacer: teleportRacer,

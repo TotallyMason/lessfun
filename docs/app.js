@@ -8,7 +8,8 @@ const games = [
     { id: 2, name: "Tunnel Rush", description: "Thread the neon tunnel at warp speed", icon: "tunnel", controls: "Left / Right or drag to rotate" },
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
     { id: 4, name: "Dead Coast", description: "Survive endless zombie waves in first person", icon: "skull", controls: "WASD move · trackpad look · click fire · 1/2/3 weapons · R reload · V melee · B bandage · E loot · F light · Shift sprint" },
-    { id: 5, name: "Star Dodger", description: "Weave through an asteroid storm", icon: "rocket", controls: "WASD / arrow keys to fly · drag to steer · Space / click fires when armed" }
+    { id: 5, name: "Star Dodger", description: "Weave through an asteroid storm", icon: "rocket", controls: "WASD / arrow keys to fly · drag to steer · Space / click fires when armed" },
+    { id: 6, name: "Funtutu Test", description: "Benchmark your GPU and CPU, then get recommended graphics settings", icon: "bolt", controls: "Press Run Test · apply the recommended settings when it finishes" }
 ];
 
 let currentUser = null;
@@ -61,6 +62,9 @@ let graphicsPresetSetting = isMobileUI ? 'medium' : 'high';
 let autoGraphicsSetting = true;
 let motionBlurSetting = !isMobileUI;
 let showFpsSetting = true;
+let shadowSetting = !isMobileUI;
+let grainSetting = false;
+let crashSlowmoSetting = true;
 try {
     const savedScale = parseFloat(localStorage.getItem('lessfun_render_scale') || '0');
     if (isFinite(savedScale) && savedScale >= 0 && savedScale <= 1) renderScaleSetting = savedScale;
@@ -73,6 +77,12 @@ try {
     if (savedPreset && GRAPHICS_PRESETS[savedPreset]) graphicsPresetSetting = savedPreset;
     const savedAuto = localStorage.getItem('lessfun_auto_graphics');
     if (savedAuto != null) autoGraphicsSetting = savedAuto !== '0';
+    const savedShadows = localStorage.getItem('lessfun_shadows');
+    if (savedShadows != null) shadowSetting = savedShadows !== '0';
+    const savedGrain = localStorage.getItem('lessfun_film_grain');
+    if (savedGrain != null) grainSetting = savedGrain !== '0';
+    const savedSlow = localStorage.getItem('lessfun_crash_slowmo');
+    if (savedSlow != null) crashSlowmoSetting = savedSlow !== '0';
     renderScaleSetting = GRAPHICS_PRESETS[graphicsPresetSetting].scale;
 } catch (e) {}
 
@@ -83,6 +93,9 @@ function applyRenderScaleSetting() {
     if (window.Games3D && window.Games3D.setRenderScale) window.Games3D.setRenderScale(renderScaleSetting);
     if (window.Games3D && window.Games3D.setMotionBlur) window.Games3D.setMotionBlur(motionBlurSetting);
     if (window.Games3D && window.Games3D.setShowFps) window.Games3D.setShowFps(showFpsSetting);
+    if (window.Games3D && window.Games3D.setShadows) window.Games3D.setShadows(shadowSetting);
+    if (window.Games3D && window.Games3D.setCrashSlowmo) window.Games3D.setCrashSlowmo(crashSlowmoSetting);
+    if (document.body) document.body.classList.toggle('film-grain-on', grainSetting);
     const select = document.getElementById('renderScaleSelect');
     if (select) select.value = String(renderScaleSetting);
     const presetSelect = document.getElementById('graphicsPresetSelect');
@@ -93,6 +106,12 @@ function applyRenderScaleSetting() {
     if (blur) blur.checked = motionBlurSetting;
     const fps = document.getElementById('fpsCounterToggle');
     if (fps) fps.checked = showFpsSetting;
+    const shadows = document.getElementById('shadowsToggle');
+    if (shadows) shadows.checked = shadowSetting;
+    const grain = document.getElementById('filmGrainToggle');
+    if (grain) grain.checked = grainSetting;
+    const slowmo = document.getElementById('crashSlowmoToggle');
+    if (slowmo) slowmo.checked = crashSlowmoSetting;
 }
 
 function setGraphicsPresetSetting(value) {
@@ -123,6 +142,24 @@ function setFpsCounterSetting(on) {
     showFpsSetting = !!on;
     try { localStorage.setItem('lessfun_show_fps', showFpsSetting ? '1' : '0'); } catch (e) {}
     if (window.Games3D && window.Games3D.setShowFps) window.Games3D.setShowFps(showFpsSetting);
+}
+
+function setShadowSetting(on) {
+    shadowSetting = !!on;
+    try { localStorage.setItem('lessfun_shadows', shadowSetting ? '1' : '0'); } catch (e) {}
+    if (window.Games3D && window.Games3D.setShadows) window.Games3D.setShadows(shadowSetting);
+}
+
+function setFilmGrainSetting(on) {
+    grainSetting = !!on;
+    try { localStorage.setItem('lessfun_film_grain', grainSetting ? '1' : '0'); } catch (e) {}
+    if (document.body) document.body.classList.toggle('film-grain-on', grainSetting);
+}
+
+function setCrashSlowmoSetting(on) {
+    crashSlowmoSetting = !!on;
+    try { localStorage.setItem('lessfun_crash_slowmo', crashSlowmoSetting ? '1' : '0'); } catch (e) {}
+    if (window.Games3D && window.Games3D.setCrashSlowmo) window.Games3D.setCrashSlowmo(crashSlowmoSetting);
 }
 
 function setRenderScaleSetting(value) {
@@ -477,8 +514,14 @@ function startMenuMultiplayer() {
     arcadeMpJoin();
 }
 
+function garageRace() {
+    garagePlay(true);
+}
+
 function garageMultiplayer() {
-    garagePlay();
+    raceModeSetting = true;
+    raceAiSetting = false;
+    garagePlay(true);
     openRacerMpPanel();
 }
 
@@ -501,7 +544,9 @@ function grantMultiplayerSessionReward() {
     showGameToast('Multiplayer with friends · +500 Coins');
 }
 
-function garagePlay() {
+function garagePlay(raceMode) {
+    raceModeSetting = !!raceMode;
+    raceAiSetting = !!raceMode;
     const garage = document.getElementById('g3dGarage');
     if (garage) garage.style.display = 'none';
     const shop = document.getElementById('g3dGarageShop');
@@ -509,7 +554,9 @@ function garagePlay() {
     const wrap = document.querySelector('#modalGameBody .game3d-wrap');
     if (wrap) wrap.classList.remove('is-garage');
     garageSuppressed = true;
-    restartGame3D();
+    // Re-open the game so the race options are passed through to a fresh
+    // Games3D session. restartGame3D() would reuse the old garage options.
+    openGame(1);
     if (window.Games3D) {
         if (window.Games3D.setGarageMode) window.Games3D.setGarageMode(false);
         window.Games3D.setPaused(false);
@@ -802,6 +849,8 @@ function mobileFsd() {
 }
 
 let currentGameId = null;
+let raceModeSetting = false;
+let raceAiSetting = false;
 let garageSuppressed = false;
 let startMenuSuppressed = false;
 let mpRewardSessionClaimed = false;
@@ -1025,9 +1074,11 @@ function openGame(id) {
                         '<p class="game3d-garage-sub">Orbit view · buy and equip parts in the Garage tab.</p>' +
                         '<div class="game3d-garage-stats" id="g3dGarageStats"></div>' +
                         '<div class="game3d-garage-actions">' +
-                            '<button type="button" class="game3d-mp-primary" onclick="garagePlay()">Play</button>' +
+                            '<button type="button" class="game3d-mp-primary" onclick="garageRace()">Race</button>' +
+                            '<button type="button" class="game3d-mp-secondary" onclick="garagePlay()">Highway</button>' +
                             '<button type="button" class="game3d-mp-secondary" onclick="garageMultiplayer()">Multiplayer</button>' +
                             '<button type="button" class="game3d-mp-secondary" onclick="openGarageShop()">Garage</button>' +
+                            '<button type="button" class="game3d-mp-secondary" onclick="openShowroom()">Showroom</button>' +
                         '</div>' +
                     '</div>' +
                 '</div>' : '') +
@@ -1044,8 +1095,49 @@ function openGame(id) {
                         '<p class="game3d-mp-status" id="g3dShopStatus"></p>' +
                     '</div>' +
                 '</div>' : '') +
+            (game.id === 1 ? '<div class="g3d-race-load" id="g3dRaceLoad"><div class="g3d-race-load-card"><div class="g3d-race-spinner"></div><strong id="g3dRaceLoadText">RACE LOADING</strong><span>Building the closed circuit…</span></div></div>' : '') +
+            (game.id === 1 ? '<div class="g3d-race-hud" id="g3dRaceHud"><span id="g3dRaceLap">LAP 1/3</span><strong id="g3dRacePos">POS 1/5</strong><span id="g3dRaceTime">0:00.0</span></div>' : '') +
+            (game.id === 1 ?
+                '<div class="game3d-showroom" id="g3dShowroom" style="display:none;">' +
+                    '<div class="game3d-showroom-inner">' +
+                        '<div class="game3d-showroom-head">' +
+                            '<div><span class="game3d-garage-kicker">BEACH RACER · SHOWROOM</span><h2>200 performance cars</h2></div>' +
+                            '<div class="game3d-showroom-balance" id="g3dShowroomBalance">— Coins</div>' +
+                            '<button type="button" class="game3d-mp-x" onclick="closeShowroom()">×</button>' +
+                        '</div>' +
+                        '<div class="game3d-showroom-tools">' +
+                            '<input type="search" class="game3d-mp-input" id="g3dShowroomSearch" placeholder="Search BMW, Tesla, Toyota…" oninput="updateShowroomSearch(this.value)">' +
+                            '<span id="g3dShowroomCount">200 cars</span>' +
+                        '</div>' +
+                        '<div class="game3d-showroom-grid" id="g3dShowroomGrid"></div>' +
+                        '<div class="game3d-showroom-pager">' +
+                            '<button type="button" class="game3d-mp-secondary" onclick="showroomPage(-1)">‹ Prev</button>' +
+                            '<span id="g3dShowroomPage">1 / 9</span>' +
+                            '<button type="button" class="game3d-mp-secondary" onclick="showroomPage(1)">Next ›</button>' +
+                        '</div>' +
+                        '<p class="game3d-mp-status" id="g3dShowroomStatus"></p>' +
+                    '</div>' +
+                '</div>' : '') +
+            (game.id === 6 ?
+                '<div class="funtutu" id="funtutuTest">' +
+                    '<div class="funtutu-card">' +
+                        '<div class="funtutu-head">' +
+                            '<div><span class="game3d-garage-kicker">FUNTUTU TEST · SYSTEM BENCHMARK</span><h2 id="funtutuHeadline">Ready to test</h2></div>' +
+                            '<button type="button" class="game3d-mp-x" onclick="closeGame()">×</button>' +
+                        '</div>' +
+                        '<canvas id="funtutuCanvas" width="640" height="230" class="funtutu-canvas"></canvas>' +
+                        '<div class="funtutu-progress"><i id="funtutuProgress"></i></div>' +
+                        '<div class="funtutu-steps" id="funtutuSteps"></div>' +
+                        '<div class="funtutu-result" id="funtutuResult"></div>' +
+                        '<div class="funtutu-actions">' +
+                            '<button type="button" class="game3d-mp-primary" id="funtutuRunBtn" onclick="runFuntutuTest()">Run Test</button>' +
+                            '<button type="button" class="game3d-mp-secondary" onclick="applyFuntutuRecommended()">Apply Recommended</button>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' : '') +
             '<div class="game3d-crash" id="g3dCrashFlash"></div>' +
-            (game.id === 1 ? '<div class="g3d-cinema" id="g3dCinema"></div>' : '') +
+            '<div class="g3d-grain" aria-hidden="true"></div>' +
+            (game.id === 1 ? '<div class="g3d-cinema" id="g3dCinema"><span>CRASH CAM · 60 FPS · SLOW MOTION</span></div>' : '') +
             (game.hasThrottle ? '<div class="game3d-fsd" id="g3dFsd"><span>FSD ACTIVE</span></div>' : '') +
             (game.hasThrottle ? '<div class="game3d-fsd-hud" id="g3dFsdHud"><span>FSD</span><canvas id="g3dFsdCanvas" width="260" height="156"></canvas></div>' : '') +
             '<div class="game3d-warning" id="g3dWarning"></div>' +
@@ -1060,10 +1152,17 @@ function openGame(id) {
         '</div>';
     document.getElementById('gameModal').style.display = 'flex';
 
+    if (id === 6) {
+        startFuntutuTest();
+        return;
+    }
+
     if (window.Games3D) {
         window.Games3D.start(id, document.getElementById('g3dCanvas'), {
             name: game.name,
             cosmetics: getEquippedCosmetics(),
+            raceMode: raceModeSetting,
+            raceAi: raceAiSetting,
             zombieLoadout: getZombieLoadout(),
             onScore: function (name, score) { saveScore(name, score); },
             onCoins: function (amount) { awardRunCoins(amount); },
@@ -1177,8 +1276,366 @@ function closeGame() {
     zombieMpLeave(true);
     dmClose();
     if (window.Games3D) window.Games3D.stop();
+    funtutuToken++;
+    funtutuRunning = false;
     document.getElementById('gameModal').style.display = 'none';
     currentGameId = null;
+}
+
+
+/* ============================================================
+   Funtutu Test — GPU / CPU benchmark and settings advisor
+   ============================================================ */
+let funtutuRunning = false;
+let funtutuToken = 0;
+let funtutuLastResult = null;
+
+function funtutuNow() {
+    return (window.performance && window.performance.now) ? window.performance.now() : Date.now();
+}
+
+function funtutuNextFrame() {
+    return new Promise(function (resolve) { requestAnimationFrame(function () { resolve(); }); });
+}
+
+function funtutuStepRows() {
+    var host = document.getElementById('funtutuSteps');
+    if (!host) return;
+    var defs = [
+        ['cpu-int', 'CPU integer pipeline'],
+        ['cpu-float', 'CPU floating point + trig'],
+        ['gpu', 'GPU shader fill rate'],
+        ['canvas', 'Canvas 2D composite']
+    ];
+    host.innerHTML = defs.map(function (d) {
+        return '<div class="funtutu-step" id="funtutuStep-' + d[0] + '">' +
+            '<span class="funtutu-dot"></span>' +
+            '<span class="funtutu-step-name">' + d[1] + '</span>' +
+            '<span class="funtutu-step-value">waiting</span>' +
+        '</div>';
+    }).join('');
+}
+
+function funtutuSetStep(key, value, state) {
+    var row = document.getElementById('funtutuStep-' + key);
+    if (!row) return;
+    row.classList.remove('is-running', 'is-done');
+    if (state) row.classList.add(state);
+    var val = row.querySelector('.funtutu-step-value');
+    if (val) val.textContent = value;
+}
+
+function funtutuProgress(pct, label) {
+    var bar = document.getElementById('funtutuProgress');
+    if (bar) bar.style.width = Math.max(0, Math.min(100, pct)) + '%';
+    var head = document.getElementById('funtutuHeadline');
+    if (head && label) head.textContent = label;
+}
+
+function funtutuDrawIdle() {
+    var canvas = document.getElementById('funtutuCanvas');
+    if (!canvas) return;
+    var g = canvas.getContext('2d');
+    if (!g) return;
+    var w = canvas.width, h = canvas.height;
+    g.fillStyle = '#04121b';
+    g.fillRect(0, 0, w, h);
+    g.strokeStyle = 'rgba(95,224,255,0.18)';
+    g.lineWidth = 1;
+    for (var x = 0; x < w; x += 32) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); }
+    for (var y = 0; y < h; y += 32) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }
+    g.fillStyle = 'rgba(220,245,255,0.55)';
+    g.font = '600 13px system-ui, sans-serif';
+    g.textAlign = 'center';
+    g.fillText('FUNTUTU TEST', w / 2, h / 2 - 8);
+    g.fillStyle = 'rgba(220,245,255,0.32)';
+    g.font = '11px system-ui, sans-serif';
+    g.fillText('Run the test to measure this device', w / 2, h / 2 + 14);
+}
+
+function funtutuDrawBars(values, labels) {
+    var canvas = document.getElementById('funtutuCanvas');
+    if (!canvas) return;
+    var g = canvas.getContext('2d');
+    if (!g) return;
+    var w = canvas.width, h = canvas.height;
+    g.fillStyle = '#04121b';
+    g.fillRect(0, 0, w, h);
+    var max = Math.max.apply(null, values.concat([1]));
+    var slot = w / values.length;
+    for (var i = 0; i < values.length; i++) {
+        var bh = Math.max(4, (values[i] / max) * (h - 56));
+        var x = slot * i + slot * 0.22;
+        var bw = slot * 0.56;
+        var grad = g.createLinearGradient(0, h - 30 - bh, 0, h - 30);
+        grad.addColorStop(0, '#5fe0ff');
+        grad.addColorStop(1, '#1d6fa5');
+        g.fillStyle = grad;
+        g.fillRect(x, h - 30 - bh, bw, bh);
+        g.fillStyle = 'rgba(220,245,255,0.66)';
+        g.font = '10px system-ui, sans-serif';
+        g.textAlign = 'center';
+        g.fillText(labels[i], x + bw / 2, h - 14);
+        g.fillText(String(Math.round(values[i])), x + bw / 2, h - 34 - bh);
+    }
+}
+
+function funtutuCpuTest(kind, durationMs) {
+    var start = funtutuNow();
+    var ops = 0;
+    var x = 1;
+    if (kind === 'int') {
+        while (funtutuNow() - start < durationMs) {
+            for (var i = 0; i < 25000; i++) {
+                x = (x * 1664525 + 1013904223) >>> 0;
+                x ^= x >>> 13;
+            }
+            ops += 25000;
+        }
+    } else {
+        var acc = 0;
+        while (funtutuNow() - start < durationMs) {
+            for (var j = 0; j < 6000; j++) {
+                acc += Math.sin(j * 0.0017) * Math.cos(j * 0.0023) + Math.sqrt(j + 1) / 7;
+            }
+            ops += 6000;
+        }
+        x = acc;
+    }
+    return { ops: ops, ms: funtutuNow() - start, checksum: x };
+}
+
+function funtutuGpuTest(canvas, durationMs) {
+    return new Promise(function (resolve) {
+        var gl = null;
+        try { gl = canvas.getContext('webgl', { antialias: false, alpha: false, powerPreference: 'high-performance' }) || canvas.getContext('experimental-webgl'); } catch (e) {}
+        if (!gl) { resolve({ score: 0, fps: 0, supported: false }); return; }
+        var vs = 'attribute vec2 aPos; void main(){ gl_Position = vec4(aPos, 0.0, 1.0); }';
+        var fs = 'precision mediump float; uniform float uTime; uniform vec2 uRes;' +
+            'void main(){ vec2 uv=(gl_FragCoord.xy/uRes-0.5)*3.0; float a=uTime*0.6;' +
+            'vec2 c=vec2(cos(a)*0.72,sin(a)*0.62); vec2 z=uv; float v=0.0;' +
+            'for(int i=0;i<28;i++){ z=vec2(z.x*z.x-z.y*z.y, 2.0*z.x*z.y)+c; v+=sin(z.x*4.0+uTime)+cos(z.y*3.0-uTime); }' +
+            'gl_FragColor=vec4(0.5+0.5*sin(v), 0.42+0.5*cos(v*0.7), 0.58+0.5*sin(v*1.3+uv.x), 1.0); }';
+        function shader(type, src) {
+            var sh = gl.createShader(type);
+            gl.shaderSource(sh, src);
+            gl.compileShader(sh);
+            if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) return null;
+            return sh;
+        }
+        var vsh = shader(gl.VERTEX_SHADER, vs);
+        var fsh = shader(gl.FRAGMENT_SHADER, fs);
+        if (!vsh || !fsh) { resolve({ score: 0, fps: 0, supported: false }); return; }
+        var prog = gl.createProgram();
+        gl.attachShader(prog, vsh); gl.attachShader(prog, fsh); gl.linkProgram(prog);
+        if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { resolve({ score: 0, fps: 0, supported: false }); return; }
+        gl.useProgram(prog);
+        var buf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+        var loc = gl.getAttribLocation(prog, 'aPos');
+        gl.enableVertexAttribArray(loc);
+        gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+        var timeLoc = gl.getUniformLocation(prog, 'uTime');
+        var resLoc = gl.getUniformLocation(prog, 'uRes');
+        gl.uniform2f(resLoc, canvas.width, canvas.height);
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        var visible = document.getElementById('funtutuCanvas');
+        var vg = visible ? visible.getContext('2d') : null;
+        var start = funtutuNow(), frames = 0, copyTick = 0;
+        function frame() {
+            var t = (funtutuNow() - start) / 1000;
+            gl.uniform1f(timeLoc, t);
+            gl.drawArrays(gl.TRIANGLES, 0, 3);
+            frames++;
+            if (vg && (copyTick++ % 8 === 0)) {
+                try { vg.drawImage(canvas, 0, 0, visible.width, visible.height); } catch (e) {}
+            }
+            if (funtutuNow() - start < durationMs) {
+                requestAnimationFrame(frame);
+            } else {
+                var elapsed = (funtutuNow() - start) / 1000;
+                var fps = frames / Math.max(0.001, elapsed);
+                var pixels = canvas.width * canvas.height;
+                var score = fps * 14 * (pixels / (512 * 288));
+                resolve({ score: score, fps: fps, supported: true });
+            }
+        }
+        requestAnimationFrame(frame);
+    });
+}
+
+function funtutuCanvasTest(durationMs) {
+    return new Promise(function (resolve) {
+        var canvas = document.getElementById('funtutuCanvas');
+        if (!canvas) { resolve(0); return; }
+        var g = canvas.getContext('2d');
+        if (!g) { resolve(0); return; }
+        var start = funtutuNow(), frames = 0;
+        function frame() {
+            var w = canvas.width, h = canvas.height;
+            g.fillStyle = 'rgba(3,14,22,0.3)';
+            g.fillRect(0, 0, w, h);
+            for (var i = 0; i < 1600; i++) {
+                var x = (i * 73 + frames * 7) % w;
+                var y = (i * 37 + frames * 11) % h;
+                g.fillStyle = 'hsla(' + ((i * 5 + frames * 3) % 360) + ',90%,62%,0.35)';
+                g.fillRect(x, y, 5, 5);
+            }
+            frames++;
+            if (funtutuNow() - start < durationMs) requestAnimationFrame(frame);
+            else {
+                var fps = frames / Math.max(0.001, (funtutuNow() - start) / 1000);
+                resolve(fps * 8);
+            }
+        }
+        requestAnimationFrame(frame);
+    });
+}
+
+function funtutuRecommendation(total) {
+    if (total < 1200) {
+        return { preset: 'potato', label: 'Potato', scale: 0.5, shadows: false, blur: false, grain: false, slowmo: true,
+            note: 'Prioritise frame rate. Expect low detail, no shadows, and a soft image.' };
+    }
+    if (total < 2600) {
+        return { preset: 'medium', label: 'Medium', scale: 0.7, shadows: false, blur: false, grain: false, slowmo: true,
+            note: 'Smooth everyday play with reduced resolution and no dynamic shadows.' };
+    }
+    if (total < 4200) {
+        return { preset: 'high', label: 'High', scale: 0.85, shadows: true, blur: true, grain: false, slowmo: true,
+            note: 'The sweet spot: full effects, shadows, and a crisp 85% render scale.' };
+    }
+    if (total < 6500) {
+        return { preset: 'ultra', label: 'Ultra', scale: 1.0, shadows: true, blur: true, grain: true, slowmo: true,
+            note: 'Full native resolution with shadows, motion blur, and cinematic grain.' };
+    }
+    return { preset: 'extreme', label: 'Your Computer Will Die', scale: 1.0, shadows: true, blur: true, grain: true, slowmo: true,
+        note: 'This machine has headroom to spare. Maximum detail and every effect enabled.' };
+}
+
+async function runFuntutuTest() {
+    if (funtutuRunning) return;
+    funtutuRunning = true;
+    var token = ++funtutuToken;
+    funtutuStepRows();
+    funtutuProgress(0, 'Warming up');
+    var resultHost = document.getElementById('funtutuResult');
+    if (resultHost) resultHost.innerHTML = '';
+    var runBtn = document.getElementById('funtutuRunBtn');
+    if (runBtn) runBtn.disabled = true;
+    await funtutuNextFrame();
+
+    funtutuProgress(8, 'Testing CPU integer pipeline');
+    funtutuSetStep('cpu-int', 'running…', 'is-running');
+    await funtutuNextFrame();
+    var cpuInt = funtutuCpuTest('int', 260);
+    if (token !== funtutuToken) return;
+    var cpuIntScore = Math.round(cpuInt.ops / 1000000);
+    funtutuSetStep('cpu-int', cpuIntScore + ' pts · ' + Math.round(cpuInt.ops / 1000) + 'k ops', 'is-done');
+    funtutuProgress(30, 'Testing floating point + trig');
+
+    funtutuSetStep('cpu-float', 'running…', 'is-running');
+    await funtutuNextFrame();
+    var cpuFloat = funtutuCpuTest('float', 260);
+    if (token !== funtutuToken) return;
+    var cpuFloatScore = Math.round(cpuFloat.ops / 300000);
+    funtutuSetStep('cpu-float', cpuFloatScore + ' pts · ' + Math.round(cpuFloat.ops / 1000) + 'k ops', 'is-done');
+    funtutuProgress(55, 'Rendering GPU shader workload');
+
+    funtutuSetStep('gpu', 'compiling shader…', 'is-running');
+    await funtutuNextFrame();
+    var hidden = document.createElement('canvas');
+    hidden.width = 512; hidden.height = 288;
+    var gpu = await funtutuGpuTest(hidden, 620);
+    if (token !== funtutuToken) return;
+    var gpuScore = Math.round(gpu.score);
+    funtutuSetStep('gpu', gpu.supported ? (gpuScore + ' pts · ' + gpu.fps.toFixed(1) + ' FPS') : 'WebGL unavailable', 'is-done');
+    funtutuProgress(80, 'Testing Canvas 2D compositing');
+
+    funtutuSetStep('canvas', 'running…', 'is-running');
+    await funtutuNextFrame();
+    var canvasScore = Math.round(await funtutuCanvasTest(480));
+    if (token !== funtutuToken) return;
+    funtutuSetStep('canvas', canvasScore + ' pts', 'is-done');
+
+    var total = cpuIntScore + cpuFloatScore + gpuScore + canvasScore;
+    var rec = funtutuRecommendation(total);
+    funtutuLastResult = {
+        total: total, cpuInt: cpuIntScore, cpuFloat: cpuFloatScore, gpu: gpuScore, canvas: canvasScore,
+        gpuFps: gpu.fps, rec: rec, at: Date.now()
+    };
+    try { localStorage.setItem('lessfun_funtutu_result', JSON.stringify(funtutuLastResult)); } catch (e) {}
+
+    funtutuProgress(100, 'Test complete · score ' + total.toLocaleString());
+    funtutuDrawBars([cpuIntScore, cpuFloatScore, gpuScore, canvasScore], ['CPU INT', 'CPU FP', 'GPU', '2D']);
+    if (resultHost) {
+        resultHost.innerHTML =
+            '<div class="funtutu-score"><span>FUNTUTU SCORE</span><strong>' + total.toLocaleString() + '</strong></div>' +
+            '<div class="funtutu-breakdown">' +
+                '<span>CPU int <b>' + cpuIntScore + '</b></span>' +
+                '<span>CPU float <b>' + cpuFloatScore + '</b></span>' +
+                '<span>GPU <b>' + gpuScore + '</b></span>' +
+                '<span>Canvas <b>' + canvasScore + '</b></span>' +
+            '</div>' +
+            '<div class="funtutu-verdict"><strong>' + escapeHtml(rec.label) + '</strong><p>' + escapeHtml(rec.note) + '</p>' +
+            '<span class="funtutu-rec-tags">Render ' + Math.round(rec.scale * 100) + '% · Shadows ' + (rec.shadows ? 'on' : 'off') +
+            ' · Motion blur ' + (rec.blur ? 'on' : 'off') + ' · Film grain ' + (rec.grain ? 'on' : 'off') + '</span></div>';
+    }
+    if (runBtn) runBtn.disabled = false;
+    funtutuRunning = false;
+}
+
+function applyFuntutuRecommended() {
+    var res = funtutuLastResult;
+    if (!res) {
+        try { res = JSON.parse(localStorage.getItem('lessfun_funtutu_result') || 'null'); } catch (e) {}
+    }
+    if (!res || !res.rec) {
+        if (window.alert) alert('Run the Funtutu Test first.');
+        return;
+    }
+    var rec = res.rec;
+    setGraphicsPresetSetting(rec.preset);
+    setRenderScaleSetting(String(rec.scale));
+    setShadowSetting(rec.shadows);
+    setMotionBlurSetting(rec.blur);
+    setFilmGrainSetting(rec.grain);
+    setCrashSlowmoSetting(rec.slowmo);
+    funtutuProgress(100, 'Applied ' + rec.label + ' graphics');
+    var resultHost = document.getElementById('funtutuResult');
+    if (resultHost) {
+        var note = document.createElement('p');
+        note.className = 'funtutu-applied';
+        note.textContent = 'Applied ' + rec.label + ' settings: ' + Math.round(rec.scale * 100) + '% render scale.';
+        resultHost.appendChild(note);
+    }
+}
+
+function startFuntutuTest() {
+    funtutuStepRows();
+    funtutuDrawIdle();
+    try {
+        var saved = JSON.parse(localStorage.getItem('lessfun_funtutu_result') || 'null');
+        if (saved && saved.total) {
+            funtutuLastResult = saved;
+            var rec = saved.rec || funtutuRecommendation(saved.total);
+            funtutuProgress(100, 'Last score ' + saved.total.toLocaleString() + ' · ' + rec.label);
+            funtutuDrawBars([saved.cpuInt, saved.cpuFloat, saved.gpu, saved.canvas], ['CPU INT', 'CPU FP', 'GPU', '2D']);
+            var host = document.getElementById('funtutuResult');
+            if (host) {
+                host.innerHTML = '<div class="funtutu-score"><span>LAST FUNTUTU SCORE</span><strong>' + saved.total.toLocaleString() + '</strong></div>' +
+                    '<div class="funtutu-verdict"><strong>' + escapeHtml(rec.label) + '</strong><p>' + escapeHtml(rec.note) + '</p></div>';
+            }
+        } else {
+            funtutuProgress(0, 'Ready to test');
+        }
+    } catch (e) {
+        funtutuProgress(0, 'Ready to test');
+    }
+    var runBtn = document.getElementById('funtutuRunBtn');
+    if (runBtn) runBtn.disabled = false;
+    funtutuRunning = false;
 }
 
 /* ============================================================
@@ -5107,7 +5564,8 @@ const COSMETICS = [
     { id: 'frame_rainbow', type: 'frame', name: 'Prism Ring', cost: 1600, rainbow: true, color: '#ff70a6' },
 
     // Car paints
-    { id: 'paint_coral', type: 'paint', name: 'Coral Cruiser', cost: 0, default: true, color: '#ef476f', threeColor: 0xef476f },
+    { id: 'paint_rust', type: 'paint', name: 'Rust Bucket', cost: 0, default: true, color: '#8a6f5a', threeColor: 0x8a6f5a },
+    { id: 'paint_coral', type: 'paint', name: 'Coral Cruiser', cost: 0, color: '#ef476f', threeColor: 0xef476f },
     { id: 'paint_sunset', type: 'paint', name: 'Sunset Amber', cost: 250, color: '#ffa94d', threeColor: 0xffa94d },
     { id: 'paint_lagoon', type: 'paint', name: 'Lagoon Teal', cost: 350, color: '#2ec4b6', threeColor: 0x2ec4b6 },
     { id: 'paint_grape', type: 'paint', name: 'Grape Soda', cost: 500, color: '#9b5de5', threeColor: 0x9b5de5 },
@@ -5129,7 +5587,7 @@ const COSMETICS = [
     { id: 'paint_stealth', type: 'paint', name: 'Stealth Grey', cost: 1450, color: '#2f3640', threeColor: 0x2f3640 },
 
     // Car bodies (cosmetic silhouettes only — no speed or handling changes)
-    { id: 'body_classic', type: 'body', name: 'Classic Cruiser', cost: 0, default: true, style: 'classic', color: '#ef476f', threeColor: 0xef476f },
+    { id: 'body_classic', type: 'body', name: 'Classic Cruiser', cost: 0, style: 'classic', color: '#ef476f', threeColor: 0xef476f },
     { id: 'body_buggy', type: 'body', name: 'Dune Buggy', cost: 350, style: 'buggy', color: '#ffb703', threeColor: 0xffb703 },
     { id: 'body_wagon', type: 'body', name: 'Surf Wagon', cost: 450, style: 'wagon', color: '#06d6a0', threeColor: 0x06d6a0 },
     { id: 'body_truck', type: 'body', name: 'Beach Truck', cost: 600, style: 'truck', color: '#8d99ae', threeColor: 0x8d99ae },
@@ -5145,13 +5603,13 @@ const COSMETICS = [
     { id: 'body_phantom', type: 'body', name: 'Phantom GT', cost: 2800, style: 'phantom', color: '#5a189a', threeColor: 0x5a189a },
     { id: 'body_f1', type: 'body', name: 'F1 Open-Wheel', cost: 4500, style: 'f1', color: '#e63946', threeColor: 0xe63946 },
     { id: 'body_bus', type: 'body', name: 'City Bus', cost: 2600, style: 'bus', color: '#ffc400', threeColor: 0xffc400 },
-    { id: 'body_beater', type: 'body', name: 'Free Beater', cost: 0, style: 'beater', color: '#8a6f5a', threeColor: 0x8a6f5a },
+    { id: 'body_beater', type: 'body', name: 'Free Beater', cost: 0, default: true, style: 'beater', color: '#8a6f5a', threeColor: 0x8a6f5a },
     { id: 'body_offroad', type: 'body', name: 'Off-Road Rig', cost: 2400, style: 'offroad', color: '#6a994e', threeColor: 0x6a994e },
     { id: 'body_gt', type: 'body', name: 'GT3 Coupe', cost: 3600, style: 'gt', color: '#118ab2', threeColor: 0x118ab2 },
     { id: 'body_super', type: 'body', name: 'Supercar', cost: 5200, style: 'super', color: '#ff2d55', threeColor: 0xff2d55 },
 
     // Engines (visual exhaust and glow only — never changes speed)
-    { id: 'engine_stock', type: 'engine', name: 'Stock Engine', cost: 0, default: true, style: 'stock', color: '#8d99ae', threeColor: 0x8d99ae },
+    { id: 'engine_stock', type: 'engine', name: 'Stock Engine', cost: 0, style: 'stock', color: '#8d99ae', threeColor: 0x8d99ae },
     { id: 'engine_v8', type: 'engine', name: 'Chrome V8', cost: 500, style: 'v8', color: '#d9e2ec', threeColor: 0xd9e2ec },
     { id: 'engine_turbo', type: 'engine', name: 'Turbo Spool', cost: 650, style: 'turbo', color: '#4cc9f0', threeColor: 0x4cc9f0 },
     { id: 'engine_electric', type: 'engine', name: 'Electric Core', cost: 800, style: 'electric', color: '#22e6ff', threeColor: 0x22e6ff },
@@ -5165,27 +5623,27 @@ const COSMETICS = [
     { id: 'engine_nitro', type: 'engine', name: 'Nitro Burner', cost: 3200, style: 'nitro', color: '#39ff14', threeColor: 0x39ff14 },
     { id: 'engine_hyper', type: 'engine', name: 'Hyper V12', cost: 3800, style: 'hyper', color: '#ff8a00', threeColor: 0xff8a00 },
     { id: 'engine_fusion', type: 'engine', name: 'Fusion Reactor', cost: 4600, style: 'fusion', color: '#6ef2ff', threeColor: 0x6ef2ff },
-    { id: 'engine_lawnmower', type: 'engine', name: 'Free Lawnmower', cost: 0, style: 'lawnmower', color: '#7f8c8d', threeColor: 0x7f8c8d },
+    { id: 'engine_lawnmower', type: 'engine', name: 'Free Lawnmower', cost: 0, default: true, style: 'lawnmower', color: '#7f8c8d', threeColor: 0x7f8c8d },
     { id: 'engine_v16', type: 'engine', name: 'V16 Titan', cost: 3600, style: 'v16', color: '#ffd166', threeColor: 0xffd166 },
     { id: 'engine_plasma', type: 'engine', name: 'Plasma Drive', cost: 5200, style: 'plasma', color: '#c77dff', threeColor: 0xc77dff },
 
     // Aerodynamic parts (real grip and top-speed parts)
-    { id: 'aero_stock', type: 'aero', name: 'Stock Aero', cost: 0, default: true, style: 'stock', color: '#8d99ae', threeColor: 0x8d99ae },
+    { id: 'aero_stock', type: 'aero', name: 'Stock Aero', cost: 0, style: 'stock', color: '#8d99ae', threeColor: 0x8d99ae },
     { id: 'aero_splitter', type: 'aero', name: 'Carbon Splitter', cost: 700, style: 'splitter', color: '#2b2f36', threeColor: 0x2b2f36 },
     { id: 'aero_wing', type: 'aero', name: 'GT Rear Wing', cost: 1100, style: 'wing', color: '#1f242b', threeColor: 0x1f242b },
     { id: 'aero_diffuser', type: 'aero', name: 'Rear Diffuser', cost: 1500, style: 'diffuser', color: '#15191f', threeColor: 0x15191f },
     { id: 'aero_active', type: 'aero', name: 'Active Aero Pack', cost: 2800, style: 'active', color: '#4cc9f0', threeColor: 0x4cc9f0 },
-    { id: 'aero_broken', type: 'aero', name: 'Free Broken Wing', cost: 0, style: 'broken', color: '#8d99ae', threeColor: 0x8d99ae },
+    { id: 'aero_broken', type: 'aero', name: 'Free Broken Wing', cost: 0, default: true, style: 'broken', color: '#8d99ae', threeColor: 0x8d99ae },
     { id: 'aero_gt3', type: 'aero', name: 'GT3 Aero', cost: 2200, style: 'gt3', color: '#1f242b', threeColor: 0x1f242b },
     { id: 'aero_ground', type: 'aero', name: 'Ground Effect', cost: 3000, style: 'ground', color: '#2ff6ff', threeColor: 0x2ff6ff },
 
     // Body kits (real grip and acceleration parts)
-    { id: 'kit_stock', type: 'kit', name: 'Stock Body', cost: 0, default: true, style: 'stock', color: '#8d99ae', threeColor: 0x8d99ae },
+    { id: 'kit_stock', type: 'kit', name: 'Stock Body', cost: 0, style: 'stock', color: '#8d99ae', threeColor: 0x8d99ae },
     { id: 'kit_widebody', type: 'kit', name: 'Widebody Kit', cost: 900, style: 'widebody', color: '#ef476f', threeColor: 0xef476f },
     { id: 'kit_track', type: 'kit', name: 'Track Kit', cost: 1600, style: 'track', color: '#ffd166', threeColor: 0xffd166 },
     { id: 'kit_rally', type: 'kit', name: 'Rally Kit', cost: 2100, style: 'rally', color: '#06d6a0', threeColor: 0x06d6a0 },
     { id: 'kit_hyper', type: 'kit', name: 'Hyper Kit', cost: 3200, style: 'hyper', color: '#b14dff', threeColor: 0xb14dff },
-    { id: 'kit_rust', type: 'kit', name: 'Free Rust Kit', cost: 0, style: 'rust', color: '#8a6f5a', threeColor: 0x8a6f5a },
+    { id: 'kit_rust', type: 'kit', name: 'Free Rust Kit', cost: 0, default: true, style: 'rust', color: '#8a6f5a', threeColor: 0x8a6f5a },
     { id: 'kit_gt3', type: 'kit', name: 'GT3 Kit', cost: 2400, style: 'gt3', color: '#118ab2', threeColor: 0x118ab2 },
     { id: 'kit_offroad', type: 'kit', name: 'Off-Road Kit', cost: 2600, style: 'offroad', color: '#6a994e', threeColor: 0x6a994e },
 
@@ -5257,8 +5715,272 @@ const COSMETICS = [
     { id: 'umbrella_pink', type: 'umbrella', name: 'Pink Sands', cost: 340, color: '#ff8fab', threeColor: 0xff8fab },
     { id: 'umbrella_lime', type: 'umbrella', name: 'Lime Shore', cost: 420, color: '#a3e635', threeColor: 0xa3e635 },
     { id: 'umbrella_purple', type: 'umbrella', name: 'Purple Tide', cost: 470, color: '#9d4edd', threeColor: 0x9d4edd },
-    { id: 'umbrella_sunset', type: 'umbrella', name: 'Sunset Stripes', cost: 720, color: '#ff7b00', threeColor: 0xff7b00 }
+    { id: 'umbrella_sunset', type: 'umbrella', name: 'Sunset Stripes', cost: 720, color: '#ff7b00', threeColor: 0xff7b00 },
+    { id: 'umbrella_teal', type: 'umbrella', name: 'Teal Tide', cost: 440, color: '#14b8a6', threeColor: 0x14b8a6 },
+    { id: 'umbrella_cream', type: 'umbrella', name: 'Cream Sands', cost: 400, color: '#f5e6c8', threeColor: 0xf5e6c8 },
+
+    // Extra themes
+    { id: 'theme_crimson', type: 'theme', name: 'Crimson Rush', cost: 1400, color: '#ef233c', accent2: '#ff7b00' },
+    { id: 'theme_forest', type: 'theme', name: 'Forest Trail', cost: 1250, color: '#2d6a4f', accent2: '#95d5b2' },
+    { id: 'theme_candy', type: 'theme', name: 'Candy Shop', cost: 1600, color: '#ff70a6', accent2: '#70d6ff' },
+    { id: 'theme_noir', type: 'theme', name: 'Noir Film', cost: 2000, color: '#e5e7eb', accent2: '#6b7280' },
+    { id: 'theme_cyber', type: 'theme', name: 'Cyberdeck', cost: 2400, color: '#00f5d4', accent2: '#f15bb5' },
+
+    // Extra avatar frames
+    { id: 'frame_emerald', type: 'frame', name: 'Emerald Ring', cost: 900, color: '#10b981' },
+    { id: 'frame_ruby', type: 'frame', name: 'Ruby Ring', cost: 1100, color: '#e11d48' },
+    { id: 'frame_ocean', type: 'frame', name: 'Ocean Ring', cost: 1000, color: '#0ea5e9' },
+    { id: 'frame_fire', type: 'frame', name: 'Fire Ring', cost: 1500, color: '#f97316' },
+    { id: 'frame_galaxy', type: 'frame', name: 'Galaxy Ring', cost: 2200, rainbow: true, color: '#a855f7' },
+
+    // Extra paints
+    { id: 'paint_candy', type: 'paint', name: 'Candy Apple', cost: 450, color: '#ff3b6b', threeColor: 0xff3b6b },
+    { id: 'paint_forest', type: 'paint', name: 'Forest Green', cost: 400, color: '#2d6a4f', threeColor: 0x2d6a4f },
+    { id: 'paint_ice', type: 'paint', name: 'Ice Blue', cost: 520, color: '#bde0fe', threeColor: 0xbde0fe },
+    { id: 'paint_sand', type: 'paint', name: 'Desert Sand', cost: 380, color: '#d4a373', threeColor: 0xd4a373 },
+    { id: 'paint_plum', type: 'paint', name: 'Plum Crazy', cost: 480, color: '#7b2cbf', threeColor: 0x7b2cbf },
+    { id: 'paint_electric', type: 'paint', name: 'Electric Lime', cost: 700, color: '#c6ff00', threeColor: 0xc6ff00 },
+
+    // Extra boards
+    { id: 'board_carbon', type: 'board', name: 'Carbon Deck', cost: 500, color: '#2b2f36', threeColor: 0x2b2f36 },
+    { id: 'board_gold', type: 'board', name: 'Gold Deck', cost: 900, color: '#ffd166', threeColor: 0xffd166 },
+    { id: 'board_reef', type: 'board', name: 'Reef Deck', cost: 650, color: '#00b4d8', threeColor: 0x00b4d8 },
+
+    // Extra underglow
+    { id: 'glow_mint', type: 'glow', name: 'Mint Glow', cost: 500, color: '#6ee7b7', threeColor: 0x6ee7b7 },
+    { id: 'glow_violet', type: 'glow', name: 'Violet Glow', cost: 700, color: '#c084fc', threeColor: 0xc084fc },
+    { id: 'glow_fire', type: 'glow', name: 'Fire Glow', cost: 900, color: '#ff6b35', threeColor: 0xff6b35 },
+
+
+    // Extra trails
+    { id: 'trail_sunset', type: 'trail', name: 'Sunset Trail', cost: 700, color: '#ff7b00', threeColor: 0xff7b00 },
+    { id: 'trail_electric', type: 'trail', name: 'Electric Trail', cost: 760, color: '#c6ff00', threeColor: 0xc6ff00 },
+    { id: 'trail_blood', type: 'trail', name: 'Blood Trail', cost: 860, color: '#b91c1c', threeColor: 0xb91c1c }
 ];
+
+// 200 real production cars from 45+ brands. Format:
+// brand|model|year|top mph|0-60 s|horsepower|body style|paint|drivetrain
+const CAR_DATA = `BMW|M3 Competition|2024|180|3.4|503|muscle|1f2937|RWD
+BMW|M5 CS|2022|190|2.9|627|muscle|374151|AWD
+BMW|M2|2024|177|4.1|453|racer|0b3d91|RWD
+BMW|M4 CSL|2023|191|3.7|543|racer|111827|RWD
+BMW|M8 Competition|2023|190|3.0|617|gt|1e3a8a|AWD
+BMW|i4 M50|2024|140|3.7|536|wagon|2563eb|AWD
+BMW|i7 M70|2024|155|3.5|660|limo|1e40af|AWD
+BMW|X5 M Competition|2024|177|3.7|617|suv|0f172a|AWD
+BMW|XM Label|2024|180|3.7|738|suv|3f3f46|AWD
+BMW|Z4 M40i|2024|155|4.4|382|roadster|0ea5e9|RWD
+Tesla|Model S Plaid|2023|200|1.99|1020|gt|b91c1c|AWD
+Tesla|Model 3 Performance|2024|163|3.1|503|classic|dc2626|AWD
+Tesla|Model X Plaid|2023|163|2.5|1020|suv|7f1d1d|AWD
+Tesla|Model Y Performance|2024|155|3.5|456|suv|dc2626|AWD
+Tesla|Cybertruck Cyberbeast|2024|130|2.6|845|truck|6b7280|AWD
+Toyota|GR Supra|2024|155|3.9|382|gt|ef4444|RWD
+Toyota|GR86|2024|140|6.1|228|racer|111827|RWD
+Toyota|GR Corolla|2024|143|4.9|300|wagon|1f2937|AWD
+Toyota|GR Yaris|2024|143|4.9|268|classic|991b1b|AWD
+Toyota|Land Cruiser|2024|110|7.5|326|suv|3f6212|4WD
+Toyota|Tundra TRD Pro|2024|110|6.7|389|truck|1e293b|4WD
+Toyota|Camry TRD|2023|135|5.8|301|classic|111827|FWD
+Toyota|Prius|2024|112|9.8|196|classic|f5f5f4|FWD
+Toyota|2000GT|1967|135|8.6|150|retro|f5f5f4|RWD
+Porsche|911 GT3 RS|2023|184|3.0|518|racer|1d4ed8|RWD
+Porsche|911 Turbo S|2023|205|2.6|640|gt|1e3a8a|AWD
+Porsche|718 Cayman GT4 RS|2023|196|3.4|493|racer|f59e0b|RWD
+Porsche|Taycan Turbo S|2023|161|2.6|750|classic|3b82f6|AWD
+Porsche|Panamera Turbo S|2023|196|3.2|620|limo|111827|AWD
+Porsche|918 Spyder|2015|214|2.5|887|super|166534|AWD
+Porsche|Carrera GT|2004|205|3.9|612|roadster|9ca3af|RWD
+Porsche|Macan GTS|2023|169|4.3|434|suv|111827|AWD
+Porsche|Cayenne Turbo GT|2023|186|3.3|650|suv|7f1d1d|AWD
+Ferrari|SF90 Stradale|2021|211|2.5|986|super|dc2626|AWD
+Ferrari|296 GTB|2023|205|2.9|819|super|ef4444|RWD
+Ferrari|F8 Tributo|2020|211|2.9|710|super|b91c1c|RWD
+Ferrari|812 Competizione|2023|211|2.8|819|gt|dc2626|RWD
+Ferrari|Roma|2023|199|3.4|612|gt|991b1b|RWD
+Ferrari|Portofino M|2022|199|3.5|612|roadster|7f1d1d|RWD
+Ferrari|LaFerrari|2014|217|2.6|949|super|dc2626|RWD
+Ferrari|Enzo|2003|217|3.1|651|super|ef4444|RWD
+Ferrari|F40|1987|201|3.8|471|retro|ff0000|RWD
+Lamborghini|Revuelto|2024|217|2.5|1001|super|eab308|AWD
+Lamborghini|Huracan STO|2023|193|3.0|640|super|eab308|RWD
+Lamborghini|Aventador SVJ|2021|217|2.8|770|super|f59e0b|AWD
+Lamborghini|Urus Performante|2023|190|3.3|657|suv|d97706|AWD
+Lamborghini|Gallardo LP570|2013|202|3.4|570|super|fbbf24|AWD
+Lamborghini|Murcielago LP670|2010|212|3.4|661|super|eab308|AWD
+Lamborghini|Countach LP5000|1989|183|4.8|455|retro|f5f5f4|RWD
+McLaren|765LT|2021|205|2.8|765|super|f97316|RWD
+McLaren|720S|2019|212|2.9|710|super|f97316|RWD
+McLaren|Artura|2024|205|3.0|671|gt|f97316|RWD
+McLaren|Senna|2019|208|2.8|789|super|f97316|RWD
+McLaren|P1|2014|217|2.8|903|super|f97316|RWD
+McLaren|F1|1994|240|3.2|627|retro|ff7b00|RWD
+McLaren|750S|2024|206|2.8|740|super|f97316|RWD
+Audi|RS3|2023|180|3.8|401|classic|111827|AWD
+Audi|RS6 Avant|2023|190|3.6|621|wagon|1f2937|AWD
+Audi|R8 V10 Performance|2023|205|3.1|602|super|737373|AWD
+Audi|TT RS|2022|174|3.7|394|racer|1e3a8a|AWD
+Audi|e-tron GT RS|2023|155|3.3|637|gt|1d4ed8|AWD
+Audi|RS7 Sportback|2023|190|3.4|621|wagon|111827|AWD
+Audi|RS Q8|2023|190|3.8|591|suv|0f172a|AWD
+Audi|Quattro Sport|1985|155|4.8|306|retro|f5f5f4|AWD
+Mercedes-AMG|GT Black Series|2021|202|3.2|720|gt|111827|RWD
+Mercedes-AMG|One|2023|219|2.9|1063|super|0f172a|AWD
+Mercedes-AMG|C63|2024|174|3.4|671|classic|1f2937|RWD
+Mercedes-AMG|E63|2023|180|3.4|603|wagon|111827|AWD
+Mercedes-AMG|G63|2024|137|4.5|577|suv|1f2937|4WD
+Mercedes-AMG|SL63|2023|196|3.6|577|roadster|0f172a|RWD
+Mercedes-AMG|SLS|2012|197|3.8|563|super|b91c1c|RWD
+Mercedes-Benz|300SL Gullwing|1955|161|8.8|215|retro|f5f5f4|RWD
+Mercedes-AMG|GT 63 S|2023|196|3.2|630|gt|111827|AWD
+Nissan|GT-R Nismo|2024|205|2.5|600|super|111827|AWD
+Nissan|Z Performance|2024|155|4.5|400|gt|1e3a8a|RWD
+Nissan|Silvia S15|2002|145|5.9|250|racer|0ea5e9|RWD
+Nissan|Skyline R34 GT-R|2002|180|4.5|276|racer|2563eb|AWD
+Nissan|370Z Nismo|2020|155|4.7|350|gt|1d4ed8|RWD
+Nissan|Leaf e+|2023|98|7.4|214|classic|0ea5e9|FWD
+Nissan|Ariya e-4orce|2024|124|4.8|389|suv|1e40af|AWD
+Nissan|Patrol Nismo|2024|130|6.0|428|suv|374151|4WD
+Honda|Civic Type R|2024|170|4.9|315|racer|dc2626|FWD
+Honda|NSX Type S|2022|191|2.9|600|super|dc2626|AWD
+Honda|S2000|2009|155|5.4|237|roadster|eab308|RWD
+Honda|Integra Type R|2001|145|6.3|195|racer|f5f5f4|FWD
+Honda|Accord Sport|2024|130|6.6|192|classic|1e3a8a|FWD
+Honda|CR-V|2024|118|8.1|190|suv|1f2937|AWD
+Ford|Mustang GT|2024|166|4.2|486|muscle|1d4ed8|RWD
+Ford|Mustang Shelby GT500|2022|180|3.4|760|muscle|111827|RWD
+Ford|GT|2017|216|3.2|647|super|1e3a8a|RWD
+Ford|F-150 Raptor R|2024|112|3.6|720|truck|1f2937|4WD
+Ford|Bronco Raptor|2024|112|5.9|418|offroad|3f6212|4WD
+Ford|Focus RS|2018|165|4.6|350|classic|1d4ed8|AWD
+Ford|Fiesta ST|2019|144|6.5|197|classic|1e3a8a|FWD
+Ford|GT40|1969|164|5.3|335|retro|2563eb|RWD
+Ford|Escort RS Cosworth|1994|147|5.8|227|retro|1f2937|AWD
+Chevrolet|Corvette Z06|2024|189|2.6|670|super|eab308|RWD
+Chevrolet|Corvette ZR1|2025|233|2.3|1064|super|f59e0b|RWD
+Chevrolet|Camaro ZL1|2023|198|3.5|650|muscle|111827|RWD
+Chevrolet|Camaro SS|2024|165|4.0|455|muscle|991b1b|RWD
+Chevrolet|Silverado ZR2|2024|110|7.1|420|truck|374151|4WD
+Chevrolet|Bolt EV|2023|108|6.5|200|classic|2563eb|FWD
+Chevrolet|Blazer EV SS|2024|130|3.4|557|suv|1d4ed8|AWD
+Chevrolet|C8 Stingray|2023|194|2.9|495|super|dc2626|RWD
+Dodge|Challenger Hellcat|2023|199|3.6|717|muscle|111827|RWD
+Dodge|Charger SRT Hellcat|2023|196|3.6|717|classic|1f2937|RWD
+Dodge|Viper ACR|2017|177|3.3|645|super|dc2626|RWD
+Dodge|Hornet R/T|2024|130|6.1|288|suv|eab308|AWD
+Dodge|Durango SRT Hellcat|2023|180|3.5|710|suv|111827|AWD
+Subaru|WRX STI|2021|159|4.9|310|racer|1e3a8a|AWD
+Subaru|WRX|2024|145|5.4|271|classic|1d4ed8|AWD
+Subaru|BRZ|2024|140|6.1|228|racer|991b1b|RWD
+Subaru|Forester|2024|117|8.0|182|suv|3f6212|AWD
+Subaru|Impreza 22B STi|1998|158|4.7|276|retro|1d4ed8|AWD
+Mitsubishi|Lancer Evo X|2015|155|4.9|291|racer|1f2937|AWD
+Mitsubishi|Lancer Evo IX|2006|157|4.7|286|racer|f5f5f4|AWD
+Mitsubishi|Eclipse GSX|1999|150|6.4|210|racer|1e3a8a|AWD
+Mitsubishi|Pajero Evolution|1998|137|7.6|276|offroad|3f6212|4WD
+Mazda|MX-5 Miata|2024|137|5.7|181|roadster|dc2626|RWD
+Mazda|RX-7 Spirit R|2002|160|4.9|276|racer|f5f5f4|RWD
+Mazda|RX-8|2011|145|5.9|232|racer|1d4ed8|RWD
+Mazda|Mazda3 Turbo|2024|134|5.6|250|classic|991b1b|AWD
+Mazda|CX-5|2024|130|7.8|256|suv|1f2937|AWD
+Hyundai|i30 N|2024|155|5.4|276|racer|0ea5e9|FWD
+Hyundai|Veloster N|2022|155|5.6|275|racer|1d4ed8|FWD
+Hyundai|Ioniq 5 N|2024|162|3.4|641|suv|2563eb|AWD
+Hyundai|Elantra N|2024|155|5.3|276|classic|0ea5e9|FWD
+Kia|Stinger GT|2023|167|4.6|368|gt|991b1b|AWD
+Kia|EV6 GT|2023|161|3.4|576|suv|1e3a8a|AWD
+Kia|Telluride|2024|130|7.2|291|suv|3f6212|AWD
+Kia|Sportage|2024|125|8.1|187|suv|1f2937|AWD
+Volkswagen|Golf R|2024|155|4.6|315|classic|1e3a8a|AWD
+Volkswagen|Golf GTI|2024|155|5.6|241|classic|dc2626|FWD
+Volkswagen|ID.4 GTX|2024|112|5.4|295|suv|2563eb|AWD
+Volkswagen|Arteon R|2023|155|4.9|300|wagon|111827|AWD
+Volkswagen|Beetle RSi|2001|140|6.3|221|retro|eab308|AWD
+Volvo|S60 Polestar|2024|155|4.5|455|classic|1e3a8a|AWD
+Volvo|XC90 Recharge|2024|112|5.3|455|suv|374151|AWD
+Volvo|240 Turbo|1984|130|7.9|155|retro|f5f5f4|RWD
+Jaguar|F-Type R|2023|186|3.5|575|gt|166534|AWD
+Jaguar|XJ220|1994|217|3.6|542|retro|1e3a8a|RWD
+Jaguar|I-Pace|2023|124|4.5|394|suv|1d4ed8|AWD
+Aston Martin|Valkyrie|2023|217|2.5|1160|super|166534|RWD
+Aston Martin|DBS Superleggera|2023|211|3.2|715|gt|14532d|RWD
+Aston Martin|Vantage|2024|202|3.4|656|gt|166534|RWD
+Aston Martin|DB5|1964|145|8.1|282|retro|9ca3af|RWD
+Aston Martin|Vulcan|2016|208|2.9|820|super|14532d|RWD
+Bentley|Continental GT Speed|2023|208|3.5|650|gt|1e3a8a|AWD
+Bentley|Bentayga Speed|2023|190|3.8|626|suv|111827|AWD
+Bentley|Speed 8|2003|214|3.6|600|retro|14532d|RWD
+Rolls-Royce|Phantom|2024|155|5.1|563|limo|f5f5f4|RWD
+Rolls-Royce|Ghost Black Badge|2024|155|4.5|591|limo|111827|AWD
+Rolls-Royce|Cullinan|2024|155|4.9|563|suv|f5f5f4|AWD
+Lotus|Emira V6|2024|180|4.2|400|gt|eab308|RWD
+Lotus|Evija|2023|217|2.7|2011|super|22d3ee|AWD
+Lotus|Elise|2011|150|4.7|217|roadster|f97316|RWD
+Lotus|Exige Cup 430|2018|180|3.2|430|racer|166534|RWD
+Bugatti|Chiron Super Sport|2023|273|2.4|1578|super|1e3a8a|AWD
+Bugatti|Veyron 16.4|2015|253|2.5|1001|super|1e40af|AWD
+Bugatti|Bolide|2024|236|2.2|1578|super|0f172a|AWD
+Koenigsegg|Jesko Absolut|2024|300|2.5|1600|super|f5f5f4|RWD
+Koenigsegg|Regera|2022|250|2.7|1500|super|111827|RWD
+Koenigsegg|Agera RS|2018|278|2.8|1160|super|eab308|RWD
+Pagani|Huayra BC|2023|238|2.8|789|super|9ca3af|RWD
+Pagani|Zonda R|2011|233|2.7|739|super|1e3a8a|RWD
+Rimac|Nevera|2024|258|1.85|1914|super|0ea5e9|AWD
+Rimac|Concept One|2020|220|2.5|1224|super|111827|AWD
+Lucid|Air Sapphire|2024|205|1.89|1234|gt|1e3a8a|AWD
+Lucid|Air Grand Touring|2024|168|3.0|819|classic|374151|AWD
+Rivian|R1T Quad|2024|130|2.9|835|truck|3f6212|AWD
+Rivian|R1S Quad|2024|130|2.9|835|suv|14532d|AWD
+Jeep|Wrangler Rubicon 392|2024|112|4.5|470|offroad|3f6212|4WD
+Jeep|Grand Cherokee Trackhawk|2021|180|3.5|707|suv|111827|AWD
+Jeep|Gladiator Mojave|2024|110|7.6|285|truck|3f6212|4WD
+Land Rover|Defender V8|2024|149|4.9|518|offroad|3f6212|AWD
+Land Rover|Range Rover Sport SVR|2023|180|3.8|575|suv|111827|AWD
+Land Rover|Discovery|2024|130|6.6|355|suv|14532d|AWD
+Mini|Cooper JCW GP|2021|165|5.2|306|classic|dc2626|FWD
+Mini|Countryman JCW|2024|155|4.9|312|suv|1f2937|AWD
+Peugeot|208 GTi|2019|143|6.5|208|classic|1d4ed8|FWD
+Peugeot|205 GTi|1992|130|7.8|130|retro|f5f5f4|FWD
+Renault|Megane RS Trophy|2020|163|5.4|300|racer|eab308|FWD
+Renault|Clio Williams|1994|134|7.2|150|retro|1e3a8a|FWD
+Alfa Romeo|Giulia GTAm|2022|191|3.6|540|classic|b91c1c|RWD
+Alfa Romeo|4C|2020|160|4.1|237|roadster|dc2626|RWD
+Alfa Romeo|8C Competizione|2009|181|4.2|450|gt|b91c1c|RWD
+Maserati|MC20|2023|202|2.9|621|super|1e3a8a|RWD
+Maserati|Ghibli Trofeo|2023|203|3.7|580|classic|111827|RWD
+Lexus|LFA|2012|202|3.7|552|super|f5f5f4|RWD
+Lexus|IS 500 F Sport|2024|149|4.4|472|classic|374151|RWD
+Lexus|RC F|2024|168|4.4|472|gt|1e3a8a|RWD
+Acura|NSX Type S|2022|191|2.9|600|super|dc2626|AWD
+Acura|Integra Type S|2024|155|5.1|320|racer|f5f5f4|FWD
+Infiniti|Q60 Red Sport|2022|155|4.5|400|gt|1e3a8a|RWD
+Infiniti|Q50 Red Sport|2022|155|4.7|400|classic|374151|RWD
+Cadillac|CT5-V Blackwing|2024|200|3.6|668|muscle|111827|RWD
+Cadillac|Escalade-V|2024|124|4.4|682|suv|0f172a|AWD
+Cadillac|Celestiq|2024|130|3.8|655|limo|1e3a8a|AWD
+Shelby|Cobra 427|1966|165|3.9|485|roadster|1e3a8a|RWD
+Shelby|GT500 Super Snake|2022|200|3.3|825|muscle|111827|RWD`;
+const CAR_CATALOG = CAR_DATA.trim().split('\n').map(function (line, index) {
+    var p = line.split('|');
+    var top = Number(p[3]), zero = Number(p[4]), hp = Number(p[5]);
+    var raw = 600 + Math.pow(Math.max(0, top - 80), 1.35) * 9 + hp * 7 + Math.max(0, 7 - zero) * 500;
+    var price = Math.max(1500, Math.round(raw * 3 / 100) * 100);
+    return {
+        id: 'car_' + ('00' + (index + 1)).slice(-3),
+        brand: p[0],
+        model: p[1],
+        year: Number(p[2]),
+        topSpeed: top,
+        zeroTo60: zero,
+        hp: hp,
+        style: p[6],
+        color: '#' + p[7],
+        threeColor: parseInt(p[7], 16),
+        drivetrain: p[8],
+        price: price,
+        tier: price >= 60000 ? 'Hypercar' : price >= 30000 ? 'Supercar' : price >= 15000 ? 'Performance' : 'Sport'
+    };
+});
 
 // Bodies and engines are real performance parts. Values are multipliers applied
 // on top of the racer's 120 m/s stock top speed and 18 m/s² stock acceleration.
@@ -5282,7 +6004,8 @@ const BODY_PERF = {
     gt:       { top: 1.36, accel: 1.38, grip: 1.24 },
     super:    { top: 1.42, accel: 1.46, grip: 1.27 },
     offroad:  { top: 0.98, accel: 1.14, grip: 1.28 },
-    beater:   { top: 0.82, accel: 0.84, grip: 0.90 }
+    beater:   { top: 0.82, accel: 0.84, grip: 0.90 },
+    suv:      { top: 0.95, accel: 1.02, grip: 1.12 }
 };
 
 const AERO_PERF = {
@@ -5408,11 +6131,18 @@ function normalizeWallet(raw, username) {
         }
     });
 
+    var ownedCars = Array.isArray(w.cars) ? w.cars.filter(function (id) {
+        return typeof id === 'string' && CAR_CATALOG.some(function (car) { return car.id === id; });
+    }) : [];
+    var equippedCar = typeof w.equippedCar === 'string' && ownedCars.indexOf(w.equippedCar) >= 0 ? w.equippedCar : null;
+
     return {
         username: username,
         shells: Number.isFinite(w.shells) ? Math.max(0, Math.floor(w.shells)) : SHELLS_START,
         inventory: inventory,
         equipped: equipped,
+        cars: ownedCars,
+        equippedCar: equippedCar,
         streak: Number.isFinite(w.streak) ? Math.max(0, Math.floor(w.streak)) : 0,
         lastPlayDay: typeof w.lastPlayDay === 'string' ? w.lastPlayDay : (typeof w.last_play_day === 'string' ? w.last_play_day : null),
         streakRewards: Array.isArray(w.streakRewards) ? w.streakRewards : (Array.isArray(w.streak_rewards) ? w.streak_rewards : []),
@@ -5496,6 +6226,12 @@ async function saveWallet() {
             total_earned: wallet.totalEarned,
             updated_at: new Date(wallet.updatedAt).toISOString()
         }, { onConflict: 'username' });
+        // Car collection columns are optional. Try them separately so an older
+        // wallets table without them still syncs cosmetics normally.
+        await supabaseClient.from('wallets').update({
+            cars: wallet.cars || [],
+            equipped_car: wallet.equippedCar || null
+        }).eq('username', wallet.username);
     } catch (e) {
         // Offline or table missing: localStorage remains the source of truth.
     }
@@ -5545,6 +6281,12 @@ function renderWalletUI() {
     applyGlobalCosmetics();
 }
 
+function getEquippedCar() {
+    if (!wallet || !wallet.equippedCar) return null;
+    var id = wallet.equippedCar;
+    return CAR_CATALOG.find(function (car) { return car.id === id; }) || null;
+}
+
 function getEquippedCosmetics() {
     var equipped = wallet ? wallet.equipped : {};
     function chosen(type) {
@@ -5560,18 +6302,41 @@ function getEquippedCosmetics() {
     var wheel = chosen('wheel');
     var trail = chosen('trail');
     var umbrella = chosen('umbrella');
-    var bodyPerf = BODY_PERF[body ? body.style : 'classic'] || BODY_PERF.classic;
-    var enginePerf = ENGINE_PERF[engine ? engine.style : 'stock'] || ENGINE_PERF.stock;
-    var aeroPerf = AERO_PERF[aero ? aero.style : 'stock'] || AERO_PERF.stock;
-    var kitPerf = KIT_PERF[kit ? kit.style : 'stock'] || KIT_PERF.stock;
+    var catalogCar = getEquippedCar();
+    var bodyStyle = catalogCar ? catalogCar.style : (body ? body.style : 'beater');
+    var bodyPerf = BODY_PERF[bodyStyle] || BODY_PERF.beater;
+    if (catalogCar) {
+        // The showroom car is the real base car: its published top speed and
+        // 0-60 define its performance. Bolt-on engine/aero/kit parts multiply
+        // on top, exactly like the stock beater.
+        bodyPerf = {
+            top: Math.max(0.52, Math.min(1.9, catalogCar.topSpeed / 170)),
+            accel: Math.max(0.55, Math.min(2.4, 6.2 / catalogCar.zeroTo60)),
+            grip: bodyPerf.grip || 1.0
+        };
+    }
+    // A showroom car is a complete car. The free junk parts must not drag it
+    // down, but real performance parts the player bought still stack on top.
+    var enginePerf = catalogCar
+        ? (engine && engine.cost > 0 ? (ENGINE_PERF[engine.style] || ENGINE_PERF.stock) : { top: 1, accel: 1 })
+        : (ENGINE_PERF[engine ? engine.style : 'lawnmower'] || ENGINE_PERF.lawnmower);
+    var aeroPerf = catalogCar
+        ? (aero && aero.cost > 0 ? (AERO_PERF[aero.style] || AERO_PERF.stock) : { top: 1, accel: 1, grip: 1 })
+        : (AERO_PERF[aero ? aero.style : 'broken'] || AERO_PERF.broken);
+    var kitPerf = catalogCar
+        ? (kit && kit.cost > 0 ? (KIT_PERF[kit.style] || KIT_PERF.stock) : { top: 1, accel: 1, grip: 1 })
+        : (KIT_PERF[kit ? kit.style : 'rust'] || KIT_PERF.rust);
     return {
-        paint: paint ? paint.threeColor : 0xef476f,
-        body: body ? body.style : 'classic',
-        bodyColor: body ? body.threeColor : null,
-        engine: engine ? engine.style : 'stock',
+        carId: catalogCar ? catalogCar.id : null,
+        paint: catalogCar ? catalogCar.threeColor : (paint ? paint.threeColor : 0x8a6f5a),
+        body: bodyStyle,
+        bodyColor: catalogCar ? catalogCar.threeColor : (body ? body.threeColor : null),
+        topSpeed: catalogCar ? catalogCar.topSpeed : null,
+        zeroTo60: catalogCar ? catalogCar.zeroTo60 : null,
+        engine: engine ? engine.style : 'lawnmower',
         engineColor: engine ? engine.threeColor : null,
-        aeroStyle: aero ? aero.style : 'stock',
-        kitStyle: kit ? kit.style : 'stock',
+        aeroStyle: aero ? aero.style : 'broken',
+        kitStyle: kit ? kit.style : 'rust',
         board: board ? board.threeColor : 0x06d6a0,
         glow: glow && !glow.none ? glow.threeColor : null,
         glowRainbow: !!(glow && glow.rainbow),
@@ -5910,6 +6675,148 @@ async function sellCosmetic(id) {
     renderGarage();
     renderGarageShop();
     flashShopStatus('Sold ' + item.name + ' for ' + price.toLocaleString() + ' Coins.');
+}
+
+
+let showroomQuery = '';
+let showroomPageIndex = 0;
+const SHOWROOM_PER_PAGE = 24;
+
+function showroomResults() {
+    var q = String(showroomQuery || '').trim().toLowerCase();
+    if (!q) return CAR_CATALOG;
+    return CAR_CATALOG.filter(function (car) {
+        return (car.brand + ' ' + car.model + ' ' + car.year + ' ' + car.tier + ' ' + car.drivetrain).toLowerCase().indexOf(q) >= 0;
+    });
+}
+
+function showroomStatus(message, isError) {
+    var el = document.getElementById('g3dShowroomStatus');
+    if (!el) return;
+    el.textContent = message || '';
+    el.style.color = isError ? '#ff8a8a' : 'rgba(220,245,255,0.62)';
+    if (el._timer) clearTimeout(el._timer);
+    el._timer = setTimeout(function () { if (el) el.textContent = ''; }, 4200);
+}
+
+function openShowroom() {
+    var el = document.getElementById('g3dShowroom');
+    if (!el) return;
+    if (!wallet) { showroomStatus('Wallet still loading…', true); return; }
+    showroomPageIndex = 0;
+    el.style.display = 'flex';
+    renderShowroom();
+}
+
+function closeShowroom() {
+    var el = document.getElementById('g3dShowroom');
+    if (el) el.style.display = 'none';
+}
+
+function updateShowroomSearch(value) {
+    showroomQuery = value;
+    showroomPageIndex = 0;
+    renderShowroom();
+}
+
+function showroomPage(dir) {
+    var results = showroomResults();
+    var pages = Math.max(1, Math.ceil(results.length / SHOWROOM_PER_PAGE));
+    showroomPageIndex = Math.max(0, Math.min(pages - 1, showroomPageIndex + dir));
+    renderShowroom();
+}
+
+function renderShowroom() {
+    var grid = document.getElementById('g3dShowroomGrid');
+    if (!grid || !wallet) return;
+    var results = showroomResults();
+    var pages = Math.max(1, Math.ceil(results.length / SHOWROOM_PER_PAGE));
+    if (showroomPageIndex >= pages) showroomPageIndex = pages - 1;
+    var start = showroomPageIndex * SHOWROOM_PER_PAGE;
+    var pageItems = results.slice(start, start + SHOWROOM_PER_PAGE);
+    var ownedCars = wallet.cars || [];
+    var equippedCar = wallet.equippedCar;
+
+    grid.innerHTML = pageItems.map(function (car) {
+        var owned = ownedCars.indexOf(car.id) >= 0;
+        var equipped = equippedCar === car.id;
+        var affordable = wallet.shells >= car.price;
+        var action, cls, disabled = '';
+        if (equipped) { action = 'Driving'; cls = 'equipped'; disabled = ' disabled'; }
+        else if (owned) { action = 'Drive'; cls = 'owned'; }
+        else { action = 'Buy · ' + car.price.toLocaleString(); cls = affordable ? 'buy' : 'locked'; }
+        var sellBtn = (owned && !equipped)
+            ? '<button class="cosmetic-sell" onclick="sellCar(\'' + car.id + '\')">Sell · ' + Math.floor(car.price * 0.5).toLocaleString() + '</button>'
+            : '';
+        return '<div class="showroom-card' + (equipped ? ' is-equipped' : '') + '">' +
+            '<div class="showroom-thumb" style="--swatch:' + car.color + '">' +
+                '<div class="showroom-car" style="--swatch:' + car.color + '"><span></span></div>' +
+                '<span class="showroom-tier">' + escapeHtml(car.tier) + '</span>' +
+            '</div>' +
+            '<div class="showroom-card-body">' +
+                '<span class="showroom-brand">' + escapeHtml(car.brand) + ' · ' + car.year + '</span>' +
+                '<h3 class="showroom-name">' + escapeHtml(car.model) + '</h3>' +
+                '<div class="showroom-specs">' +
+                    '<span><b>' + car.topSpeed + '</b> mph</span>' +
+                    '<span><b>' + car.zeroTo60.toFixed(1) + 's</b> 0-60</span>' +
+                    '<span><b>' + car.hp + '</b> hp</span>' +
+                    '<span><b>' + escapeHtml(car.drivetrain) + '</b></span>' +
+                '</div>' +
+                '<div class="showroom-price">' + (owned ? (equipped ? 'In the garage' : 'Owned') : shellIcon(13) + ' ' + car.price.toLocaleString()) + '</div>' +
+                '<button class="cosmetic-btn ' + cls + '"' + disabled + ' onclick="handleCar(\'' + car.id + '\')">' + action + '</button>' +
+                sellBtn +
+            '</div>' +
+        '</div>';
+    }).join('') || '<p class="store-empty">No cars match that search. Try another brand or model.</p>';
+
+    var count = document.getElementById('g3dShowroomCount');
+    if (count) count.textContent = results.length + ' car' + (results.length === 1 ? '' : 's');
+    var pager = document.getElementById('g3dShowroomPage');
+    if (pager) pager.textContent = (showroomPageIndex + 1) + ' / ' + pages;
+    var balance = document.getElementById('g3dShowroomBalance');
+    if (balance) balance.innerHTML = shellIcon(13) + ' ' + wallet.shells.toLocaleString() + ' Coins';
+}
+
+async function handleCar(id) {
+    var car = CAR_CATALOG.find(function (c) { return c.id === id; });
+    if (!car || !wallet) return;
+    var owned = (wallet.cars || []).indexOf(car.id) >= 0;
+    if (!owned) {
+        if (wallet.shells < car.price) {
+            showroomStatus('Not enough Coins. You need ' + (car.price - wallet.shells).toLocaleString() + ' more.', true);
+            return;
+        }
+        if (!window.confirm('Buy the ' + car.year + ' ' + car.brand + ' ' + car.model + ' for ' + car.price.toLocaleString() + ' Coins?')) return;
+        wallet.shells -= car.price;
+        wallet.cars = wallet.cars || [];
+        wallet.cars.push(car.id);
+        wallet.equippedCar = car.id;
+        await saveWallet();
+        await creditOwnerCoins(car.price);
+        renderShowroom();
+        renderWalletUI();
+        showroomStatus('Bought the ' + car.brand + ' ' + car.model + ' and set it as your ride.');
+        return;
+    }
+    wallet.equippedCar = car.id;
+    await saveWallet();
+    renderShowroom();
+    showroomStatus(car.brand + ' ' + car.model + ' is now your ride.');
+}
+
+async function sellCar(id) {
+    var car = CAR_CATALOG.find(function (c) { return c.id === id; });
+    if (!car || !wallet) return;
+    if ((wallet.cars || []).indexOf(car.id) < 0) return;
+    var price = Math.floor(car.price * 0.5);
+    if (!window.confirm('Sell the ' + car.brand + ' ' + car.model + ' for ' + price.toLocaleString() + ' Coins?\n\nYou can buy it again later.')) return;
+    wallet.cars = wallet.cars.filter(function (ownedId) { return ownedId !== car.id; });
+    if (wallet.equippedCar === car.id) wallet.equippedCar = wallet.cars[0] || null;
+    wallet.shells += price;
+    await saveWallet();
+    renderShowroom();
+    renderWalletUI();
+    showroomStatus('Sold the ' + car.brand + ' ' + car.model + ' for ' + price.toLocaleString() + ' Coins.');
 }
 
 function dayKey(date) {
@@ -6657,8 +7564,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.11";
-const UPDATE_NOTES = "Dead Coast is faster and more fun: quicker walking and sprinting, working jump, faster zombies with runner lunges, killstreak multipliers, frenzy mode, boss health bar, and more frequent drops";
+const APP_VERSION = "LessFun Public Beta 1.32.12";
+const UPDATE_NOTES = "Beach Racer Racing is live: closed-loop 3-lap races with four adaptive AI rivals, a 200-car showroom with real brands and specs, a junk starter car, 60 FPS cinematic crash cam, Funtutu Test benchmark, 27 new store items, new graphics settings, and a site-wide mobile pass";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

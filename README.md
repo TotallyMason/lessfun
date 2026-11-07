@@ -7,9 +7,10 @@ A 3D arcade with a liquid-glass interface. Play it at
 
 | Game | What it is |
 | --- | --- |
-| Beach Racer | Outrun traffic on a six-lane coastal highway. Hold W / ↑ for throttle, steer freely, and brake through the pack in a 6-speed automatic. Shift P/R/N/D with Q and E, take highway exits, and race 2–3 players online with a room code. |
+| Beach Racer | Outrun traffic on a six-lane coastal highway, or pick Racing for a closed-loop 3-lap race against four adaptive AI rivals. Hold W / ↑ for throttle, steer freely, and brake through the pack in a 6-speed automatic. Shift P/R/N/D with Q and E, take highway exits, and race 2–3 players online with a room code. |
 | Tunnel Rush | Thread an endless neon tunnel and rotate through the gaps. |
 | Cube Stack | Stack the tower as high as you can before the blocks drift away. |
+| Funtutu Test | GPU/CPU benchmark that shows its work, produces a score, and recommends graphics settings for this device. |
 | Dead Coast | First-person zombie survival with WASD movement, trackpad mouse look, waves, ammo, health pickups, and public co-op rooms. |
 | Star Dodger | Weave through an asteroid storm at increasing speed. |
 
@@ -50,23 +51,23 @@ speed, acceleration, and grip; the other categories are visual.
 | 14-day streak | +1,000 |
 
 New players start with **100 Coins**. Purchases are equipped immediately, and
-any owned cosmetic can be re-equipped for free. The Store has **13 global items**
-and the Garage has **132 Beach Racer items**:
+any owned cosmetic can be re-equipped for free. The Store has **23 global items**
+and the Garage has **151 Beach Racer items**:
 
 | Category | Items | What it does |
 | --- | --- | --- |
-| Global themes | 7 | Recolour the interface, HUD, and buttons across every game |
-| Avatar frames | 6 | Ring colours around avatars everywhere in the app |
-| Car paints | 20 | Body colour of the Beach Racer car |
+| Global themes | 12 | Recolour the interface, HUD, and buttons across every game |
+| Avatar frames | 11 | Ring colours around avatars everywhere in the app |
+| Car paints | 27 | Body colour of the Beach Racer car |
 | Car bodies | 20 | Real performance: top speed, acceleration, and grip (includes F1, bus, GT3, supercar, off-road, and a free beater) |
 | Engines | 17 | Real power: top speed and acceleration (includes free lawnmower and V16/plasma tiers) |
 | Aero parts | 8 | Real grip and top speed: splitters, wings, diffusers, GT3, ground effect, free broken wing |
 | Body kits | 8 | Real acceleration and grip: widebody, track, rally, hyper, GT3, off-road, free rust kit |
-| Surfboards | 15 | Roof board colour and shape detailing |
-| Underglow | 11 | Neon light pool and point light under the car |
+| Surfboards | 18 | Roof board colour and shape detailing |
+| Underglow | 14 | Neon light pool and point light under the car |
 | Wheels | 12 | Rim colour, spokes, and emissive shine |
-| Exhaust trails | 12 | Pulsing additive strips behind the bumper |
-| Beach umbrellas | 10 | Striped canopy colour across the shoreline |
+| Exhaust trails | 15 | Pulsing additive strips behind the bumper |
+| Beach umbrellas | 12 | Striped canopy colour across the shoreline |
 
 Car bodies, engines, aero parts, and body kits are **real performance parts** — each shop card shows
 its Top, Accel, and Grip deltas. Paints, boards, glow, wheels, trails, and
@@ -184,7 +185,12 @@ handling real user data or payments.
 - Touch controls for NOS, drift, and gear shifts on phones and narrow screens
 - Mobile performance mode: lower pixel-ratio cap, shadows disabled, reduced traffic/zombie/building counts, cheaper particles, and motion blur off by default
 - Full touch controls for Dead Coast: movement stick, drag-to-look, fire, reload, jump, melee, use, and weapon swap
-- Beach Racer opens in a 3D garage orbit view with Play and Garage actions
+- Beach Racer Racing: a closed 2,400 m loop, three laps, four adaptive AI rivals that rubber-band toward the player and fight for the win, no traffic, a race loading animation, and lap/position/timer HUD
+- Beach Racer closed-loop multiplayer racing with friends and no traffic
+- 200-car showroom across 45+ real brands (BMW, Tesla, Toyota, Porsche, Ferrari, Lamborghini, McLaren, Nissan, Ford, and more) with real horsepower, 0-60, top speed, drivetrain, price tiers, search, pagination, buy/sell/drive, and persistent ownership
+- New players start in the free junk beater with the lawnmower engine, broken aero, and rust kit
+- Funtutu Test benchmark game with CPU integer/float, GPU shader, and Canvas 2D tests, a live work visualisation, a combined score, and an Apply Recommended button
+- Beach Racer opens in a 3D garage orbit view with Race, Highway, Multiplayer, Garage, and Showroom actions
 - In-game Garage shop for car parts, opened from the Beach Racer garage screen without leaving the game
 - Free downgrade parts for experimenting with slower builds
 - Straight segmented highway with aligned traffic, lanes, guardrails, signs, lights, posts, coins, ramps, and checkpoints
@@ -193,6 +199,9 @@ handling real user data or payments.
 - A one-time shared **+500 Coin** reward per session for playing multiplayer with at least one other person
 - Live Now Playing list in Friends showing what signed-in players are doing, with Join buttons
 - mph/km-h setting, a live FPS/resolution counter, 60 FPS-targeted automatic resolution scaling, one-piece road geometry, and throttled ocean/HUD updates
+- Graphics presets plus dynamic-shadow, crash slow-mo, film-grain, motion-blur, FPS-counter, and render-scale controls
+- 60 FPS-targeted crash cinema with a black fade into the slow-motion wreck render
+- Site-wide mobile pass: safe-area insets, full-height game modal, larger touch targets, 16px form inputs, scrollable store tabs, and responsive showroom/benchmark layouts
 - Friend activity presence with a Join button for their current game or public lobby
 - Live public multiplayer for Tunnel Rush and Star Dodger with real-time score boards, selectable from each game’s start menu
 - Beach Racer multiplayer uses live low-res camera thumbnails streamed by each player instead of rendering extra local cameras
