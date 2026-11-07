@@ -7604,8 +7604,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.21";
-const UPDATE_NOTES = "First-person camera now shows a steering wheel that turns with your input in Beach Racer and Dead Coast. Camera cycling with C stays silent. Also includes fixed throttle/brake bars, restored Beach Racer rendering, persistent showroom cars, zombie hordes, and 2026-normalised Funtutu scoring";
+const APP_VERSION = "LessFun Public Beta 1.32.22";
+const UPDATE_NOTES = "Fixed the long-standing inverted steering bug in Beach Racer: the car body and front wheels now turn the same way you press A or D. Also includes the first-person steering wheel, silent C camera cycling, fixed throttle/brake bars, persistent showroom cars, zombie hordes, and 2026-normalised Funtutu scoring";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

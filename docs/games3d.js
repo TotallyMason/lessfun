@@ -4351,11 +4351,11 @@
             var yawLimit = driftIntent ? 0.78 : 0.42;
             var rollLimit = driftIntent ? 0.34 : 0.2;
             var yawTarget = vx * 0.045 * (driftIntent ? 2.0 : 1) * (0.35 + speedSteerFactor * 0.65) + steerAngle * 0.45;
-            player.rotation.y = Math.max(-yawLimit, Math.min(yawLimit, yawTarget)) - roadTangentAt(player.position.z);
+            player.rotation.y = Math.max(-yawLimit, Math.min(yawLimit, -yawTarget)) - roadTangentAt(player.position.z);
             var steerPivots = player.userData.suspensionPivots || [];
             for (var spi = 0; spi < steerPivots.length; spi++) {
                 if (steerPivots[spi].userData.front && steerPivots[spi].parent === player) {
-                    steerPivots[spi].rotation.y = steerAngle;
+                    steerPivots[spi].rotation.y = -steerAngle;
                 }
             }
 
