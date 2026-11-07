@@ -1669,7 +1669,7 @@ function applyFuntutuRecommended() {
         if (window.alert) alert('Run the Funtutu Test first.');
         return;
     }
-    var rec = res.rec;
+    var rec = (res && res.total) ? funtutuRecommendation(res.total) : res.rec;
     setGraphicsPresetSetting(rec.preset);
     setRenderScaleSetting(String(rec.scale));
     setShadowSetting(rec.shadows);
@@ -1693,7 +1693,9 @@ function startFuntutuTest() {
         var saved = JSON.parse(localStorage.getItem('lessfun_funtutu_result') || 'null');
         if (saved && saved.total) {
             funtutuLastResult = saved;
-            var rec = saved.rec || funtutuRecommendation(saved.total);
+            var rec = funtutuRecommendation(saved.total);
+            saved.rec = rec;
+            funtutuLastResult = saved;
             funtutuProgress(100, 'Last score ' + saved.total.toLocaleString() + ' · ' + rec.label);
             funtutuDrawBars([saved.cpuInt, saved.cpuFloat, saved.gpu, saved.canvas], ['CPU INT', 'CPU FP', 'GPU', '2D']);
             var host = document.getElementById('funtutuResult');
@@ -7700,8 +7702,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.43";
-const UPDATE_NOTES = "The Beach Racer driver ragdoll is fully removed, so nothing launches or dangles in the car during crashes. The graphics preset is confirmed as Poteto";
+const APP_VERSION = "LessFun Public Beta 1.32.44";
+const UPDATE_NOTES = "Funtutu now always says Poteto when it recommends the lowest preset, including old saved benchmark results that still had the previous Potato label";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
