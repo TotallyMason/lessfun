@@ -26,6 +26,7 @@
     var motionBlurTargetSize = '';
     var pendingFrameCapture = false;
     var lastCapturedFrame = null;
+    var lastCinemaFrame = 0;
     var motionBlurIndex = 0;
     var motionBlurHasPrev = false;
     var motionBlurScene = null;
@@ -148,7 +149,7 @@
 
     /* ---------------- Beach Racer ---------------- */
     function createRacer(ctx) {
-        var scene = ctx.scene, camera = ctx.camera;
+        var scene = ctx.scene, camera = ctx.camera, renderer = ctx.renderer;
         var cosmetics = (ctx.options && ctx.options.cosmetics) || {};
         var paintColor = cosmetics.paint != null ? cosmetics.paint : 0xef476f;
         var boardColor = cosmetics.board != null ? cosmetics.board : 0x06d6a0;
@@ -2216,6 +2217,10 @@
         var crashWorld = makePhysicsWorld(-24);
         var crashPlayerBody = null;
         var crashOtherBody = null;
+        var crashSoftBody = null;
+        var crashSoftBase = null;
+        var crashSoftDent = null;
+        var crashPrevPixelRatio = 1;
         var crashRealT = 0;
         var crashStartMs = 0;
         var crashScore = 0;
@@ -2384,6 +2389,101 @@
             }
         }
 
+        function setCrashCinema(on) {
+            var overlay = document.getElementById('g3dCinema');
+            if (overlay) overlay.classList.toggle('is-active', !!on);
+            if (!renderer || !renderer.domElement) return;
+            try {
+                if (on) {
+                    crashPrevPixelRatio = renderer.getPixelRatio();
+                    var h = Math.max(1, renderer.domElement.clientHeight);
+                    var ratio = Math.max(0.35, Math.min(1, 720 / h));
+                    renderer.setPixelRatio(ratio);
+                    renderer.setSize(renderer.domElement.clientWidth, h, false);
+                    renderer.toneMappingExposure = 1.22;
+                } else {
+                    renderer.setPixelRatio(crashPrevPixelRatio || 1);
+                    renderer.setSize(renderer.domElement.clientWidth, renderer.domElement.clientHeight, false);
+                    renderer.toneMappingExposure = 1.08;
+                }
+            } catch (e) {}
+        }
+
+        function clearSoftWreck() {
+            if (crashSoftBody) {
+                scene.remove(crashSoftBody);
+                disposeObject(crashSoftBody);
+                crashSoftBody = null;
+            }
+            crashSoftBase = null;
+            crashSoftDent = null;
+            player.visible = true;
+        }
+
+        function buildSoftWreck(zone, severity) {
+            clearSoftWreck();
+            var spec = player.userData.spec || {};
+            var width = spec.width || 1.8;
+            var len = spec.len || 3.2;
+            var geo = new THREE.BoxGeometry(width, 0.8, len, 7, 3, 12);
+            geo.translate(0, 0.4, 0);
+            var pos = geo.attributes.position;
+            var base = new Float32Array(pos.array.length);
+            var dent = new Float32Array(pos.array.length);
+            for (var i = 0; i < pos.count; i++) {
+                var ix = i * 3;
+                var x = pos.array[ix], y = pos.array[ix + 1], z = pos.array[ix + 2];
+                if (y > 0.45) pos.array[ix] = x * 0.84;
+                base[ix] = pos.array[ix];
+                base[ix + 1] = pos.array[ix + 1];
+                base[ix + 2] = pos.array[ix + 2];
+                var hit = zone === 'front' ? z < 0 :
+                    zone === 'rear' ? z > 0 :
+                    zone === 'left' ? x < 0 : x > 0;
+                if (hit) {
+                    var f = severity * 1.8;
+                    if (zone === 'front' || zone === 'rear') {
+                        var zs = zone === 'front' ? -1 : 1;
+                        dent[ix] += (Math.random() - 0.5) * f * 0.25;
+                        dent[ix + 1] += (Math.random() - 0.5) * f * 0.18;
+                        dent[ix + 2] += zs * f * (0.35 + Math.random() * 0.5);
+                    } else {
+                        var xs = zone === 'left' ? -1 : 1;
+                        dent[ix] += xs * f * (0.35 + Math.random() * 0.5);
+                        dent[ix + 1] += (Math.random() - 0.5) * f * 0.2;
+                        dent[ix + 2] += (Math.random() - 0.5) * f * 0.22;
+                    }
+                }
+            }
+            pos.needsUpdate = true;
+            geo.computeVertexNormals();
+            var mat = new THREE.MeshPhysicalMaterial({
+                color: paintColor, metalness: 0.45, roughness: 0.22,
+                clearcoat: 1.0, clearcoatRoughness: 0.08,
+                emissive: paintColor, emissiveIntensity: 0.04
+            });
+            crashSoftBody = new THREE.Mesh(geo, mat);
+            crashSoftBody.position.copy(player.position);
+            crashSoftBody.quaternion.copy(player.quaternion);
+            crashSoftBase = base;
+            crashSoftDent = dent;
+            scene.add(crashSoftBody);
+            player.visible = false;
+        }
+
+        function updateSoftWreck() {
+            if (!crashSoftBody || !crashSoftBase) return;
+            crashSoftBody.position.copy(player.position);
+            crashSoftBody.quaternion.copy(player.quaternion);
+            var pos = crashSoftBody.geometry.attributes.position;
+            var arr = pos.array;
+            var wobble = 0.88 + Math.sin(crashRealT * 22) * 0.12;
+            for (var i = 0; i < arr.length; i++) {
+                arr[i] = crashSoftBase[i] + crashSoftDent[i] * wobble;
+            }
+            pos.needsUpdate = true;
+        }
+
         function launchRagdoll(dir, impactSpeed, zone) {
             if (!driverRagdoll) return;
             scene.attach(driverRagdoll);
@@ -2511,6 +2611,8 @@
             crumpleCarPart(player.userData.bodyGroup, zone, severity);
             crumpleCarPart(car.userData && car.userData.bodyGroup, zone === 'left' ? 'right' : zone === 'right' ? 'left' : zone, severity * 0.72);
             launchRagdoll(dir, impactSpeed, zone);
+            buildSoftWreck(zone, severity);
+            setCrashCinema(true);
 
             if (Math.abs(speed) > 40) {
                 var pivots = player.userData.suspensionPivots || [];
@@ -2596,6 +2698,7 @@
                     crashCarVz *= Math.max(0, 1 - dt * 0.8);
                 }
             }
+            updateSoftWreck();
             updateCrashDebris(dt);
             updateRagdoll(dt);
             updateSparks(dt);
@@ -2648,6 +2751,8 @@
             if (crashRealT > 5.5) {
                 var flash = document.getElementById('g3dCrashFlash');
                 if (flash) flash.classList.remove('is-active');
+                setCrashCinema(false);
+                clearSoftWreck();
                 crashActive = false;
                 endGame(crashScore);
             }
@@ -2933,7 +3038,7 @@
                 var rampMat = standard(0x2b3038, { metalness: 0.55, roughness: 0.4 });
                 var ramp = boxMesh(2.3, 0.14, 4.4, rampMat);
                 ramp.position.set(0, 1.0, 1.5);
-                ramp.rotation.x = -0.3;
+                ramp.rotation.x = 0.3;
                 car.add(ramp);
                 var lip = boxMesh(2.3, 0.12, 0.3, new THREE.MeshBasicMaterial({ color: 0xffc400 }));
                 lip.position.set(0, 1.62, -0.55);
@@ -4086,6 +4191,7 @@
                 if (!ctx2) return null;
                 try { ctx2.drawImage(src, 0, 0, 160, 90); return canvas.toDataURL('image/jpeg', 0.42); } catch (e) { return null; }
             },
+            isCinematic: function () { return crashActive; },
             renderCameras: function () {
                 var hide = document.getElementById('g3dRemoteCams');
                 if (!renderer || !scene || garageMode || paused || isMobileDevice) {
@@ -6223,7 +6329,13 @@
             active.update(dt);
         }
         if (renderer && scene && camera) {
-            renderFrame();
+            var shouldRender = true;
+            if (active && active.isCinematic && active.isCinematic()) {
+                var nowCinema = (global.performance && global.performance.now) ? global.performance.now() : Date.now();
+                if (nowCinema - lastCinemaFrame < 33.3) shouldRender = false;
+                else lastCinemaFrame = nowCinema;
+            }
+            if (shouldRender) renderFrame();
             if (pendingFrameCapture) {
                 pendingFrameCapture = false;
                 if (active && active.captureFrame) {
@@ -6279,6 +6391,7 @@
 
         clock = new THREE.Clock();
         resetMotionBlurHistory();
+        lastCinemaFrame = 0;
         motionBlurAutoOff = isMobileDevice;
         lowFpsTime = 0;
         var factory = factories[gameId];

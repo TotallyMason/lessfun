@@ -1043,6 +1043,7 @@ function openGame(id) {
                     '</div>' +
                 '</div>' : '') +
             '<div class="game3d-crash" id="g3dCrashFlash"></div>' +
+            (game.id === 1 ? '<div class="g3d-cinema" id="g3dCinema"><span>720p · 30 FPS · SLOW-MO · RAY-TRACED LOOK</span></div>' : '') +
             (game.hasThrottle ? '<div class="game3d-fsd" id="g3dFsd"><span>FSD ACTIVE</span></div>' : '') +
             (game.hasThrottle ? '<div class="game3d-fsd-hud" id="g3dFsdHud"><span>FSD</span><canvas id="g3dFsdCanvas" width="260" height="156"></canvas></div>' : '') +
             '<div class="game3d-warning" id="g3dWarning"></div>' +
@@ -6654,8 +6655,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.36.0";
-const UPDATE_NOTES = "Ramp trucks now launch you without triggering a crash. Three.js optimizations add tighter camera far planes, scenery LOD culling, lower mobile detail, and adaptive graphics. Dead Coast always opens on its start screen";
+const APP_VERSION = "LessFun Developer Beta 1.37.0";
+const UPDATE_NOTES = "Ramp trucks are oriented correctly and no longer count as crashes. Beach Racer wrecks now become one soft-body mesh and enter a 720p 30 FPS slow-motion cinematic crash replay with a ray-traced-style grade";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

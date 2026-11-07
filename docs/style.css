@@ -8849,3 +8849,32 @@ body.has-avatar-frame .friend-avatar {
         repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px),
         radial-gradient(circle at 50% 44%, transparent 48%, rgba(10, 24, 38, 0.12) 100%);
 }
+
+/* 720p slow-motion crash cinema */
+.g3d-cinema {
+    position: absolute;
+    inset: 0;
+    z-index: 7;
+    display: none;
+    pointer-events: none;
+    background:
+        linear-gradient(180deg, #000 0 7%, transparent 7% 93%, #000 93% 100%),
+        radial-gradient(circle at 50% 50%, transparent 48%, rgba(0, 4, 10, 0.55) 100%);
+    box-shadow: inset 0 0 140px rgba(0, 0, 0, 0.55);
+}
+.g3d-cinema.is-active { display: block; }
+.g3d-cinema span {
+    position: absolute;
+    top: 8%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 5px 13px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 210, 120, 0.45);
+    background: rgba(10, 6, 2, 0.72);
+    color: #ffe2a0;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    white-space: nowrap;
+}
