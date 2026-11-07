@@ -9672,3 +9672,44 @@ body.film-grain-on .g3d-grain { display: block; }
     font-weight: 800;
     letter-spacing: 0.1em;
 }
+
+/* Beach Racer P / R / N / D selector */
+.g3d-gears {
+    position: absolute;
+    left: 50%;
+    bottom: 22px;
+    transform: translateX(-50%);
+    z-index: 6;
+    display: flex;
+    gap: 6px;
+    padding: 6px 8px;
+    border-radius: 999px;
+    background: rgba(8, 12, 20, 0.66);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+}
+.g3d-gears button {
+    width: 34px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+.g3d-gears button.is-active {
+    border-color: rgba(255, 209, 102, 0.75);
+    background: rgba(255, 209, 102, 0.18);
+    color: #ffe2a0;
+    box-shadow: 0 0 14px rgba(255, 190, 90, 0.25);
+}
+.game3d-wrap.is-garage .g3d-gears { display: none; }
+@media (max-width: 640px) {
+    .g3d-gears { bottom: 200px; gap: 4px; padding: 5px 6px; }
+    .g3d-gears button { width: 30px; height: 29px; font-size: 11px; }
+}

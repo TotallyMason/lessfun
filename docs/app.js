@@ -892,6 +892,10 @@ function mobileShift(direction) {
     if (window.Games3D && window.Games3D.shiftGear) window.Games3D.shiftGear(direction > 0 ? 1 : -1);
 }
 
+function setRacerGear(mode) {
+    if (window.Games3D && window.Games3D.setGearMode) window.Games3D.setGearMode(mode);
+}
+
 function mobileFsd() {
     if (window.Games3D && window.Games3D.toggleFsd) window.Games3D.toggleFsd();
 }
@@ -1177,6 +1181,12 @@ function openGame(id) {
                         '</div>' +
                     '</div>' +
                 '</div>' : '') +
+            (game.id === 1 ? '<div class="g3d-gears" id="g3dGears">' +
+                '<button type="button" data-gear="P" onclick="setRacerGear(\'P\')">P</button>' +
+                '<button type="button" data-gear="R" onclick="setRacerGear(\'R\')">R</button>' +
+                '<button type="button" data-gear="N" onclick="setRacerGear(\'N\')">N</button>' +
+                '<button type="button" data-gear="D" onclick="setRacerGear(\'D\')" class="is-active">D</button>' +
+            '</div>' : '') +
             '<div class="game3d-crash" id="g3dCrashFlash"></div>' +
             '<div class="g3d-grain" aria-hidden="true"></div>' +
             (game.id === 1 ? '<div class="g3d-cinema" id="g3dCinema"></div>' : '') +
@@ -7604,8 +7614,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.25";
-const UPDATE_NOTES = "Crash sparks, smoke, and debris now fly backward with the road instead of following the car, so minor collisions read properly. Also includes smoother Beach Racer steering, stronger speed sensation with wind streaks and wider FOV, first-person camera turn, and the smaller cockpit wheel";
+const APP_VERSION = "LessFun Public Beta 1.32.26";
+const UPDATE_NOTES = "Beach Racer has its P / R / N / D gear selector back at the bottom of the screen, and steering is much smoother with lower turn rates and stronger high-speed stability. Crash particles now fall behind instead of following the car";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

@@ -2430,6 +2430,13 @@
             if (brakeFill) brakeFill.style.height = Math.round(brakeDisplay * 100) + '%';
             var coinEl = document.getElementById('g3dRunCoins');
             if (coinEl) setPillText('g3dRunCoins', coinsCollected);
+            var gearWrap = document.getElementById('g3dGears');
+            if (gearWrap) {
+                var gearBtns = gearWrap.querySelectorAll('button');
+                for (var gbi = 0; gbi < gearBtns.length; gbi++) {
+                    gearBtns[gbi].classList.toggle('is-active', gearBtns[gbi].getAttribute('data-gear') === gearMode);
+                }
+            }
         }
 
         /* ---------------- Crash physics and debris ---------------- */
@@ -4337,7 +4344,7 @@
             else if (input.pointerActive) steerTarget = ((input.pointerX * maxX) - player.position.x) / Math.max(1, maxX) * 0.72;
             else steerTarget = steerInput * 0.52;
             steerTarget = Math.max(-0.58, Math.min(0.58, steerTarget));
-            steerAngle += (steerTarget - steerAngle) * Math.min(1, dt * 6);
+            steerAngle += (steerTarget - steerAngle) * Math.min(1, dt * 4.5);
             if (fsdActive) {
                 steerX += (fsdSteerX - steerX) * Math.min(1, dt * (2.0 + speedSteerFactor * 3.5));
                 if (Math.abs(speed) < 1) steerX = player.position.x;
@@ -4346,16 +4353,16 @@
                 steerX = player.position.x;
             } else if (input.pointerActive) {
                 var pointerTarget = Math.max(-maxX, Math.min(maxX, input.pointerX * maxX * 1.08));
-                steerX += (pointerTarget - steerX) * Math.min(1, dt * 6 * speedSteerFactor);
+                steerX += (pointerTarget - steerX) * Math.min(1, dt * 4.2 * speedSteerFactor);
                 steerX = Math.max(-maxX, Math.min(maxX, steerX));
             } else {
-                var highSpeedStability = 1 - 0.42 * Math.min(1, Math.abs(speed) / 140);
-                steerX += steerInput * dt * 6.1 * perf.grip * speedSteerFactor * highSpeedStability * (driftIntent ? 1.45 : 1);
+                var highSpeedStability = 1 - 0.52 * Math.min(1, Math.abs(speed) / 130);
+                steerX += steerInput * dt * 4.4 * perf.grip * speedSteerFactor * highSpeedStability * (driftIntent ? 1.35 : 1);
                 steerX = Math.max(-maxX, Math.min(maxX, steerX));
             }
 
             var beforeX = player.position.x;
-            player.position.x += (steerX - player.position.x) * Math.min(1, dt * (driftIntent ? 5.5 : 7));
+            player.position.x += (steerX - player.position.x) * Math.min(1, dt * (driftIntent ? 4.2 : 5.2));
             player.position.x = Math.max(-maxX, Math.min(maxX, player.position.x));
             var vx = (player.position.x - beforeX) / (dt || 0.016);
             currentVx = vx;
@@ -4363,8 +4370,8 @@
             if (driftAudioTarget > 0.2 && audioDriftLevel < 0.12) tone(480, 0.12, 'sawtooth', 0.032, 220);
             audioDriftLevel += (driftAudioTarget - audioDriftLevel) * Math.min(1, dt * 9);
 
-            var yawLimit = driftIntent ? 0.62 : 0.34;
-            var rollLimit = driftIntent ? 0.28 : 0.16;
+            var yawLimit = driftIntent ? 0.55 : 0.26;
+            var rollLimit = driftIntent ? 0.24 : 0.12;
             var yawTarget = vx * 0.045 * (driftIntent ? 2.0 : 1) * (0.35 + speedSteerFactor * 0.65) + steerAngle * 0.45;
             player.rotation.y = Math.max(-yawLimit, Math.min(yawLimit, -yawTarget)) - roadTangentAt(player.position.z);
             var steerPivots = player.userData.suspensionPivots || [];
@@ -4809,6 +4816,13 @@
             getCoins: function () { return coinsCollected; },
             teleport: teleportRacer,
             setGarage: setGarageMode,
+            setGear: function (mode) {
+                if (mode === 'P' || mode === 'R' || mode === 'N' || mode === 'D') {
+                    gearMode = mode;
+                    input.gearUp = false;
+                    input.gearDown = false;
+                }
+            },
             toggleFsd: function () { input.fsdToggle = true; },
             setRemotes: setRemoteRacers,
             setLocalName: setLocalRacerName,
@@ -8363,6 +8377,9 @@
     function setGarageMode(on) {
         if (active && active.setGarage) active.setGarage(on);
     }
+    function setGearMode(mode) {
+        if (active && active.setGear) active.setGear(mode);
+    }
     function toggleFsd() {
         if (active && active.toggleFsd) active.toggleFsd();
     }
@@ -8407,6 +8424,7 @@
         setUnitSystem: setUnitSystem,
         teleportRacer: teleportRacer,
         setGarageMode: setGarageMode,
+        setGearMode: setGearMode,
         toggleFsd: toggleFsd,
         toggleShadowHelper: toggleShadowHelper,
         getCurrentScore: getCurrentScore,
