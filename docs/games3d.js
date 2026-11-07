@@ -2425,15 +2425,29 @@
             var spec = player.userData.spec || {};
             var width = spec.width || 1.8;
             var len = spec.len || 3.2;
-            var geo = new THREE.BoxGeometry(width, 0.8, len, 7, 3, 12);
-            geo.translate(0, 0.4, 0);
+            var geo = new THREE.BoxGeometry(width, 0.9, len, 12, 4, 24);
+            geo.translate(0, 0.45, 0);
             var pos = geo.attributes.position;
             var base = new Float32Array(pos.array.length);
             var dent = new Float32Array(pos.array.length);
             for (var i = 0; i < pos.count; i++) {
                 var ix = i * 3;
                 var x = pos.array[ix], y = pos.array[ix + 1], z = pos.array[ix + 2];
-                if (y > 0.45) pos.array[ix] = x * 0.84;
+                var nx = x / (width / 2);
+                var nz = z / (len / 2);
+                var t = Math.max(0, Math.min(1, y / 0.9));
+                // Sculpt a single car-shell silhouette: low hood, raised cabin,
+                // tapered nose/tail and narrower roof instead of a plain box.
+                var cabin = 0.34 + 0.40 * Math.exp(-Math.pow((nz + 0.02) / 0.34, 2));
+                var hood = 0.12 * Math.exp(-Math.pow((nz + 0.72) / 0.22, 2));
+                var top = Math.min(0.86, cabin + hood);
+                var bottom = 0.12;
+                var shapedY = bottom + t * (top - bottom);
+                var sideTaper = 0.76 + 0.24 * (1 - t);
+                var endTaper = 0.86 + 0.14 * Math.cos(nz * 1.35);
+                pos.array[ix] = x * sideTaper * endTaper;
+                pos.array[ix + 1] = shapedY;
+                pos.array[ix + 2] = z * 0.985;
                 base[ix] = pos.array[ix];
                 base[ix + 1] = pos.array[ix + 1];
                 base[ix + 2] = pos.array[ix + 2];
