@@ -2888,7 +2888,6 @@ function dmRenderThread() {
             '<button type="button" class="game3d-dm-group-leave" onclick="dmLeaveGroup(\'' + debugArg(group.id) + '\')">Leave group</button>' +
         '</div>';
         thread.innerHTML = html;
-        thread.scrollTop = thread.scrollHeight;
         return;
     }
     if (!dmState.contact) {
@@ -2907,7 +2906,6 @@ function dmRenderThread() {
             '<span class="game3d-dm-msg-time">' + escapeHtml(new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) + '</span>' +
         '</div>';
     }).join('');
-    thread.scrollTop = thread.scrollHeight;
 }
 
 async function dmLoadInbox() {
@@ -7700,8 +7698,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.37";
-const UPDATE_NOTES = "Community posts can now be up to 20,000 characters. The floating radio button hides while the full radio panel is open, and the LESSFUN RADIO header text was removed";
+const APP_VERSION = "LessFun Public Beta 1.32.38";
+const UPDATE_NOTES = "Messages no longer jump to the bottom when a thread refreshes, so you can read older messages without being pulled down. Community posts support up to 20,000 characters, and the radio panel hides its floating button while open";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
