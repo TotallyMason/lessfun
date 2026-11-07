@@ -6655,8 +6655,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.39.0";
-const UPDATE_NOTES = "Beach Racer crash wrecks now use the real merged car model as one soft body, and a seatbelt tether keeps the driver ragdoll attached during the cinematic crash instead of letting it fly free";
+const APP_VERSION = "LessFun Public Beta 1.32.9";
+const UPDATE_NOTES = "Crash physics research pass: smooth crumple-zone falloff protects the cabin, real car geometry is merged into one soft body, normals rebuild during deformation, and a seatbelt tether keeps the driver ragdoll restrained";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

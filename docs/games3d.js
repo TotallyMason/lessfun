@@ -2489,27 +2489,28 @@
             var pos = geo.attributes.position;
             var base = new Float32Array(pos.array.length);
             var dent = new Float32Array(pos.array.length);
+            var width = (spec.width || 1.8);
+            var len = (spec.len || 3.2);
+            var impactX = zone === 'left' ? -width * 0.5 : zone === 'right' ? width * 0.5 : 0;
+            var impactZ = zone === 'front' ? -len * 0.5 : zone === 'rear' ? len * 0.5 : 0;
+            var dirX = zone === 'left' ? 1 : zone === 'right' ? -1 : 0;
+            var dirZ = zone === 'front' ? 1 : zone === 'rear' ? -1 : 0;
             for (var i = 0; i < pos.count; i++) {
                 var ix = i * 3;
                 var x = pos.array[ix], y = pos.array[ix + 1], z = pos.array[ix + 2];
                 base[ix] = x; base[ix + 1] = y; base[ix + 2] = z;
-                var hit = zone === 'front' ? z < 0 :
-                    zone === 'rear' ? z > 0 :
-                    zone === 'left' ? x < 0 : x > 0;
-                if (hit) {
-                    var f = severity * 1.35;
-                    if (zone === 'front' || zone === 'rear') {
-                        var zs = zone === 'front' ? -1 : 1;
-                        dent[ix] += (Math.random() - 0.5) * f * 0.2;
-                        dent[ix + 1] += (Math.random() - 0.5) * f * 0.14;
-                        dent[ix + 2] += zs * f * (0.3 + Math.random() * 0.42);
-                    } else {
-                        var xs = zone === 'left' ? -1 : 1;
-                        dent[ix] += xs * f * (0.3 + Math.random() * 0.42);
-                        dent[ix + 1] += (Math.random() - 0.5) * f * 0.16;
-                        dent[ix + 2] += (Math.random() - 0.5) * f * 0.18;
-                    }
-                }
+                // Smooth crumple-zone falloff: the impact area deforms, while
+                // the occupant cell stays mostly intact.
+                var dx = x - impactX, dz = z - impactZ;
+                var dist = Math.sqrt(dx * dx + dz * dz);
+                var falloff = Math.exp(-(dist * dist) / (2 * 0.72 * 0.72));
+                if (falloff < 0.015) continue;
+                var f = severity * 1.15 * falloff;
+                var cabinGuard = (Math.abs(z) < len * 0.22 && y > 0.45) ? 0.28 : 1;
+                f *= cabinGuard;
+                dent[ix] += dirX * f * 0.78 + (Math.random() - 0.5) * f * 0.045;
+                dent[ix + 1] += -f * 0.18 + (Math.random() - 0.5) * f * 0.035;
+                dent[ix + 2] += dirZ * f * 0.78 + (Math.random() - 0.5) * f * 0.045;
             }
             pos.needsUpdate = true;
             geo.computeVertexNormals();
@@ -2532,11 +2533,16 @@
             crashSoftBody.quaternion.copy(player.quaternion);
             var pos = crashSoftBody.geometry.attributes.position;
             var arr = pos.array;
-            var wobble = 0.88 + Math.sin(crashRealT * 22) * 0.12;
+            var settle = Math.max(0, 1 - crashRealT / 2.8);
+            var wobble = 1 + Math.sin(crashRealT * 22) * 0.16 * settle;
             for (var i = 0; i < arr.length; i++) {
                 arr[i] = crashSoftBase[i] + crashSoftDent[i] * wobble;
             }
             pos.needsUpdate = true;
+            if (!crashSoftBody.userData.normalAt || crashRealT - crashSoftBody.userData.normalAt > 0.09) {
+                crashSoftBody.userData.normalAt = crashRealT;
+                crashSoftBody.geometry.computeVertexNormals();
+            }
         }
 
         function launchRagdoll(dir, impactSpeed, zone) {
@@ -2991,6 +2997,8 @@
                 var flash = document.getElementById('g3dCrashFlash');
                 if (flash) flash.classList.remove('is-active');
                 setCrashCinema(false);
+                if (seatbeltStrap) seatbeltStrap.visible = false;
+                ragdollTethered = false;
                 clearSoftWreck();
                 crashActive = false;
                 endGame(crashScore);
