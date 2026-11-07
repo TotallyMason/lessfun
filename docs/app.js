@@ -7604,8 +7604,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.24";
-const UPDATE_NOTES = "Beach Racer steering is smoother and less twitchy at speed, and the sense of speed is stronger with rushing wind streaks, a wider speed FOV, and more road vibration. The first-person camera and smaller cockpit wheel from the last update remain";
+const APP_VERSION = "LessFun Public Beta 1.32.25";
+const UPDATE_NOTES = "Crash sparks, smoke, and debris now fly backward with the road instead of following the car, so minor collisions read properly. Also includes smoother Beach Racer steering, stronger speed sensation with wind streaks and wider FOV, first-person camera turn, and the smaller cockpit wheel";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

@@ -2512,7 +2512,7 @@
                 var ix = i * 3;
                 sparkPositions[ix] += sparkVelocities[ix] * dt;
                 sparkPositions[ix + 1] += sparkVelocities[ix + 1] * dt;
-                sparkPositions[ix + 2] += sparkVelocities[ix + 2] * dt;
+                sparkPositions[ix + 2] += sparkVelocities[ix + 2] * dt + speed * dt;
                 sparkVelocities[ix + 1] -= 32 * dt;
                 if (sparkPositions[ix + 1] < 0.06) {
                     sparkPositions[ix + 1] = 0.06;
@@ -2549,7 +2549,7 @@
                 d.life -= dt;
                 d.mesh.position.x += d.vx * dt;
                 d.mesh.position.y += d.vy * dt;
-                d.mesh.position.z += d.vz * dt;
+                d.mesh.position.z += (d.vz + speed) * dt;
                 d.vy -= 24 * dt;
                 d.mesh.rotation.x += d.spinX * dt;
                 d.mesh.rotation.y += d.spinY * dt;
@@ -3260,7 +3260,7 @@
                 var grow = 1 + (0.75 - p.life) * 2.4;
                 p.sprite.scale.set(grow, grow * 0.85, 1);
                 p.sprite.position.y += dt * 1.1;
-                p.sprite.position.z += speed * dt * 0.75;
+                p.sprite.position.z += speed * dt;
             }
         }
 
