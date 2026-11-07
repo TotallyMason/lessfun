@@ -817,6 +817,7 @@ function openGame(id) {
         return;
     }
     currentGameId = id;
+    if (id === 4) startMenuSuppressed = false;
     document.getElementById('modalGameTitle').textContent = game.name;
     const body = document.getElementById('modalGameBody');
     body.innerHTML =
@@ -6653,8 +6654,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.35.0";
-const UPDATE_NOTES = "Dead Coast now uses Cannon.js physics for player movement, zombie collisions, and static obstacles, while Beach Racer uses Cannon.js rigid bodies for crash wrecks and impacts";
+const APP_VERSION = "LessFun Developer Beta 1.36.0";
+const UPDATE_NOTES = "Ramp trucks now launch you without triggering a crash. Three.js optimizations add tighter camera far planes, scenery LOD culling, lower mobile detail, and adaptive graphics. Dead Coast always opens on its start screen";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

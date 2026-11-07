@@ -162,6 +162,7 @@ handling real user data or payments.
 - Checkpoint gates every 500 m with a CP counter and a +250 score bonus per gate, plus a host-only start and restart button
 - Manual Q/E gear selector (P, R, N, D) with reverse and park in Beach Racer
 - Speed-scaled steering that locks at a standstill, automatic drift detection from speed/steering/braking, and an **F-key FSD** mode with safer multi-lane choices, a Tesla-style lane/traffic display, animated blue chevrons, smooth automatic braking, emergency braking, and visible turn signals for the car and traffic
+- Three.js performance pass: tighter camera far planes, scenery LOD visibility culling, mobile detail counts, resolution presets, and automatic motion-blur shutdown
 - Richer multi-oscillator engine notes with gear-shift sounds and tire-screech drift audio
 - Ignition bar, synthesized engine/tire/nitrous audio, and a drainable nitrous boost on **Shift** or **N**, with a NITRO SHIFT kick
 - Gold track coins that are collected during a run and paid into the Coins wallet at game over

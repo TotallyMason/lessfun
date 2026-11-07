@@ -431,8 +431,8 @@
         var LANES = [-8.0, -4.8, -1.6, 1.6, 4.8, 8.0];
         var ROAD_W = 20.8;
         var scrollers = [];
-        function addScroller(obj, wrap, factor) {
-            scrollers.push({ obj: obj, wrap: wrap, factor: factor == null ? 1 : factor, baseX: obj.position.x, baseRotY: obj.rotation ? obj.rotation.y : 0 });
+        function addScroller(obj, wrap, factor, lodRange) {
+            scrollers.push({ obj: obj, wrap: wrap, factor: factor == null ? 1 : factor, lodRange: lodRange || 0, baseX: obj.position.x, baseRotY: obj.rotation ? obj.rotation.y : 0 });
             scene.add(obj);
             return obj;
         }
@@ -764,7 +764,7 @@
             palm.rotation.y = Math.random() * Math.PI * 2;
             var palmScale = 0.82 + Math.random() * 0.3;
             palm.scale.set(palmScale, palmScale, palmScale);
-            addScroller(palm, 252);
+            addScroller(palm, 252, 1, 190);
         }
 
         // Pastel art-deco skyline along the beach side. Low-poly boxes keep the
@@ -796,7 +796,7 @@
             var bldg = makeSkylineBuilding(bi);
             bldg.position.set(34 + (bi % 4) * 7.5, 0, 20 - bi * 31);
             bldg.rotation.y = (bi % 2 ? -1 : 1) * 0.08;
-            addScroller(bldg, 560);
+            addScroller(bldg, 560, 1, 380);
         }
 
         // Real city district: storefronts, sidewalks, cross streets, and overpasses.
@@ -840,7 +840,7 @@
             var shop = makeShop(sh);
             shop.position.set(22 + (sh % 3) * 5.5, 0, 8 - sh * 36);
             shop.rotation.y = 0;
-            addScroller(shop, 576);
+            addScroller(shop, 576, 1, 230);
         }
 
         function makeCrossStreet(index) {
@@ -858,7 +858,7 @@
         for (var cs = 0; cs < (isMobileDevice ? 3 : 4); cs++) {
             var street = makeCrossStreet(cs);
             street.position.set(0, 0, -20 - cs * 168);
-            addScroller(street, 672);
+            addScroller(street, 672, 1, 270);
         }
 
         function makeOverpass(index) {
@@ -880,7 +880,7 @@
         for (var ov = 0; ov < (isMobileDevice ? 2 : 3); ov++) {
             var bridge = makeOverpass(ov);
             bridge.position.set(0, 0, -90 - ov * 240);
-            addScroller(bridge, 720);
+            addScroller(bridge, 720, 1, 340);
         }
 
         for (var sl = 0; sl < (isMobileDevice ? 8 : 12); sl++) {
@@ -892,7 +892,7 @@
             var head = boxMesh(0.7, 0.16, 0.3, new THREE.MeshBasicMaterial({ color: 0xffe6b0 }));
             head.position.set(-1.45, 6.05, 0); cityLamp.add(head);
             cityLamp.position.set(13.9, 0, -8 - sl * 44);
-            addScroller(cityLamp, 528);
+            addScroller(cityLamp, 528, 1, 230);
         }
 
         for (var ui = 0; ui < (isMobileDevice ? 6 : 8); ui++) {
@@ -900,7 +900,7 @@
             umb.position.set(10.8 + (ui % 2) * 1.5 + Math.random() * 0.8, 0, -6 - ui * 58);
             umb.rotation.y = Math.random() * Math.PI * 2;
             umb.scale.setScalar(0.82);
-            addScroller(umb, 464);
+            addScroller(umb, 464, 1, 190);
         }
 
         // Rocks and driftwood along the shoreline.
@@ -912,7 +912,7 @@
             rock.scale.set(rs * 1.2, rs * 0.7, rs);
             rock.rotation.set(Math.random(), Math.random(), Math.random());
             rock.position.set(-12.5 - Math.random() * 7, 0.05, -Math.random() * 360);
-            addScroller(rock, 360, 0.8);
+            addScroller(rock, 360, 0.8, 260);
         }
         var driftMat = standard(0x9a7248, { roughness: 0.95 });
         for (var dr = 0; dr < 8; dr++) {
@@ -920,7 +920,7 @@
             drift.rotation.z = Math.PI / 2;
             drift.rotation.y = Math.random() * 0.7;
             drift.position.set(12 + Math.random() * 8, 0.14, -Math.random() * 320);
-            addScroller(drift, 320);
+            addScroller(drift, 320, 1, 250);
         }
 
         // Lifeguard tower and beach flags.
@@ -3740,6 +3740,7 @@
                 var sc = scrollers[si];
                 sc.obj.position.z += speed * dt * sc.factor;
                 if (sc.obj.position.z > 28) sc.obj.position.z -= sc.wrap;
+                if (sc.lodRange) sc.obj.visible = Math.abs(sc.obj.position.z - player.position.z) < sc.lodRange;
                 if (Math.abs(sc.baseX) < 14) {
                     sc.obj.position.x = sc.baseX + roadCurveOffset(sc.obj.position.z);
                     sc.obj.rotation.y = (sc.baseRotY || 0) - roadTangentAt(sc.obj.position.z);
@@ -3910,6 +3911,7 @@
                     if (rampGap > -5 && rampGap < 5) {
                         vy = Math.min(30, 10 + Math.abs(speed) * 0.09);
                         playerY = 0.4;
+                        u.rampCooldown = elapsed + 1.6;
                     }
                 }
 
@@ -3918,7 +3920,8 @@
                 var spec = u.spec || {};
                 var carHalfW = (spec.width || 1.8) / 2 + 0.72;
                 var carHalfL = (spec.len || 3.2) / 2 + 0.35;
-                if (playerY < 1.1 && Math.abs((u.logicalX != null ? u.logicalX : c.position.x) - player.position.x) < carHalfW) {
+                var rampPass = u.isRamp && u.rampCooldown && elapsed < u.rampCooldown;
+                if (!rampPass && playerY < 1.1 && Math.abs((u.logicalX != null ? u.logicalX : c.position.x) - player.position.x) < carHalfW) {
                     var carBack = Math.min(prevZ, c.position.z) - carHalfL;
                     var carFront = Math.max(prevZ, c.position.z) + carHalfL;
                     if (carBack < player.position.z + 2.75 && carFront > player.position.z - 2.75) {
@@ -4756,7 +4759,7 @@
                 if (!isMobileDevice) {
                     var cone = new THREE.Mesh(
                         new THREE.ConeGeometry(3.1, 6.4, 18, 1, true),
-                        new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0.055, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending })
+                        new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0.055, side: THREE.FrontSide, depthWrite: false, blending: THREE.AdditiveBlending })
                     );
                     cone.position.set(lp[0], 3.4, lp[1]);
                     scene.add(cone);
@@ -6269,7 +6272,7 @@
         renderer.domElement.style.touchAction = 'none';
         container.appendChild(renderer.domElement);
 
-        camera = new THREE.PerspectiveCamera(65, 1, 0.1, 700);
+        camera = new THREE.PerspectiveCamera(65, 1, 0.1, isMobileDevice ? 360 : 520);
         resize();
         resizeObs = new ResizeObserver(resize);
         resizeObs.observe(container);
@@ -6304,7 +6307,7 @@
         if (scene) disposeObject(scene);
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x05020c);
-        camera = new THREE.PerspectiveCamera(65, 1, 0.1, 700);
+        camera = new THREE.PerspectiveCamera(65, 1, 0.1, isMobileDevice ? 360 : 520);
         input.left = false; input.right = false; input.up = false; input.down = false;
         input.brake = false; input.gearDown = false; input.gearUp = false;
         input.drift = false; input.nitro = false; input.fsdToggle = false;
