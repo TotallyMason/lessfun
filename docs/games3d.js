@@ -67,6 +67,21 @@
         });
     }
 
+    function makePhysicsWorld(gravityY) {
+        if (!global.CANNON) return null;
+        var world = new global.CANNON.World();
+        world.gravity.set(0, gravityY == null ? -20 : gravityY, 0);
+        world.broadphase = new global.CANNON.SAPBroadphase(world);
+        world.solver.iterations = 8;
+        world.defaultContactMaterial.friction = 0.35;
+        world.defaultContactMaterial.restitution = 0.18;
+        var ground = new global.CANNON.Body({ mass: 0 });
+        ground.addShape(new global.CANNON.Plane());
+        ground.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+        world.addBody(ground);
+        return world;
+    }
+
     function neon(color, intensity) {
         return new THREE.MeshStandardMaterial({
             color: color,
@@ -2198,6 +2213,9 @@
 
         /* ---------------- Crash physics and debris ---------------- */
         var crashActive = false;
+        var crashWorld = makePhysicsWorld(-24);
+        var crashPlayerBody = null;
+        var crashOtherBody = null;
         var crashRealT = 0;
         var crashStartMs = 0;
         var crashScore = 0;
@@ -2467,6 +2485,29 @@
             crashCarSpin = -dir * (0.7 + Math.random() * 1.0);
             if (car.userData) car.userData.state = 'hit';
 
+            if (crashWorld && global.CANNON) {
+                if (crashPlayerBody) crashWorld.removeBody(crashPlayerBody);
+                if (crashOtherBody) crashWorld.removeBody(crashOtherBody);
+                var pSpec = player.userData.spec || {};
+                crashPlayerBody = new global.CANNON.Body({ mass: 1150 });
+                crashPlayerBody.addShape(new global.CANNON.Box(new global.CANNON.Vec3((pSpec.width || 1.8) / 2, 0.38, (pSpec.len || 3.2) / 2)));
+                crashPlayerBody.position.set(player.position.x, 0.72, player.position.z);
+                crashPlayerBody.linearDamping = 0.12;
+                crashPlayerBody.angularDamping = 0.28;
+                crashPlayerBody.velocity.set(crashVx, vy, 0);
+                crashPlayerBody.angularVelocity.set(crashSpinX, crashSpinY, crashSpinZ);
+                crashWorld.addBody(crashPlayerBody);
+
+                crashOtherBody = new global.CANNON.Body({ mass: Math.max(500, mass * 900) });
+                crashOtherBody.addShape(new global.CANNON.Box(new global.CANNON.Vec3((spec.width || 1.8) / 2, 0.38, (spec.len || 3.2) / 2)));
+                crashOtherBody.position.set(car.position.x, 0.72, car.position.z);
+                crashOtherBody.linearDamping = 0.12;
+                crashOtherBody.angularDamping = 0.32;
+                crashOtherBody.velocity.set(crashCarVx, 0, crashCarVz);
+                crashOtherBody.angularVelocity.set(0, crashCarSpin, 0);
+                crashWorld.addBody(crashOtherBody);
+            }
+
             crumpleCarPart(player.userData.bodyGroup, zone, severity);
             crumpleCarPart(car.userData && car.userData.bodyGroup, zone === 'left' ? 'right' : zone === 'right' ? 'left' : zone, severity * 0.72);
             launchRagdoll(dir, impactSpeed, zone);
@@ -2507,39 +2548,53 @@
         function updateCrash(dt) {
             var nowMs = (global.performance && global.performance.now) ? global.performance.now() : Date.now();
             crashRealT = (nowMs - crashStartMs) / 1000;
-            // Tumble and slide the player car.
-            player.position.x += crashVx * dt;
-            crashVx *= Math.max(0, 1 - dt * 0.7);
-            playerY += vy * dt;
-            vy -= 26 * dt;
-            if (playerY <= 0) {
-                playerY = 0;
-                if (vy < -2) {
-                    vy = -vy * 0.26;
-                    suspensionImpulse = 0.9;
-                    spawnSparks(player.position.x, 0.35, player.position.z, 26);
-                    spawnCrashSmoke(player.position.x, player.position.z, 3);
-                } else vy = 0;
-            }
-            player.position.y = playerY;
-            player.rotation.x += crashSpinX * dt;
-            player.rotation.y += crashSpinY * dt;
-            player.rotation.z += crashSpinZ * dt;
-            crashSpinX *= Math.max(0, 1 - dt * 1.3);
-            crashSpinY *= Math.max(0, 1 - dt * 0.65);
-            crashSpinZ *= Math.max(0, 1 - dt * 1.0);
-            speed = Math.max(0, speed - 40 * dt);
-            animateSuspension(player, dt, speed, distance, player.rotation.z, 1, suspensionImpulse);
-            suspensionImpulse *= Math.max(0, 1 - dt * 4);
-
-            // The struck car gets knocked aside.
-            if (crashCar) {
-                crashCar.position.x += crashCarVx * dt;
-                crashCar.position.z += crashCarVz * dt;
-                crashCar.rotation.y += crashCarSpin * dt;
-                crashCar.rotation.z += crashCarSpin * 0.6 * dt;
-                crashCarVx *= Math.max(0, 1 - dt * 0.8);
-                crashCarVz *= Math.max(0, 1 - dt * 0.8);
+            if (crashWorld && crashPlayerBody && crashOtherBody) {
+                crashWorld.step(1 / 60, dt, 4);
+                var pb = crashPlayerBody;
+                playerY = Math.max(0, pb.position.y - 0.72);
+                player.position.set(pb.position.x, playerY, pb.position.z);
+                player.quaternion.set(pb.quaternion.x, pb.quaternion.y, pb.quaternion.z, pb.quaternion.w);
+                speed = Math.max(0, speed - 40 * dt);
+                animateSuspension(player, dt, speed, distance, player.rotation.z, 1, suspensionImpulse);
+                suspensionImpulse *= Math.max(0, 1 - dt * 4);
+                if (crashCar) {
+                    var ob = crashOtherBody;
+                    crashCar.position.set(ob.position.x, Math.max(0, ob.position.y - 0.72), ob.position.z);
+                    crashCar.quaternion.set(ob.quaternion.x, ob.quaternion.y, ob.quaternion.z, ob.quaternion.w);
+                }
+            } else {
+                // Fallback arcade crash motion if Cannon is unavailable.
+                player.position.x += crashVx * dt;
+                crashVx *= Math.max(0, 1 - dt * 0.7);
+                playerY += vy * dt;
+                vy -= 26 * dt;
+                if (playerY <= 0) {
+                    playerY = 0;
+                    if (vy < -2) {
+                        vy = -vy * 0.26;
+                        suspensionImpulse = 0.9;
+                        spawnSparks(player.position.x, 0.35, player.position.z, 26);
+                        spawnCrashSmoke(player.position.x, player.position.z, 3);
+                    } else vy = 0;
+                }
+                player.position.y = playerY;
+                player.rotation.x += crashSpinX * dt;
+                player.rotation.y += crashSpinY * dt;
+                player.rotation.z += crashSpinZ * dt;
+                crashSpinX *= Math.max(0, 1 - dt * 1.3);
+                crashSpinY *= Math.max(0, 1 - dt * 0.65);
+                crashSpinZ *= Math.max(0, 1 - dt * 1.0);
+                speed = Math.max(0, speed - 40 * dt);
+                animateSuspension(player, dt, speed, distance, player.rotation.z, 1, suspensionImpulse);
+                suspensionImpulse *= Math.max(0, 1 - dt * 4);
+                if (crashCar) {
+                    crashCar.position.x += crashCarVx * dt;
+                    crashCar.position.z += crashCarVz * dt;
+                    crashCar.rotation.y += crashCarSpin * dt;
+                    crashCar.rotation.z += crashCarSpin * 0.6 * dt;
+                    crashCarVx *= Math.max(0, 1 - dt * 0.8);
+                    crashCarVz *= Math.max(0, 1 - dt * 0.8);
+                }
             }
             updateCrashDebris(dt);
             updateRagdoll(dt);
@@ -4618,6 +4673,7 @@
         scene.add(ground);
 
         var obstacles = [];
+        var physicsWorld = makePhysicsWorld(-20);
         function addCover(x, z, w, d, h, color) {
             var mesh = box(w, h, d, std(color, { roughness: 0.78, metalness: 0.18 }));
             mesh.position.set(x, h / 2, z);
@@ -4637,6 +4693,12 @@
         [[0, -35, 72, 0.8], [0, 35, 72, 0.8], [-35, 0, 0.8, 72], [35, 0, 0.8, 72]].forEach(function (w) {
             var wall = box(w[2], 4.2, w[3], wallMat);
             wall.position.set(w[0], 2.1, w[1]); scene.add(wall);
+            if (physicsWorld && global.CANNON) {
+                var wallBody = new global.CANNON.Body({ mass: 0 });
+                wallBody.addShape(new global.CANNON.Box(new global.CANNON.Vec3(w[2] / 2, 2.1, w[3] / 2)));
+                wallBody.position.set(w[0], 2.1, w[1]);
+                physicsWorld.addBody(wallBody);
+            }
         });
 
         // City blocks and abandoned towers around the arena.
@@ -4674,6 +4736,12 @@
             if (Math.abs(bx) < 8 && Math.abs(bz) < 8) { bx += 12; bz += 12; }
             barrel.position.set(bx, 0.53, bz); scene.add(barrel);
             obstacles.push({ minX: bx - 0.45, maxX: bx + 0.45, minZ: bz - 0.45, maxZ: bz + 0.45 });
+            if (physicsWorld && global.CANNON) {
+                var barrelBody = new global.CANNON.Body({ mass: 0 });
+                barrelBody.addShape(new global.CANNON.Cylinder(0.38, 0.38, 1.05, 10));
+                barrelBody.position.set(bx, 0.53, bz);
+                physicsWorld.addBody(barrelBody);
+            }
         }
 
         var lampMat = new THREE.MeshBasicMaterial({ color: 0xffe6b0 });
@@ -4722,6 +4790,12 @@
             scene.add(g);
             lootCrates.push(g);
             obstacles.push({ minX: x - 0.6, maxX: x + 0.6, minZ: z - 0.48, maxZ: z + 0.48 });
+            if (physicsWorld && global.CANNON) {
+                var crateBody = new global.CANNON.Body({ mass: 0 });
+                crateBody.addShape(new global.CANNON.Box(new global.CANNON.Vec3(0.6, 0.42, 0.48)));
+                crateBody.position.set(x, 0.42, z);
+                physicsWorld.addBody(crateBody);
+            }
         }
         makeLootCrate(-9, -4);
         makeLootCrate(7, 5);
@@ -4751,6 +4825,17 @@
         camera.add(flashlight.target);
 
         var px = 0, pz = 0, eyeY = 1.68, vy = 0, onGround = true;
+        var playerBody = null;
+        if (physicsWorld && global.CANNON) {
+            playerBody = new global.CANNON.Body({ mass: 75 });
+            playerBody.addShape(new global.CANNON.Sphere(0.5));
+            playerBody.position.set(px, 0.5, pz);
+            playerBody.fixedRotation = true;
+            playerBody.updateMassProperties();
+            playerBody.linearDamping = 0.92;
+            playerBody.allowSleep = false;
+            physicsWorld.addBody(playerBody);
+        }
         var yaw = 0, pitch = 0;
         var WEAPONS = {
             pistol: { name: 'Pistol', mag: 12, damage: 42, headshot: 120, rate: 0.23, spread: 0.006, pellets: 1, reload: 1.0, noise: 28 },
@@ -4931,6 +5016,20 @@
             });
             g.userData.lodDetails = zDetails;
             g.userData.lodVisible = true;
+            if (physicsWorld && global.CANNON) {
+                var zBodyMass = ztype === 'boss' ? 320 : (ztype === 'brute' ? 80 : (ztype === 'runner' ? 18 : 35));
+                var zBody = new global.CANNON.Body({ mass: netHost ? zBodyMass : 0 });
+                zBody.addShape(new global.CANNON.Sphere(0.48 * scale));
+                zBody.position.set(0, 0.9, 0);
+                zBody.fixedRotation = true;
+                zBody.updateMassProperties();
+                zBody.linearDamping = 0.75;
+                zBody.allowSleep = false;
+                if (!netHost) zBody.type = global.CANNON.Body.KINEMATIC;
+                physicsWorld.addBody(zBody);
+                g.userData.body = zBody;
+                g.userData.bodyMass = zBodyMass;
+            }
             scene.add(g);
             zombies.push(g);
         }
@@ -4944,10 +5043,18 @@
                 var d = 20 + Math.random() * 9;
                 var x = Math.max(-31, Math.min(31, px + Math.cos(a) * d));
                 var z = Math.max(-31, Math.min(31, pz + Math.sin(a) * d));
-                if (!blockedAt(x, z, 0.6)) { makeZombie(forced); zombies[zombies.length - 1].position.set(x, 0, z); return; }
+                if (!blockedAt(x, z, 0.6)) {
+                    makeZombie(forced);
+                    var spawned = zombies[zombies.length - 1];
+                    spawned.position.set(x, 0, z);
+                    if (spawned.userData.body) spawned.userData.body.position.set(x, 0.9, z);
+                    return;
+                }
             }
             makeZombie(forced);
-            zombies[zombies.length - 1].position.set(0, 0, -26);
+            var fallback = zombies[zombies.length - 1];
+            fallback.position.set(0, 0, -26);
+            if (fallback.userData.body) fallback.userData.body.position.set(0, 0.9, -26);
         }
 
         function startWave(n) {
@@ -5161,6 +5268,7 @@
             if (index >= 0) zombies.splice(index, 1);
             var u = zombie.userData;
             u.dead = true;
+            if (u.body && physicsWorld) physicsWorld.removeBody(u.body);
             var dir = lastShotDir;
             var corpse = {
                 group: zombie,
@@ -5290,6 +5398,18 @@
             netHost = active === false ? true : !!host;
             netSend = typeof send === 'function' ? send : null;
             if (!netHost) spawnQueue = 0;
+            for (var i = 0; i < zombies.length; i++) {
+                var body = zombies[i].userData.body;
+                if (!body || !global.CANNON) continue;
+                if (netHost) {
+                    body.type = global.CANNON.Body.DYNAMIC;
+                    body.mass = zombies[i].userData.bodyMass || 35;
+                } else {
+                    body.type = global.CANNON.Body.KINEMATIC;
+                    body.mass = 0;
+                }
+                body.updateMassProperties();
+            }
         }
 
         function netSendEvent(name, payload) {
@@ -5377,11 +5497,16 @@
                     z.position.x += ((Number(zd.x) || 0) - z.position.x) * 0.65;
                     z.position.z += ((Number(zd.z) || 0) - z.position.z) * 0.65;
                 }
+                if (z.userData.body) {
+                    z.userData.body.position.set(Number(zd.x) || 0, 0.9, Number(zd.z) || 0);
+                    z.userData.body.velocity.set(0, 0, 0);
+                }
                 z.userData.health = Number(zd.hp) || 0;
             }
             for (var j = zombies.length - 1; j >= 0; j--) {
                 if (!seen[String(zombies[j].userData.id)]) {
                     var dead = zombies[j];
+                    if (dead.userData.body && physicsWorld) physicsWorld.removeBody(dead.userData.body);
                     zombies.splice(j, 1);
                     scene.remove(dead); disposeObject(dead);
                 }
@@ -5477,19 +5602,38 @@
             sprinting = !!(wantSprint && moving && stamina > 1);
             if (sprinting) stamina = Math.max(0, stamina - 27 * dt);
             else stamina = Math.min(100, stamina + (moving ? 8 : 16) * dt);
+            var moveSpeed = sprinting ? 7.4 : (isMobileDevice ? 5.0 : 4.0);
             if (moving) {
                 var len = Math.sqrt(mx * mx + mz * mz); mx /= len; mz /= len;
-                var speed = sprinting ? 7.4 : (isMobileDevice ? 5.0 : 4.0);
-                var nx = px + mx * speed * dt, nz = pz + mz * speed * dt;
-                if (!blockedAt(nx, pz)) px = nx;
-                if (!blockedAt(px, nz)) pz = nz;
+            }
+            if (playerBody) {
+                playerBody.velocity.x = moving && !downed ? mx * moveSpeed : 0;
+                playerBody.velocity.z = moving && !downed ? mz * moveSpeed : 0;
+                if (!downed && input.jump && onGround) { playerBody.velocity.y = 6.4; onGround = false; }
+                physicsWorld.step(1 / 60, dt, 3);
+                px = playerBody.position.x;
+                pz = playerBody.position.z;
+                eyeY = playerBody.position.y + 1.18;
+                onGround = playerBody.position.y <= 0.58 && Math.abs(playerBody.velocity.y) < 1.2;
+            } else {
+                if (moving) {
+                    var nx = px + mx * moveSpeed * dt, nz = pz + mz * moveSpeed * dt;
+                    if (!blockedAt(nx, pz)) px = nx;
+                    if (!blockedAt(px, nz)) pz = nz;
+                }
+                if (!downed && input.jump && onGround) { vy = 6.4; onGround = false; }
+                vy -= 19 * dt;
+                eyeY += vy * dt;
+                if (eyeY <= 1.68) { eyeY = 1.68; vy = 0; onGround = true; }
+            }
+            if (physicsWorld) {
+                for (var zsi = 0; zsi < zombies.length; zsi++) {
+                    var zsBody = zombies[zsi].userData.body;
+                    if (zsBody && netHost) zombies[zsi].position.set(zsBody.position.x, 0, zsBody.position.z);
+                }
             }
             noiseTimer -= dt;
             if (sprinting && noiseTimer <= 0) { noiseTimer = 0.85; makeNoise(px, pz, 13, 0.5); }
-            if (!downed && input.jump && onGround) { vy = 6.4; onGround = false; }
-            vy -= 19 * dt;
-            eyeY += vy * dt;
-            if (eyeY <= 1.68) { eyeY = 1.68; vy = 0; onGround = true; }
 
             if (input.reload) { input.reload = false; if (!downed) startReload(); }
             if (input.weapon && !downed) {
@@ -5616,7 +5760,16 @@
                     var dist = Math.sqrt(dx * dx + dz * dz);
                     if (targetDist > 1.15 && targetDist < 9999) {
                         var zs = u.speed * (1 + wave * 0.025);
-                        if (dist > 0.25) {
+                        if (u.body) {
+                            if (dist > 0.25) {
+                                u.body.velocity.x = (dx / dist) * zs;
+                                u.body.velocity.z = (dz / dist) * zs;
+                                z.rotation.y = Math.atan2(dx, dz);
+                            } else {
+                                u.body.velocity.x = 0;
+                                u.body.velocity.z = 0;
+                            }
+                        } else if (dist > 0.25) {
                             var stepX = (dx / dist) * zs * dt, stepZ = (dz / dist) * zs * dt;
                             if (!blockedAt(z.position.x + stepX, z.position.z, 0.46)) z.position.x += stepX;
                             if (!blockedAt(z.position.x, z.position.z + stepZ, 0.46)) z.position.z += stepZ;
@@ -5626,6 +5779,7 @@
                         u.armL.rotation.x = swing; u.armR.rotation.x = -swing;
                         u.legL.rotation.x = -swing * 0.7; u.legR.rotation.x = swing * 0.7;
                     } else if (targetDist <= 1.15) {
+                        if (u.body) { u.body.velocity.x = 0; u.body.velocity.z = 0; }
                         u.attackCd -= dt;
                         if (u.attackCd <= 0) {
                             u.attackCd = 0.95;

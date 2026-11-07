@@ -6653,8 +6653,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.34.0";
-const UPDATE_NOTES = "Dead Coast adds a Coin-powered Armory with buy, sell, equip and MK upgrades plus a 360-degree weapon showcase. Graphics presets range from Potato to Your Computer Will Die, with Auto Graphics control, and multiplayer now uses live camera snapshots instead of extra 3D cameras";
+const APP_VERSION = "LessFun Developer Beta 1.35.0";
+const UPDATE_NOTES = "Dead Coast now uses Cannon.js physics for player movement, zombie collisions, and static obstacles, while Beach Racer uses Cannon.js rigid bodies for crash wrecks and impacts";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
