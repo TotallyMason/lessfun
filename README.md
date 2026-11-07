@@ -199,7 +199,7 @@ handling real user data or payments.
 - Coin-gift notifications in a bell menu, showing who sent Coins and how much
 - A one-time shared **+500 Coin** reward per session for playing multiplayer with at least one other person
 - Live Now Playing list in Friends showing what signed-in players are doing, with Join buttons
-- smooth vertical throttle and brake bars at the bottom left, no ignition bar, a mobile layout without the drift button, mph/km-h setting, a live FPS/resolution counter, 60 FPS-targeted automatic resolution scaling, one-piece road geometry, and throttled ocean/HUD updates
+- smooth vertical throttle and brake bars at the bottom left, no ignition bar, a mobile layout without the drift button, defaults to the Your Computer Will Die graphics preset with auto graphics off (one-time migration), mph/km-h setting, a live FPS/resolution counter, 60 FPS-targeted automatic resolution scaling, one-piece road geometry, and throttled ocean/HUD updates
 - Graphics presets plus dynamic-shadow, crash slow-mo, film-grain, motion-blur, FPS-counter, and render-scale controls
 - 60 FPS-targeted crash cinema with a black fade into the slow-motion wreck render
 - Site-wide mobile pass: safe-area insets, full-height game modal, larger touch targets, 16px form inputs, scrollable store tabs, and responsive showroom/benchmark layouts

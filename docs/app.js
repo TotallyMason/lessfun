@@ -58,8 +58,8 @@ const GRAPHICS_PRESETS = {
 };
 let renderScaleSetting = 0;
 const isMobileUI = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || window.innerWidth < 820;
-let graphicsPresetSetting = isMobileUI ? 'medium' : 'high';
-let autoGraphicsSetting = true;
+let graphicsPresetSetting = 'extreme';
+let autoGraphicsSetting = false;
 let motionBlurSetting = !isMobileUI;
 let showFpsSetting = true;
 let shadowSetting = !isMobileUI;
@@ -83,6 +83,25 @@ try {
     if (savedGrain != null) grainSetting = savedGrain !== '0';
     const savedSlow = localStorage.getItem('lessfun_crash_slowmo');
     if (savedSlow != null) crashSlowmoSetting = savedSlow !== '0';
+
+    // First launch (or one-time migration) starts at maximum graphics with
+    // automatic resolution scaling disabled.
+    const GFX_MIGRATION_KEY = 'lessfun_gfx_extreme_default_v1';
+    if (!localStorage.getItem(GFX_MIGRATION_KEY)) {
+        graphicsPresetSetting = 'extreme';
+        autoGraphicsSetting = false;
+        motionBlurSetting = true;
+        shadowSetting = true;
+        grainSetting = true;
+        crashSlowmoSetting = true;
+        localStorage.setItem('lessfun_graphics_preset', 'extreme');
+        localStorage.setItem('lessfun_auto_graphics', '0');
+        localStorage.setItem('lessfun_motion_blur', '1');
+        localStorage.setItem('lessfun_shadows', '1');
+        localStorage.setItem('lessfun_film_grain', '1');
+        localStorage.setItem('lessfun_crash_slowmo', '1');
+        localStorage.setItem(GFX_MIGRATION_KEY, '1');
+    }
     renderScaleSetting = GRAPHICS_PRESETS[graphicsPresetSetting].scale;
 } catch (e) {}
 
@@ -7605,8 +7624,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.15";
-const UPDATE_NOTES = "Beach Racer Play is back on the highway, now with an oncoming three-lane coin run: hit the COIN RUN ramp to jump across, grab tons of coins, and hold the bonus lane until the merge. Also includes simpler controls, vertical throttle/brake bars, 780 km/h AI rivals, and a longer Funtutu Test tuned for an average 2024 PC";
+const APP_VERSION = "LessFun Public Beta 1.32.16";
+const UPDATE_NOTES = "Graphics now start at Your Computer Will Die with automatic graphics disabled, so nothing quietly lowers your resolution. Beach Racer Play is back on the highway with the oncoming three-lane COIN RUN, its ramp jump, one-way bonus lane, dense coins, 780 km/h AI rivals, and simpler controls";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
