@@ -7,7 +7,7 @@ const games = [
     { id: 1, name: "Beach Racer", description: "Outrun traffic on a six-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · A D / ← → steer · Shift / N nitrous" },
     { id: 2, name: "Tunnel Rush", description: "Thread the neon tunnel at warp speed", icon: "tunnel", controls: "Left / Right or drag to rotate" },
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
-    { id: 4, name: "Dead Coast", description: "Survive endless zombie waves in first person", icon: "skull", controls: "WASD move · trackpad look · click fire · 1/2/3 weapons · R reload · V melee · B bandage · E loot · F light · Shift sprint" },
+    { id: 4, name: "Dead Coast", description: "Drive 10 km through the dead coast, scavenging food, water, fuel, and car parts", icon: "skull", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · A D / ← → steer · drag to steer on mobile · survive 10 km" },
     { id: 5, name: "Star Dodger", description: "Weave through an asteroid storm", icon: "rocket", controls: "WASD / arrow keys to fly · drag to steer · Space / click fires when armed" },
     { id: 6, name: "Funtutu Test", description: "Benchmark your GPU and CPU, then get recommended graphics settings", icon: "bolt", controls: "Press Run Test · apply the recommended settings when it finishes" }
 ];
@@ -919,7 +919,7 @@ function openGame(id) {
     document.getElementById('modalGameTitle').textContent = game.name;
     const body = document.getElementById('modalGameBody');
     body.innerHTML =
-        '<div class="game3d-wrap' + (game.id === 4 ? ' is-fps' : '') + '">' +
+        '<div class="game3d-wrap' + (game.fpsMode ? ' is-fps' : '') + '">' +
             '<div class="game3d-hud">' +
                 '<div class="game3d-glass">' +
                     '<strong class="game3d-glass-status" id="g3dExtra">-</strong>' +
@@ -927,8 +927,21 @@ function openGame(id) {
                 '</div>' +
             '</div>' +
             '<div id="g3dCanvas" class="game3d-canvas"></div>' +
-            '<div class="game3d-remote-cams" id="g3dRemoteCams" style="display:none;"></div>' +
             (game.id === 4 ?
+                '<div class="dc-hud" id="dcHud">' +
+                    '<div class="dc-head"><span class="dc-kicker">DEAD COAST · 10 KM RUN</span><strong id="dcDistance">0.00 / 10 km</strong></div>' +
+                    '<div class="dc-progress"><i id="dcProgress"></i></div>' +
+                    '<div class="dc-bars">' +
+                        '<div class="dc-bar-row"><span>Food</span><div class="dc-track"><i id="dcFood" class="is-food"></i></div></div>' +
+                        '<div class="dc-bar-row"><span>Water</span><div class="dc-track"><i id="dcWater" class="is-water"></i></div></div>' +
+                        '<div class="dc-bar-row"><span>Fuel</span><div class="dc-track"><i id="dcFuel" class="is-fuel"></i></div></div>' +
+                    '</div>' +
+                    '<div class="dc-health"><span>CAR</span><div class="dc-health-track"><i id="dcHealth"></i></div></div>' +
+                    '<div class="dc-part" id="dcPart">Stock Parts</div>' +
+                    '<div class="dc-toast" id="dcToast"></div>' +
+                '</div>' : '') +
+            '<div class="game3d-remote-cams" id="g3dRemoteCams" style="display:none;"></div>' +
+            (game.fpsMode ?
                 '<div class="fps-crosshair" id="g3dFpsCrosshair"><span></span></div>' +
                 '<div class="fps-hitmark" id="g3dFpsHit"></div>' +
                 '<div class="fps-hud">' +
@@ -961,54 +974,22 @@ function openGame(id) {
                 '<div class="fps-damage" id="g3dFpsDamage"></div>' +
                 '<div class="fps-grade" id="g3dFpsGrade"></div>' +
                 '<div class="fps-prompt" id="g3dFpsPrompt">Click to aim · WASD · 1/2/3 weapons · V melee · B bandage · E loot · F light</div>' : '') +
-            (game.id === 4 ? '' : '<div class="game3d-hint">' + (game.controls || '') + '</div>') +
+            (game.fpsMode ? '' : '<div class="game3d-hint">' + (game.controls || '') + '</div>') +
             '<div class="game3d-perf" id="g3dPerf"><span id="g3dFps">-- FPS</span><span id="g3dRes">--</span></div>' +
             (game.hasThrottle ? '<button class="game3d-throttle" id="g3dThrottle" type="button">Throttle</button>' : '') +
             (game.hasBrake ? '<button class="game3d-brake" id="g3dBrake" type="button">Brake</button>' : '') +
-            (game.hasThrottle ? '<div class="game3d-nitro" id="g3dNitro"><span>N · NOS</span><div class="game3d-bar-track"><div class="game3d-bar-fill" id="g3dNitroFill"></div></div></div>' : '') +
+            (game.hasThrottle && game.id !== 4 ? '<div class="game3d-nitro" id="g3dNitro"><span>N · NOS</span><div class="game3d-bar-track"><div class="game3d-bar-fill" id="g3dNitroFill"></div></div></div>' : '') +
             (game.hasThrottle ?
                 '<div class="game3d-pedals" id="g3dPedals">' +
                     '<div class="game3d-pedal-row"><span>THR</span><div class="game3d-pedal-track is-throttle"><i id="g3dThrottleFill"></i></div></div>' +
                     '<div class="game3d-pedal-row"><span>BRK</span><div class="game3d-pedal-track is-brake"><i id="g3dBrakeFill"></i></div></div>' +
                 '</div>' : '') +
-            (game.hasThrottle ?
+            (game.hasThrottle && game.id !== 4 ?
                 '<div class="game3d-touch-controls">' +
                     '<button type="button" class="game3d-touch-btn is-nitro" onpointerdown="event.preventDefault();mobileHold(\'nitro\',true)" onpointerup="mobileHold(\'nitro\',false)" onpointercancel="mobileHold(\'nitro\',false)" onpointerleave="mobileHold(\'nitro\',false)">NOS</button>' +
                 '</div>' : '') +
             '<button class="game3d-msg-btn" id="g3dMsgBtn" type="button" onclick="toggleDmSidebar()">Messages</button>' +
-            '<aside class="game3d-dm" id="g3dDmSidebar">' +
-                '<div class="game3d-dm-head">' +
-                    '<div><h3>Private messages</h3><p class="game3d-dm-secure">End-to-end encrypted</p></div>' +
-                    '<button type="button" class="game3d-dm-x" onclick="toggleDmSidebar(false)">×</button>' +
-                '</div>' +
-                '<div class="game3d-dm-search">' +
-                    '<input class="game3d-mp-input" id="g3dDmSearch" type="text" maxlength="24" placeholder="Search users…" oninput="dmSearchUsers(this.value)">' +
-                    '<div class="game3d-dm-results" id="g3dDmResults"></div>' +
-                    '<button type="button" class="game3d-dm-newgroup" onclick="dmToggleGroupForm()">+ New group</button>' +
-                    '<div class="game3d-dm-groupform" id="g3dDmGroupForm" style="display:none;">' +
-                        '<input class="game3d-mp-input" id="g3dDmGroupName" type="text" maxlength="32" placeholder="Group name">' +
-                        '<input class="game3d-mp-input" id="g3dDmGroupSearch" type="text" maxlength="24" placeholder="Add people…" oninput="dmSearchGroupUsers(this.value)">' +
-                        '<div class="game3d-dm-results" id="g3dDmGroupResults"></div>' +
-                        '<div class="game3d-dm-group-selected" id="g3dDmGroupSelected"></div>' +
-                        '<div class="game3d-dm-group-actions">' +
-                            '<button type="button" class="game3d-mp-secondary" onclick="dmToggleGroupForm(false)">Cancel</button>' +
-                            '<button type="button" class="game3d-mp-primary" onclick="dmCreateGroup()">Create group</button>' +
-                        '</div>' +
-                    '</div>' +
-                '</div>' +
-                '<div class="game3d-dm-body">' +
-                    '<div class="game3d-dm-list" id="g3dDmList"></div>' +
-                    '<div class="game3d-dm-thread-wrap">' +
-                        '<div class="game3d-dm-thread" id="g3dDmThread"><p class="game3d-dm-empty">Search for a person above to start an encrypted chat.</p></div>' +
-                        '<div class="game3d-dm-compose">' +
-                            '<input class="game3d-mp-input" id="g3dDmInput" type="text" maxlength="500" placeholder="Write a message…" onkeydown="if(event.key===\'Enter\'){event.preventDefault();dmSend();}">' +
-                            '<button type="button" class="game3d-dm-send" onclick="dmSend()">Send</button>' +
-                        '</div>' +
-                    '</div>' +
-                '</div>' +
-                '<p class="game3d-dm-status" id="g3dDmStatus"></p>' +
-                '<button type="button" class="game3d-dm-close-btn" onclick="toggleDmSidebar(false)">Close Messages</button>' +
-            '</aside>' +
+
             (game.hasThrottle ?
                 '<button class="game3d-mp-btn" id="g3dMpBtn" type="button" onclick="openRacerMpPanel()">Multiplayer</button>' +
                 '<div class="game3d-mp" id="g3dMpPanel" style="display:none;">' +
@@ -1056,7 +1037,7 @@ function openGame(id) {
                     '</div>' +
                 '</div>' +
                 '<div class="game3d-arcade-board" id="g3dArcadeBoard" style="display:none;"></div>' : '') +
-            (game.id === 4 ?
+            (game.fpsMode ?
                 '<button class="game3d-mp-btn" id="g3dZombieMpBtn" type="button" onclick="openZombieMpPanel()">Public Rooms</button>' +
                 '<div class="game3d-mp" id="g3dZombieMpPanel" style="display:none;">' +
                     '<div class="game3d-mp-card zombie-mp-card">' +
@@ -1071,7 +1052,7 @@ function openGame(id) {
                         '<p class="game3d-mp-status" id="g3dZombieStatus"></p>' +
                     '</div>' +
                 '</div>' : '') +
-            (game.id === 4 ?
+            (game.fpsMode ?
                 '<div class="game3d-start" id="g3dStartMenu">' +
                     '<div class="game3d-start-card zombie-start-card">' +
                         '<span class="game3d-garage-kicker">DEAD COAST · FIRST PERSON</span>' +
@@ -1248,7 +1229,7 @@ function openGame(id) {
     }
     garageSuppressed = false;
     lastRunCoins = 0;
-    if ((id === 2 || id === 4 || id === 5) && !startMenuSuppressed) {
+    if ((id === 2 || id === 5) && !startMenuSuppressed) {
         const startMenu = document.getElementById('g3dStartMenu');
         if (startMenu) startMenu.style.display = 'flex';
         if (window.Games3D) window.Games3D.setPaused(true);
@@ -5725,17 +5706,6 @@ const COSMETICS = [
     { id: 'board_storm', type: 'board', name: 'Storm Rider', cost: 1250, color: '#495057', threeColor: 0x495057 },
 
     // Underglow
-    { id: 'glow_off', type: 'glow', name: 'No Underglow', cost: 0, default: true, none: true, color: '#555a63', threeColor: 0x555a63 },
-    { id: 'glow_pink', type: 'glow', name: 'Pink Haze', cost: 400, color: '#ff4d9d', threeColor: 0xff4d9d },
-    { id: 'glow_cyan', type: 'glow', name: 'Cyan Pulse', cost: 450, color: '#22e6ff', threeColor: 0x22e6ff },
-    { id: 'glow_lime', type: 'glow', name: 'Lime Glow', cost: 500, color: '#9dff00', threeColor: 0x9dff00 },
-    { id: 'glow_purple', type: 'glow', name: 'Violet Glow', cost: 600, color: '#b14dff', threeColor: 0xb14dff },
-    { id: 'glow_gold', type: 'glow', name: 'Golden Glow', cost: 900, color: '#ffcf4d', threeColor: 0xffcf4d },
-    { id: 'glow_rainbow', type: 'glow', name: 'Rainbow Glow', cost: 1600, rainbow: true, color: '#ff70a6', threeColor: 0xff70a6 },
-    { id: 'glow_red', type: 'glow', name: 'Red Alert', cost: 500, color: '#ff3131', threeColor: 0xff3131 },
-    { id: 'glow_blue', type: 'glow', name: 'Ice Blue', cost: 560, color: '#4dabf7', threeColor: 0x4dabf7 },
-    { id: 'glow_white', type: 'glow', name: 'Pure White', cost: 720, color: '#f8f9fa', threeColor: 0xf8f9fa },
-    { id: 'glow_sunset', type: 'glow', name: 'Sunset Fade', cost: 1050, rainbow: true, color: '#ff9f1c', threeColor: 0xff9f1c },
 
     // Wheels
     { id: 'wheel_stock', type: 'wheel', name: 'Stock Wheels', cost: 0, default: true, none: true, color: '#2b2b2b', threeColor: 0x2b2b2b },
@@ -5807,9 +5777,6 @@ const COSMETICS = [
     { id: 'board_reef', type: 'board', name: 'Reef Deck', cost: 650, color: '#00b4d8', threeColor: 0x00b4d8 },
 
     // Extra underglow
-    { id: 'glow_mint', type: 'glow', name: 'Mint Glow', cost: 500, color: '#6ee7b7', threeColor: 0x6ee7b7 },
-    { id: 'glow_violet', type: 'glow', name: 'Violet Glow', cost: 700, color: '#c084fc', threeColor: 0xc084fc },
-    { id: 'glow_fire', type: 'glow', name: 'Fire Glow', cost: 900, color: '#ff6b35', threeColor: 0xff6b35 },
 
 
     // Extra trails
@@ -6119,7 +6086,6 @@ const COSMETIC_CATEGORIES = [
     { type: 'aero', label: 'Aero Parts', blurb: 'Splitters, wings, and diffusers that add real grip and top speed.' },
     { type: 'kit', label: 'Body Kits', blurb: 'Widebody and track kits that change acceleration and grip.' },
     { type: 'board', label: 'Surfboards', blurb: 'Roof boards that ride along with you.' },
-    { type: 'glow', label: 'Underglow', blurb: 'Neon light pools under the car.' },
     { type: 'wheel', label: 'Wheels', blurb: 'Rims that pop against the sand.' },
     { type: 'trail', label: 'Exhaust Trails', blurb: 'Glowing streaks behind the rear bumper.' },
     { type: 'umbrella', label: 'Beach Umbrellas', blurb: 'Dress the whole shoreline in one colour.' }
@@ -6127,7 +6093,7 @@ const COSMETIC_CATEGORIES = [
 
 const COSMETIC_TYPES = COSMETIC_CATEGORIES.map(function (category) { return category.type; });
 const GLOBAL_COSMETIC_TYPES = ['theme', 'frame'];
-const GARAGE_COSMETIC_TYPES = ['paint', 'body', 'engine', 'aero', 'kit', 'board', 'glow', 'wheel', 'trail', 'umbrella'];
+const GARAGE_COSMETIC_TYPES = ['paint', 'body', 'engine', 'aero', 'kit', 'board', 'wheel', 'trail', 'umbrella'];
 
 let wallet = null;
 let walletLoadToken = 0;
@@ -7624,8 +7590,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.16";
-const UPDATE_NOTES = "Graphics now start at Your Computer Will Die with automatic graphics disabled, so nothing quietly lowers your resolution. Beach Racer Play is back on the highway with the oncoming three-lane COIN RUN, its ramp jump, one-way bonus lane, dense coins, 780 km/h AI rivals, and simpler controls";
+const APP_VERSION = "LessFun Public Beta 1.32.17";
+const UPDATE_NOTES = "Dead Coast is now a full 10 km road survival run: manage food, water, fuel, and car health while scavenging supplies and car-part upgrades on a ruined coastal highway. Plus a fixed Beach Racer driver, faster motion-blur rendering, upgraded skies and starfields in every game, underglow removed, and Messages now available from Friends";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

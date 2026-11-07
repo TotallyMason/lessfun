@@ -356,6 +356,33 @@
         scene.background = new THREE.Color(0x9bd7f2);
         scene.fog = new THREE.FogExp2(0xffe0bd, 0.0055);
 
+        // Painted sunset sky dome with soft clouds.
+        var skyTex = makeCanvasTexture(512, 256, function (g, w, h) {
+            var grad = g.createLinearGradient(0, 0, 0, h);
+            grad.addColorStop(0, '#3d7fbf');
+            grad.addColorStop(0.52, '#9ed2ee');
+            grad.addColorStop(0.78, '#ffd9a8');
+            grad.addColorStop(1, '#ffb27a');
+            g.fillStyle = grad; g.fillRect(0, 0, w, h);
+            var sun = g.createRadialGradient(w * 0.72, h * 0.66, 4, w * 0.72, h * 0.66, 54);
+            sun.addColorStop(0, 'rgba(255,245,205,0.95)');
+            sun.addColorStop(0.4, 'rgba(255,210,140,0.45)');
+            sun.addColorStop(1, 'rgba(255,180,100,0)');
+            g.fillStyle = sun; g.beginPath(); g.arc(w * 0.72, h * 0.66, 54, 0, Math.PI * 2); g.fill();
+            g.fillStyle = 'rgba(255,255,255,0.3)';
+            for (var ci = 0; ci < 16; ci++) {
+                var cx = Math.random() * w, cy = h * 0.18 + Math.random() * h * 0.34;
+                for (var cj = 0; cj < 5; cj++) {
+                    g.beginPath();
+                    g.ellipse(cx + cj * 13, cy + Math.sin(cj) * 5, 22 + Math.random() * 14, 7 + Math.random() * 4, 0, 0, Math.PI * 2);
+                    g.fill();
+                }
+            }
+        });
+        var skyDome = new THREE.Mesh(new THREE.SphereGeometry(460, 20, 14), new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide, fog: false, depthWrite: false }));
+        skyDome.position.set(0, 60, -160);
+        scene.add(skyDome);
+
         function standard(color, options) {
             return new THREE.MeshStandardMaterial(Object.assign({
                 color: color, roughness: 0.55, metalness: 0.12
@@ -1843,8 +1870,8 @@
 
         // A visible driver that becomes a physically simulated ragdoll on impact.
         var driverRagdoll = makeDriverRagdoll();
-        driverRagdoll.position.set(0.32, 0.78, 0.08);
-        driverRagdoll.scale.setScalar(0.9);
+        driverRagdoll.position.set(0.24, 0.16, 0.06);
+        driverRagdoll.scale.setScalar(0.58);
         var driverBeltMat = standard(0x171a1e, { roughness: 0.7, metalness: 0.15 });
         var driverBelt = boxMesh(0.05, 0.1, 0.3, driverBeltMat);
         driverBelt.position.set(0, 0.72, -0.1);
@@ -5015,6 +5042,16 @@
         var lp = new THREE.PointLight(0xff2fd0, 3, 90); lp.position.set(0, 0, -6); scene.add(lp);
         var lp2 = new THREE.PointLight(0x2ff6ff, 2.5, 90); lp2.position.set(0, 0, -34); scene.add(lp2);
 
+        var tunnelStars = [];
+        for (var ts = 0; ts < 180; ts++) tunnelStars.push((Math.random() - 0.5) * 70, (Math.random() - 0.5) * 42, -30 - Math.random() * 180);
+        var tunnelStarGeo = new THREE.BufferGeometry();
+        tunnelStarGeo.setAttribute('position', new THREE.Float32BufferAttribute(tunnelStars, 3));
+        scene.add(new THREE.Points(tunnelStarGeo, new THREE.PointsMaterial({ color: 0x9fd8ff, size: 0.35, transparent: true, opacity: 0.65, blending: THREE.AdditiveBlending, depthWrite: false })));
+        var coreMat = neon(0xff2fd0, 1.8);
+        var tunnelCore = new THREE.Mesh(new THREE.IcosahedronGeometry(1.4, 1), coreMat);
+        tunnelCore.position.set(0, 0, -118);
+        scene.add(tunnelCore);
+
         var R = 3.0, orbitR = 1.9;
         var ringMat = neon(0x2ff6ff, 1.5);
         var rings = [];
@@ -5118,6 +5155,14 @@
         var pk = new THREE.PointLight(0xff2fd0, 2.5, 40); pk.position.set(-6, 6, 6); scene.add(pk);
         var cy = new THREE.PointLight(0x2ff6ff, 2.5, 40); cy.position.set(6, 4, -6); scene.add(cy);
 
+        var stackStars = [];
+        for (var ss = 0; ss < 220; ss++) stackStars.push((Math.random() - 0.5) * 90, Math.random() * 60 - 4, -20 - Math.random() * 80);
+        var stackStarGeo = new THREE.BufferGeometry();
+        stackStarGeo.setAttribute('position', new THREE.Float32BufferAttribute(stackStars, 3));
+        scene.add(new THREE.Points(stackStarGeo, new THREE.PointsMaterial({ color: 0xa9b8ff, size: 0.4, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false })));
+        var podium = new THREE.Mesh(new THREE.CylinderGeometry(5.2, 5.8, 0.5, 24), new THREE.MeshStandardMaterial({ color: 0x1b1630, metalness: 0.4, roughness: 0.4, emissive: 0x2ff6ff, emissiveIntensity: 0.12 }));
+        podium.position.y = -0.28; scene.add(podium);
+
         var SIZE = 3.4, H = 0.55;
         var towerY = 0, width = SIZE, placed = 0;
         var prev = { x: 0, w: SIZE };
@@ -5197,6 +5242,18 @@
         for (var i = 0; i < (isMobileDevice ? 420 : 800); i++) sp.push((Math.random() - 0.5) * 200, (Math.random() - 0.5) * 120, -Math.random() * 300 - 10);
         starGeo.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3));
         scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0x9fb8ff, size: 0.45, transparent: true, opacity: 0.9 })));
+        var planet = new THREE.Mesh(new THREE.SphereGeometry(16, 24, 18), new THREE.MeshStandardMaterial({ color: 0x5b3fa8, emissive: 0x2a155e, emissiveIntensity: 0.9, roughness: 0.8, metalness: 0.1 }));
+        planet.position.set(-38, 20, -150);
+        scene.add(planet);
+        var planetRing = new THREE.Mesh(new THREE.TorusGeometry(24, 0.6, 6, 48), new THREE.MeshBasicMaterial({ color: 0x9b7bff, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false }));
+        planetRing.rotation.x = Math.PI * 0.58;
+        planetRing.position.copy(planet.position);
+        scene.add(planetRing);
+        var nebula = [];
+        for (var nbi = 0; nbi < 260; nbi++) nebula.push((Math.random() - 0.5) * 220, (Math.random() - 0.5) * 140, -40 - Math.random() * 220);
+        var nebulaGeo = new THREE.BufferGeometry();
+        nebulaGeo.setAttribute('position', new THREE.Float32BufferAttribute(nebula, 3));
+        scene.add(new THREE.Points(nebulaGeo, new THREE.PointsMaterial({ color: 0x7f5bff, size: 1.2, transparent: true, opacity: 0.28, blending: THREE.AdditiveBlending, depthWrite: false })));
 
         var ship = new THREE.Group();
         var hull = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.6, 5), neon(0x2ff6ff, 1.2));
@@ -7310,6 +7367,360 @@
         };
     }
 
+    /* ---------------- Dead Coast: 10 km run ---------------- */
+    function createDeadCoast(ctx) {
+        var scene = ctx.scene, camera = ctx.camera, renderer = ctx.renderer;
+        scene.background = new THREE.Color(0x33202a);
+        scene.fog = new THREE.FogExp2(0x3d2630, 0.018);
+        if (renderer) renderer.shadowMap.enabled = false;
+
+        scene.add(new THREE.HemisphereLight(0xffb48c, 0x241820, 1.2));
+        var dcSun = new THREE.DirectionalLight(0xffa070, 2.1);
+        dcSun.position.set(-55, 46, 24);
+        scene.add(dcSun);
+        var dcFill = new THREE.DirectionalLight(0x7fa8ff, 0.55);
+        dcFill.position.set(40, 20, -40);
+        scene.add(dcFill);
+
+        function standard(color, options) {
+            return new THREE.MeshStandardMaterial(Object.assign({ color: color, roughness: 0.78, metalness: 0.08 }, options || {}));
+        }
+        function box(w, h, d, mat) { return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); }
+        function cylinder(top, bottom, height, seg, mat) { return new THREE.Mesh(new THREE.CylinderGeometry(top, bottom, height, seg || 8), mat); }
+        function canvasTexture(w, h, draw, rx, ry) {
+            var c = document.createElement('canvas'); c.width = w; c.height = h;
+            draw(c.getContext('2d'), w, h);
+            var t = new THREE.CanvasTexture(c);
+            if (rx || ry) { t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx || 1, ry || 1); }
+            return t;
+        }
+        var dcAudio = null;
+        function tone(freq, duration, type, volume, endFreq) {
+            try {
+                if (!dcAudio) dcAudio = new (window.AudioContext || window.webkitAudioContext)();
+                var now = dcAudio.currentTime;
+                var osc = dcAudio.createOscillator();
+                var gain = dcAudio.createGain();
+                osc.type = type || 'square';
+                osc.frequency.setValueAtTime(freq, now);
+                if (endFreq) osc.frequency.exponentialRampToValueAtTime(Math.max(30, endFreq), now + duration);
+                gain.gain.setValueAtTime(Math.max(0.0001, volume || 0.05), now);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+                osc.connect(gain); gain.connect(dcAudio.destination);
+                osc.start(now); osc.stop(now + duration + 0.02);
+            } catch (e) {}
+        }
+
+        // Cracked coastal highway with scrolling lane markings.
+        var roadTex = canvasTexture(128, 256, function (g, w, h) {
+            g.fillStyle = '#2b292d'; g.fillRect(0, 0, w, h);
+            g.fillStyle = 'rgba(255,255,255,0.09)';
+            for (var i = 0; i < 60; i++) g.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 2, 1);
+            g.fillStyle = 'rgba(230,230,210,0.65)';
+            g.fillRect(6, 0, 2, h); g.fillRect(w - 8, 0, 2, h);
+            g.fillStyle = 'rgba(240,200,80,0.68)';
+            for (var y = 0; y < h; y += 34) g.fillRect(w / 2 - 2, y, 4, 20);
+        }, 1, 30);
+        var road = new THREE.Mesh(new THREE.PlaneGeometry(12, 700), standard(0xffffff, { map: roadTex, roughness: 0.95 }));
+        road.rotation.x = -Math.PI / 2;
+        road.position.set(0, 0, -335);
+        scene.add(road);
+
+        var dirt = new THREE.Mesh(new THREE.PlaneGeometry(600, 900), standard(0x6b5a44, { roughness: 1 }));
+        dirt.rotation.x = -Math.PI / 2;
+        dirt.position.set(0, -0.03, -300);
+        scene.add(dirt);
+
+        var car = new THREE.Group();
+        var bodyMat = standard(0x9e2a2b, { metalness: 0.45, roughness: 0.35 });
+        var body = box(1.95, 0.58, 4.15, bodyMat); body.position.y = 0.66; car.add(body);
+        var cabin = box(1.55, 0.55, 1.9, standard(0x16222b, { metalness: 0.55, roughness: 0.14, transparent: true, opacity: 0.9 }));
+        cabin.position.set(0, 1.12, 0.16); car.add(cabin);
+        var trim = standard(0x1a1b1e, { metalness: 0.35, roughness: 0.6 });
+        var bumperF = box(2.0, 0.24, 0.26, trim); bumperF.position.set(0, 0.5, -2.08); car.add(bumperF);
+        var bumperR = box(2.0, 0.24, 0.26, trim); bumperR.position.set(0, 0.5, 2.08); car.add(bumperR);
+        var rack = box(1.5, 0.1, 1.5, standard(0x3a3a3a, { metalness: 0.5 })); rack.position.set(0, 1.45, 0.1); car.add(rack);
+        var jerry = box(0.45, 0.5, 0.3, standard(0xc0392b)); jerry.position.set(-0.4, 1.72, 0.2); car.add(jerry);
+        var cooler = box(0.65, 0.32, 0.45, standard(0x2e86c1)); cooler.position.set(0.45, 1.62, 0.2); car.add(cooler);
+        var headMat = new THREE.MeshBasicMaterial({ color: 0xffe8b0 });
+        [-0.66, 0.66].forEach(function (hx) {
+            var hl = box(0.36, 0.16, 0.08, headMat); hl.position.set(hx, 0.8, -2.1); car.add(hl);
+        });
+        var tailMat = new THREE.MeshBasicMaterial({ color: 0xff3b4f });
+        [-0.66, 0.66].forEach(function (tx) {
+            var tl = box(0.36, 0.15, 0.08, tailMat); tl.position.set(tx, 0.8, 2.1); car.add(tl);
+        });
+        var tireMat = standard(0x121316, { roughness: 1 });
+        var dcWheels = [];
+        [-0.98, 0.98].forEach(function (wx) {
+            [-1.32, 1.32].forEach(function (wz) {
+                var w = cylinder(0.4, 0.4, 0.32, 10, tireMat);
+                w.rotation.z = Math.PI / 2; w.position.set(wx, 0.4, wz);
+                car.add(w); dcWheels.push(w);
+            });
+        });
+        scene.add(car);
+
+        // Scrolling roadside props.
+        var props = [];
+        var woodMat = standard(0x4a3524);
+        var rockMat = standard(0x5a4a3d, { roughness: 1 });
+        var wreckMat = standard(0x6d4b3d, { metalness: 0.35, roughness: 0.7 });
+        var barrelMat = standard(0x8a3a24, { metalness: 0.4, roughness: 0.6 });
+
+        function makeDeadTree() {
+            var g = new THREE.Group();
+            var trunk = cylinder(0.14, 0.24, 3.2, 6, woodMat); trunk.position.y = 1.6; g.add(trunk);
+            for (var i = 0; i < 4; i++) {
+                var br = box(0.1, 0.1, 1.4 + Math.random(), woodMat);
+                br.position.set(0, 2 + i * 0.35, 0.4);
+                br.rotation.z = (Math.random() - 0.5) * 1.4;
+                br.rotation.x = (Math.random() - 0.5) * 0.8;
+                g.add(br);
+            }
+            return g;
+        }
+        function makeWreck() {
+            var g = new THREE.Group();
+            var b = box(1.8, 0.55, 3.7, wreckMat); b.position.y = 0.45; g.add(b);
+            var c = box(1.4, 0.4, 1.5, standard(0x3a2c26)); c.position.set(0, 0.9, 0.1); c.rotation.z = 0.18; g.add(c);
+            var rust = box(0.3, 0.2, 0.5, standard(0x8a4a2a)); rust.position.set(0.7, 0.7, -0.9); g.add(rust);
+            g.rotation.z = (Math.random() - 0.5) * 0.18;
+            return g;
+        }
+        function makeBarrel() {
+            var g = new THREE.Group();
+            var b = cylinder(0.38, 0.42, 1.05, 10, barrelMat); b.position.y = 0.52; g.add(b);
+            var stripe = cylinder(0.4, 0.4, 0.14, 10, standard(0xe0b020)); stripe.position.y = 0.62; g.add(stripe);
+            return g;
+        }
+        function makeBuilding() {
+            var g = new THREE.Group();
+            var h = 5 + Math.random() * 9;
+            var b = box(4 + Math.random() * 5, h, 4 + Math.random() * 5, standard(0x51423c, { roughness: 0.95 }));
+            b.position.y = h / 2; g.add(b);
+            var win = box(1.2, 1.2, 0.1, standard(0x1a1414)); win.position.set(0, h * 0.6, 2.4); g.add(win);
+            return g;
+        }
+
+        function addProp(kind, dist, x) {
+            var mesh = kind === 'tree' ? makeDeadTree() : kind === 'wreck' ? makeWreck() : kind === 'barrel' ? makeBarrel() : kind === 'building' ? makeBuilding() : new THREE.Mesh(new THREE.IcosahedronGeometry(0.7 + Math.random() * 1.2, 0), rockMat);
+            mesh.position.set(x, 0, -dist);
+            scene.add(mesh);
+            props.push({ mesh: mesh, dist: dist, x: x, solid: kind === 'wreck' || kind === 'barrel', hitT: 0 });
+        }
+        for (var pi = 0; pi < 34; pi++) {
+            var pk = pi % 7 === 0 ? 'wreck' : pi % 5 === 0 ? 'barrel' : pi % 4 === 0 ? 'building' : pi % 3 === 0 ? 'tree' : 'rock';
+            var px = (Math.random() < 0.5 ? -1 : 1) * (8 + Math.random() * 16);
+            addProp(pk, 30 + Math.random() * 660, px);
+        }
+
+        // Pickups.
+        function makePickupMesh(type) {
+            if (type === 'food') {
+                var g = new THREE.Group();
+                g.add(box(0.5, 0.42, 0.5, standard(0x3fa34d, { emissive: 0x145a20, emissiveIntensity: 0.5 })));
+                g.add(box(0.16, 0.16, 0.52, standard(0xf0e6c8)));
+                return g;
+            }
+            if (type === 'water') {
+                return cylinder(0.22, 0.26, 0.72, 10, standard(0x2e86c1, { emissive: 0x0a3a66, emissiveIntensity: 0.55, metalness: 0.4 }));
+            }
+            if (type === 'fuel') {
+                var f = new THREE.Group();
+                f.add(box(0.5, 0.62, 0.32, standard(0xb03a2e, { emissive: 0x4a100a, emissiveIntensity: 0.45 })));
+                f.add(box(0.18, 0.12, 0.36, standard(0x222222)));
+                return f;
+            }
+            var p = new THREE.Group();
+            p.add(box(0.62, 0.62, 0.62, standard(0xffc400, { emissive: 0x7a5200, emissiveIntensity: 0.7, metalness: 0.5 })));
+            var ring = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.05, 6, 18), new THREE.MeshBasicMaterial({ color: 0xffe28a }));
+            ring.rotation.x = Math.PI / 2; p.add(ring);
+            p.userData.ring = ring;
+            return p;
+        }
+        var pickups = [];
+        function spawnPickup(type, dist, x) {
+            var mesh = makePickupMesh(type);
+            mesh.position.set(x, 0.75, -dist);
+            scene.add(mesh);
+            pickups.push({ type: type, mesh: mesh, dist: dist, x: x });
+        }
+        var laneXs = [-3.4, 0, 3.4];
+        for (var qi = 0; qi < 9; qi++) spawnPickup('food', 70 + qi * 120, laneXs[qi % 3]);
+        for (var wi = 0; wi < 9; wi++) spawnPickup('water', 120 + wi * 115, laneXs[(wi + 1) % 3]);
+        for (var fi = 0; fi < 6; fi++) spawnPickup('fuel', 180 + fi * 170, laneXs[(fi + 2) % 3]);
+        for (var pti = 0; pti < 3; pti++) spawnPickup('part', 700 + pti * 1500, laneXs[pti % 3]);
+
+        var carX = 0, vx = 0, speed = 0, distance = 0;
+        var food = 100, water = 100, fuel = 100, health = 100;
+        var throttleSmooth = 0, brakeSmooth = 0, steerSmooth = 0;
+        var maxSpeed = 38, accel = 13, brakePower = 26, grip = 1.0, armor = 0, fuelUse = 1;
+        var partsFound = [];
+        var elapsed = 0, hudT = 0, toastT = 0, finished = false;
+
+        function partLabel() {
+            return partsFound.length ? partsFound.join(' · ') : 'Stock Parts';
+        }
+        function toast(text) {
+            var el = document.getElementById('dcToast');
+            if (el) el.textContent = text;
+            toastT = 2.4;
+        }
+        function applyPart() {
+            var kinds = ['Engine', 'Tires', 'Suspension', 'Fuel Tank', 'Brakes'];
+            var kind = kinds[Math.floor(Math.random() * kinds.length)];
+            partsFound.push(kind);
+            if (kind === 'Engine') { maxSpeed += 4.5; accel += 2; }
+            else if (kind === 'Tires') { grip += 0.18; }
+            else if (kind === 'Suspension') { armor = Math.min(0.6, armor + 0.14); }
+            else if (kind === 'Fuel Tank') { fuelUse *= 0.82; }
+            else if (kind === 'Brakes') { brakePower += 5; }
+            toast('FOUND ' + kind.toUpperCase() + ' PART');
+            tone(520, 0.18, 'square', 0.06, 880);
+            tone(880, 0.2, 'square', 0.05, 1180);
+        }
+        function respawnPickup(p) {
+            if (p.type === 'part') { p.dist = distance + 1500 + Math.random() * 900; }
+            else { p.dist = distance + 240 + Math.random() * 260; }
+            p.x = laneXs[Math.floor(Math.random() * laneXs.length)];
+        }
+
+        function update(dt) {
+            dt = Math.min(dt, 0.05);
+            elapsed += dt;
+            var throttleTarget = input.up ? 1 : 0;
+            var brakeTarget = input.brake ? 1 : 0;
+            throttleSmooth += (throttleTarget - throttleSmooth) * Math.min(1, dt * 5.5);
+            brakeSmooth += (brakeTarget - brakeSmooth) * Math.min(1, dt * 7.5);
+            var steerTarget = (input.left ? -1 : 0) + (input.right ? 1 : 0);
+            if (input.pointerActive) steerTarget = Math.max(-1, Math.min(1, input.pointerX * 1.4));
+            steerSmooth += (steerTarget - steerSmooth) * Math.min(1, dt * 8);
+
+            var topNow = maxSpeed * (fuel > 0 ? 1 : 0.28);
+            if (throttleSmooth > 0.01) speed += (accel * throttleSmooth - speed * 0.05) * dt;
+            else speed -= 2.4 * dt;
+            if (brakeSmooth > 0.01) speed -= brakePower * brakeSmooth * dt;
+            speed = Math.max(0, Math.min(topNow, speed));
+            if (fuel <= 0) speed = Math.min(speed, 10);
+
+            vx += steerSmooth * (8.5 * grip) * dt * Math.min(1, speed / 14);
+            vx *= Math.max(0, 1 - dt * 3.2);
+            carX += vx * dt;
+            if (carX < -4.7) { carX = -4.7; vx *= -0.25; }
+            if (carX > 4.7) { carX = 4.7; vx *= -0.25; }
+
+            distance += speed * dt;
+
+            // Hunger, water, fuel, and health.
+            food = Math.max(0, food - (0.30 + speed * 0.0018) * dt);
+            water = Math.max(0, water - (0.36 + speed * 0.0021) * dt);
+            fuel = Math.max(0, fuel - (0.12 + speed * 0.0065) * fuelUse * dt);
+            if (food <= 0 || water <= 0) health = Math.max(0, health - 3.2 * dt);
+            if (fuel <= 0) health = Math.max(0, health - 0.8 * dt);
+
+            // Prop recycling and collision.
+            for (var i = 0; i < props.length; i++) {
+                var prop = props[i];
+                prop.mesh.position.z = -prop.dist;
+                if (prop.hitT > 0) prop.hitT -= dt;
+                if (prop.solid && prop.hitT <= 0 && prop.dist - distance < 3 && prop.dist - distance > -3 && Math.abs(prop.x - carX) < 1.7) {
+                    prop.hitT = 1.2;
+                    var dmg = 16 * (1 - armor);
+                    health = Math.max(0, health - dmg);
+                    speed *= 0.42;
+                    toast('CRASH · -' + Math.round(dmg) + ' CAR');
+                    tone(90, 0.3, 'sawtooth', 0.12, 40);
+                }
+                if (prop.dist - distance < -45) {
+                    prop.dist = distance + 620 + Math.random() * 160;
+                    prop.x = (Math.random() < 0.5 ? -1 : 1) * (8 + Math.random() * 16);
+                }
+            }
+
+            // Pickups.
+            for (var k = 0; k < pickups.length; k++) {
+                var p = pickups[k];
+                p.mesh.position.set(p.x, 0.78 + Math.sin(elapsed * 3 + k) * 0.08, -(p.dist - distance) * -1);
+                p.mesh.position.z = -(p.dist - distance);
+                p.mesh.rotation.y += dt * 1.6;
+                if (p.mesh.userData.ring) p.mesh.userData.ring.rotation.z += dt * 2.2;
+                var rel = p.dist - distance;
+                if (Math.abs(rel) < 3 && Math.abs(p.x - carX) < 1.8) {
+                    if (p.type === 'food') { food = Math.min(100, food + 34); toast('FOOD +34'); }
+                    else if (p.type === 'water') { water = Math.min(100, water + 38); toast('WATER +38'); }
+                    else if (p.type === 'fuel') { fuel = Math.min(100, fuel + 42); toast('FUEL +42'); }
+                    else applyPart();
+                    tone(660, 0.1, 'square', 0.04, 990);
+                    respawnPickup(p);
+                }
+                if (p.dist - distance < -25 && p.type !== 'part') respawnPickup(p);
+            }
+
+            // Car visuals.
+            car.position.x = carX;
+            car.rotation.y = -vx * 0.035;
+            car.rotation.z = -vx * 0.02;
+            for (var wi2 = 0; wi2 < dcWheels.length; wi2++) dcWheels[wi2].rotation.x -= speed * dt * 2.6;
+            tailMat.color.setHex(brakeSmooth > 0.15 ? 0xff1e30 : 0x5a1018);
+
+            // Scrolling road texture.
+            roadTex.offset.y = -(distance / 23.3) % 1;
+
+            // Camera.
+            camera.position.x += (carX * 0.7 - camera.position.x) * Math.min(1, dt * 5);
+            camera.position.y += (4.2 + speed * 0.02 - camera.position.y) * Math.min(1, dt * 4);
+            camera.position.z += (10.4 - camera.position.z) * Math.min(1, dt * 5);
+            camera.lookAt(carX * 0.85, 1.15, -5.5);
+            camera.fov += ((60 + Math.min(14, speed * 0.3)) - camera.fov) * Math.min(1, dt * 3);
+            camera.updateProjectionMatrix();
+
+            // HUD.
+            hudT -= dt;
+            if (hudT <= 0) {
+                hudT = 0.1;
+                var dEl = document.getElementById('dcDistance');
+                if (dEl) dEl.textContent = (distance / 1000).toFixed(2) + ' / 10 km';
+                var pEl = document.getElementById('dcProgress');
+                if (pEl) pEl.style.width = Math.min(100, distance / 10000 * 100) + '%';
+                var fEl = document.getElementById('dcFood'); if (fEl) fEl.style.width = food + '%';
+                var wEl = document.getElementById('dcWater'); if (wEl) wEl.style.width = water + '%';
+                var fuEl = document.getElementById('dcFuel'); if (fuEl) fuEl.style.width = fuel + '%';
+                var hEl = document.getElementById('dcHealth'); if (hEl) hEl.style.width = health + '%';
+                var partEl = document.getElementById('dcPart'); if (partEl) partEl.textContent = partLabel();
+                setPillText('g3dExtra', 'DEAD COAST · ' + Math.round(speed * 2.23694) + ' MPH');
+            }
+            if (toastT > 0) {
+                toastT -= dt;
+                var tEl = document.getElementById('dcToast');
+                if (tEl) tEl.classList.toggle('is-active', toastT > 0);
+            }
+
+            if (!finished && distance >= 10000) {
+                finished = true;
+                toast('YOU MADE IT · 10 KM');
+                endGame(Math.round(10000 / 5) + partsFound.length * 500 + Math.round(food + water + fuel));
+                return;
+            }
+            if (health <= 0) {
+                endGame(Math.round(distance / 5) + partsFound.length * 500);
+            }
+            var throttleFill = document.getElementById('g3dThrottleFill');
+            if (throttleFill) throttleFill.style.height = Math.round(throttleSmooth * 100) + '%';
+            var brakeFill = document.getElementById('g3dBrakeFill');
+            if (brakeFill) brakeFill.style.height = Math.round(brakeSmooth * 100) + '%';
+        }
+
+        return {
+            over: false,
+            update: update,
+            getCoins: function () { return 0; },
+            getState: function () {
+                return { distance: distance, speed: speed, x: carX, food: food, water: water, fuel: fuel, health: health, parts: partsFound.slice() };
+            }
+        };
+    }
+
     function factoryFor(gameId, opts) {
         if (gameId === 1 && opts && opts.cityMode) return createCity;
         return factories[gameId];
@@ -7319,7 +7730,7 @@
         1: createRacer,
         2: createTunnel,
         3: createStack,
-        4: createFPS,
+        4: createDeadCoast,
         5: createSky
     };
 
@@ -7702,8 +8113,8 @@
             }
             var opts = { depthBuffer: true, stencilBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter };
             motionBlurTargets = [
-                new THREE.WebGLRenderTarget(Math.max(1, Math.floor(size.x)), Math.max(1, Math.floor(size.y)), opts),
-                new THREE.WebGLRenderTarget(Math.max(1, Math.floor(size.x)), Math.max(1, Math.floor(size.y)), opts)
+                new THREE.WebGLRenderTarget(Math.max(1, Math.floor(size.x * 0.55)), Math.max(1, Math.floor(size.y * 0.55)), opts),
+                new THREE.WebGLRenderTarget(Math.max(1, Math.floor(size.x * 0.55)), Math.max(1, Math.floor(size.y * 0.55)), opts)
             ];
             motionBlurTargets.forEach(function (t) {
                 if (t.texture) t.texture.colorSpace = THREE.SRGBColorSpace;

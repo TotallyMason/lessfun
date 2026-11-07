@@ -5649,11 +5649,11 @@ body::before {
 }
 
 .game3d-dm {
-    position: absolute;
+    position: fixed;
     top: 0;
     right: 0;
     bottom: 0;
-    z-index: 10;
+    z-index: 4000;
     width: min(390px, 94%);
     display: none;
     flex-direction: column;
@@ -9662,4 +9662,65 @@ body.film-grain-on .g3d-grain { display: block; }
 .g3d-banner.is-active {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
+}
+
+/* Dead Coast 10 km run HUD */
+.dc-hud {
+    position: absolute;
+    top: 82px;
+    left: 16px;
+    z-index: 6;
+    width: min(280px, 64vw);
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 11px 13px;
+    border-radius: 13px;
+    border: 1px solid rgba(255, 170, 120, 0.22);
+    background: linear-gradient(160deg, rgba(38, 22, 24, 0.82), rgba(12, 8, 10, 0.88));
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);
+    color: #f8eee6;
+    pointer-events: none;
+}
+.dc-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.dc-kicker { color: rgba(255, 190, 150, 0.65); font-size: 8px; font-weight: 800; letter-spacing: 0.13em; }
+.dc-head strong { color: #ffe2c4; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dc-progress { height: 4px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,0.1); }
+.dc-progress i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #b03a2e, #ffb36b); }
+.dc-bars { display: flex; flex-direction: column; gap: 4px; }
+.dc-bar-row { display: flex; align-items: center; gap: 6px; }
+.dc-bar-row span { width: 34px; color: rgba(255, 230, 210, 0.6); font-size: 8px; font-weight: 800; letter-spacing: 0.08em; }
+.dc-track { flex: 1; height: 6px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,0.1); }
+.dc-track i { display: block; height: 100%; width: 100%; border-radius: inherit; }
+.dc-track i.is-food { background: linear-gradient(90deg, #4d7a2f, #9bff6b); }
+.dc-track i.is-water { background: linear-gradient(90deg, #1f5f8a, #6bd4ff); }
+.dc-track i.is-fuel { background: linear-gradient(90deg, #7a2f2f, #ff9b6b); }
+.dc-health { display: flex; align-items: center; gap: 6px; }
+.dc-health span { width: 34px; color: rgba(255, 230, 210, 0.6); font-size: 8px; font-weight: 800; letter-spacing: 0.08em; }
+.dc-health-track { flex: 1; height: 8px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,0.1); }
+.dc-health-track i { display: block; height: 100%; width: 100%; border-radius: inherit; background: linear-gradient(90deg, #8a1c1c, #ff5a5a); }
+.dc-part { color: rgba(255, 220, 160, 0.8); font-size: 9px; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dc-toast {
+    position: absolute;
+    left: 50%;
+    bottom: -42px;
+    transform: translateX(-50%) translateY(6px);
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: rgba(20, 10, 8, 0.85);
+    border: 1px solid rgba(255, 190, 120, 0.4);
+    color: #ffe2b0;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    white-space: nowrap;
+}
+.dc-toast.is-active { opacity: 1; transform: translateX(-50%) translateY(0); }
+@media (max-width: 640px) {
+    .dc-hud { top: calc(74px + env(safe-area-inset-top, 0px)); left: 10px; width: min(240px, 70vw); padding: 8px 10px; }
+    .dc-head strong { font-size: 10px; }
 }

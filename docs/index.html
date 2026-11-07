@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261200">
+    <link rel="stylesheet" href="style.css?v=20261201">
 </head>
 <body>
     <div id="updateShutdown" class="update-shutdown" style="display:none;">
@@ -221,6 +221,7 @@
                     </div>
                     <div class="friends-toolbar-actions">
                         <button class="friends-gift" type="button" onclick="openGiftModal()">Gift Coins</button>
+                        <button class="friends-refresh" type="button" onclick="toggleDmSidebar(true)">Messages</button>
                         <button class="friends-refresh" onclick="renderFriends()">Refresh</button>
                     </div>
                 </div>
@@ -912,7 +913,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Public Beta 1.32.16</p>
+                            <p>LessFun Public Beta 1.32.17</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -1128,6 +1129,41 @@
         </div>
     </div>
 
+
+    <aside class="game3d-dm" id="g3dDmSidebar">
+        <div class="game3d-dm-head">
+            <div><h3>Private messages</h3><p class="game3d-dm-secure">End-to-end encrypted</p></div>
+            <button type="button" class="game3d-dm-x" onclick="toggleDmSidebar(false)">×</button>
+        </div>
+        <div class="game3d-dm-search">
+            <input class="game3d-mp-input" id="g3dDmSearch" type="text" maxlength="24" placeholder="Search users…" oninput="dmSearchUsers(this.value)">
+            <div class="game3d-dm-results" id="g3dDmResults"></div>
+            <button type="button" class="game3d-dm-newgroup" onclick="dmToggleGroupForm()">+ New group</button>
+            <div class="game3d-dm-groupform" id="g3dDmGroupForm" style="display:none;">
+                <input class="game3d-mp-input" id="g3dDmGroupName" type="text" maxlength="32" placeholder="Group name">
+                <input class="game3d-mp-input" id="g3dDmGroupSearch" type="text" maxlength="24" placeholder="Add people…" oninput="dmSearchGroupUsers(this.value)">
+                <div class="game3d-dm-results" id="g3dDmGroupResults"></div>
+                <div class="game3d-dm-group-selected" id="g3dDmGroupSelected"></div>
+                <div class="game3d-dm-group-actions">
+                    <button type="button" class="game3d-mp-secondary" onclick="dmToggleGroupForm(false)">Cancel</button>
+                    <button type="button" class="game3d-mp-primary" onclick="dmCreateGroup()">Create group</button>
+                </div>
+            </div>
+        </div>
+        <div class="game3d-dm-body">
+            <div class="game3d-dm-list" id="g3dDmList"></div>
+            <div class="game3d-dm-thread-wrap">
+                <div class="game3d-dm-thread" id="g3dDmThread"><p class="game3d-dm-empty">Search for a person above to start an encrypted chat.</p></div>
+                <div class="game3d-dm-compose">
+                    <input class="game3d-mp-input" id="g3dDmInput" type="text" maxlength="500" placeholder="Write a message…" onkeydown="if(event.key==='Enter'){event.preventDefault();dmSend();}">
+                    <button type="button" class="game3d-dm-send" onclick="dmSend()">Send</button>
+                </div>
+            </div>
+        </div>
+        <p class="game3d-dm-status" id="g3dDmStatus"></p>
+        <button type="button" class="game3d-dm-close-btn" onclick="toggleDmSidebar(false)">Close Messages</button>
+    </aside>
+
     <div id="topNotifications" class="top-notifications"></div>
 
     <div id="globalToast" class="global-toast"></div>
@@ -1135,7 +1171,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
-    <script src="games3d.js?v=20261200"></script>
-    <script src="app.js?v=20261200"></script>
+    <script src="games3d.js?v=20261201"></script>
+    <script src="app.js?v=20261201"></script>
 </body>
 </html>
