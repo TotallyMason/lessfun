@@ -9711,3 +9711,121 @@ body.film-grain-on .g3d-grain { display: block; }
 }
     .g3d-gears button { width: 30px; height: 29px; font-size: 11px; }
 }
+
+/* LessFun Radio — persistent Singapore radio tuner */
+.radio-dock {
+    position: fixed;
+    left: 50%;
+    bottom: 14px;
+    transform: translateX(-50%);
+    z-index: 3000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    pointer-events: none;
+}
+.radio-fab {
+    pointer-events: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(120, 230, 255, 0.42);
+    background: linear-gradient(145deg, rgba(16, 40, 56, 0.94), rgba(6, 16, 26, 0.96));
+    color: #d9f6ff;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    cursor: pointer;
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.45), 0 0 22px rgba(60, 190, 255, 0.12);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+}
+.radio-fab:hover { border-color: rgba(120, 230, 255, 0.75); }
+.radio-eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; }
+.radio-eq i {
+    width: 2px;
+    height: 4px;
+    border-radius: 1px;
+    background: #5fe0ff;
+}
+.radio-fab.is-playing .radio-eq i { animation: radioEq 0.7s ease-in-out infinite alternate; }
+.radio-fab.is-playing .radio-eq i:nth-child(2) { animation-delay: 0.18s; }
+.radio-fab.is-playing .radio-eq i:nth-child(3) { animation-delay: 0.36s; }
+@keyframes radioEq { from { height: 3px; } to { height: 12px; } }
+
+.radio-panel {
+    pointer-events: auto;
+    width: min(360px, calc(100vw - 28px));
+    max-height: min(72vh, 620px);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 15px;
+    border-radius: 18px;
+    border: 1px solid rgba(120, 230, 255, 0.28);
+    background: linear-gradient(160deg, rgba(14, 34, 48, 0.98), rgba(5, 12, 20, 0.99));
+    box-shadow: 0 26px 70px rgba(0, 0, 0, 0.6);
+    color: #eafaff;
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+}
+.radio-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.radio-head span { color: rgba(140, 235, 255, 0.6); font-size: 8px; font-weight: 800; letter-spacing: 0.18em; }
+.radio-head h3 { margin: 3px 0 0; font-size: 17px; }
+.radio-x {
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.16);
+    background: rgba(255,255,255,0.06); color: #fff;
+    font-size: 17px; line-height: 1; cursor: pointer;
+}
+.radio-now {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 9px 11px; border-radius: 10px;
+    border: 1px solid rgba(95, 224, 255, 0.16);
+    background: rgba(5, 18, 28, 0.7);
+}
+.radio-now strong { font-size: 13px; color: #eafaff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.radio-now small { font-size: 9px; color: rgba(220, 245, 255, 0.5); letter-spacing: 0.08em; }
+.radio-controls { display: flex; gap: 7px; }
+.radio-controls button {
+    flex: 1; min-height: 36px; border-radius: 9px;
+    border: 1px solid rgba(120, 230, 255, 0.24);
+    background: rgba(255,255,255,0.05);
+    color: #d9f6ff; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.radio-controls button.radio-play { flex: 1.6; background: rgba(95, 224, 255, 0.14); }
+.radio-controls button:hover { border-color: rgba(120, 230, 255, 0.6); }
+.radio-volume { display: flex; align-items: center; gap: 8px; }
+.radio-volume span { color: rgba(220, 245, 255, 0.5); font-size: 8px; font-weight: 800; letter-spacing: 0.12em; }
+.radio-volume input { flex: 1; accent-color: #5fe0ff; }
+.radio-list {
+    display: flex; flex-direction: column; gap: 4px;
+    overflow-y: auto; min-height: 80px; padding-right: 2px;
+}
+.radio-station {
+    display: flex; align-items: center; gap: 9px;
+    padding: 8px 10px; border-radius: 9px;
+    border: 1px solid transparent;
+    background: rgba(255,255,255,0.035);
+    color: rgba(234, 250, 255, 0.72);
+    font: inherit; text-align: left; cursor: pointer;
+}
+.radio-station:hover { background: rgba(95, 224, 255, 0.08); }
+.radio-station.is-active {
+    border-color: rgba(95, 224, 255, 0.45);
+    background: rgba(95, 224, 255, 0.12);
+    color: #eafaff;
+}
+.radio-station b { width: 40px; color: #5fe0ff; font-size: 10px; }
+.radio-station span { flex: 1; font-size: 11px; font-weight: 700; }
+.radio-station small { color: rgba(220, 245, 255, 0.4); font-size: 8px; }
+.radio-note { margin: 0; color: rgba(220, 245, 255, 0.34); font-size: 8px; text-align: center; }
+@media (max-width: 640px) {
+    .radio-dock { bottom: 8px; }
+    .radio-fab { padding: 7px 11px; }
+    .radio-panel { max-height: 64vh; }
+}

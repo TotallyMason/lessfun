@@ -4,10 +4,10 @@ const SUPABASE_ANON_KEY = "sb_publishable_Ev9umZevWcT-AwVHTPQLnw_DHdpDHWR";
 const supabaseClient = (typeof window !== 'undefined' && window.supabase) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 const games = [
-    { id: 1, name: "Beach Racer", description: "Outrun traffic on a six-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · A D / ← → steer · Shift / N nitrous" },
+    { id: 1, name: "Beach Racer", description: "Outrun traffic on a six-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · A D / ← → steer · Shift / N nitrous · C camera" },
     { id: 2, name: "Tunnel Rush", description: "Thread the neon tunnel at warp speed", icon: "tunnel", controls: "Left / Right or drag to rotate" },
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
-    { id: 4, name: "Dead Coast", description: "Drive 10 km through the dead coast, scavenging food, water, fuel, and car parts", icon: "skull", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · A D / ← → steer · drag to steer on mobile · survive 10 km" },
+    { id: 4, name: "Dead Coast", description: "Drive 10 km through the dead coast, scavenging food, water, fuel, and car parts", icon: "skull", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · A D / ← → steer · C camera · drag to steer on mobile · survive 10 km" },
     { id: 5, name: "Star Dodger", description: "Weave through an asteroid storm", icon: "rocket", controls: "WASD / arrow keys to fly · drag to steer · Space / click fires when armed" },
     { id: 6, name: "Funtutu Test", description: "Benchmark your GPU and CPU, then get recommended graphics settings", icon: "bolt", controls: "Press Run Test · apply the recommended settings when it finishes" }
 ];
@@ -7615,8 +7615,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.27";
-const UPDATE_NOTES = "The Beach Racer P / R / N / D gear selector now lives inside the liquid-glass HUD at the top, with the current gear highlighted. Steering stays smooth and crash particles still fall behind the car";
+const APP_VERSION = "LessFun Public Beta 1.32.28";
+const UPDATE_NOTES = "LessFun Radio is live: a persistent Singapore radio tuner with Class 95, Gold 905, 987FM, YES 933, Capital 958, Oli 968, Symphony 924, Love 972, Warna 942, Kiss92, One FM 91.3, 96.3 Hao FM, and UFM 100.3, playing across the whole site. Beach Racer and Dead Coast control hints now list C for camera";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -7691,6 +7691,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     applyRenderScaleSetting();
     applySoundSetting();
     applyUnitSetting();
+    radioInit();
 });
 
 document.addEventListener('visibilitychange', function () {
@@ -9933,4 +9934,165 @@ async function removeFriend(id, username) {
 // Kept as an alias for older inline handlers.
 async function renderUsers() {
     return renderFriends();
+}
+
+/* ============================================================
+   LessFun Radio — real Singapore FM streams
+   ============================================================ */
+const RADIO_STATIONS = [
+    { name: 'Class 95', freq: '95.0', lang: 'English', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/CLASS95AAC.aac' },
+    { name: 'Gold 905', freq: '90.5', lang: 'English', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/GOLD905AAC.aac' },
+    { name: '987FM', freq: '98.7', lang: 'English', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/987FMAAC.aac' },
+    { name: 'YES 933', freq: '93.3', lang: 'Chinese', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/YES933AAC.aac' },
+    { name: 'Capital 958', freq: '95.8', lang: 'Chinese', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/CAPITAL958FMAAC.aac' },
+    { name: 'Oli 968', freq: '96.8', lang: 'Tamil', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/OLI968FMAAC.aac' },
+    { name: 'Symphony 924', freq: '92.4', lang: 'Classical', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/SYMPHONY924AAC.aac' },
+    { name: 'Love 972', freq: '97.2', lang: 'Chinese', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/LOVE972FMAAC.aac' },
+    { name: 'Warna 942', freq: '94.2', lang: 'Malay', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/WARNA942FMAAC.aac' },
+    { name: 'Kiss92', freq: '92.0', lang: 'English', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/KISS_92.mp3' },
+    { name: 'One FM 91.3', freq: '91.3', lang: 'English', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/ONE_FM_913.mp3' },
+    { name: '96.3 Hao FM', freq: '96.3', lang: 'Chinese', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/HAO_963.mp3' },
+    { name: 'UFM 100.3', freq: '100.3', lang: 'Chinese', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/UFM_1003.mp3' }
+];
+let radioIndex = 0;
+let radioHasSource = false;
+
+function radioStationLabel(station) {
+    return station.name + ' · ' + station.freq + ' FM';
+}
+
+function radioRenderList() {
+    var list = document.getElementById('radioList');
+    if (!list) return;
+    list.innerHTML = RADIO_STATIONS.map(function (station, index) {
+        return '<button type="button" class="radio-station' + (index === radioIndex ? ' is-active' : '') + '" data-station="' + index + '" onclick="radioTune(' + index + ', true)">' +
+            '<b>' + station.freq + '</b>' +
+            '<span>' + station.name + '</span>' +
+            '<small>' + station.lang + '</small>' +
+        '</button>';
+    }).join('');
+}
+
+function radioUpdateNow() {
+    var station = RADIO_STATIONS[radioIndex] || RADIO_STATIONS[0];
+    var now = document.getElementById('radioNow');
+    if (now) now.textContent = radioStationLabel(station);
+    var list = document.getElementById('radioList');
+    if (list) {
+        var buttons = list.querySelectorAll('.radio-station');
+        for (var i = 0; i < buttons.length; i++) buttons[i].classList.toggle('is-active', Number(buttons[i].getAttribute('data-station')) === radioIndex);
+    }
+}
+
+function radioSetStatus(text) {
+    var status = document.getElementById('radioStatus');
+    if (status) status.textContent = text;
+}
+
+function radioInit() {
+    var audio = document.getElementById('lessfunRadioAudio');
+    if (!audio) return;
+    try {
+        var savedIndex = Number(localStorage.getItem('lessfun_radio_station'));
+        if (isFinite(savedIndex) && savedIndex >= 0 && savedIndex < RADIO_STATIONS.length) radioIndex = Math.floor(savedIndex);
+    } catch (e) {}
+    try {
+        var savedVolume = parseFloat(localStorage.getItem('lessfun_radio_volume'));
+        if (isFinite(savedVolume) && savedVolume >= 0 && savedVolume <= 1) audio.volume = savedVolume;
+        else audio.volume = 0.7;
+    } catch (e) {
+        audio.volume = 0.7;
+    }
+    var volume = document.getElementById('radioVolume');
+    if (volume) volume.value = String(audio.volume);
+    radioRenderList();
+    radioUpdateNow();
+    radioSetStatus('Paused · tap Play');
+
+    audio.addEventListener('playing', function () {
+        radioHasSource = true;
+        radioSetStatus('LIVE · ' + (RADIO_STATIONS[radioIndex] ? RADIO_STATIONS[radioIndex].name : ''));
+        var fab = document.getElementById('radioFab');
+        if (fab) fab.classList.add('is-playing');
+        var playBtn = document.getElementById('radioPlayBtn');
+        if (playBtn) playBtn.textContent = 'Pause';
+    });
+    audio.addEventListener('pause', function () {
+        radioSetStatus('Paused');
+        var fab = document.getElementById('radioFab');
+        if (fab) fab.classList.remove('is-playing');
+        var playBtn = document.getElementById('radioPlayBtn');
+        if (playBtn) playBtn.textContent = 'Play';
+    });
+    audio.addEventListener('waiting', function () {
+        if (radioHasSource) radioSetStatus('Buffering…');
+    });
+    audio.addEventListener('error', function () {
+        if (!radioHasSource) return;
+        radioSetStatus('Stream unavailable · try another station');
+        var fab = document.getElementById('radioFab');
+        if (fab) fab.classList.remove('is-playing');
+        var playBtn = document.getElementById('radioPlayBtn');
+        if (playBtn) playBtn.textContent = 'Play';
+    });
+}
+
+function radioTogglePanel(force) {
+    var panel = document.getElementById('radioPanel');
+    if (!panel) return;
+    var open = force === false ? false : (force === true ? true : panel.style.display === 'none');
+    panel.style.display = open ? 'flex' : 'none';
+    if (open) {
+        radioRenderList();
+        radioUpdateNow();
+    }
+}
+
+function radioTune(index, autoplay) {
+    var audio = document.getElementById('lessfunRadioAudio');
+    if (!audio || !RADIO_STATIONS.length) return;
+    radioIndex = ((index % RADIO_STATIONS.length) + RADIO_STATIONS.length) % RADIO_STATIONS.length;
+    try { localStorage.setItem('lessfun_radio_station', String(radioIndex)); } catch (e) {}
+    var station = RADIO_STATIONS[radioIndex];
+    audio.src = station.url;
+    radioHasSource = true;
+    audio.load();
+    radioUpdateNow();
+    radioSetStatus('Tuning to ' + station.freq + ' FM…');
+    if (autoplay) {
+        var attempt = audio.play();
+        if (attempt && attempt.catch) {
+            attempt.catch(function () {
+                radioSetStatus('Tap Play to start audio');
+            });
+        }
+    }
+}
+
+function radioToggle() {
+    var audio = document.getElementById('lessfunRadioAudio');
+    if (!audio) return;
+    if (!radioHasSource) {
+        radioTune(radioIndex, true);
+        return;
+    }
+    if (audio.paused) {
+        var attempt = audio.play();
+        if (attempt && attempt.catch) {
+            attempt.catch(function () { radioSetStatus('Tap Play again to allow audio'); });
+        }
+    } else {
+        audio.pause();
+    }
+}
+
+function radioNext(direction) {
+    radioTune(radioIndex + direction, true);
+}
+
+function radioSetVolume(value) {
+    var audio = document.getElementById('lessfunRadioAudio');
+    var volume = Math.max(0, Math.min(1, Number(value) || 0));
+    if (audio) audio.volume = volume;
+    try { localStorage.setItem('lessfun_radio_volume', String(volume)); } catch (e) {}
 }
