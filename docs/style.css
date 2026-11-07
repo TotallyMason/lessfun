@@ -10015,3 +10015,5 @@ body.film-grain-on .g3d-grain { display: block; }
     background: rgba(255, 190, 100, 0.08);
     color: #ffcf8a; font: inherit; font-size: 9px; font-weight: 700; cursor: pointer;
 }
+
+.radio-dock.is-panel-open .radio-fab { display: none; }

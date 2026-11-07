@@ -7219,6 +7219,10 @@ async function createPost() {
     const input = document.getElementById('postContent');
     const content = input ? input.value.trim() : '';
     if (!content && !pendingPostMedia) return;
+    if (content.length > 20000) {
+        alert('Posts can be up to 20,000 characters.');
+        return;
+    }
     if (!supabaseClient) {
         alert('Community posting needs a connection to Supabase.');
         return;
@@ -7696,8 +7700,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.36";
-const UPDATE_NOTES = "The radio panel header now shows a live equalizer icon, LESSFUN RADIO, and a RADIO tag together, and the panel slides and fades open and closed instead of popping in";
+const APP_VERSION = "LessFun Public Beta 1.32.37";
+const UPDATE_NOTES = "Community posts can now be up to 20,000 characters. The floating radio button hides while the full radio panel is open, and the LESSFUN RADIO header text was removed";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -10144,7 +10148,9 @@ function radioTogglePanel(force) {
     var isOpen = panel.classList.contains('is-open');
     var open = force === false ? false : (force === true ? true : !isOpen);
     if (radioPanelCloseTimer) { clearTimeout(radioPanelCloseTimer); radioPanelCloseTimer = 0; }
+    var dock = document.getElementById('radioDock');
     if (open) {
+        if (dock) dock.classList.add('is-panel-open');
         panel.style.display = 'flex';
         // Let the browser paint the starting state before animating.
         requestAnimationFrame(function () {
@@ -10156,7 +10162,10 @@ function radioTogglePanel(force) {
         panel.classList.remove('is-open');
         radioPanelCloseTimer = setTimeout(function () {
             radioPanelCloseTimer = 0;
-            if (!panel.classList.contains('is-open')) panel.style.display = 'none';
+            if (!panel.classList.contains('is-open')) {
+                panel.style.display = 'none';
+                if (dock) dock.classList.remove('is-panel-open');
+            }
         }, 230);
     }
 }
