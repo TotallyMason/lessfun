@@ -159,7 +159,6 @@
         var raceStartTime = 0, raceHudT = 0;
         var racerBannerT = 0;
         var cameraMode = 0;
-        var CAMERA_NAMES = ['CHASE CAM', 'HOOD CAM', 'WHEEL CAM', 'FIRST PERSON'];
 
         function racerBanner(text) {
             var el = document.getElementById('g3dBanner');
@@ -3980,7 +3979,6 @@
             if (input.cameraCycle) {
                 input.cameraCycle = false;
                 cameraMode = (cameraMode + 1) % 4;
-                racerBanner(CAMERA_NAMES[cameraMode]);
             }
             if (raceMode) {
                 if (raceStartDelay > 0) {
@@ -7470,7 +7468,6 @@
         var partsFound = [];
         var elapsed = 0, hudT = 0, toastT = 0, finished = false;
         var dcCameraMode = 0;
-        var DC_CAMERA_NAMES = ['CHASE CAM', 'HOOD CAM', 'WHEEL CAM', 'FIRST PERSON'];
 
         function partLabel() {
             return partsFound.length ? partsFound.join(' · ') : 'Stock Parts';
@@ -7505,7 +7502,6 @@
             if (input.cameraCycle) {
                 input.cameraCycle = false;
                 dcCameraMode = (dcCameraMode + 1) % 4;
-                toast(DC_CAMERA_NAMES[dcCameraMode]);
             }
             var throttleTarget = input.up ? 1 : 0;
             var brakeTarget = input.brake ? 1 : 0;

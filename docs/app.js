@@ -7604,8 +7604,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.19";
-const UPDATE_NOTES = "Fixes the Beach Racer black screen, restores the throttle and brake bars at the bottom left, and adds C to cycle chase, hood, wheel, and first-person cameras in Beach Racer and Dead Coast. Showroom cars now stay bought and equipped after refresh. Dead Coast has zombie hordes, and Funtutu now scores an average 2026 PC at about 1000 CPU and 1000 GPU";
+const APP_VERSION = "LessFun Public Beta 1.32.20";
+const UPDATE_NOTES = "Camera cycling with C is now silent: no on-screen camera label in Beach Racer or Dead Coast. Also includes the fixed throttle/brake bars, restored Beach Racer rendering, persistent showroom cars, Dead Coast zombie hordes, and the 2026-normalised Funtutu score";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
