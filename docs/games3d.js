@@ -7489,10 +7489,6 @@
             pickups.push({ type: type, mesh: mesh, dist: dist, x: x });
         }
         var laneXs = [-3.4, 0, 3.4];
-        for (var qi = 0; qi < 9; qi++) spawnPickup('food', 70 + qi * 120, laneXs[qi % 3]);
-        for (var wi = 0; wi < 9; wi++) spawnPickup('water', 120 + wi * 115, laneXs[(wi + 1) % 3]);
-        for (var fi = 0; fi < 6; fi++) spawnPickup('fuel', 180 + fi * 170, laneXs[(fi + 2) % 3]);
-        for (var pti = 0; pti < 3; pti++) spawnPickup('part', 700 + pti * 1500, laneXs[pti % 3]);
 
         // Roadside fuel stations — stop, get out, and scavenge supplies.
         var dcStations = [];
@@ -7547,7 +7543,196 @@
             var stGroup = makeStationMesh(stSide);
             stGroup.position.set(stSide * 15, 0, -stationDistances[sti]);
             scene.add(stGroup);
-            dcStations.push({ dist: stationDistances[sti], side: stSide, group: stGroup, refueled: false, foodLooted: false, waterLooted: false, partLooted: false });
+            dcStations.push({ dist: stationDistances[sti], side: stSide, group: stGroup, cleared: false, partLooted: false });
+        }
+
+        var onFoot = false;
+        var footX = 0, footZ = 0, footYaw = 0, footShotCd = 0;
+        var footZombies = [];
+        var footLoot = [];
+
+        function dcFootHud() {
+            var dEl = document.getElementById('dcDistance');
+            if (dEl) dEl.textContent = (distance / 1000).toFixed(2) + ' / 10 km';
+            var pEl = document.getElementById('dcProgress');
+            if (pEl) pEl.style.width = Math.min(100, distance / 10000 * 100) + '%';
+            var fEl = document.getElementById('dcFood'); if (fEl) fEl.style.width = food + '%';
+            var wEl = document.getElementById('dcWater'); if (wEl) wEl.style.width = water + '%';
+            var fuEl = document.getElementById('dcFuel'); if (fuEl) fuEl.style.width = fuel + '%';
+            var hEl = document.getElementById('dcHealth'); if (hEl) hEl.style.width = health + '%';
+            var partEl = document.getElementById('dcPart'); if (partEl) partEl.textContent = partLabel();
+            var zEl = document.getElementById('dcZombies'); if (zEl) zEl.textContent = 'ZOMBIES ' + zombiesHit;
+        }
+
+        function dcFootLootPickup(type) {
+            if (type === 'fuel') { fuel = Math.min(100, fuel + 58); toast('FUEL +58'); }
+            else if (type === 'food') { food = Math.min(100, food + 44); toast('FOOD +44'); }
+            else if (type === 'water') { water = Math.min(100, water + 44); toast('WATER +44'); }
+            else if (type === 'part') { applyPart(); if (activeStation) activeStation.partLooted = true; }
+            tone(660, 0.1, 'square', 0.045, 990);
+            dcFootHud();
+        }
+
+        function dcStartOnFoot(st) {
+            if (onFoot || !st) return;
+            onFoot = true;
+            stationOpen = false;
+            activeStation = st;
+            speed = 0;
+            footX = carX;
+            footZ = 0;
+            footYaw = st.side > 0 ? -Math.PI / 2 : Math.PI / 2;
+            footShotCd = 0;
+            var cx = st.side * 15;
+            for (var fi2 = 0; fi2 < 8; fi2++) {
+                var mesh = makeZombie();
+                var zx = cx + (Math.random() - 0.5) * 26;
+                var zz = -9 + Math.random() * 18;
+                mesh.position.set(zx, 0, zz);
+                scene.add(mesh);
+                footZombies.push({ mesh: mesh, x: zx, z: zz, alive: true, speed: 1.5 + Math.random() * 1.8, phase: Math.random() * 6.28 });
+            }
+            var loot = [['fuel', cx - 5, -3], ['food', cx + 3, -2], ['water', cx + 2, 3]];
+            if (!st.partLooted && Math.random() < 0.45) loot.push(['part', cx + 7, -4]);
+            for (var li2 = 0; li2 < loot.length; li2++) {
+                var lp = loot[li2];
+                var lm = makePickupMesh(lp[0]);
+                lm.position.set(lp[1], 0.78, lp[2]);
+                scene.add(lm);
+                footLoot.push({ type: lp[0], mesh: lm, x: lp[1], z: lp[2], taken: false });
+            }
+            var cross = document.getElementById('dcFootCrosshair');
+            if (cross) cross.style.display = 'block';
+            var hint = document.getElementById('dcFootHint');
+            if (hint) hint.style.display = 'block';
+            var prompt = document.getElementById('dcStationPrompt');
+            if (prompt) prompt.style.display = 'none';
+            toast('GET OUT · CLICK TO SHOOT');
+            tone(300, 0.18, 'sawtooth', 0.06, 140);
+        }
+
+        function dcEndOnFoot() {
+            if (!onFoot) return;
+            onFoot = false;
+            for (var fz = 0; fz < footZombies.length; fz++) scene.remove(footZombies[fz].mesh);
+            for (var fl = 0; fl < footLoot.length; fl++) scene.remove(footLoot[fl].mesh);
+            footZombies = [];
+            footLoot = [];
+            if (activeStation) activeStation.cleared = true;
+            var cross = document.getElementById('dcFootCrosshair');
+            if (cross) cross.style.display = 'none';
+            var hint = document.getElementById('dcFootHint');
+            if (hint) hint.style.display = 'none';
+            var prompt = document.getElementById('dcStationPrompt');
+            if (prompt) prompt.style.display = 'none';
+            toast('BACK IN THE CAR');
+            tone(240, 0.14, 'square', 0.05, 380);
+            dcFootHud();
+        }
+
+        function updateOnFoot(dt) {
+            footShotCd = Math.max(0, footShotCd - dt);
+            var turn = (input.left ? 1 : 0) - (input.right ? 1 : 0);
+            if (input.pointerActive) footYaw = -input.pointerX * 1.45;
+            else footYaw += turn * 2.2 * dt;
+            var fwd = (input.up ? 1 : 0) - (input.down ? 1 : 0);
+            var fx = -Math.sin(footYaw), fz = -Math.cos(footYaw);
+            if (fwd) {
+                footX += fx * fwd * 6.5 * dt;
+                footZ += fz * fwd * 6.5 * dt;
+            }
+            var cx = activeStation ? activeStation.side * 15 : 0;
+            footX = Math.max(cx - 20, Math.min(cx + 20, footX));
+            footZ = Math.max(-13, Math.min(13, footZ));
+
+            for (var zi3 = 0; zi3 < footZombies.length; zi3++) {
+                var fzb = footZombies[zi3];
+                if (!fzb.alive) continue;
+                var zdx = footX - fzb.x, zdz = footZ - fzb.z;
+                var zdist = Math.sqrt(zdx * zdx + zdz * zdz);
+                if (zdist > 1.3) {
+                    fzb.x += (zdx / zdist) * fzb.speed * dt;
+                    fzb.z += (zdz / zdist) * fzb.speed * dt;
+                } else {
+                    health = Math.max(0, health - 7 * dt);
+                }
+                fzb.mesh.position.set(fzb.x, 0, fzb.z);
+                fzb.mesh.rotation.y = Math.atan2(footX - fzb.x, footZ - fzb.z);
+                var swing = Math.sin(elapsed * 7 + fzb.phase) * 0.6;
+                if (fzb.mesh.userData.arms) {
+                    fzb.mesh.userData.arms[0].rotation.x = -1.2 + swing;
+                    fzb.mesh.userData.arms[1].rotation.x = -1.2 - swing;
+                }
+                if (fzb.mesh.userData.legs) {
+                    fzb.mesh.userData.legs[0].rotation.x = swing * 0.7;
+                    fzb.mesh.userData.legs[1].rotation.x = -swing * 0.7;
+                }
+            }
+
+            if (input.tapQueued) {
+                input.tapQueued = false;
+                if (footShotCd <= 0) {
+                    footShotCd = 0.24;
+                    var best = null, bestDist = 1e9;
+                    for (var si3 = 0; si3 < footZombies.length; si3++) {
+                        var tz = footZombies[si3];
+                        if (!tz.alive) continue;
+                        var ddx = tz.x - footX, ddz = tz.z - footZ;
+                        var dd = Math.sqrt(ddx * ddx + ddz * ddz);
+                        if (dd > 38 || dd < 0.01) continue;
+                        var dot = (ddx * fx + ddz * fz) / dd;
+                        if (dot < 0.7) continue;
+                        if (dd < bestDist) { bestDist = dd; best = tz; }
+                    }
+                    if (best) {
+                        best.alive = false;
+                        best.mesh.visible = false;
+                        zombiesHit++;
+                        spawnBlood(best.x, best.z);
+                        toast('ZOMBIE HIT +1');
+                        tone(150, 0.16, 'sawtooth', 0.09, 60);
+                    } else {
+                        tone(110, 0.06, 'square', 0.035, 70);
+                    }
+                }
+            }
+
+            for (var li3 = 0; li3 < footLoot.length; li3++) {
+                var lootItem = footLoot[li3];
+                if (lootItem.taken) continue;
+                lootItem.mesh.rotation.y += dt * 1.8;
+                lootItem.mesh.position.y = 0.78 + Math.sin(elapsed * 3 + li3) * 0.08;
+                var ldx = footX - lootItem.x, ldz = footZ - lootItem.z;
+                if (ldx * ldx + ldz * ldz < 2.6) {
+                    lootItem.taken = true;
+                    lootItem.mesh.visible = false;
+                    scene.remove(lootItem.mesh);
+                    dcFootLootPickup(lootItem.type);
+                }
+            }
+
+            var carDist = Math.sqrt((footX - carX) * (footX - carX) + footZ * footZ);
+            var promptEl = document.getElementById('dcStationPrompt');
+            if (promptEl) {
+                promptEl.textContent = 'E · BACK TO CAR';
+                promptEl.style.display = carDist < 3.4 ? 'block' : 'none';
+            }
+            if (carDist < 3.4 && input.interact) {
+                input.interact = false;
+                dcEndOnFoot();
+                return;
+            }
+
+            camera.position.set(footX, 1.55, footZ);
+            camera.lookAt(footX + fx * 12, 1.38, footZ + fz * 12);
+            camera.fov = 72;
+            camera.updateProjectionMatrix();
+
+            if (health <= 0) {
+                endGame(Math.round(distance / 5) + partsFound.length * 500 + zombiesHit * 120);
+                return;
+            }
+            dcFootHud();
         }
 
         // Zombies wander onto the road. Fast hits splatter them; slowing down
@@ -7662,7 +7847,7 @@
             var closeBtn = document.getElementById('dcStClose');
             if (closeBtn) closeBtn.onclick = dcCloseStation;
             var promptEl = document.getElementById('dcStationPrompt');
-            if (promptEl) promptEl.onclick = function () { if (nearStation && !stationOpen) dcOpenStation(nearStation); };
+            if (promptEl) promptEl.onclick = function () { if (onFoot) dcEndOnFoot(); else if (nearStation && !nearStation.cleared) dcStartOnFoot(nearStation); };
         })();
 
         function partLabel() {
@@ -7695,8 +7880,8 @@
         function update(dt) {
             dt = Math.min(dt, 0.05);
             elapsed += dt;
-            if (stationOpen) {
-                speed = 0;
+            if (onFoot) {
+                updateOnFoot(dt);
                 return;
             }
             if (input.cameraCycle) {
@@ -7780,10 +7965,10 @@
                 if (Math.abs(stn.dist - distance) < 18) nearStation = stn;
             }
             var prompt = document.getElementById('dcStationPrompt');
-            if (prompt) prompt.style.display = (!stationOpen && nearStation && speed < 2) ? 'block' : 'none';
-            if (nearStation && speed < 2 && input.interact && !stationOpen) {
+            if (prompt) prompt.style.display = (!onFoot && nearStation && !nearStation.cleared && speed < 2) ? 'block' : 'none';
+            if (nearStation && !nearStation.cleared && speed < 2 && input.interact && !onFoot) {
                 input.interact = false;
-                dcOpenStation(nearStation);
+                dcStartOnFoot(nearStation);
             }
 
             // Zombies.

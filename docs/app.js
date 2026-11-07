@@ -952,7 +952,9 @@ function openGame(id) {
                     '<div class="dc-toast" id="dcToast"></div>' +
                 '</div>' : '') +
             (game.id === 4 ?
-                '<div class="dc-station-prompt" id="dcStationPrompt" style="display:none;">STOP AT FUEL STATION · E / tap to get out</div>' +
+                '<div class="dc-foot-crosshair" id="dcFootCrosshair" style="display:none;"></div>' +
+                '<div class="dc-foot-hint" id="dcFootHint" style="display:none;">WASD move · A/D or drag look · click / Space shoot · E back to car</div>' +
+                '<div class="dc-station-prompt" id="dcStationPrompt" style="display:none;">STOP AT FUEL STATION · E / tap to get out & fight</div>' +
                 '<div class="dc-station-panel" id="dcStationPanel" style="display:none;">' +
                     '<div class="dc-station-card">' +
                         '<span class="dc-kicker">FUEL STATION</span>' +
@@ -7698,8 +7700,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.39";
-const UPDATE_NOTES = "Community posts can now actually reach 20,000 characters: the old 280-character textarea limit was still active and is now fixed. Messages also stay where you scroll instead of jumping to the bottom";
+const APP_VERSION = "LessFun Public Beta 1.32.40";
+const UPDATE_NOTES = "Dead Coast now makes you get out at fuel stations and fight zombies on foot for fuel, food, water, and rare car parts instead of picking supplies up from the road. Also confirms Poteto and no driver in the Beach Racer car";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

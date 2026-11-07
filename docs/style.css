@@ -10017,3 +10017,45 @@ body.film-grain-on .g3d-grain { display: block; }
 }
 
 .radio-dock.is-panel-open .radio-fab { display: none; }
+
+/* Dead Coast on-foot station combat */
+.dc-foot-crosshair {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 16px;
+    height: 16px;
+    margin: -8px 0 0 -8px;
+    z-index: 8;
+    pointer-events: none;
+    border: 1px solid rgba(255, 240, 210, 0.75);
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(255, 200, 120, 0.4);
+}
+.dc-foot-crosshair::before,
+.dc-foot-crosshair::after {
+    content: '';
+    position: absolute;
+    background: rgba(255, 240, 210, 0.8);
+}
+.dc-foot-crosshair::before { left: 50%; top: -6px; width: 1px; height: 26px; margin-left: -0.5px; }
+.dc-foot-crosshair::after { top: 50%; left: -6px; height: 1px; width: 26px; margin-top: -0.5px; }
+.dc-foot-hint {
+    position: absolute;
+    left: 50%;
+    bottom: 196px;
+    transform: translateX(-50%);
+    z-index: 8;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(10, 8, 5, 0.7);
+    border: 1px solid rgba(255, 200, 120, 0.26);
+    color: rgba(255, 235, 205, 0.7);
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+    pointer-events: none;
+}
+@media (max-width: 640px) {
+    .dc-foot-hint { bottom: 224px; font-size: 8px; padding: 5px 9px; }
+}
