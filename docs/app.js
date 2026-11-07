@@ -7698,8 +7698,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.38";
-const UPDATE_NOTES = "Messages no longer jump to the bottom when a thread refreshes, so you can read older messages without being pulled down. Community posts support up to 20,000 characters, and the radio panel hides its floating button while open";
+const APP_VERSION = "LessFun Public Beta 1.32.39";
+const UPDATE_NOTES = "Community posts can now actually reach 20,000 characters: the old 280-character textarea limit was still active and is now fixed. Messages also stay where you scroll instead of jumping to the bottom";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
