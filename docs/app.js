@@ -7615,8 +7615,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.28";
-const UPDATE_NOTES = "LessFun Radio is live: a persistent Singapore radio tuner with Class 95, Gold 905, 987FM, YES 933, Capital 958, Oli 968, Symphony 924, Love 972, Warna 942, Kiss92, One FM 91.3, 96.3 Hao FM, and UFM 100.3, playing across the whole site. Beach Racer and Dead Coast control hints now list C for camera";
+const APP_VERSION = "LessFun Public Beta 1.32.29";
+const UPDATE_NOTES = "Fixed a CSS parsing bug that hid the LessFun Radio button. The radio tuner with 13 Singapore stations is now visible at the bottom center of every page and keeps playing across the site";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

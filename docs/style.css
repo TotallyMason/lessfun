@@ -8467,9 +8467,6 @@ body.has-avatar-frame .friend-avatar {
     .fps-need span { width: 46px; }
 }
 
-
-}
-
 /* Mobile FPS controls */
 .fps-touch {
     display: none;
@@ -9708,8 +9705,6 @@ body.film-grain-on .g3d-grain { display: block; }
 @media (max-width: 640px) {
     .g3d-gears { gap: 2px; padding: 1px; }
     .g3d-gears button { width: 21px; height: 20px; font-size: 9px; }
-}
-    .g3d-gears button { width: 30px; height: 29px; font-size: 11px; }
 }
 
 /* LessFun Radio — persistent Singapore radio tuner */
