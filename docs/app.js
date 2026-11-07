@@ -938,6 +938,7 @@ function openGame(id) {
                     '</div>' +
                     '<div class="dc-health"><span>CAR</span><div class="dc-health-track"><i id="dcHealth"></i></div></div>' +
                     '<div class="dc-part" id="dcPart">Stock Parts</div>' +
+                    '<div class="dc-zombies" id="dcZombies">ZOMBIES 0</div>' +
                     '<div class="dc-toast" id="dcToast"></div>' +
                 '</div>' : '') +
             '<div class="game3d-remote-cams" id="g3dRemoteCams" style="display:none;"></div>' +
@@ -7590,8 +7591,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.17";
-const UPDATE_NOTES = "Dead Coast is now a full 10 km road survival run: manage food, water, fuel, and car health while scavenging supplies and car-part upgrades on a ruined coastal highway. Plus a fixed Beach Racer driver, faster motion-blur rendering, upgraded skies and starfields in every game, underglow removed, and Messages now available from Friends";
+const APP_VERSION = "LessFun Public Beta 1.32.18";
+const UPDATE_NOTES = "Dead Coast now has zombie hordes on the 10 km road run: run them down for points, or they claw your car if you slow down. The oncoming COIN RUN lane, ramp, and cars are removed, so Beach Racer is back to the normal highway. Plus the fixed driver, faster motion blur, upgraded skies and starfields, underglow removed, and Messages in Friends";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

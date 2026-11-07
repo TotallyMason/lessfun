@@ -172,7 +172,7 @@ handling real user data or payments.
 - Chase-cam windows for remote racers in lobbies with fewer than six people
 - FSD looks ahead across all six lanes, reads front/rear gaps, tween-animates lane changes, treats ramps as gold jump targets instead of traffic, tops out at 300 km/h, and auto-swerves into a safe adjacent lane when emergency braking cannot stop in time
 - Crash physics with directional crumple zones, a single soft-body wreck built from the real merged car geometry, Cannon.js dynamic wreck bodies with per-vehicle mass, contact-point impulses and off-centre spin, frictionless contacts with hand-authored tyre grip and metal scraping, kinematic traffic sensors that start chain pile-ups, fatal high-speed bus impacts, hinge-constraint wheel axles with suspension springs, a 720p 30 FPS slow-motion cinematic crash replay, a tethered seatbelt ragdoll, and a physically simulated driver ragdoll
-- Dead Coast 10 km run: drive a scavenged car through a ruined coastal highway, manage food, water, fuel, and car health, collect supply crates, find engine/tire/suspension/fuel-tank/brake upgrades, dodge wrecks and barrels, and reach the 10 km finish
+- Dead Coast 10 km run: drive a scavenged car through a ruined coastal highway, manage food, water, fuel, and car health, collect supply crates, run down zombie hordes, find engine/tire/suspension/fuel-tank/brake upgrades, dodge wrecks and barrels, and reach the 10 km finish
 - Star Dodger power-ups: shields, laser weapons, score combos, enemy drones, nebula explosions, and fast WASD movement
 - Play Again restarts the scene without rebuilding the WebGL context for a much faster retry
 - Real-time car shadows, ACES filmic tone mapping, warmer sunset lighting, and a faster top speed with stronger speed-based camera FOV and shake, a real city streetscape, detailed LOD culling, a motion-blur toggle, a real FPS overlay, minor-collision sparks/debris, and an H-key horn that tells nearby traffic to move over
@@ -191,7 +191,7 @@ handling real user data or payments.
 - 200-car showroom across 45+ real brands (BMW, Tesla, Toyota, Porsche, Ferrari, Lamborghini, McLaren, Nissan, Ford, and more) with real horsepower, 0-60, top speed, drivetrain, price tiers, search, pagination, buy/sell/drive, and persistent ownership
 - New players start in the free junk beater with the lawnmower engine, broken aero, and rust kit
 - Funtutu Test benchmark game with longer CPU integer/float, GPU shader, and Canvas 2D tests, a live work visualisation, a combined score tuned so an average 2024 PC lands on Medium, and an Apply Recommended button
-- Beach Racer COIN RUN: a three-lane oncoming carriageway packed with coins, entered through a large air ramp, locked one-way until the merge
+- Beach Racer highway with traffic, ramps, coins, and no oncoming bonus lane
 - Beach Racer opens in a 3D garage orbit view with Play, Race, Garage, and Showroom actions; Play launches the highway, and Race opens a chooser for adaptive AI or friends
 - In-game Garage shop for car parts, opened from the Beach Racer garage screen without leaving the game
 - Free downgrade parts for experimenting with slower builds

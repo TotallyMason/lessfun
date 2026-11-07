@@ -472,13 +472,6 @@
         // Six-lane coastal highway.
         var LANES = [-8.0, -4.8, -1.6, 1.6, 4.8, 8.0];
         var ROAD_W = 20.8;
-        // One-way bonus carriageway on the far left: three oncoming lanes
-        // packed with coins, entered from an air ramp and exited at a merge.
-        var BONUS_LANES = [-14.2, -17.4, -20.6];
-        var BONUS_ROAD_CENTER = -17.4;
-        var BONUS_FIRST = 460;
-        var BONUS_SPACING = 2000;
-        var BONUS_LENGTH = 420;
         var scrollers = [];
         function addScroller(obj, wrap, factor, lodRange) {
             scrollers.push({ obj: obj, wrap: wrap, factor: factor == null ? 1 : factor, lodRange: lodRange || 0, baseX: obj.position.x, baseRotY: obj.rotation ? obj.rotation.y : 0 });
@@ -565,34 +558,6 @@
             scene.add(rail2);
         });
 
-        // Three-lane oncoming coin run, permanently visible to the left.
-        var bonusRoadTex = makeCanvasTexture(128, 256, function (g, w, h) {
-            g.fillStyle = '#2b3038';
-            g.fillRect(0, 0, w, h);
-            g.fillStyle = 'rgba(255,255,255,0.72)';
-            g.fillRect(4, 0, 2, h);
-            g.fillRect(w - 6, 0, 2, h);
-            g.fillStyle = 'rgba(255,214,90,0.7)';
-            for (var by = 0; by < h; by += 30) {
-                g.fillRect(w * 0.34 - 1.5, by, 3, 16);
-                g.fillRect(w * 0.67 - 1.5, by, 3, 16);
-            }
-        }, 1, 22);
-        var bonusRoad = new THREE.Mesh(
-            new THREE.PlaneGeometry(10.2, 520),
-            standard(0xffffff, { map: bonusRoadTex, roughness: 0.94, metalness: 0.03 })
-        );
-        bonusRoad.rotation.x = -Math.PI / 2;
-        bonusRoad.position.set(BONUS_ROAD_CENTER, -0.02, -240);
-        scene.add(bonusRoad);
-
-        var medianMat = standard(0xb9beb4, { roughness: 0.88 });
-        var median = boxMesh(0.34, 0.62, 520, medianMat);
-        median.position.set(-11.35, 0.31, -240);
-        scene.add(median);
-        var bonusRail = boxMesh(0.16, 0.4, 520, railMat);
-        bonusRail.position.set(-22.75, 0.6, -240);
-        scene.add(bonusRail);
 
         var wetSand = new THREE.Mesh(
             new THREE.PlaneGeometry(6.2, 500),
@@ -2398,126 +2363,6 @@
                     playerY = 0.3;
                     tone(160, 0.28, 'sawtooth', 0.07, 320);
                 }
-            }
-        }
-
-        /* ---------------- Oncoming coin run ---------------- */
-        var bonusRamp = new THREE.Group();
-        var bonusDeck = boxMesh(4.4, 0.3, 11.5, standard(0x3a4049, { metalness: 0.5, roughness: 0.5 }));
-        bonusDeck.rotation.x = 0.3;
-        bonusDeck.position.set(0, 1.05, 0);
-        bonusRamp.add(bonusDeck);
-        [-1, 1].forEach(function (side) {
-            var stripe = boxMesh(0.2, 0.07, 11.4, new THREE.MeshBasicMaterial({ color: 0xffc400 }));
-            stripe.rotation.x = 0.3;
-            stripe.position.set(side * 2.05, 1.1, 0);
-            bonusRamp.add(stripe);
-        });
-        var bonusSignTex = rampSignTexture('COIN RUN →', '#6a3d00');
-        var bonusSign = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 1.35), new THREE.MeshBasicMaterial({ map: bonusSignTex, transparent: true }));
-        bonusSign.position.set(0, 3.6, 4.4);
-        bonusRamp.add(bonusSign);
-        var bonusSignPole = boxMesh(0.12, 3.1, 0.12, standard(0x8b929c, { metalness: 0.55 }));
-        bonusSignPole.position.set(0, 1.8, 4.4);
-        bonusRamp.add(bonusSignPole);
-        scene.add(bonusRamp);
-
-        var bonusCoins = [];
-        for (var bci = 0; bci < 150; bci++) {
-            var bc = new THREE.Mesh(coinGeo, coinMat);
-            bc.userData.offset = 24 + Math.floor(bci / 3) * 8;
-            bc.userData.laneX = BONUS_LANES[bci % 3];
-            bc.userData.collected = false;
-            bc.visible = false;
-            scene.add(bc);
-            bonusCoins.push(bc);
-        }
-
-        var bonusTraffic = [];
-        var bonusTrafficColors = [0xd62828, 0xf77f00, 0x3a86ff, 0x8338ec, 0x2a9d8f, 0xff006e, 0xffbe0b];
-        for (var bti = 0; bti < 7; bti++) {
-            var bcar = buildCar(bonusTrafficColors[bti], null, 'classic', 'v8', null, false);
-            bcar.rotation.y = Math.PI;
-            bcar.userData.laneX = BONUS_LANES[bti % 3];
-            bcar.userData.rel = 70 + bti * 48;
-            bcar.visible = false;
-            scene.add(bcar);
-            bonusTraffic.push(bcar);
-        }
-
-        var bonusActive = false, bonusMergeT = 0, bonusEntryT = 0;
-        var bonusZoneStart = 0, bonusZoneEnd = 0;
-        var nextBonusStart = BONUS_FIRST;
-        var racerBannerT = 0;
-
-        function racerBanner(text) {
-            var el = document.getElementById('g3dBanner');
-            if (!el) return;
-            el.textContent = text;
-            el.classList.add('is-active');
-            racerBannerT = 1.7;
-        }
-
-        function updateBonusRun(dt, prevDistance) {
-            var rampDist = nextBonusStart - 18;
-            var rampRel = rampDist - distance;
-            bonusRamp.position.set(-7.6, 0, player.position.z - rampRel);
-            bonusRamp.visible = !bonusActive && rampRel > -50 && rampRel < 260;
-            bonusRamp.rotation.y = -roadTangentAt(player.position.z - rampRel);
-
-            if (!bonusActive && playerY < 0.2 && Math.abs(speed) > 20 &&
-                rampDist > prevDistance && rampDist <= distance + 2 &&
-                Math.abs(-7.6 - player.position.x) < 2.6) {
-                bonusActive = true;
-                bonusEntryT = 0.9;
-                bonusZoneStart = nextBonusStart;
-                bonusZoneEnd = nextBonusStart + BONUS_LENGTH;
-                vy = Math.min(36, 15 + Math.abs(speed) * 0.13);
-                playerY = 0.3;
-                for (var brci = 0; brci < bonusCoins.length; brci++) bonusCoins[brci].userData.collected = false;
-                racerBanner('COIN RUN');
-                tone(420, 0.3, 'square', 0.07, 760);
-                tone(760, 0.24, 'square', 0.05, 1040);
-                nextBonusStart += BONUS_SPACING;
-                bonusRamp.visible = false;
-            }
-
-            if (bonusEntryT > 0) bonusEntryT -= dt;
-            if (bonusActive && distance > bonusZoneEnd) {
-                bonusActive = false;
-                bonusMergeT = 1.8;
-                racerBanner('MERGE');
-                tone(280, 0.2, 'triangle', 0.05, 420);
-            }
-            if (bonusMergeT > 0) bonusMergeT = Math.max(0, bonusMergeT - dt);
-
-            for (var bci2 = 0; bci2 < bonusCoins.length; bci2++) {
-                var coin = bonusCoins[bci2];
-                var cdist = bonusZoneStart + coin.userData.offset;
-                var crel = cdist - distance;
-                coin.position.set(coin.userData.laneX, 1.12, player.position.z - crel);
-                coin.rotation.z += 0.06;
-                coin.visible = bonusActive && !coin.userData.collected && crel > -14 && crel < 370;
-                if (bonusActive && !coin.userData.collected &&
-                    cdist > prevDistance - 2 && cdist <= distance + 2 &&
-                    Math.abs(coin.userData.laneX - player.position.x) < 1.55) {
-                    coin.userData.collected = true;
-                    coin.visible = false;
-                    coinsCollected++;
-                    tone(920, 0.09, 'square', 0.045, 1380);
-                }
-            }
-
-            for (var bti2 = 0; bti2 < bonusTraffic.length; bti2++) {
-                var bcar2 = bonusTraffic[bti2];
-                bcar2.userData.rel -= (Math.abs(speed) + 26) * dt;
-                if (bcar2.userData.rel < -35) {
-                    bcar2.userData.rel = 250 + Math.random() * 140;
-                    bcar2.userData.laneX = BONUS_LANES[Math.floor(Math.random() * BONUS_LANES.length)];
-                }
-                bcar2.position.set(bcar2.userData.laneX, 0, player.position.z - bcar2.userData.rel);
-                bcar2.rotation.y = Math.PI - roadTangentAt(player.position.z - bcar2.userData.rel);
-                bcar2.visible = bonusActive && bcar2.userData.rel < 360;
             }
         }
 
@@ -4417,7 +4262,6 @@
                 if (updateRamps()) return;
                 updateCoins(prevDistance);
                 updateJumpRamps(prevDistance);
-                updateBonusRun(dt, prevDistance);
             }
 
             var speedSteerFactor = Math.min(1, Math.sqrt(Math.abs(speed) / 65));
@@ -4436,26 +4280,12 @@
                 driftScore += dt * 110;
             }
 
-            var laneMin = -maxX, laneMax = maxX, laneCenter = 0, laneHalf = maxX;
-            if (bonusActive) {
-                laneMin = -21.2;
-                laneMax = bonusEntryT > 0 ? maxX : -12.9;
-                laneCenter = -17.4;
-                laneHalf = bonusEntryT > 0 ? 9.8 : 4.2;
-            } else if (bonusMergeT > 0) {
-                laneMin = -21.2;
-                laneMax = maxX;
-            }
-
             var steerInput = 0;
             if (input.left) steerInput -= 1;
             if (input.right) steerInput += 1;
             var steerTarget = 0;
             if (fsdActive) steerTarget = (fsdSteerX - player.position.x) * 0.18;
-            else if (input.pointerActive) {
-                var pTarget = laneCenter + Math.max(-laneHalf, Math.min(laneHalf, input.pointerX * laneHalf));
-                steerTarget = (pTarget - player.position.x) / Math.max(1, laneHalf) * 0.72;
-            }
+            else if (input.pointerActive) steerTarget = ((input.pointerX * maxX) - player.position.x) / Math.max(1, maxX) * 0.72;
             else steerTarget = steerInput * 0.52;
             steerTarget = Math.max(-0.58, Math.min(0.58, steerTarget));
             steerAngle += (steerTarget - steerAngle) * Math.min(1, dt * 9);
@@ -4466,23 +4296,17 @@
                 steerInput = 0;
                 steerX = player.position.x;
             } else if (input.pointerActive) {
-                var pointerTarget = laneCenter + Math.max(-laneHalf, Math.min(laneHalf, input.pointerX * laneHalf * 1.08));
+                var pointerTarget = Math.max(-maxX, Math.min(maxX, input.pointerX * maxX * 1.08));
                 steerX += (pointerTarget - steerX) * Math.min(1, dt * 8 * speedSteerFactor);
-                steerX = Math.max(laneMin, Math.min(laneMax, steerX));
+                steerX = Math.max(-maxX, Math.min(maxX, steerX));
             } else {
                 steerX += steerInput * dt * 9.5 * perf.grip * speedSteerFactor * (driftIntent ? 1.7 : 1);
-                steerX = Math.max(laneMin, Math.min(laneMax, steerX));
-            }
-            if (bonusActive && bonusEntryT > 0) {
-                steerX += (-17.4 - steerX) * Math.min(1, dt * 4.2);
-            }
-            if (bonusMergeT > 0) {
-                steerX += (-7.0 - steerX) * Math.min(1, dt * 2.6);
+                steerX = Math.max(-maxX, Math.min(maxX, steerX));
             }
 
             var beforeX = player.position.x;
             player.position.x += (steerX - player.position.x) * Math.min(1, dt * (driftIntent ? 6.5 : 10));
-            player.position.x = Math.max(laneMin, Math.min(laneMax, player.position.x));
+            player.position.x = Math.max(-maxX, Math.min(maxX, player.position.x));
             var vx = (player.position.x - beforeX) / (dt || 0.016);
             currentVx = vx;
             var driftAudioTarget = driftIntent ? Math.min(1, Math.abs(vx) / 12) : 0;
@@ -4911,9 +4735,6 @@
                     nitro: Math.round(nitro),
                     engineOn: engineOn,
                     coins: coinsCollected,
-                    bonus: bonusActive,
-                    bonusMerge: bonusMergeT > 0,
-                    bonusZoneStart: bonusZoneStart,
                     fsd: fsdActive,
                     fsdLane: fsdLane,
                     fsdEmergency: fsdEmergency,
@@ -7552,6 +7373,65 @@
         for (var fi = 0; fi < 6; fi++) spawnPickup('fuel', 180 + fi * 170, laneXs[(fi + 2) % 3]);
         for (var pti = 0; pti < 3; pti++) spawnPickup('part', 700 + pti * 1500, laneXs[pti % 3]);
 
+        // Zombies wander onto the road. Fast hits splatter them; slowing down
+        // lets them claw at the car.
+        var dcZombies = [];
+        var zombiesHit = 0;
+        var zSkin = standard(0x7d9464, { roughness: 0.9 });
+        var zShirt = standard(0x4b3b34, { roughness: 0.95 });
+        var zPants = standard(0x2b2f36, { roughness: 0.95 });
+        function makeZombie() {
+            var g = new THREE.Group();
+            var torso = box(0.42, 0.58, 0.26, zShirt); torso.position.y = 0.98; g.add(torso);
+            var hips = box(0.36, 0.2, 0.24, zPants); hips.position.y = 0.6; g.add(hips);
+            var head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), zSkin); head.position.y = 1.42; g.add(head);
+            var armL = new THREE.Group();
+            var amL = box(0.11, 0.55, 0.12, zSkin); amL.position.y = -0.26; armL.add(amL);
+            armL.position.set(-0.29, 1.22, 0); armL.rotation.x = -1.2; g.add(armL);
+            var armR = new THREE.Group();
+            var amR = box(0.11, 0.55, 0.12, zSkin); amR.position.y = -0.26; armR.add(amR);
+            armR.position.set(0.29, 1.22, 0); armR.rotation.x = -1.2; g.add(armR);
+            var legL = new THREE.Group();
+            var lmL = box(0.14, 0.58, 0.15, zPants); lmL.position.y = -0.29; legL.add(lmL);
+            legL.position.set(-0.12, 0.6, 0); g.add(legL);
+            var legR = new THREE.Group();
+            var lmR = box(0.14, 0.58, 0.15, zPants); lmR.position.y = -0.29; legR.add(lmR);
+            legR.position.set(0.12, 0.6, 0); g.add(legR);
+            g.userData.arms = [armL, armR];
+            g.userData.legs = [legL, legR];
+            return g;
+        }
+        for (var zi = 0; zi < 26; zi++) {
+            var zm = makeZombie();
+            var zdist = 60 + Math.random() * 620;
+            var zx = (Math.random() - 0.5) * 8;
+            zm.position.set(zx, 0, -zdist);
+            scene.add(zm);
+            dcZombies.push({ mesh: zm, dist: zdist, x: zx, speed: 1.2 + Math.random() * 1.8, dead: false, phase: Math.random() * 6.28 });
+        }
+
+        var bloodPool = [];
+        var bloodMat = new THREE.MeshBasicMaterial({ color: 0x9b111e });
+        for (var bpi = 0; bpi < 18; bpi++) {
+            var bp = box(0.14, 0.14, 0.14, bloodMat);
+            bp.visible = false;
+            scene.add(bp);
+            bloodPool.push({ mesh: bp, life: 0, vx: 0, vy: 0, vz: 0 });
+        }
+        function spawnBlood(x, z) {
+            for (var bi = 0; bi < bloodPool.length; bi++) {
+                var bl = bloodPool[bi];
+                if (bl.life > 0) continue;
+                bl.life = 0.75;
+                bl.mesh.visible = true;
+                bl.mesh.position.set(x + (Math.random() - 0.5) * 0.5, 1.1, z);
+                bl.vx = (Math.random() - 0.5) * 7;
+                bl.vy = 4 + Math.random() * 5;
+                bl.vz = (Math.random() - 0.5) * 7;
+                break;
+            }
+        }
+
         var carX = 0, vx = 0, speed = 0, distance = 0;
         var food = 100, water = 100, fuel = 100, health = 100;
         var throttleSmooth = 0, brakeSmooth = 0, steerSmooth = 0;
@@ -7657,6 +7537,59 @@
                 if (p.dist - distance < -25 && p.type !== 'part') respawnPickup(p);
             }
 
+            // Zombies.
+            for (var zj = 0; zj < dcZombies.length; zj++) {
+                var zb = dcZombies[zj];
+                var zrel = zb.dist - distance;
+                if (zb.dead || zrel < -25) {
+                    zb.dead = false;
+                    zb.mesh.visible = true;
+                    zb.dist = distance + 180 + Math.random() * 540;
+                    zb.x = (Math.random() - 0.5) * 8;
+                    zb.speed = 1.2 + Math.random() * 1.8;
+                    zrel = zb.dist - distance;
+                }
+                if (zrel < 90 && zrel > -8) {
+                    var zdx = carX - zb.x;
+                    zb.x += Math.sign(zdx) * Math.min(Math.abs(zdx), zb.speed * dt * 1.35);
+                    zb.dist -= zb.speed * dt * 1.1;
+                }
+                zb.mesh.position.set(zb.x, 0, -zrel);
+                zb.mesh.rotation.y = Math.atan2(carX - zb.x, 10);
+                var zswing = Math.sin(elapsed * 7 + zb.phase) * 0.55;
+                if (zb.mesh.userData.arms) {
+                    zb.mesh.userData.arms[0].rotation.x = -1.2 + zswing;
+                    zb.mesh.userData.arms[1].rotation.x = -1.2 - zswing;
+                }
+                if (zb.mesh.userData.legs) {
+                    zb.mesh.userData.legs[0].rotation.x = zswing * 0.7;
+                    zb.mesh.userData.legs[1].rotation.x = -zswing * 0.7;
+                }
+                if (!zb.dead && Math.abs(zrel) < 2.8 && Math.abs(zb.x - carX) < 1.7) {
+                    if (speed > 8) {
+                        zb.dead = true;
+                        zb.mesh.visible = false;
+                        zombiesHit++;
+                        speed *= 0.985;
+                        spawnBlood(zb.x, -zrel);
+                        toast('ZOMBIE HIT +1');
+                        tone(140, 0.16, 'sawtooth', 0.09, 60);
+                    } else {
+                        health = Math.max(0, health - 6 * dt);
+                    }
+                }
+            }
+            for (var bj = 0; bj < bloodPool.length; bj++) {
+                var bld = bloodPool[bj];
+                if (bld.life <= 0) continue;
+                bld.life -= dt;
+                bld.vy -= 11 * dt;
+                bld.mesh.position.x += bld.vx * dt;
+                bld.mesh.position.y += bld.vy * dt;
+                bld.mesh.position.z += bld.vz * dt;
+                bld.mesh.visible = bld.life > 0 && bld.mesh.position.y > 0.08;
+            }
+
             // Car visuals.
             car.position.x = carX;
             car.rotation.y = -vx * 0.035;
@@ -7688,6 +7621,7 @@
                 var fuEl = document.getElementById('dcFuel'); if (fuEl) fuEl.style.width = fuel + '%';
                 var hEl = document.getElementById('dcHealth'); if (hEl) hEl.style.width = health + '%';
                 var partEl = document.getElementById('dcPart'); if (partEl) partEl.textContent = partLabel();
+                var zEl = document.getElementById('dcZombies'); if (zEl) zEl.textContent = 'ZOMBIES ' + zombiesHit;
                 setPillText('g3dExtra', 'DEAD COAST · ' + Math.round(speed * 2.23694) + ' MPH');
             }
             if (toastT > 0) {
@@ -7699,11 +7633,11 @@
             if (!finished && distance >= 10000) {
                 finished = true;
                 toast('YOU MADE IT · 10 KM');
-                endGame(Math.round(10000 / 5) + partsFound.length * 500 + Math.round(food + water + fuel));
+                endGame(Math.round(10000 / 5) + partsFound.length * 500 + zombiesHit * 120 + Math.round(food + water + fuel));
                 return;
             }
             if (health <= 0) {
-                endGame(Math.round(distance / 5) + partsFound.length * 500);
+                endGame(Math.round(distance / 5) + partsFound.length * 500 + zombiesHit * 120);
             }
             var throttleFill = document.getElementById('g3dThrottleFill');
             if (throttleFill) throttleFill.style.height = Math.round(throttleSmooth * 100) + '%';
@@ -7716,7 +7650,7 @@
             update: update,
             getCoins: function () { return 0; },
             getState: function () {
-                return { distance: distance, speed: speed, x: carX, food: food, water: water, fuel: fuel, health: health, parts: partsFound.slice() };
+                return { distance: distance, speed: speed, x: carX, food: food, water: water, fuel: fuel, health: health, parts: partsFound.slice(), zombiesHit: zombiesHit };
             }
         };
     }
