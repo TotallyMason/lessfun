@@ -7700,8 +7700,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.41";
-const UPDATE_NOTES = "Dead Coast fuel stations are much more common now, roughly every 700 metres, so you can stop, fight zombies on foot, and restock food, water, fuel, and rare car parts more often";
+const APP_VERSION = "LessFun Public Beta 1.32.42";
+const UPDATE_NOTES = "Dead Coast road motion is fixed: roadside props and road markings now move toward you correctly instead of looking like you are driving backwards. Fuel stations remain every ~700 metres";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

@@ -7921,7 +7921,7 @@
             // Prop recycling and collision.
             for (var i = 0; i < props.length; i++) {
                 var prop = props[i];
-                prop.mesh.position.z = -prop.dist;
+                prop.mesh.position.z = -(prop.dist - distance);
                 if (prop.hitT > 0) prop.hitT -= dt;
                 if (prop.solid && prop.hitT <= 0 && prop.dist - distance < 3 && prop.dist - distance > -3 && Math.abs(prop.x - carX) < 1.7) {
                     prop.hitT = 1.2;
@@ -8032,7 +8032,7 @@
             tailMat.color.setHex(brakeSmooth > 0.15 ? 0xff1e30 : 0x5a1018);
 
             // Scrolling road texture.
-            roadTex.offset.y = -(distance / 23.3) % 1;
+            roadTex.offset.y = (distance / 23.3) % 1;
 
             // Camera modes: chase, hood, wheel, first person.
             if (dcCameraMode === 1) {
