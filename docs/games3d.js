@@ -2351,6 +2351,10 @@
                 var nitroFill = document.getElementById('g3dNitroFill');
                 if (nitroFill) nitroFill.style.width = Math.round(nitro) + '%';
             }
+            var throttleFill = document.getElementById('g3dThrottleFill');
+            if (throttleFill) throttleFill.style.width = Math.round(throttleDisplay * 100) + '%';
+            var brakeFill = document.getElementById('g3dBrakeFill');
+            if (brakeFill) brakeFill.style.width = Math.round(brakeDisplay * 100) + '%';
             var coinEl = document.getElementById('g3dRunCoins');
             if (coinEl) setPillText('g3dRunCoins', coinsCollected);
         }
@@ -3460,6 +3464,7 @@
         var ignition = 0, engineOn = false;
         if (raceMode) { ignition = 1; engineOn = true; gearMode = 'D'; }
         var nitro = 100, nitroActive = false;
+        var throttleDisplay = 0, brakeDisplay = 0;
         var nitroWasActive = false, nitroShiftT = 0;
         var coinsCollected = 0;
         var garageMode = false;
@@ -3842,12 +3847,16 @@
                     ai.speed = Math.max(0, ai.speed - 35 * dt);
                 } else {
                     var aiTotal = (ai.lap - 1) * RACE_LOOP + ai.distance;
-                    var target = 68 + ai.skill * 28;
+                    // AI pace scales with the player's real top speed, so the
+                    // pack stays competitive whether the player is in the junk
+                    // beater or a hypercar.
+                    var playerTop = Math.max(55, perf.topSpeed || 120);
+                    var target = playerTop * (0.80 + ai.skill * 0.13);
                     var diff = playerTotal - aiTotal;
-                    if (diff > 70) target += Math.min(24, diff * 0.09);
-                    else if (diff < -80) target -= Math.min(18, -diff * 0.07);
-                    target = Math.max(52, Math.min(118, target));
-                    ai.speed += (target - ai.speed) * Math.min(1, dt * 0.9);
+                    if (diff > 45) target += Math.min(playerTop * 0.20, diff * 0.10);
+                    else if (diff < -60) target -= Math.min(playerTop * 0.14, -diff * 0.08);
+                    target = Math.max(playerTop * 0.58, Math.min(playerTop * 1.01, target));
+                    ai.speed += (target - ai.speed) * Math.min(1, dt * 1.7);
                     ai.distance += ai.speed * dt;
                     if (ai.distance >= RACE_LOOP) {
                         ai.distance -= RACE_LOOP;
@@ -3875,7 +3884,7 @@
             }
         }
 
-        function updateRaceHud() {
+        function updateRaceModeHud() {
             if (!raceMode) return;
             var hud = document.getElementById('g3dRaceHud');
             if (!hud) return;
@@ -3943,6 +3952,7 @@
                 }
                 updateAiRacers(dt);
                 updateRaceHud();
+                updateRaceModeHud();
             }
 
             // Gear selector: Q shifts down (D → N → R → P), E shifts up
@@ -4111,6 +4121,11 @@
                 fsdSwerveT = Math.max(0, fsdSwerveT - dt);
                 fsdSwerveCooldown = Math.max(0, fsdSwerveCooldown - dt);
             }
+
+            var throttleTarget = throttleCmd ? 1 : 0;
+            var brakeTarget = brakeCmd ? 1 : 0;
+            throttleDisplay += (throttleTarget - throttleDisplay) * Math.min(1, dt * 14);
+            brakeDisplay += (brakeTarget - brakeDisplay) * Math.min(1, dt * 14);
 
             honkCooldown = Math.max(0, honkCooldown - dt);
             if (input.honk) {
@@ -4661,6 +4676,7 @@
         if (crashFlash) crashFlash.classList.remove('is-active');
         initAudio();
         updateRaceHud();
+        updateRaceModeHud();
         return {
             over: false,
             update: update,

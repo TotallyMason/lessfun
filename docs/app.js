@@ -514,6 +514,26 @@ function startMenuMultiplayer() {
     arcadeMpJoin();
 }
 
+function openRaceChoice() {
+    var el = document.getElementById('g3dRaceChoice');
+    if (el) el.style.display = 'flex';
+}
+
+function closeRaceChoice() {
+    var el = document.getElementById('g3dRaceChoice');
+    if (el) el.style.display = 'none';
+}
+
+function startRaceAi() {
+    closeRaceChoice();
+    garageRace();
+}
+
+function startRaceMultiplayer() {
+    closeRaceChoice();
+    garageMultiplayer();
+}
+
 function garageRace() {
     garagePlay(true);
 }
@@ -918,12 +938,15 @@ function openGame(id) {
             '<div class="game3d-perf" id="g3dPerf"><span id="g3dFps">-- FPS</span><span id="g3dRes">--</span></div>' +
             (game.hasThrottle ? '<button class="game3d-throttle" id="g3dThrottle" type="button">Throttle</button>' : '') +
             (game.hasBrake ? '<button class="game3d-brake" id="g3dBrake" type="button">Brake</button>' : '') +
-            (game.hasThrottle ? '<div class="game3d-ignition" id="g3dIgnition"><span>Ignition</span><div class="game3d-bar-track"><div class="game3d-bar-fill" id="g3dIgnitionFill"></div></div></div>' : '') +
             (game.hasThrottle ? '<div class="game3d-nitro" id="g3dNitro"><span>N · NOS</span><div class="game3d-bar-track"><div class="game3d-bar-fill" id="g3dNitroFill"></div></div></div>' : '') +
+            (game.hasThrottle ?
+                '<div class="game3d-pedals" id="g3dPedals">' +
+                    '<div class="game3d-pedal-row"><span>THR</span><div class="game3d-pedal-track is-throttle"><i id="g3dThrottleFill"></i></div></div>' +
+                    '<div class="game3d-pedal-row"><span>BRK</span><div class="game3d-pedal-track is-brake"><i id="g3dBrakeFill"></i></div></div>' +
+                '</div>' : '') +
             (game.hasThrottle ?
                 '<div class="game3d-touch-controls">' +
                     '<button type="button" class="game3d-touch-btn is-nitro" onpointerdown="event.preventDefault();mobileHold(\'nitro\',true)" onpointerup="mobileHold(\'nitro\',false)" onpointercancel="mobileHold(\'nitro\',false)" onpointerleave="mobileHold(\'nitro\',false)">NOS</button>' +
-                    '<button type="button" class="game3d-touch-btn is-drift" onpointerdown="event.preventDefault();mobileHold(\'drift\',true)" onpointerup="mobileHold(\'drift\',false)" onpointercancel="mobileHold(\'drift\',false)" onpointerleave="mobileHold(\'drift\',false)">Drift</button>' +
                     '<button type="button" class="game3d-touch-btn is-fsd" onpointerdown="event.preventDefault();mobileFsd()">FSD</button>' +
                     '<button type="button" class="game3d-touch-btn is-gear" onpointerdown="event.preventDefault();mobileShift(1)">▲</button>' +
                     '<button type="button" class="game3d-touch-btn is-gear is-down" onpointerdown="event.preventDefault();mobileShift(-1)">▼</button>' +
@@ -1074,11 +1097,24 @@ function openGame(id) {
                         '<p class="game3d-garage-sub">Orbit view · buy and equip parts in the Garage tab.</p>' +
                         '<div class="game3d-garage-stats" id="g3dGarageStats"></div>' +
                         '<div class="game3d-garage-actions">' +
-                            '<button type="button" class="game3d-mp-primary" onclick="garageRace()">Race</button>' +
-                            '<button type="button" class="game3d-mp-secondary" onclick="garagePlay()">Highway</button>' +
-                            '<button type="button" class="game3d-mp-secondary" onclick="garageMultiplayer()">Multiplayer</button>' +
+                            '<button type="button" class="game3d-mp-primary" onclick="garagePlay()">Play</button>' +
+                            '<button type="button" class="game3d-mp-secondary" onclick="openRaceChoice()">Race</button>' +
                             '<button type="button" class="game3d-mp-secondary" onclick="openGarageShop()">Garage</button>' +
                             '<button type="button" class="game3d-mp-secondary" onclick="openShowroom()">Showroom</button>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="game3d-race-choice" id="g3dRaceChoice" style="display:none;">' +
+                        '<div class="game3d-race-choice-card">' +
+                            '<span class="game3d-garage-kicker">BEACH RACER · RACE</span>' +
+                            '<h2>Choose your race</h2>' +
+                            '<p>Closed 3-lap circuit · no traffic</p>' +
+                            '<button type="button" class="game3d-race-option is-ai" onclick="startRaceAi()">' +
+                                '<strong>Race AI</strong><span>You + 4 adaptive rivals</span>' +
+                            '</button>' +
+                            '<button type="button" class="game3d-race-option is-mp" onclick="startRaceMultiplayer()">' +
+                                '<strong>Race Friends</strong><span>You + your multiplayer lobby</span>' +
+                            '</button>' +
+                            '<button type="button" class="game3d-mp-secondary" onclick="closeRaceChoice()">Cancel</button>' +
                         '</div>' +
                     '</div>' +
                 '</div>' : '') +
@@ -1137,7 +1173,7 @@ function openGame(id) {
                 '</div>' : '') +
             '<div class="game3d-crash" id="g3dCrashFlash"></div>' +
             '<div class="g3d-grain" aria-hidden="true"></div>' +
-            (game.id === 1 ? '<div class="g3d-cinema" id="g3dCinema"><span>CRASH CAM · 60 FPS · SLOW MOTION</span></div>' : '') +
+            (game.id === 1 ? '<div class="g3d-cinema" id="g3dCinema"></div>' : '') +
             (game.hasThrottle ? '<div class="game3d-fsd" id="g3dFsd"><span>FSD ACTIVE</span></div>' : '') +
             (game.hasThrottle ? '<div class="game3d-fsd-hud" id="g3dFsdHud"><span>FSD</span><canvas id="g3dFsdCanvas" width="260" height="156"></canvas></div>' : '') +
             '<div class="game3d-warning" id="g3dWarning"></div>' +
@@ -7564,8 +7600,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.12";
-const UPDATE_NOTES = "Beach Racer Racing is live: closed-loop 3-lap races with four adaptive AI rivals, a 200-car showroom with real brands and specs, a junk starter car, 60 FPS cinematic crash cam, Funtutu Test benchmark, 27 new store items, new graphics settings, and a site-wide mobile pass";
+const APP_VERSION = "LessFun Public Beta 1.32.13";
+const UPDATE_NOTES = "Beach Racer controls are simpler: Play is the main button, Race now opens a chooser for AI or friends, the nitro bar is fixed, throttle and brake are shown as live bars, the ignition bar and mobile drift button are gone, and the AI racers are much faster";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
