@@ -6655,8 +6655,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.38.0";
-const UPDATE_NOTES = "Beach Racer traffic now fights back with Cannon.js: dynamic wrecks by vehicle mass, contact-point impulses and spin, frictionless contacts with manual grip, kinematic traffic sensors for chain pile-ups, fatal high-speed bus impacts, hinge-constraint wheels, suspension springs, and a lerped chase camera";
+const APP_VERSION = "LessFun Developer Beta 1.39.0";
+const UPDATE_NOTES = "Beach Racer crash wrecks now use the real merged car model as one soft body, and a seatbelt tether keeps the driver ragdoll attached during the cinematic crash instead of letting it fly free";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

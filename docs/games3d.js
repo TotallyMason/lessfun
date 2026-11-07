@@ -1678,8 +1678,20 @@
         var driverRagdoll = makeDriverRagdoll();
         driverRagdoll.position.set(0.32, 0.78, 0.08);
         driverRagdoll.scale.setScalar(0.9);
+        var driverBeltMat = standard(0x171a1e, { roughness: 0.7, metalness: 0.15 });
+        var driverBelt = boxMesh(0.05, 0.1, 0.3, driverBeltMat);
+        driverBelt.position.set(0, 0.72, -0.1);
+        driverBelt.rotation.x = 0.25;
+        driverRagdoll.add(driverBelt);
+        var driverBuckle = boxMesh(0.09, 0.07, 0.04, new THREE.MeshBasicMaterial({ color: 0xb7c0c8 }));
+        driverBuckle.position.set(0.14, 0.63, -0.12);
+        driverRagdoll.add(driverBuckle);
         player.add(driverRagdoll);
         var ragdollActive = false;
+        var ragdollTethered = false;
+        var seatbeltStrap = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 1), standard(0x24282e, { roughness: 0.8 }));
+        seatbeltStrap.visible = false;
+        scene.add(seatbeltStrap);
         var ragdollVx = 0, ragdollVy = 0, ragdollVz = 0;
         var ragdollSpinX = 0, ragdollSpinY = 0, ragdollSpinZ = 0;
 
@@ -2428,61 +2440,82 @@
             player.visible = true;
         }
 
+        function buildMergedPlayerGeometry() {
+            player.updateMatrixWorld(true);
+            var inv = new THREE.Matrix4().copy(player.matrixWorld).invert();
+            var positions = [], normals = [], colors = [];
+            var sources = [];
+            player.children.forEach(function (child) {
+                if (child === driverRagdoll) return;
+                sources.push(child);
+            });
+            sources.forEach(function (root) {
+                root.traverse(function (mesh) {
+                    if (!mesh || !mesh.isMesh || !mesh.geometry) return;
+                    if (mesh.userData && mesh.userData.fakeShadow) return;
+                    var g = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone();
+                    var m = new THREE.Matrix4().multiplyMatrices(inv, mesh.matrixWorld);
+                    g.applyMatrix4(m);
+                    if (!g.attributes.normal) g.computeVertexNormals();
+                    var pa = g.attributes.position.array;
+                    var na = g.attributes.normal.array;
+                    var mat = mesh.material;
+                    if (Array.isArray(mat)) mat = mat[0];
+                    var col = new THREE.Color(0xc8d0d8);
+                    if (mat && mat.color) col.copy(mat.color);
+                    if (mat && mat.transparent) col.multiplyScalar(0.58);
+                    for (var i = 0; i < pa.length; i += 3) {
+                        positions.push(pa[i], pa[i + 1], pa[i + 2]);
+                        normals.push(na[i], na[i + 1], na[i + 2]);
+                        colors.push(col.r, col.g, col.b);
+                    }
+                    g.dispose();
+                });
+            });
+            if (!positions.length) return null;
+            var geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+            geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            geo.computeBoundingSphere();
+            return geo;
+        }
+
         function buildSoftWreck(zone, severity) {
             clearSoftWreck();
             var spec = player.userData.spec || {};
-            var width = spec.width || 1.8;
-            var len = spec.len || 3.2;
-            var geo = new THREE.BoxGeometry(width, 0.9, len, 12, 4, 24);
-            geo.translate(0, 0.45, 0);
+            var geo = buildMergedPlayerGeometry();
+            if (!geo) return;
             var pos = geo.attributes.position;
             var base = new Float32Array(pos.array.length);
             var dent = new Float32Array(pos.array.length);
             for (var i = 0; i < pos.count; i++) {
                 var ix = i * 3;
                 var x = pos.array[ix], y = pos.array[ix + 1], z = pos.array[ix + 2];
-                var nx = x / (width / 2);
-                var nz = z / (len / 2);
-                var t = Math.max(0, Math.min(1, y / 0.9));
-                // Sculpt a single car-shell silhouette: low hood, raised cabin,
-                // tapered nose/tail and narrower roof instead of a plain box.
-                var cabin = 0.34 + 0.40 * Math.exp(-Math.pow((nz + 0.02) / 0.34, 2));
-                var hood = 0.12 * Math.exp(-Math.pow((nz + 0.72) / 0.22, 2));
-                var top = Math.min(0.86, cabin + hood);
-                var bottom = 0.12;
-                var shapedY = bottom + t * (top - bottom);
-                var sideTaper = 0.76 + 0.24 * (1 - t);
-                var endTaper = 0.86 + 0.14 * Math.cos(nz * 1.35);
-                pos.array[ix] = x * sideTaper * endTaper;
-                pos.array[ix + 1] = shapedY;
-                pos.array[ix + 2] = z * 0.985;
-                base[ix] = pos.array[ix];
-                base[ix + 1] = pos.array[ix + 1];
-                base[ix + 2] = pos.array[ix + 2];
+                base[ix] = x; base[ix + 1] = y; base[ix + 2] = z;
                 var hit = zone === 'front' ? z < 0 :
                     zone === 'rear' ? z > 0 :
                     zone === 'left' ? x < 0 : x > 0;
                 if (hit) {
-                    var f = severity * 1.8;
+                    var f = severity * 1.35;
                     if (zone === 'front' || zone === 'rear') {
                         var zs = zone === 'front' ? -1 : 1;
-                        dent[ix] += (Math.random() - 0.5) * f * 0.25;
-                        dent[ix + 1] += (Math.random() - 0.5) * f * 0.18;
-                        dent[ix + 2] += zs * f * (0.35 + Math.random() * 0.5);
+                        dent[ix] += (Math.random() - 0.5) * f * 0.2;
+                        dent[ix + 1] += (Math.random() - 0.5) * f * 0.14;
+                        dent[ix + 2] += zs * f * (0.3 + Math.random() * 0.42);
                     } else {
                         var xs = zone === 'left' ? -1 : 1;
-                        dent[ix] += xs * f * (0.35 + Math.random() * 0.5);
-                        dent[ix + 1] += (Math.random() - 0.5) * f * 0.2;
-                        dent[ix + 2] += (Math.random() - 0.5) * f * 0.22;
+                        dent[ix] += xs * f * (0.3 + Math.random() * 0.42);
+                        dent[ix + 1] += (Math.random() - 0.5) * f * 0.16;
+                        dent[ix + 2] += (Math.random() - 0.5) * f * 0.18;
                     }
                 }
             }
             pos.needsUpdate = true;
             geo.computeVertexNormals();
             var mat = new THREE.MeshPhysicalMaterial({
-                color: paintColor, metalness: 0.45, roughness: 0.22,
-                clearcoat: 1.0, clearcoatRoughness: 0.08,
-                emissive: paintColor, emissiveIntensity: 0.04
+                vertexColors: true, metalness: 0.4, roughness: 0.24,
+                clearcoat: 0.95, clearcoatRoughness: 0.1
             });
             crashSoftBody = new THREE.Mesh(geo, mat);
             crashSoftBody.position.copy(player.position);
@@ -2511,10 +2544,12 @@
             scene.attach(driverRagdoll);
             driverRagdoll.position.y += 0.9;
             ragdollActive = true;
+            ragdollTethered = true;
             var side = zone === 'left' ? -1 : zone === 'right' ? 1 : dir;
-            ragdollVx = side * (3 + Math.min(12, impactSpeed * 0.06)) + dir * 2.0;
-            ragdollVy = 5 + Math.min(11, impactSpeed * 0.055);
-            ragdollVz = (zone === 'front' ? -1 : 1) * (2 + Math.min(10, impactSpeed * 0.045)) + (Math.random() - 0.5) * 3;
+            ragdollVx = (side * (3 + Math.min(12, impactSpeed * 0.06)) + dir * 2.0) * 0.55;
+            ragdollVy = (5 + Math.min(11, impactSpeed * 0.055)) * 0.6;
+            ragdollVz = ((zone === 'front' ? -1 : 1) * (2 + Math.min(10, impactSpeed * 0.045)) + (Math.random() - 0.5) * 3) * 0.55;
+            seatbeltStrap.visible = true;
             ragdollSpinX = (Math.random() - 0.5) * 9;
             ragdollSpinY = (Math.random() - 0.5) * 7;
             ragdollSpinZ = (Math.random() - 0.5) * 8;
@@ -2540,6 +2575,23 @@
                 limb.mesh.rotation.x += limb.spin * dt;
                 limb.spin *= Math.max(0, 1 - dt * 1.4);
             });
+            if (ragdollTethered) {
+                var seatAnchor = new THREE.Vector3(0.32, 1.18, 0.08).applyMatrix4(player.matrixWorld);
+                var toSeat = new THREE.Vector3().subVectors(driverRagdoll.position, seatAnchor);
+                var tetherDist = toSeat.length();
+                if (tetherDist > 1.25) {
+                    toSeat.multiplyScalar(1.25 / tetherDist);
+                    driverRagdoll.position.copy(seatAnchor).add(toSeat);
+                    ragdollVx *= 0.25;
+                    ragdollVy *= 0.3;
+                    ragdollVz *= 0.25;
+                }
+                seatbeltStrap.position.lerpVectors(seatAnchor, driverRagdoll.position, 0.5);
+                var strapDir = new THREE.Vector3().subVectors(driverRagdoll.position, seatAnchor);
+                var strapLen = Math.max(0.1, strapDir.length());
+                seatbeltStrap.scale.z = strapLen;
+                seatbeltStrap.lookAt(driverRagdoll.position);
+            }
             if (driverRagdoll.position.y < 0.22) {
                 driverRagdoll.position.y = 0.22;
                 ragdollVy = Math.abs(ragdollVy) * 0.33;
