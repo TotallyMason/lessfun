@@ -1856,19 +1856,8 @@
         }
         if (raceMode && raceAi) makeAiRacers();
 
-        // A visible driver that becomes a physically simulated ragdoll on impact.
-        var driverRagdoll = makeDriverRagdoll();
-        driverRagdoll.position.set(0.24, 0.16, 0.06);
-        driverRagdoll.scale.setScalar(0.58);
-        var driverBeltMat = standard(0x171a1e, { roughness: 0.7, metalness: 0.15 });
-        var driverBelt = boxMesh(0.05, 0.1, 0.3, driverBeltMat);
-        driverBelt.position.set(0, 0.72, -0.1);
-        driverBelt.rotation.x = 0.25;
-        driverRagdoll.add(driverBelt);
-        var driverBuckle = boxMesh(0.09, 0.07, 0.04, new THREE.MeshBasicMaterial({ color: 0xb7c0c8 }));
-        driverBuckle.position.set(0.14, 0.63, -0.12);
-        driverRagdoll.add(driverBuckle);
-        player.add(driverRagdoll);
+        // Driver and crash ragdoll removed.
+        var driverRagdoll = null;
 
         // First-person steering wheel.
         var fpWheel = new THREE.Group();

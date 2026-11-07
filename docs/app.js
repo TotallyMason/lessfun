@@ -7700,8 +7700,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.42";
-const UPDATE_NOTES = "Dead Coast road motion is fixed: roadside props and road markings now move toward you correctly instead of looking like you are driving backwards. Fuel stations remain every ~700 metres";
+const APP_VERSION = "LessFun Public Beta 1.32.43";
+const UPDATE_NOTES = "The Beach Racer driver ragdoll is fully removed, so nothing launches or dangles in the car during crashes. The graphics preset is confirmed as Poteto";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
