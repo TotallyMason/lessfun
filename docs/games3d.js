@@ -1856,6 +1856,27 @@
         driverBuckle.position.set(0.14, 0.63, -0.12);
         driverRagdoll.add(driverBuckle);
         player.add(driverRagdoll);
+
+        // First-person steering wheel.
+        var fpWheel = new THREE.Group();
+        var fpWheelMat = standard(0x14171b, { metalness: 0.45, roughness: 0.45 });
+        var fpWheelRim = new THREE.Mesh(new THREE.TorusGeometry(0.155, 0.027, 8, 22), fpWheelMat);
+        fpWheel.add(fpWheelRim);
+        var fpHub = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), standard(0x2a2f36, { metalness: 0.6, roughness: 0.3 }));
+        fpWheel.add(fpHub);
+        [-1, 1].forEach(function (spokeSide) {
+            var spoke = boxMesh(0.16, 0.024, 0.024, fpWheelMat);
+            spoke.position.x = spokeSide * 0.08;
+            fpWheel.add(spoke);
+        });
+        var fpWheelSpoke = boxMesh(0.024, 0.16, 0.024, fpWheelMat);
+        fpWheelSpoke.position.y = -0.08;
+        fpWheel.add(fpWheelSpoke);
+        fpWheel.position.set(0, 0.94, -0.5);
+        fpWheel.rotation.x = -0.32;
+        fpWheel.visible = false;
+        player.add(fpWheel);
+
         var ragdollActive = false;
         var ragdollTethered = false;
         var seatbeltStrap = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 1), standard(0x24282e, { roughness: 0.8 }));
@@ -4662,6 +4683,11 @@
                 camera.rotateY(curveAhead * 0.0009 - steerAngle * 0.16);
                 camera.rotateX(bodyPitch * 0.05);
             }
+            if (fpWheel) {
+                fpWheel.visible = cameraMode === 3 && !ragdollActive;
+                fpWheel.rotation.z = -steerAngle * 2.3;
+            }
+            if (driverRagdoll) driverRagdoll.visible = !ragdollActive && cameraMode !== 3;
             if (sunLight && sunLight.target) {
                 sunLight.position.set(player.position.x + 18, 28, player.position.z + 12);
                 sunLight.target.position.set(player.position.x, 0, player.position.z - 10);
@@ -7309,6 +7335,23 @@
                 car.add(w); dcWheels.push(w);
             });
         });
+        var dcWheel = new THREE.Group();
+        var dcWheelMat = standard(0x14171b, { metalness: 0.45, roughness: 0.45 });
+        dcWheel.add(new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.026, 8, 20), dcWheelMat));
+        var dcHub = new THREE.Mesh(new THREE.SphereGeometry(0.043, 10, 8), standard(0x2a2f36, { metalness: 0.6, roughness: 0.3 }));
+        dcWheel.add(dcHub);
+        [-1, 1].forEach(function (ds) {
+            var sp = box(0.15, 0.022, 0.022, dcWheelMat);
+            sp.position.x = ds * 0.075;
+            dcWheel.add(sp);
+        });
+        var dcSpoke = box(0.022, 0.15, 0.022, dcWheelMat);
+        dcSpoke.position.y = -0.075;
+        dcWheel.add(dcSpoke);
+        dcWheel.position.set(0, 0.96, -0.5);
+        dcWheel.rotation.x = -0.32;
+        dcWheel.visible = false;
+        car.add(dcWheel);
         scene.add(car);
 
         // Scrolling roadside props.
@@ -7655,6 +7698,10 @@
                 camera.position.y += (4.2 + speed * 0.02 - camera.position.y) * Math.min(1, dt * 4);
                 camera.position.z += (10.4 - camera.position.z) * Math.min(1, dt * 5);
                 camera.lookAt(carX * 0.85, 1.15, -5.5);
+            }
+            if (dcWheel) {
+                dcWheel.visible = dcCameraMode === 3;
+                dcWheel.rotation.z = -steerSmooth * 1.7 - vx * 0.04;
             }
             camera.fov += (((dcCameraMode === 0 ? 60 : 72) + Math.min(14, speed * 0.3)) - camera.fov) * Math.min(1, dt * 3);
             camera.updateProjectionMatrix();

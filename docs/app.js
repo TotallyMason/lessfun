@@ -7604,8 +7604,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.20";
-const UPDATE_NOTES = "Camera cycling with C is now silent: no on-screen camera label in Beach Racer or Dead Coast. Also includes the fixed throttle/brake bars, restored Beach Racer rendering, persistent showroom cars, Dead Coast zombie hordes, and the 2026-normalised Funtutu score";
+const APP_VERSION = "LessFun Public Beta 1.32.21";
+const UPDATE_NOTES = "First-person camera now shows a steering wheel that turns with your input in Beach Racer and Dead Coast. Camera cycling with C stays silent. Also includes fixed throttle/brake bars, restored Beach Racer rendering, persistent showroom cars, zombie hordes, and 2026-normalised Funtutu scoring";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
