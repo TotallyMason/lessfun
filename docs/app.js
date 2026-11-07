@@ -2855,7 +2855,6 @@ function dmRenderThread() {
             '<span>' + Math.max(0, (group.members || []).length) + ' members · end-to-end encrypted</span></div>' +
             '<div class="game3d-dm-group-buttons">' +
                 (canDelete ? '<button type="button" class="game3d-dm-group-delete" onclick="dmDeleteGroup(\'' + debugArg(group.id) + '\')">Delete</button>' : '') +
-                '<button type="button" class="game3d-dm-group-leave" onclick="dmLeaveGroup(\'' + debugArg(group.id) + '\')">Leave</button>' +
             '</div>' +
         '</div>';
         if (!rows.length) {
@@ -2870,6 +2869,10 @@ function dmRenderThread() {
                 '</div>';
             }).join('');
         }
+        html += '<div class="game3d-dm-group-footer">' +
+            '<span>' + Math.max(0, (group.members || []).length) + ' members · end-to-end encrypted</span>' +
+            '<button type="button" class="game3d-dm-group-leave" onclick="dmLeaveGroup(\'' + debugArg(group.id) + '\')">Leave group</button>' +
+        '</div>';
         thread.innerHTML = html;
         thread.scrollTop = thread.scrollHeight;
         return;
@@ -7675,8 +7678,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.33";
-const UPDATE_NOTES = "Message groups now have Delete and Leave buttons in the group header, so you can remove a group you started or leave one you joined";
+const APP_VERSION = "LessFun Public Beta 1.32.34";
+const UPDATE_NOTES = "The radio panel now shows who is tuned in and which station they are listening to. Group Leave moved to the bottom of the group thread, while Delete stays in the header";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -9575,6 +9578,7 @@ async function touchPresence() {
 function startPresence() {
     if (!friendUsername() || !supabaseClient) return;
     touchPresence();
+    if (typeof radioPresenceConnect === 'function') radioPresenceConnect();
     startNotifications();
     startActivityChannel();
     if (!presenceTimer) {
@@ -9588,6 +9592,7 @@ function startPresence() {
 }
 
 function stopPresence() {
+    if (typeof radioPresenceDisconnect === 'function') radioPresenceDisconnect();
     if (presenceTimer) { clearInterval(presenceTimer); presenceTimer = 0; }
     if (friendsAutoTimer) { clearInterval(friendsAutoTimer); friendsAutoTimer = 0; }
     stopNotifications();
@@ -10074,6 +10079,8 @@ function radioInit() {
     audio.addEventListener('playing', function () {
         radioHasSource = true;
         radioSetBuffering(false);
+        radioPresenceConnect();
+        radioPresenceTrack();
         radioSetStatus('LIVE · ' + (RADIO_STATIONS[radioIndex] ? RADIO_STATIONS[radioIndex].name : ''));
         var fab = document.getElementById('radioFab');
         if (fab) fab.classList.add('is-playing');
@@ -10082,6 +10089,7 @@ function radioInit() {
     });
     audio.addEventListener('pause', function () {
         radioSetBuffering(false);
+        radioPresenceTrack();
         radioSetStatus('Paused');
         var fab = document.getElementById('radioFab');
         if (fab) fab.classList.remove('is-playing');
@@ -10101,6 +10109,7 @@ function radioInit() {
     audio.addEventListener('error', function () {
         if (!radioHasSource) return;
         radioSetBuffering(false);
+        radioPresenceTrack();
         radioSetStatus('Stream unavailable · try another station');
         var fab = document.getElementById('radioFab');
         if (fab) fab.classList.remove('is-playing');
@@ -10152,6 +10161,7 @@ function radioTurnOff() {
     }
     radioHasSource = false;
     radioSetBuffering(false);
+    radioPresenceTrack();
     try { localStorage.setItem('lessfun_radio_off', '1'); } catch (e) {}
     var playBtn = document.getElementById('radioPlayBtn');
     if (playBtn) playBtn.textContent = 'Play';
@@ -10187,4 +10197,111 @@ function radioSetVolume(value) {
     var volume = Math.max(0, Math.min(1, Number(value) || 0));
     if (audio) audio.volume = volume;
     try { localStorage.setItem('lessfun_radio_volume', String(volume)); } catch (e) {}
+}
+
+
+/* ---------------- Radio listener presence ---------------- */
+let radioPresenceChannel = null;
+let radioPresenceKey = '';
+let radioPresenceSubscribed = false;
+const RADIO_PRESENCE_CHANNEL = 'lessfun-radio-presence';
+
+function radioPresenceName() {
+    return (currentUser && currentUser.type === 'user' && currentUser.username) ? currentUser.username : '';
+}
+
+function radioPresenceDisconnect() {
+    if (radioPresenceChannel && supabaseClient) {
+        try { radioPresenceChannel.untrack(); } catch (e) {}
+        try { supabaseClient.removeChannel(radioPresenceChannel); } catch (e) {}
+    }
+    radioPresenceChannel = null;
+    radioPresenceKey = '';
+    radioPresenceSubscribed = false;
+}
+
+function radioPresenceEntries() {
+    const entries = [];
+    if (!radioPresenceChannel) return entries;
+    let state = {};
+    try { state = radioPresenceChannel.presenceState() || {}; } catch (e) { return entries; }
+    const seen = {};
+    Object.keys(state).forEach(function (key) {
+        (state[key] || []).forEach(function (meta) {
+            if (!meta || !meta.station) return;
+            const name = String(meta.username || '');
+            if (!name) return;
+            const dedupe = name + '|' + meta.station;
+            if (seen[dedupe]) return;
+            seen[dedupe] = true;
+            entries.push({ username: name, station: String(meta.station), freq: String(meta.freq || '') });
+        });
+    });
+    entries.sort(function (a, b) {
+        return a.station === b.station ? a.username.localeCompare(b.username) : a.station.localeCompare(b.station);
+    });
+    return entries;
+}
+
+function radioRenderListeners() {
+    const host = document.getElementById('radioListeners');
+    if (!host) return;
+    if (!radioPresenceName()) {
+        host.innerHTML = '<p class="radio-listeners-empty">Sign in to see who is tuned in.</p>';
+        return;
+    }
+    const entries = radioPresenceEntries();
+    if (!entries.length) {
+        host.innerHTML = '<p class="radio-listeners-empty">No one is tuned in yet.</p>';
+        return;
+    }
+    host.innerHTML = entries.map(function (entry) {
+        return '<span class="radio-listener"><b>' + escapeHtml(entry.username) + '</b><small>' + escapeHtml(entry.station) + (entry.freq ? ' · ' + escapeHtml(entry.freq) : '') + '</small></span>';
+    }).join('');
+}
+
+function radioPresenceTrack() {
+    if (!radioPresenceChannel) return;
+    const audio = document.getElementById('lessfunRadioAudio');
+    const playing = !!(audio && !audio.paused && radioHasSource);
+    try {
+        if (playing && RADIO_STATIONS[radioIndex]) {
+            const station = RADIO_STATIONS[radioIndex];
+            radioPresenceChannel.track({
+                username: radioPresenceName(),
+                station: station.name,
+                freq: station.freq,
+                at: Date.now()
+            });
+        } else {
+            radioPresenceChannel.untrack();
+        }
+    } catch (e) {}
+    setTimeout(radioRenderListeners, 60);
+}
+
+function radioPresenceConnect() {
+    if (!supabaseClient) return null;
+    const name = radioPresenceName();
+    if (!name) { radioRenderListeners(); return null; }
+    if (radioPresenceChannel && radioPresenceKey === name) return radioPresenceChannel;
+    radioPresenceDisconnect();
+    radioPresenceKey = name;
+    try {
+        const channel = supabaseClient.channel(RADIO_PRESENCE_CHANNEL, { config: { presence: { key: name } } });
+        channel.on('presence', { event: 'sync' }, function () { radioRenderListeners(); });
+        channel.on('presence', { event: 'join' }, function () { radioRenderListeners(); });
+        channel.on('presence', { event: 'leave' }, function () { radioRenderListeners(); });
+        channel.subscribe(function (status) {
+            if (status === 'SUBSCRIBED') {
+                radioPresenceSubscribed = true;
+                radioPresenceTrack();
+                radioRenderListeners();
+            }
+        });
+        radioPresenceChannel = channel;
+    } catch (e) {
+        radioPresenceChannel = null;
+    }
+    return radioPresenceChannel;
 }

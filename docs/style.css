@@ -9957,3 +9957,32 @@ body.film-grain-on .g3d-grain { display: block; }
 }
 .game3d-dm-group-buttons .game3d-dm-group-leave { color: #ffcf8a; border-color: rgba(255, 190, 100, 0.32); }
 .game3d-dm-group-buttons .game3d-dm-group-delete { color: #ff9a9a; border-color: rgba(255, 100, 100, 0.32); }
+
+/* Radio listener presence */
+.radio-listeners-wrap { display: flex; flex-direction: column; gap: 5px; }
+.radio-listeners-label { color: rgba(140, 235, 255, 0.55); font-size: 8px; font-weight: 800; letter-spacing: 0.14em; }
+.radio-listeners { display: flex; flex-wrap: wrap; gap: 4px; max-height: 86px; overflow-y: auto; }
+.radio-listeners-empty { margin: 0; color: rgba(220, 245, 255, 0.35); font-size: 9px; }
+.radio-listener {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 7px; border-radius: 999px;
+    border: 1px solid rgba(95, 224, 255, 0.2);
+    background: rgba(95, 224, 255, 0.07);
+    font-size: 9px;
+}
+.radio-listener b { color: #d9f6ff; font-weight: 700; }
+.radio-listener small { color: rgba(220, 245, 255, 0.48); }
+
+/* Leave group lives at the bottom of the thread */
+.game3d-dm-group-footer {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    margin-top: 8px; padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.09);
+}
+.game3d-dm-group-footer span { color: rgba(220, 245, 255, 0.4); font-size: 9px; }
+.game3d-dm-group-footer .game3d-dm-group-leave {
+    padding: 6px 10px; border-radius: 7px;
+    border: 1px solid rgba(255, 190, 100, 0.35);
+    background: rgba(255, 190, 100, 0.08);
+    color: #ffcf8a; font: inherit; font-size: 9px; font-weight: 700; cursor: pointer;
+}
