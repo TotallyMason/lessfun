@@ -9639,3 +9639,27 @@ body.film-grain-on .g3d-grain { display: block; }
     .game3d-pedal-row span { font-size: 7px; width: 20px; }
     .game3d-pedal-track { height: 5px; }
 }
+
+/* Beach Racer center banner */
+.g3d-banner {
+    position: absolute;
+    top: 34%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.92);
+    z-index: 7;
+    padding: 9px 22px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 209, 102, 0.45);
+    background: rgba(12, 8, 2, 0.72);
+    color: #ffe2a0;
+    font-size: 17px;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.g3d-banner.is-active {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}

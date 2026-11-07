@@ -190,8 +190,8 @@ handling real user data or payments.
 - 200-car showroom across 45+ real brands (BMW, Tesla, Toyota, Porsche, Ferrari, Lamborghini, McLaren, Nissan, Ford, and more) with real horsepower, 0-60, top speed, drivetrain, price tiers, search, pagination, buy/sell/drive, and persistent ownership
 - New players start in the free junk beater with the lawnmower engine, broken aero, and rust kit
 - Funtutu Test benchmark game with longer CPU integer/float, GPU shader, and Canvas 2D tests, a live work visualisation, a combined score tuned so an average 2024 PC lands on Medium, and an Apply Recommended button
-- Beach Racer free-roam city: a real drivable grid with intersections, blocks, buildings, crosswalks, sidewalks, trees, streetlights, and parked cars
-- Beach Racer opens in a 3D garage orbit view with Play, Race, Garage, and Showroom actions; Play launches a free-roam city grid, and Race opens a chooser for adaptive AI or friends
+- Beach Racer COIN RUN: a three-lane oncoming carriageway packed with coins, entered through a large air ramp, locked one-way until the merge
+- Beach Racer opens in a 3D garage orbit view with Play, Race, Garage, and Showroom actions; Play launches the highway, and Race opens a chooser for adaptive AI or friends
 - In-game Garage shop for car parts, opened from the Beach Racer garage screen without leaving the game
 - Free downgrade parts for experimenting with slower builds
 - Straight segmented highway with aligned traffic, lanes, guardrails, signs, lights, posts, coins, ramps, and checkpoints

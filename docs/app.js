@@ -575,7 +575,7 @@ function grantMultiplayerSessionReward() {
 function garagePlay(raceMode) {
     raceModeSetting = !!raceMode;
     raceAiSetting = !!raceMode;
-    cityModeSetting = !raceMode;
+    cityModeSetting = false;
     const garage = document.getElementById('g3dGarage');
     if (garage) garage.style.display = 'none';
     const shop = document.getElementById('g3dGarageShop');
@@ -1102,7 +1102,7 @@ function openGame(id) {
                         '<p class="game3d-garage-sub">Orbit view · buy and equip parts in the Garage tab.</p>' +
                         '<div class="game3d-garage-stats" id="g3dGarageStats"></div>' +
                         '<div class="game3d-garage-actions">' +
-                            '<button type="button" class="game3d-mp-primary" onclick="garageCity()">Play</button>' +
+                            '<button type="button" class="game3d-mp-primary" onclick="garagePlay()">Play</button>' +
                             '<button type="button" class="game3d-mp-secondary" onclick="openRaceChoice()">Race</button>' +
                             '<button type="button" class="game3d-mp-secondary" onclick="openGarageShop()">Garage</button>' +
                             '<button type="button" class="game3d-mp-secondary" onclick="openShowroom()">Showroom</button>' +
@@ -1179,6 +1179,7 @@ function openGame(id) {
             '<div class="game3d-crash" id="g3dCrashFlash"></div>' +
             '<div class="g3d-grain" aria-hidden="true"></div>' +
             (game.id === 1 ? '<div class="g3d-cinema" id="g3dCinema"></div>' : '') +
+            (game.hasThrottle ? '<div class="g3d-banner" id="g3dBanner"></div>' : '') +
             '<div class="game3d-warning" id="g3dWarning"></div>' +
             '<div class="game3d-over" id="g3dOver" style="display:none;">' +
                 '<div class="game3d-over-card">' +
@@ -7604,8 +7605,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.14";
-const UPDATE_NOTES = "Beach Racer gets a real free-roam city: Play drops you into a grid of streets, city blocks, intersections and buildings you can drive through. The HUD is simpler, throttle and brake are smoother vertical bars at the bottom left, AI racers now cruise at 780 km/h, and Funtutu Test runs longer with an average 2024 PC tuned to Medium";
+const APP_VERSION = "LessFun Public Beta 1.32.15";
+const UPDATE_NOTES = "Beach Racer Play is back on the highway, now with an oncoming three-lane coin run: hit the COIN RUN ramp to jump across, grab tons of coins, and hold the bonus lane until the merge. Also includes simpler controls, vertical throttle/brake bars, 780 km/h AI rivals, and a longer Funtutu Test tuned for an average 2024 PC";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
