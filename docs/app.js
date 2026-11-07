@@ -2653,6 +2653,7 @@ function dmAddGroup(id, name, members) {
         id: id,
         name: String(name || existing.name || 'Group').slice(0, 40),
         members: cleanMembers.length ? cleanMembers : (existing.members || []),
+        creator: existing.creator || (currentUser && currentUser.username) || '',
         updated_at: Date.now()
     };
     dmState.groups[id] = group;
@@ -2847,9 +2848,15 @@ function dmRenderThread() {
             return;
         }
         const rows = dmState.groupThread || [];
+        const meName = currentUser ? currentUser.username : '';
+        const canDelete = !group.creator || group.creator === meName;
         let html = '<div class="game3d-dm-group-head">' +
-            '<strong># ' + escapeHtml(group.name || 'Group') + '</strong>' +
-            '<span>' + Math.max(0, (group.members || []).length) + ' members · end-to-end encrypted</span>' +
+            '<div class="game3d-dm-group-title"><strong># ' + escapeHtml(group.name || 'Group') + '</strong>' +
+            '<span>' + Math.max(0, (group.members || []).length) + ' members · end-to-end encrypted</span></div>' +
+            '<div class="game3d-dm-group-buttons">' +
+                (canDelete ? '<button type="button" class="game3d-dm-group-delete" onclick="dmDeleteGroup(\'' + debugArg(group.id) + '\')">Delete</button>' : '') +
+                '<button type="button" class="game3d-dm-group-leave" onclick="dmLeaveGroup(\'' + debugArg(group.id) + '\')">Leave</button>' +
+            '</div>' +
         '</div>';
         if (!rows.length) {
             html += '<p class="game3d-dm-empty">No group messages yet. Say hello.</p>';
@@ -3226,6 +3233,40 @@ function dmCreateGroup() {
     dmSetStatus('Group created. Send the first message.', false);
     const input = document.getElementById('g3dDmInput');
     if (input) input.focus();
+}
+
+async function dmDeleteGroup(id) {
+    const group = dmState.groups[id];
+    if (!group) return;
+    if (!window.confirm('Delete group "' + (group.name || 'Group') + '"? This removes it from your Messages.')) return;
+    delete dmState.groups[id];
+    if (dmState.groupId === id) {
+        dmState.groupId = '';
+        dmState.groupThread = [];
+    }
+    dmSaveGroups();
+    dmRenderList();
+    dmRenderThread();
+    dmSetStatus('Group deleted.', false);
+}
+
+async function dmLeaveGroup(id) {
+    const group = dmState.groups[id];
+    if (!group) return;
+    if (!window.confirm('Leave group "' + (group.name || 'Group') + '"?')) return;
+    const me = currentUser ? currentUser.username : '';
+    group.members = (group.members || []).filter(function (member) { return member !== me; });
+    // Groups are stored locally, so leaving removes the group from this
+    // device's message list.
+    delete dmState.groups[id];
+    if (dmState.groupId === id) {
+        dmState.groupId = '';
+        dmState.groupThread = [];
+    }
+    dmSaveGroups();
+    dmRenderList();
+    dmRenderThread();
+    dmSetStatus('You left the group.', false);
 }
 
 function dmStartConversation() {
@@ -7634,8 +7675,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.32";
-const UPDATE_NOTES = "LessFun Radio now carries Kiss92, One FM 91.3, 96.3 Hao FM, and UFM 100.3. The other stations were removed. Dead Coast fuel stations, the radio Off switch, and Poteto remain";
+const APP_VERSION = "LessFun Public Beta 1.32.33";
+const UPDATE_NOTES = "Message groups now have Delete and Leave buttons in the group header, so you can remove a group you started or leave one you joined";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

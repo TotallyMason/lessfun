@@ -9929,3 +9929,31 @@ body.film-grain-on .g3d-grain { display: block; }
 @media (max-width: 640px) {
     .dc-station-prompt { bottom: 148px; font-size: 9px; padding: 7px 12px; }
 }
+
+/* DM group leave/delete controls */
+.game3d-dm-group-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.04);
+}
+.game3d-dm-group-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.game3d-dm-group-title strong { font-size: 13px; color: #eafaff; }
+.game3d-dm-group-title span { font-size: 9px; color: rgba(220, 245, 255, 0.48); }
+.game3d-dm-group-buttons { display: flex; gap: 5px; flex: none; }
+.game3d-dm-group-buttons button {
+    padding: 5px 8px;
+    border-radius: 7px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.68);
+    font: inherit;
+    font-size: 9px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.game3d-dm-group-buttons .game3d-dm-group-leave { color: #ffcf8a; border-color: rgba(255, 190, 100, 0.32); }
+.game3d-dm-group-buttons .game3d-dm-group-delete { color: #ff9a9a; border-color: rgba(255, 100, 100, 0.32); }
