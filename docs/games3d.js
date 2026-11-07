@@ -393,6 +393,19 @@
         skyDome.position.set(0, 60, -160);
         scene.add(skyDome);
 
+        // High-speed wind streaks for a stronger sense of speed.
+        var speedStreakMat = new THREE.MeshBasicMaterial({
+            color: 0xdff6ff, transparent: true, opacity: 0,
+            blending: THREE.AdditiveBlending, depthWrite: false
+        });
+        var speedStreaks = [];
+        for (var ssi = 0; ssi < 32; ssi++) {
+            var streak = boxMesh(0.03, 0.03, 3 + Math.random() * 8, speedStreakMat);
+            streak.position.set((Math.random() - 0.5) * 30, 0.6 + Math.random() * 6.5, -20 - Math.random() * 150);
+            scene.add(streak);
+            speedStreaks.push(streak);
+        }
+
         function standard(color, options) {
             return new THREE.MeshStandardMaterial(Object.assign({
                 color: color, roughness: 0.55, metalness: 0.12
@@ -4304,10 +4317,10 @@
 
             // Drift is detected automatically from speed, steering, and braking.
             var steeringIntent = (input.left ? -1 : 0) + (input.right ? 1 : 0);
-            var autoDrift = !fsdActive && Math.abs(speed) > 26 && playerY < 0.25 && (
-                Math.abs(steerX) > maxX * 0.5 ||
-                (steeringIntent !== 0 && Math.abs(speed) > 48) ||
-                (input.brake && Math.abs(steerX) > maxX * 0.28)
+            var autoDrift = !fsdActive && Math.abs(speed) > 34 && playerY < 0.25 && (
+                Math.abs(steerX) > maxX * 0.68 ||
+                (steeringIntent !== 0 && Math.abs(speed) > 70) ||
+                (input.brake && Math.abs(steerX) > maxX * 0.42)
             );
             var driftIntent = !fsdActive && (autoDrift || (!!input.drift && Math.abs(speed) > 18 &&
                 (input.left || input.right || Math.abs(steerX) > 2.2) && playerY < 0.3));
@@ -4324,7 +4337,7 @@
             else if (input.pointerActive) steerTarget = ((input.pointerX * maxX) - player.position.x) / Math.max(1, maxX) * 0.72;
             else steerTarget = steerInput * 0.52;
             steerTarget = Math.max(-0.58, Math.min(0.58, steerTarget));
-            steerAngle += (steerTarget - steerAngle) * Math.min(1, dt * 9);
+            steerAngle += (steerTarget - steerAngle) * Math.min(1, dt * 6);
             if (fsdActive) {
                 steerX += (fsdSteerX - steerX) * Math.min(1, dt * (2.0 + speedSteerFactor * 3.5));
                 if (Math.abs(speed) < 1) steerX = player.position.x;
@@ -4333,15 +4346,16 @@
                 steerX = player.position.x;
             } else if (input.pointerActive) {
                 var pointerTarget = Math.max(-maxX, Math.min(maxX, input.pointerX * maxX * 1.08));
-                steerX += (pointerTarget - steerX) * Math.min(1, dt * 8 * speedSteerFactor);
+                steerX += (pointerTarget - steerX) * Math.min(1, dt * 6 * speedSteerFactor);
                 steerX = Math.max(-maxX, Math.min(maxX, steerX));
             } else {
-                steerX += steerInput * dt * 9.5 * perf.grip * speedSteerFactor * (driftIntent ? 1.7 : 1);
+                var highSpeedStability = 1 - 0.42 * Math.min(1, Math.abs(speed) / 140);
+                steerX += steerInput * dt * 6.1 * perf.grip * speedSteerFactor * highSpeedStability * (driftIntent ? 1.45 : 1);
                 steerX = Math.max(-maxX, Math.min(maxX, steerX));
             }
 
             var beforeX = player.position.x;
-            player.position.x += (steerX - player.position.x) * Math.min(1, dt * (driftIntent ? 6.5 : 10));
+            player.position.x += (steerX - player.position.x) * Math.min(1, dt * (driftIntent ? 5.5 : 7));
             player.position.x = Math.max(-maxX, Math.min(maxX, player.position.x));
             var vx = (player.position.x - beforeX) / (dt || 0.016);
             currentVx = vx;
@@ -4349,8 +4363,8 @@
             if (driftAudioTarget > 0.2 && audioDriftLevel < 0.12) tone(480, 0.12, 'sawtooth', 0.032, 220);
             audioDriftLevel += (driftAudioTarget - audioDriftLevel) * Math.min(1, dt * 9);
 
-            var yawLimit = driftIntent ? 0.78 : 0.42;
-            var rollLimit = driftIntent ? 0.34 : 0.2;
+            var yawLimit = driftIntent ? 0.62 : 0.34;
+            var rollLimit = driftIntent ? 0.28 : 0.16;
             var yawTarget = vx * 0.045 * (driftIntent ? 2.0 : 1) * (0.35 + speedSteerFactor * 0.65) + steerAngle * 0.45;
             player.rotation.y = Math.max(-yawLimit, Math.min(yawLimit, -yawTarget)) - roadTangentAt(player.position.z);
             var steerPivots = player.userData.suspensionPivots || [];
@@ -4649,10 +4663,23 @@
                 warningT = 0;
             }
 
-            var fov = 68 + Math.min(26, Math.abs(speed) * 0.18);
+            var fov = 68 + Math.min(36, Math.abs(speed) * 0.24);
             if (Math.abs(camera.fov - fov) > 0.1) {
                 camera.fov = fov;
                 camera.updateProjectionMatrix();
+            }
+
+            var streakIntensity = Math.min(1, Math.max(0, (Math.abs(speed) - 22) / 85));
+            speedStreakMat.opacity = streakIntensity * 0.5;
+            for (var ssi2 = 0; ssi2 < speedStreaks.length; ssi2++) {
+                var st = speedStreaks[ssi2];
+                st.visible = streakIntensity > 0.02 && !garageMode;
+                st.position.z += (Math.abs(speed) * 2.4 + 18) * dt;
+                if (st.position.z > 8) {
+                    st.position.z = -90 - Math.random() * 90;
+                    st.position.x = (Math.random() - 0.5) * 30;
+                    st.position.y = 0.6 + Math.random() * 6.5;
+                }
             }
 
             var curveAhead = roadCurveOffset(-80) - roadCurveOffset(0);
@@ -4682,7 +4709,7 @@
                     13
                 );
                 camera.position.lerpVectors(camera.position, camDesired, Math.min(1, dt * 5));
-                var speedShake = Math.min(0.055, Math.abs(speed) * 0.0007);
+                var speedShake = Math.min(0.085, Math.abs(speed) * 0.00095);
                 camera.position.x += Math.sin(elapsed * 37.0) * speedShake;
                 camera.position.y += Math.cos(elapsed * 43.0) * speedShake * 0.55;
                 camera.lookAt(player.position.x * 0.5 + vx * 0.22 + curveAhead * 0.22, 0.5 + playerY * 0.9, -12);

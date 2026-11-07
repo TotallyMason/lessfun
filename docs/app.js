@@ -7604,8 +7604,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.23";
-const UPDATE_NOTES = "The first-person camera now turns with the car, and the cockpit steering wheel is lower and smaller so it sits naturally on screen. Dead Coast gets the same first-person camera and wheel tuning";
+const APP_VERSION = "LessFun Public Beta 1.32.24";
+const UPDATE_NOTES = "Beach Racer steering is smoother and less twitchy at speed, and the sense of speed is stronger with rushing wind streaks, a wider speed FOV, and more road vibration. The first-person camera and smaller cockpit wheel from the last update remain";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
