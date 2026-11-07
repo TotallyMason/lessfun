@@ -7615,8 +7615,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.29";
-const UPDATE_NOTES = "Fixed a CSS parsing bug that hid the LessFun Radio button. The radio tuner with 13 Singapore stations is now visible at the bottom center of every page and keeps playing across the site";
+const APP_VERSION = "LessFun Public Beta 1.32.30";
+const UPDATE_NOTES = "LessFun Radio now shows a buffering spinner and a pulsing glow while a station is tuning or rebuffering, so you can see when the stream is loading";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -9989,6 +9989,15 @@ function radioSetStatus(text) {
     if (status) status.textContent = text;
 }
 
+function radioSetBuffering(on) {
+    var wrap = document.getElementById('radioNowWrap');
+    if (wrap) wrap.classList.toggle('is-buffering', !!on);
+    var fab = document.getElementById('radioFab');
+    if (fab) fab.classList.toggle('is-buffering', !!on);
+    var playBtn = document.getElementById('radioPlayBtn');
+    if (playBtn && on) playBtn.textContent = 'Loading…';
+}
+
 function radioInit() {
     var audio = document.getElementById('lessfunRadioAudio');
     if (!audio) return;
@@ -10011,6 +10020,7 @@ function radioInit() {
 
     audio.addEventListener('playing', function () {
         radioHasSource = true;
+        radioSetBuffering(false);
         radioSetStatus('LIVE · ' + (RADIO_STATIONS[radioIndex] ? RADIO_STATIONS[radioIndex].name : ''));
         var fab = document.getElementById('radioFab');
         if (fab) fab.classList.add('is-playing');
@@ -10018,6 +10028,7 @@ function radioInit() {
         if (playBtn) playBtn.textContent = 'Pause';
     });
     audio.addEventListener('pause', function () {
+        radioSetBuffering(false);
         radioSetStatus('Paused');
         var fab = document.getElementById('radioFab');
         if (fab) fab.classList.remove('is-playing');
@@ -10025,10 +10036,18 @@ function radioInit() {
         if (playBtn) playBtn.textContent = 'Play';
     });
     audio.addEventListener('waiting', function () {
-        if (radioHasSource) radioSetStatus('Buffering…');
+        if (!radioHasSource) return;
+        radioSetBuffering(true);
+        radioSetStatus('Buffering stream…');
+    });
+    audio.addEventListener('stalled', function () {
+        if (!radioHasSource) return;
+        radioSetBuffering(true);
+        radioSetStatus('Buffering stream…');
     });
     audio.addEventListener('error', function () {
         if (!radioHasSource) return;
+        radioSetBuffering(false);
         radioSetStatus('Stream unavailable · try another station');
         var fab = document.getElementById('radioFab');
         if (fab) fab.classList.remove('is-playing');
@@ -10058,11 +10077,13 @@ function radioTune(index, autoplay) {
     radioHasSource = true;
     audio.load();
     radioUpdateNow();
+    radioSetBuffering(true);
     radioSetStatus('Tuning to ' + station.freq + ' FM…');
     if (autoplay) {
         var attempt = audio.play();
         if (attempt && attempt.catch) {
             attempt.catch(function () {
+                radioSetBuffering(false);
                 radioSetStatus('Tap Play to start audio');
             });
         }

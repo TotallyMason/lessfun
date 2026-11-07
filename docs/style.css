@@ -9824,3 +9824,30 @@ body.film-grain-on .g3d-grain { display: block; }
     .radio-fab { padding: 7px 11px; }
     .radio-panel { max-height: 64vh; }
 }
+
+/* Radio buffering spinner */
+.radio-status-row { display: flex; align-items: center; gap: 6px; }
+.radio-spinner {
+    display: none;
+    width: 11px;
+    height: 11px;
+    flex: none;
+    border-radius: 50%;
+    border: 2px solid rgba(95, 224, 255, 0.18);
+    border-top-color: #5fe0ff;
+    animation: radioSpin 0.65s linear infinite;
+}
+.radio-now.is-buffering .radio-spinner { display: inline-block; }
+.radio-now.is-buffering small { color: #8feaff; }
+.radio-fab.is-buffering {
+    border-color: rgba(95, 224, 255, 0.8);
+    animation: radioPulse 0.9s ease-in-out infinite alternate;
+}
+.radio-fab.is-buffering .radio-eq i {
+    animation: radioEq 0.6s ease-in-out infinite alternate;
+}
+@keyframes radioSpin { to { transform: rotate(360deg); } }
+@keyframes radioPulse {
+    from { box-shadow: 0 0 0 rgba(95, 224, 255, 0.1); }
+    to { box-shadow: 0 0 24px rgba(95, 224, 255, 0.45); }
+}
