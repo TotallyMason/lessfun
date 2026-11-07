@@ -7696,8 +7696,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.35";
-const UPDATE_NOTES = "Deleted or left message groups no longer reappear when you open another group. Also includes the radio listener list showing who is tuned in, and the Leave button moved to the bottom of the group thread";
+const APP_VERSION = "LessFun Public Beta 1.32.36";
+const UPDATE_NOTES = "The radio panel header now shows a live equalizer icon, LESSFUN RADIO, and a RADIO tag together, and the panel slides and fades open and closed instead of popping in";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -10136,14 +10136,28 @@ function radioInit() {
     });
 }
 
+var radioPanelCloseTimer = 0;
+
 function radioTogglePanel(force) {
     var panel = document.getElementById('radioPanel');
     if (!panel) return;
-    var open = force === false ? false : (force === true ? true : panel.style.display === 'none');
-    panel.style.display = open ? 'flex' : 'none';
+    var isOpen = panel.classList.contains('is-open');
+    var open = force === false ? false : (force === true ? true : !isOpen);
+    if (radioPanelCloseTimer) { clearTimeout(radioPanelCloseTimer); radioPanelCloseTimer = 0; }
     if (open) {
+        panel.style.display = 'flex';
+        // Let the browser paint the starting state before animating.
+        requestAnimationFrame(function () {
+            requestAnimationFrame(function () { panel.classList.add('is-open'); });
+        });
         radioRenderList();
         radioUpdateNow();
+    } else {
+        panel.classList.remove('is-open');
+        radioPanelCloseTimer = setTimeout(function () {
+            radioPanelCloseTimer = 0;
+            if (!panel.classList.contains('is-open')) panel.style.display = 'none';
+        }, 230);
     }
 }
 
