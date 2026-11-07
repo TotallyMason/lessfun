@@ -1872,7 +1872,8 @@
         var fpWheelSpoke = boxMesh(0.024, 0.16, 0.024, fpWheelMat);
         fpWheelSpoke.position.y = -0.08;
         fpWheel.add(fpWheelSpoke);
-        fpWheel.position.set(0, 0.94, -0.5);
+        fpWheel.position.set(0, 0.78, -0.5);
+        fpWheel.scale.setScalar(0.78);
         fpWheel.rotation.x = -0.32;
         fpWheel.visible = false;
         player.add(fpWheel);
@@ -4667,7 +4668,13 @@
             } else if (cameraMode === 3) {
                 camDesired.set(player.position.x, 1.05 + playerY * 0.9, player.position.z + 0.1);
                 camera.position.lerpVectors(camera.position, camDesired, Math.min(1, dt * 24));
-                camera.lookAt(player.position.x + vx * 0.12, 0.9 + playerY * 0.9, player.position.z - 28);
+                var fpYaw = player.rotation.y;
+                camera.lookAt(
+                    player.position.x - Math.sin(fpYaw) * 28,
+                    0.88 + playerY * 0.9,
+                    player.position.z - Math.cos(fpYaw) * 28
+                );
+                camera.rotateZ(bodyRoll * 0.55);
             } else {
                 camDesired.set(
                     player.position.x * 0.42,
@@ -7348,7 +7355,8 @@
         var dcSpoke = box(0.022, 0.15, 0.022, dcWheelMat);
         dcSpoke.position.y = -0.075;
         dcWheel.add(dcSpoke);
-        dcWheel.position.set(0, 0.96, -0.5);
+        dcWheel.position.set(0, 0.82, -0.5);
+        dcWheel.scale.setScalar(0.8);
         dcWheel.rotation.x = -0.32;
         dcWheel.visible = false;
         car.add(dcWheel);
@@ -7692,7 +7700,8 @@
                 camera.position.x += (carX - camera.position.x) * Math.min(1, dt * 20);
                 camera.position.y += (1.05 - camera.position.y) * Math.min(1, dt * 20);
                 camera.position.z += (-0.1 - camera.position.z) * Math.min(1, dt * 20);
-                camera.lookAt(carX, 0.92, -24);
+                var dcYaw = car.rotation.y;
+                camera.lookAt(carX - Math.sin(dcYaw) * 24, 0.92, -Math.cos(dcYaw) * 24);
             } else {
                 camera.position.x += (carX * 0.7 - camera.position.x) * Math.min(1, dt * 5);
                 camera.position.y += (4.2 + speed * 0.02 - camera.position.y) * Math.min(1, dt * 4);
