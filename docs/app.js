@@ -7245,10 +7245,13 @@ async function createPost() {
     try {
         const { error } = await supabaseClient.from('posts').insert(payload);
         if (error) {
-            if (pendingPostMedia) {
-                alert('Could not attach that file. Make sure the community migration (supabase/community.sql) has been run.\n\n' + error.message);
+            var message = String(error.message || error);
+            if (/posts_content_check|check constraint/i.test(message)) {
+                alert('The database still has the old character limit. Run supabase/posts_content_20000.sql in the Supabase SQL Editor, then try again.');
+            } else if (pendingPostMedia) {
+                alert('Could not attach that file. Make sure the community migration (supabase/community.sql) has been run.\n\n' + message);
             } else {
-                alert(error.message);
+                alert(message);
             }
             return;
         }
@@ -7702,8 +7705,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.44";
-const UPDATE_NOTES = "Funtutu now always says Poteto when it recommends the lowest preset, including old saved benchmark results that still had the previous Potato label";
+const APP_VERSION = "LessFun Public Beta 1.32.45";
+const UPDATE_NOTES = "Added the database migration for 20,000-character community posts. If the old posts_content_check constraint is still active, run supabase/posts_content_20000.sql in the Supabase SQL Editor";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

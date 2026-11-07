@@ -187,3 +187,12 @@ create policy "lessfun_site_settings_delete"
 
 grant select, insert, update, delete on public.site_settings to anon, authenticated;
 grant usage, select on all sequences in schema public to anon, authenticated;
+
+-- Raise the post content limit. Run this section if your database still has
+-- the old posts_content_check constraint.
+alter table if exists public.posts
+    drop constraint if exists posts_content_check;
+
+alter table if exists public.posts
+    add constraint posts_content_check
+    check (char_length(content) <= 20000);
