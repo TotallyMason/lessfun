@@ -2215,8 +2215,16 @@
         /* ---------------- Crash physics and debris ---------------- */
         var crashActive = false;
         var crashWorld = makePhysicsWorld(-24);
+        if (crashWorld) {
+            crashWorld.defaultContactMaterial.friction = 0.015;
+            crashWorld.defaultContactMaterial.restitution = 0.12;
+        }
+        var crashWreckBodies = [];
+        var crashWheels = [];
+        var crashSprings = [];
         var crashPlayerBody = null;
         var crashOtherBody = null;
+        var crashFatal = false;
         var crashSoftBody = null;
         var crashSoftBase = null;
         var crashSoftDent = null;
@@ -2566,6 +2574,137 @@
             return false;
         }
 
+        function wreckMassFor(spec) {
+            var len = (spec && spec.len) || 3.2;
+            if (len > 12) return 12000;
+            if (len > 9) return 9000;
+            if (len > 4.2) return 4200;
+            if (len > 3.7) return 2800;
+            return 1350;
+        }
+
+        function addWreckWheels(body, spec, initialSpeed) {
+            if (!crashWorld || !global.CANNON) return;
+            var w = spec.width || 1.8;
+            var len = spec.len || 3.2;
+            var wheelRadius = 0.35;
+            [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (p, wi) {
+                var ox = p[0] * (w / 2 - 0.04);
+                var oz = p[1] * len * 0.31;
+                var wheel = new global.CANNON.Body({ mass: 14 });
+                wheel.addShape(new global.CANNON.Sphere(wheelRadius));
+                wheel.position.set(body.position.x + ox, Math.max(wheelRadius, body.position.y - 0.28), body.position.z + oz);
+                wheel.collisionFilterGroup = 0;
+                wheel.collisionFilterMask = 0;
+                wheel.linearDamping = 0.4;
+                wheel.angularDamping = 0.15;
+                wheel.angularVelocity.set(-Math.abs(initialSpeed || 0) / wheelRadius, 0, 0);
+                crashWorld.addBody(wheel);
+                crashWheels.push(wheel);
+                var hinge = new global.CANNON.HingeConstraint(body, wheel, {
+                    pivotA: new global.CANNON.Vec3(ox, -0.28, oz),
+                    axisA: new global.CANNON.Vec3(1, 0, 0),
+                    pivotB: new global.CANNON.Vec3(0, 0, 0),
+                    axisB: new global.CANNON.Vec3(1, 0, 0)
+                });
+                crashWorld.addConstraint(hinge);
+                var spring = new global.CANNON.Spring(body, wheel, {
+                    localAnchorA: new global.CANNON.Vec3(ox, -0.18, oz),
+                    localAnchorB: new global.CANNON.Vec3(0, 0, 0),
+                    restLength: 0.12,
+                    stiffness: 55,
+                    damping: 2.4
+                });
+                crashSprings.push(spring);
+            });
+        }
+
+        function convertTrafficToWreck(car, sourceBody) {
+            if (!crashWorld || !global.CANNON || !car || car.userData.dynamicBody) return null;
+            var u = car.userData;
+            var spec = u.spec || {};
+            if (u.sensorBody) { crashWorld.removeBody(u.sensorBody); u.sensorBody = null; }
+            var body = new global.CANNON.Body({ mass: wreckMassFor(spec) });
+            body.addShape(new global.CANNON.Box(new global.CANNON.Vec3((spec.width || 1.8) / 2, 0.45, (spec.len || 3.2) / 2)));
+            body.position.set(car.position.x, 0.72, car.position.z);
+            body.linearDamping = 0.1;
+            body.angularDamping = 0.28;
+            var svx = sourceBody ? sourceBody.velocity.x : crashVx;
+            var svz = sourceBody ? sourceBody.velocity.z : crashCarVz;
+            body.velocity.set(svx * 0.72 + (Math.random() - 0.5) * 4, 1.5 + Math.random() * 2.5, svz * 0.72 + (Math.random() - 0.5) * 4);
+            var point = new global.CANNON.Vec3(
+                car.position.x + (Math.random() - 0.5) * (spec.width || 1.8),
+                0.7,
+                car.position.z + (Math.random() - 0.5) * (spec.len || 3.2)
+            );
+            body.applyImpulse(new global.CANNON.Vec3(
+                (sourceBody ? sourceBody.velocity.x : 0) * body.mass * 0.16,
+                140 + Math.random() * 160,
+                (sourceBody ? sourceBody.velocity.z : 0) * body.mass * 0.16
+            ), point);
+            crashWorld.addBody(body);
+            u.dynamicBody = body;
+            u.state = 'hit';
+            crashWreckBodies.push({ car: car, body: body });
+            addWreckWheels(body, spec, u.cruiseSpeed || 0);
+            spawnSparks(car.position.x, 0.8, car.position.z, 18);
+            spawnCrashSmoke(car.position.x, car.position.z, 3);
+            tone(180, 0.14, 'square', 0.06, 80);
+            return body;
+        }
+
+        function chainPileup() {
+            if (!crashWorld) return;
+            var sources = [];
+            if (crashPlayerBody) sources.push(crashPlayerBody);
+            if (crashOtherBody) sources.push(crashOtherBody);
+            for (var i = 0; i < crashWreckBodies.length; i++) sources.push(crashWreckBodies[i].body);
+            var converted = 0;
+            for (var si = 0; si < sources.length && converted < 1; si++) {
+                var src = sources[si];
+                var speedSq = src.velocity.x * src.velocity.x + src.velocity.z * src.velocity.z;
+                if (speedSq < 4) continue;
+                for (var ti = 0; ti < traffic.length && converted < 1; ti++) {
+                    var c = traffic[ti];
+                    var u = c.userData;
+                    if (u.dynamicBody || !u.sensorBody) continue;
+                    if (u.rampCooldown && elapsed < u.rampCooldown) continue;
+                    var spec = u.spec || {};
+                    var dx = c.position.x - src.position.x;
+                    var dz = c.position.z - src.position.z;
+                    var reach = ((spec.len || 3.2) + 3.2) * 0.52 + 0.7;
+                    if (dx * dx + dz * dz < reach * reach && Math.abs(src.position.y - 0.7) < 2.0) {
+                        convertTrafficToWreck(c, src);
+                        converted++;
+                    }
+                }
+            }
+        }
+
+        function applyWreckGrip(dt) {
+            var all = [];
+            if (crashPlayerBody) all.push(crashPlayerBody);
+            if (crashOtherBody) all.push(crashOtherBody);
+            for (var i = 0; i < crashWreckBodies.length; i++) all.push(crashWreckBodies[i].body);
+            for (var j = 0; j < all.length; j++) {
+                var b = all[j];
+                if (b.position.y < 1.05) {
+                    b.velocity.x *= Math.max(0, 1 - dt * 0.55);
+                    b.velocity.z *= Math.max(0, 1 - dt * 0.38);
+                    b.angularVelocity.y *= Math.max(0, 1 - dt * 0.45);
+                }
+            }
+        }
+
+        function syncExtraWrecks() {
+            for (var i = 0; i < crashWreckBodies.length; i++) {
+                var entry = crashWreckBodies[i];
+                var b = entry.body;
+                entry.car.position.set(b.position.x, Math.max(0, b.position.y - 0.72), b.position.z);
+                entry.car.quaternion.set(b.quaternion.x, b.quaternion.y, b.quaternion.z, b.quaternion.w);
+            }
+        }
+
         function triggerCrash(car, halfWidth) {
             if (crashActive) return;
             fsdActive = false;
@@ -2573,6 +2712,16 @@
             if (fsdOverlay) fsdOverlay.classList.remove('is-active');
             crashActive = true;
             crashRealT = 0;
+            crashFatal = false;
+            for (var wi = 0; wi < crashWreckBodies.length; wi++) {
+                if (crashWorld) crashWorld.removeBody(crashWreckBodies[wi].body);
+            }
+            crashWreckBodies = [];
+            for (var wj = 0; wj < crashWheels.length; wj++) {
+                if (crashWorld) crashWorld.removeBody(crashWheels[wj]);
+            }
+            crashWheels = [];
+            crashSprings = [];
             crashStartMs = (global.performance && global.performance.now) ? global.performance.now() : Date.now();
             crashScore = distance + checkpointsPassed * CHECKPOINT_BONUS + driftScore;
             var spec = car.userData && car.userData.spec ? car.userData.spec : {};
@@ -2585,6 +2734,7 @@
             // deforms more and the impulse is reduced by the absorbed energy.
             var absorb = zone === 'front' ? 0.6 : zone === 'rear' ? 0.52 : 0.44;
             var severity = Math.min(0.44, 0.07 + impactSpeed * 0.0055);
+            crashFatal = !!(spec.bus && impactSpeed * 3.6 > 55);
             var impulse = Math.max(0, impactSpeed * mass * 0.32) * (1 - absorb * 0.55);
             crashVx = dir * (3 + impulse);
             crashSpinX = (Math.random() - 0.5) * 1.0 * (1 - absorb * 0.4);
@@ -2597,7 +2747,11 @@
             crashCarVx = -dir * (3 + Math.random() * 5) * mass * (1 - absorb * 0.35);
             crashCarVz = 3 + Math.random() * 7;
             crashCarSpin = -dir * (0.7 + Math.random() * 1.0);
-            if (car.userData) car.userData.state = 'hit';
+            if (car.userData) {
+                car.userData.state = 'hit';
+                if (car.userData.sensorBody && crashWorld) crashWorld.removeBody(car.userData.sensorBody);
+                car.userData.sensorBody = null;
+            }
 
             if (crashWorld && global.CANNON) {
                 if (crashPlayerBody) crashWorld.removeBody(crashPlayerBody);
@@ -2620,6 +2774,19 @@
                 crashOtherBody.velocity.set(crashCarVx, 0, crashCarVz);
                 crashOtherBody.angularVelocity.set(0, crashCarSpin, 0);
                 crashWorld.addBody(crashOtherBody);
+                car.userData.dynamicBody = crashOtherBody;
+                addWreckWheels(crashPlayerBody, pSpec, impactSpeed);
+                addWreckWheels(crashOtherBody, spec, car.userData.cruiseSpeed || 0);
+                var contactPoint = new global.CANNON.Vec3(
+                    (player.position.x + car.position.x) * 0.5,
+                    0.68,
+                    (player.position.z + car.position.z) * 0.5
+                );
+                crashOtherBody.applyImpulse(new global.CANNON.Vec3(
+                    crashCarVx * crashOtherBody.mass * 0.12,
+                    110,
+                    crashCarVz * crashOtherBody.mass * 0.12
+                ), contactPoint);
             }
 
             crumpleCarPart(player.userData.bodyGroup, zone, severity);
@@ -2666,6 +2833,12 @@
             crashRealT = (nowMs - crashStartMs) / 1000;
             if (crashWorld && crashPlayerBody && crashOtherBody) {
                 crashWorld.step(1 / 60, dt, 4);
+                for (var sp = 0; sp < crashSprings.length; sp++) {
+                    try { crashSprings[sp].applyForce(); } catch (e) {}
+                }
+                applyWreckGrip(dt);
+                chainPileup();
+                syncExtraWrecks();
                 var pb = crashPlayerBody;
                 playerY = Math.max(0, pb.position.y - 0.72);
                 player.position.set(pb.position.x, playerY, pb.position.z);
@@ -2762,7 +2935,7 @@
             setHud(crashScore, 'CRASH', 'X');
             updateAudio();
 
-            if (crashRealT > 5.5) {
+            if (crashRealT > (crashFatal ? 3.2 : 5.5)) {
                 var flash = document.getElementById('g3dCrashFlash');
                 if (flash) flash.classList.remove('is-active');
                 setCrashCinema(false);
@@ -3060,6 +3233,17 @@
             }
             scene.add(car);
             traffic.push(car);
+            if (crashWorld && global.CANNON) {
+                var sSpec = u.spec || BODY_SPECS.classic;
+                var sensor = new global.CANNON.Body({ mass: 0 });
+                sensor.addShape(new global.CANNON.Box(new global.CANNON.Vec3((sSpec.width || 1.8) / 2, 0.45, (sSpec.len || 3.2) / 2)));
+                sensor.position.set(car.position.x, 0.7, car.position.z);
+                sensor.type = global.CANNON.Body.KINEMATIC;
+                sensor.collisionResponse = false;
+                sensor.car = car;
+                crashWorld.addBody(sensor);
+                u.sensorBody = sensor;
+            }
         }
 
         for (var t = 0; t < (isMobileDevice ? 4 : 8); t++) spawnTraffic(-100 - t * 46);
@@ -3894,6 +4078,7 @@
                 var u = c.userData;
 
                 c.rotation.y -= u.curveRot || 0;
+                if (u.sensorBody) u.sensorBody.position.set(c.position.x, 0.7, c.position.z);
                 u.collisionCooldown = Math.max(0, (u.collisionCooldown || 0) - dt);
                 applyCarLod(c, Math.abs(c.position.z - player.position.z));
                 if (u.state === 'mad') {
@@ -4019,6 +4204,7 @@
                 animateSuspension(c, dt, speed - u.cruiseSpeed, distance - c.position.z, 0, 0, 0);
 
                 if (c.position.z > 14 || c.position.z < -760) {
+                    if (u.sensorBody && crashWorld) crashWorld.removeBody(u.sensorBody);
                     scene.remove(c); disposeObject(c); traffic.splice(k, 1); continue;
                 }
 
@@ -4080,8 +4266,12 @@
                 camera.updateProjectionMatrix();
             }
 
-            camera.position.x += (player.position.x * 0.42 - camera.position.x) * Math.min(1, dt * 5);
-            camera.position.y = 5.3 + playerY * 0.78 + (player.userData.bodyGroup ? player.userData.bodyGroup.position.y * 4.0 : 0) - suspensionImpulse * 0.3 + Math.sin(elapsed * 1.4) * 0.035;
+            camDesired.set(
+                player.position.x * 0.42,
+                5.3 + playerY * 0.78 + (player.userData.bodyGroup ? player.userData.bodyGroup.position.y * 4.0 : 0) - suspensionImpulse * 0.3 + Math.sin(elapsed * 1.4) * 0.035,
+                13
+            );
+            camera.position.lerpVectors(camera.position, camDesired, Math.min(1, dt * 5));
             var speedShake = Math.min(0.055, Math.abs(speed) * 0.0007);
             camera.position.x += Math.sin(elapsed * 37.0) * speedShake;
             camera.position.y += Math.cos(elapsed * 43.0) * speedShake * 0.55;
@@ -4152,6 +4342,13 @@
 
         camera.position.set(0, 5.3, 13);
         camera.lookAt(0, 0.5, -12);
+        var camDesired = new THREE.Vector3();
+        var shadowHelper = null;
+        if (sunLight && sunLight.shadow) {
+            shadowHelper = new THREE.CameraHelper(sunLight.shadow.camera);
+            shadowHelper.visible = false;
+            scene.add(shadowHelper);
+        }
         var crashFlash = document.getElementById('g3dCrashFlash');
         if (crashFlash) crashFlash.classList.remove('is-active');
         initAudio();
@@ -4206,6 +4403,9 @@
                 try { ctx2.drawImage(src, 0, 0, 160, 90); return canvas.toDataURL('image/jpeg', 0.42); } catch (e) { return null; }
             },
             isCinematic: function () { return crashActive; },
+            toggleShadowHelper: function (on) {
+                if (shadowHelper) shadowHelper.visible = on == null ? !shadowHelper.visible : !!on;
+            },
             renderCameras: function () {
                 var hide = document.getElementById('g3dRemoteCams');
                 if (!renderer || !scene || garageMode || paused || isMobileDevice) {
@@ -6720,6 +6920,9 @@
     function toggleFsd() {
         if (active && active.toggleFsd) active.toggleFsd();
     }
+    function toggleShadowHelper(on) {
+        if (active && active.toggleShadowHelper) active.toggleShadowHelper(on);
+    }
 
     global.Games3D = {
         start: start,
@@ -6757,6 +6960,7 @@
         teleportRacer: teleportRacer,
         setGarageMode: setGarageMode,
         toggleFsd: toggleFsd,
+        toggleShadowHelper: toggleShadowHelper,
         getCurrentScore: getCurrentScore,
         getRacerState: getRacerState,
         getRacerInfo: getRacerInfo

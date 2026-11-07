@@ -6655,8 +6655,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Developer Beta 1.37.1";
-const UPDATE_NOTES = "Beach Racer crash wrecks now use a sculpted single car-shell soft body instead of a rectangle, and the slow-motion crash overlay no longer shows the technical resolution/FPS label";
+const APP_VERSION = "LessFun Developer Beta 1.38.0";
+const UPDATE_NOTES = "Beach Racer traffic now fights back with Cannon.js: dynamic wrecks by vehicle mass, contact-point impulses and spin, frictionless contacts with manual grip, kinematic traffic sensors for chain pile-ups, fatal high-speed bus impacts, hinge-constraint wheels, suspension springs, and a lerped chase camera";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
