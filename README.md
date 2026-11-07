@@ -184,15 +184,15 @@ handling real user data or payments.
 - Touch controls for NOS, drift, and gear shifts on phones and narrow screens
 - Mobile performance mode: lower pixel-ratio cap, shadows disabled, reduced traffic/zombie/building counts, cheaper particles, and motion blur off by default
 - Full touch controls for Dead Coast: on-screen throttle and brake, drag to steer, and live food/water/fuel/car bars
-- Messages are available from the Friends view as well as inside games
+- Messages are available from the Friends view as well as inside games, and showroom car ownership and the equipped car persist after refresh
 - Night-sky dome and clouds in Beach Racer, starfields and an energy core in Tunnel Rush, a podium and stars in Cube Stack, and a ringed planet plus nebula in Star Dodger
 - Beach Racer Racing: a closed 2,400 m loop, three laps, four adaptive AI rivals that cruise at 780 km/h and rubber-band for the win, no traffic, a race loading animation, and lap/position/timer HUD
 - Beach Racer closed-loop multiplayer racing with friends and no traffic
 - 200-car showroom across 45+ real brands (BMW, Tesla, Toyota, Porsche, Ferrari, Lamborghini, McLaren, Nissan, Ford, and more) with real horsepower, 0-60, top speed, drivetrain, price tiers, search, pagination, buy/sell/drive, and persistent ownership
 - New players start in the free junk beater with the lawnmower engine, broken aero, and rust kit
-- Funtutu Test benchmark game with longer CPU integer/float, GPU shader, and Canvas 2D tests, a live work visualisation, a combined score tuned so an average 2024 PC lands on Medium, and an Apply Recommended button
+- Funtutu Test benchmark game with longer CPU integer/float, GPU shader, and Canvas 2D tests, a live work visualisation, a combined score normalised so an average 2026 PC scores about 1000 CPU and 1000 GPU (around 4000 total, Medium), and an Apply Recommended button
 - Beach Racer highway with traffic, ramps, coins, and no oncoming bonus lane
-- Beach Racer opens in a 3D garage orbit view with Play, Race, Garage, and Showroom actions; Play launches the highway, and Race opens a chooser for adaptive AI or friends
+- Beach Racer opens in a 3D garage orbit view with Play, Race, Garage, and Showroom actions; C cycles chase, hood, wheel, and first-person cameras; Play launches the highway, and Race opens a chooser for adaptive AI or friends
 - In-game Garage shop for car parts, opened from the Beach Racer garage screen without leaving the game
 - Free downgrade parts for experimenting with slower builds
 - Straight segmented highway with aligned traffic, lanes, guardrails, signs, lights, posts, coins, ramps, and checkpoints

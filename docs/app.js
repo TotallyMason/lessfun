@@ -1536,19 +1536,19 @@ function funtutuCanvasTest(durationMs) {
 }
 
 function funtutuRecommendation(total) {
-    if (total < 1200) {
+    if (total < 1600) {
         return { preset: 'potato', label: 'Potato', scale: 0.5, shadows: false, blur: false, grain: false, slowmo: true,
             note: 'Prioritise frame rate. Expect low detail, no shadows, and a soft image.' };
     }
-    if (total < 2600) {
+    if (total < 5000) {
         return { preset: 'medium', label: 'Medium', scale: 0.7, shadows: false, blur: false, grain: false, slowmo: true,
-            note: 'The baseline for an average 2024 PC: smooth everyday play with reduced resolution and no dynamic shadows.' };
+            note: 'The baseline for an average 2026 PC: a score near 4000 total (about 1000 per test) with smooth everyday play.' };
     }
-    if (total < 4200) {
+    if (total < 6500) {
         return { preset: 'high', label: 'High', scale: 0.85, shadows: true, blur: true, grain: false, slowmo: true,
             note: 'The sweet spot: full effects, shadows, and a crisp 85% render scale.' };
     }
-    if (total < 6500) {
+    if (total < 8000) {
         return { preset: 'ultra', label: 'Ultra', scale: 1.0, shadows: true, blur: true, grain: true, slowmo: true,
             note: 'Full native resolution with shadows, motion blur, and cinematic grain.' };
     }
@@ -1573,7 +1573,7 @@ async function runFuntutuTest() {
     await funtutuNextFrame();
     var cpuInt = funtutuCpuTest('int', 700);
     if (token !== funtutuToken) return;
-    var cpuIntScore = Math.round(cpuInt.ops / 1000000);
+    var cpuIntScore = Math.round(cpuInt.ops / 100000);
     funtutuSetStep('cpu-int', cpuIntScore + ' pts · ' + Math.round(cpuInt.ops / 1000) + 'k ops', 'is-done');
     funtutuProgress(30, 'Testing floating point + trig');
 
@@ -1581,7 +1581,7 @@ async function runFuntutuTest() {
     await funtutuNextFrame();
     var cpuFloat = funtutuCpuTest('float', 700);
     if (token !== funtutuToken) return;
-    var cpuFloatScore = Math.round(cpuFloat.ops / 300000);
+    var cpuFloatScore = Math.round(cpuFloat.ops / 48000);
     funtutuSetStep('cpu-float', cpuFloatScore + ' pts · ' + Math.round(cpuFloat.ops / 1000) + 'k ops', 'is-done');
     funtutuProgress(55, 'Rendering GPU shader workload');
 
@@ -1591,13 +1591,13 @@ async function runFuntutuTest() {
     hidden.width = 512; hidden.height = 288;
     var gpu = await funtutuGpuTest(hidden, 1200);
     if (token !== funtutuToken) return;
-    var gpuScore = Math.round(gpu.score);
+    var gpuScore = Math.round(gpu.score * 1000 / 840);
     funtutuSetStep('gpu', gpu.supported ? (gpuScore + ' pts · ' + gpu.fps.toFixed(1) + ' FPS') : 'WebGL unavailable', 'is-done');
     funtutuProgress(80, 'Testing Canvas 2D compositing');
 
     funtutuSetStep('canvas', 'running…', 'is-running');
     await funtutuNextFrame();
-    var canvasScore = Math.round(await funtutuCanvasTest(900));
+    var canvasScore = Math.round((await funtutuCanvasTest(900)) * 1000 / 480);
     if (token !== funtutuToken) return;
     funtutuSetStep('canvas', canvasScore + ' pts', 'is-done');
 
@@ -1620,7 +1620,7 @@ async function runFuntutuTest() {
                 '<span>GPU <b>' + gpuScore + '</b></span>' +
                 '<span>Canvas <b>' + canvasScore + '</b></span>' +
             '</div>' +
-            '<div class="funtutu-verdict"><strong>' + escapeHtml(rec.label) + '</strong><p>' + escapeHtml(rec.note) + ' An average 2024 desktop PC usually lands around Medium.</p>' +
+            '<div class="funtutu-verdict"><strong>' + escapeHtml(rec.label) + '</strong><p>' + escapeHtml(rec.note) + ' An average 2026 desktop PC scores about 1000 in each test, around 4000 total, which lands on Medium.</p>' +
             '<span class="funtutu-rec-tags">Render ' + Math.round(rec.scale * 100) + '% · Shadows ' + (rec.shadows ? 'on' : 'off') +
             ' · Motion blur ' + (rec.blur ? 'on' : 'off') + ' · Film grain ' + (rec.grain ? 'on' : 'off') + '</span></div>';
     }
@@ -6200,6 +6200,19 @@ async function loadWallet() {
 
         if (!res.error && res.data) {
             var remote = normalizeWallet(res.data, username);
+            // The car collection may live only in localStorage if the wallets
+            // table has no cars/equipped_car columns. Merge both sides so a
+            // bought or equipped showroom car never disappears on refresh.
+            var mergedCars = (remote.cars || []).slice();
+            (local.cars || []).forEach(function (id) {
+                if (mergedCars.indexOf(id) < 0) mergedCars.push(id);
+            });
+            remote.cars = mergedCars;
+            if (!remote.equippedCar && local.equippedCar && mergedCars.indexOf(local.equippedCar) >= 0) {
+                remote.equippedCar = local.equippedCar;
+            }
+            local.cars = mergedCars;
+            if (!local.equippedCar && remote.equippedCar) local.equippedCar = remote.equippedCar;
             if (walletMutated || local.updatedAt > remote.updatedAt) {
                 // The player earned or bought something while the request was
                 // in flight. Keep the newer local copy and push it up.
@@ -7591,8 +7604,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.18";
-const UPDATE_NOTES = "Dead Coast now has zombie hordes on the 10 km road run: run them down for points, or they claw your car if you slow down. The oncoming COIN RUN lane, ramp, and cars are removed, so Beach Racer is back to the normal highway. Plus the fixed driver, faster motion blur, upgraded skies and starfields, underglow removed, and Messages in Friends";
+const APP_VERSION = "LessFun Public Beta 1.32.19";
+const UPDATE_NOTES = "Fixes the Beach Racer black screen, restores the throttle and brake bars at the bottom left, and adds C to cycle chase, hood, wheel, and first-person cameras in Beach Racer and Dead Coast. Showroom cars now stay bought and equipped after refresh. Dead Coast has zombie hordes, and Funtutu now scores an average 2026 PC at about 1000 CPU and 1000 GPU";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

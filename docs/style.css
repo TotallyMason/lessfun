@@ -9581,65 +9581,6 @@ body.film-grain-on .g3d-grain { display: block; }
 .game3d-race-choice-card .game3d-mp-secondary { margin-top: 4px; min-height: 38px; }
 
 /* Beach Racer throttle / brake input bars */
-.game3d-pedals {
-    position: absolute;
-    left: 50%;
-    bottom: 30px;
-    transform: translateX(-50%);
-    z-index: 6;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    width: min(280px, 42vw);
-    padding: 8px 12px;
-    border-radius: 12px;
-    background: rgba(8, 12, 20, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.13);
-    -webkit-backdrop-filter: blur(12px);
-    backdrop-filter: blur(12px);
-    pointer-events: none;
-}
-.game3d-pedal-row {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-}
-.game3d-pedal-row span {
-    width: 24px;
-    color: rgba(255, 255, 255, 0.55);
-    font-size: 8px;
-    font-weight: 800;
-    letter-spacing: 0.1em;
-}
-.game3d-pedal-track {
-    flex: 1;
-    height: 6px;
-    border-radius: 999px;
-    overflow: hidden;
-    background: rgba(255, 255, 255, 0.1);
-}
-.game3d-pedal-track i {
-    display: block;
-    height: 100%;
-    width: 0;
-    border-radius: inherit;
-    transition: width 0.05s linear;
-}
-.game3d-pedal-track.is-throttle i {
-    background: linear-gradient(90deg, #2fa56f, #7dff9d);
-    box-shadow: 0 0 10px rgba(90, 255, 160, 0.6);
-}
-.game3d-pedal-track.is-brake i {
-    background: linear-gradient(90deg, #a52f3e, #ff6b7d);
-    box-shadow: 0 0 10px rgba(255, 90, 110, 0.6);
-}
-.game3d-wrap.is-garage .game3d-pedals { display: none; }
-@media (max-width: 640px) {
-    .game3d-pedals { bottom: 118px; width: 42vw; padding: 6px 9px; gap: 4px; }
-    .game3d-pedal-row span { font-size: 7px; width: 20px; }
-    .game3d-pedal-track { height: 5px; }
-}
-
 /* Beach Racer center banner */
 .g3d-banner {
     position: absolute;

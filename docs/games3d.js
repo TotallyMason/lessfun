@@ -157,6 +157,17 @@
         var RACE_LOOP = 2400, RACE_LAPS = 3;
         var playerLap = 1, raceStartDelay = raceMode ? 2.4 : 0, raceFinished = false, raceEndT = 0;
         var raceStartTime = 0, raceHudT = 0;
+        var racerBannerT = 0;
+        var cameraMode = 0;
+        var CAMERA_NAMES = ['CHASE CAM', 'HOOD CAM', 'WHEEL CAM', 'FIRST PERSON'];
+
+        function racerBanner(text) {
+            var el = document.getElementById('g3dBanner');
+            if (!el) return;
+            el.textContent = text;
+            el.classList.add('is-active');
+            racerBannerT = 1.7;
+        }
         var aiRacers = [];
         var cosmetics = (ctx.options && ctx.options.cosmetics) || {};
         if (!raceMode) {
@@ -3966,6 +3977,11 @@
                 return;
             }
             elapsed += dt;
+            if (input.cameraCycle) {
+                input.cameraCycle = false;
+                cameraMode = (cameraMode + 1) % 4;
+                racerBanner(CAMERA_NAMES[cameraMode]);
+            }
             if (raceMode) {
                 if (raceStartDelay > 0) {
                     raceStartDelay -= dt;
@@ -4619,25 +4635,40 @@
                 camera.updateProjectionMatrix();
             }
 
-            camDesired.set(
-                player.position.x * 0.42,
-                5.3 + playerY * 0.78 + (player.userData.bodyGroup ? player.userData.bodyGroup.position.y * 4.0 : 0) - suspensionImpulse * 0.3 + Math.sin(elapsed * 1.4) * 0.035,
-                13
-            );
-            camera.position.lerpVectors(camera.position, camDesired, Math.min(1, dt * 5));
-            var speedShake = Math.min(0.055, Math.abs(speed) * 0.0007);
-            camera.position.x += Math.sin(elapsed * 37.0) * speedShake;
-            camera.position.y += Math.cos(elapsed * 43.0) * speedShake * 0.55;
+            var curveAhead = roadCurveOffset(-80) - roadCurveOffset(0);
+            if (cameraMode === 1) {
+                camDesired.set(player.position.x, 1.16 + playerY * 0.8, player.position.z - 0.9);
+                camera.position.lerpVectors(camera.position, camDesired, Math.min(1, dt * 20));
+                camera.lookAt(player.position.x + vx * 0.18, 0.95 + playerY * 0.9, player.position.z - 26);
+            } else if (cameraMode === 2) {
+                camDesired.set(player.position.x + 1.18, 0.52 + playerY * 0.5, player.position.z + 0.9);
+                camera.position.lerpVectors(camera.position, camDesired, Math.min(1, dt * 18));
+                camera.lookAt(player.position.x, 0.72 + playerY * 0.6, player.position.z - 20);
+                camera.rotateZ(-bodyRoll * 0.2);
+            } else if (cameraMode === 3) {
+                camDesired.set(player.position.x, 1.05 + playerY * 0.9, player.position.z + 0.1);
+                camera.position.lerpVectors(camera.position, camDesired, Math.min(1, dt * 24));
+                camera.lookAt(player.position.x + vx * 0.12, 0.9 + playerY * 0.9, player.position.z - 28);
+            } else {
+                camDesired.set(
+                    player.position.x * 0.42,
+                    5.3 + playerY * 0.78 + (player.userData.bodyGroup ? player.userData.bodyGroup.position.y * 4.0 : 0) - suspensionImpulse * 0.3 + Math.sin(elapsed * 1.4) * 0.035,
+                    13
+                );
+                camera.position.lerpVectors(camera.position, camDesired, Math.min(1, dt * 5));
+                var speedShake = Math.min(0.055, Math.abs(speed) * 0.0007);
+                camera.position.x += Math.sin(elapsed * 37.0) * speedShake;
+                camera.position.y += Math.cos(elapsed * 43.0) * speedShake * 0.55;
+                camera.lookAt(player.position.x * 0.5 + vx * 0.22 + curveAhead * 0.22, 0.5 + playerY * 0.9, -12);
+                camera.rotateZ(-curveAhead * 0.0016 - bodyRoll * 0.1);
+                camera.rotateY(curveAhead * 0.0009 - steerAngle * 0.16);
+                camera.rotateX(bodyPitch * 0.05);
+            }
             if (sunLight && sunLight.target) {
                 sunLight.position.set(player.position.x + 18, 28, player.position.z + 12);
                 sunLight.target.position.set(player.position.x, 0, player.position.z - 10);
                 sunLight.target.updateMatrixWorld();
             }
-            var curveAhead = roadCurveOffset(-80) - roadCurveOffset(0);
-            camera.lookAt(player.position.x * 0.5 + vx * 0.22 + curveAhead * 0.22, 0.5 + playerY * 0.9, -12);
-            camera.rotateZ(-curveAhead * 0.0016 - bodyRoll * 0.1);
-            camera.rotateY(curveAhead * 0.0009 - steerAngle * 0.16);
-            camera.rotateX(bodyPitch * 0.05);
             var gearText;
             if (!engineOn) {
                 gearText = 'OFF';
@@ -7438,6 +7469,8 @@
         var maxSpeed = 38, accel = 13, brakePower = 26, grip = 1.0, armor = 0, fuelUse = 1;
         var partsFound = [];
         var elapsed = 0, hudT = 0, toastT = 0, finished = false;
+        var dcCameraMode = 0;
+        var DC_CAMERA_NAMES = ['CHASE CAM', 'HOOD CAM', 'WHEEL CAM', 'FIRST PERSON'];
 
         function partLabel() {
             return partsFound.length ? partsFound.join(' · ') : 'Stock Parts';
@@ -7469,6 +7502,11 @@
         function update(dt) {
             dt = Math.min(dt, 0.05);
             elapsed += dt;
+            if (input.cameraCycle) {
+                input.cameraCycle = false;
+                dcCameraMode = (dcCameraMode + 1) % 4;
+                toast(DC_CAMERA_NAMES[dcCameraMode]);
+            }
             var throttleTarget = input.up ? 1 : 0;
             var brakeTarget = input.brake ? 1 : 0;
             throttleSmooth += (throttleTarget - throttleSmooth) * Math.min(1, dt * 5.5);
@@ -7600,12 +7638,29 @@
             // Scrolling road texture.
             roadTex.offset.y = -(distance / 23.3) % 1;
 
-            // Camera.
-            camera.position.x += (carX * 0.7 - camera.position.x) * Math.min(1, dt * 5);
-            camera.position.y += (4.2 + speed * 0.02 - camera.position.y) * Math.min(1, dt * 4);
-            camera.position.z += (10.4 - camera.position.z) * Math.min(1, dt * 5);
-            camera.lookAt(carX * 0.85, 1.15, -5.5);
-            camera.fov += ((60 + Math.min(14, speed * 0.3)) - camera.fov) * Math.min(1, dt * 3);
+            // Camera modes: chase, hood, wheel, first person.
+            if (dcCameraMode === 1) {
+                camera.position.x += (carX - camera.position.x) * Math.min(1, dt * 16);
+                camera.position.y += (1.15 - camera.position.y) * Math.min(1, dt * 16);
+                camera.position.z += (-0.9 - camera.position.z) * Math.min(1, dt * 16);
+                camera.lookAt(carX, 0.95, -22);
+            } else if (dcCameraMode === 2) {
+                camera.position.x += ((carX + 1.1) - camera.position.x) * Math.min(1, dt * 14);
+                camera.position.y += (0.5 - camera.position.y) * Math.min(1, dt * 14);
+                camera.position.z += (0.9 - camera.position.z) * Math.min(1, dt * 14);
+                camera.lookAt(carX, 0.7, -18);
+            } else if (dcCameraMode === 3) {
+                camera.position.x += (carX - camera.position.x) * Math.min(1, dt * 20);
+                camera.position.y += (1.05 - camera.position.y) * Math.min(1, dt * 20);
+                camera.position.z += (-0.1 - camera.position.z) * Math.min(1, dt * 20);
+                camera.lookAt(carX, 0.92, -24);
+            } else {
+                camera.position.x += (carX * 0.7 - camera.position.x) * Math.min(1, dt * 5);
+                camera.position.y += (4.2 + speed * 0.02 - camera.position.y) * Math.min(1, dt * 4);
+                camera.position.z += (10.4 - camera.position.z) * Math.min(1, dt * 5);
+                camera.lookAt(carX * 0.85, 1.15, -5.5);
+            }
+            camera.fov += (((dcCameraMode === 0 ? 60 : 72) + Math.min(14, speed * 0.3)) - camera.fov) * Math.min(1, dt * 3);
             camera.updateProjectionMatrix();
 
             // HUD.
@@ -7693,6 +7748,7 @@
         var KEY_GEAR_UP = ['e', 'E'];
         var KEY_DRIFT = []; // Drifting is automatic; the mobile Drift button still forces it.
         var KEY_NITRO = ['n', 'N', 'Shift', 'ShiftLeft', 'ShiftRight'];
+        var KEY_CAMERA = ['c', 'C'];
         var KEY_FSD = ['f', 'F'];
         var KEY_HONK = ['h', 'H'];
         var KEY_RELOAD = ['r', 'R'];
@@ -7713,6 +7769,7 @@
             if (KEY_GEAR_UP.indexOf(e.key) >= 0) { if (!e.repeat) input.gearUp = true; }
             if (KEY_DRIFT.indexOf(e.key) >= 0) input.drift = true;
             if (KEY_NITRO.indexOf(e.key) >= 0) input.nitro = true;
+            if (KEY_CAMERA.indexOf(e.key) >= 0) { if (!e.repeat) input.cameraCycle = true; e.preventDefault(); }
             if (KEY_FSD.indexOf(e.key) >= 0) { if (!e.repeat) input.fsdToggle = true; e.preventDefault(); }
             if (KEY_HONK.indexOf(e.key) >= 0) { if (!e.repeat) input.honk = true; e.preventDefault(); }
             if (KEY_RELOAD.indexOf(e.key) >= 0) { if (!e.repeat) input.reload = true; }
