@@ -157,11 +157,11 @@ handling real user data or payments.
 ## Features
 
 - Five real-time 3D games powered by Three.js
-- Six-lane coastal highway with guardrails, streetlights, overhead signs, SUVs, semis, long buses, no entry/exit ramps, a real city district with storefronts/cross streets/overpasses, and a much faster top speed in Beach Racer
+- Six-lane coastal highway with guardrails, streetlights, overhead signs, SUVs, semis, long buses, no entry/exit ramps, a real city district with storefronts, cross streets, overpasses, parked cars, bus stops, traffic lights, and street signs, and a much faster top speed in Beach Racer
 - Beach Racer multiplayer for 2–3 players: create or join a five-character room code, race together, see each driver's name floating above their car, and pass through other players without collisions
 - Checkpoint gates every 500 m with a CP counter and a +250 score bonus per gate, plus a host-only start and restart button
 - Manual Q/E gear selector (P, R, N, D) with reverse and park in Beach Racer
-- Speed-scaled steering that locks at a standstill, automatic drift detection from speed/steering/braking, and an **F-key FSD** mode with safer multi-lane choices, a Tesla-style lane/traffic display, animated blue chevrons, smooth automatic braking, emergency braking, and visible turn signals for the car and traffic
+- Real steering angle with turning front wheels and camera yaw plus speed-scaled steering that locks at a standstill, automatic drift detection from speed/steering/braking, and an **F-key FSD** mode with safer multi-lane choices, a Tesla-style lane/traffic display, animated blue chevrons, smooth automatic braking, emergency braking, and visible turn signals for the car and traffic
 - Three.js performance pass: tighter camera far planes, scenery LOD visibility culling, mobile detail counts, resolution presets, and automatic motion-blur shutdown
 - Richer multi-oscillator engine notes with gear-shift sounds and tire-screech drift audio
 - Ignition bar, synthesized engine/tire/nitrous audio, and a drainable nitrous boost on **Shift** or **N**, with a NITRO SHIFT kick

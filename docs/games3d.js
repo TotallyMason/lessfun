@@ -896,6 +896,96 @@
             addScroller(cityLamp, 528, 1, 230);
         }
 
+        function makeParkedCar(index) {
+            var g = new THREE.Group();
+            var palette = [0x5f6f7e, 0x8c4a4a, 0x4d6b5d, 0x8a7a52, 0x5a4d72, 0x9a9a9a];
+            var bodyMat = standard(palette[index % palette.length], { metalness: 0.5, roughness: 0.34 });
+            var body = boxMesh(1.82, 0.52, 4.0, bodyMat); body.position.y = 0.48; g.add(body);
+            var cabin = boxMesh(1.58, 0.42, 1.85, standard(0x18323d, { metalness: 0.6, roughness: 0.2, transparent: true, opacity: 0.86 }));
+            cabin.position.set(0, 0.9, 0.1); g.add(cabin);
+            var tire = standard(0x141619, { roughness: 0.9 });
+            [[-0.82, -1.25], [0.82, -1.25], [-0.82, 1.3], [0.82, 1.3]].forEach(function (p) {
+                var wheel = cylinderMesh(0.3, 0.3, 0.22, 10, tire);
+                wheel.rotation.z = Math.PI / 2;
+                wheel.position.set(p[0], 0.3, p[1]); g.add(wheel);
+            });
+            return g;
+        }
+        for (var pc = 0; pc < (isMobileDevice ? 5 : 9); pc++) {
+            var parked = makeParkedCar(pc);
+            parked.position.set(18.2, 0, -10 - pc * 62);
+            addScroller(parked, 558, 1, 230);
+        }
+
+        function makeTrafficLight() {
+            var g = new THREE.Group();
+            var poleMat = standard(0x2d333a, { metalness: 0.55, roughness: 0.4 });
+            var pole = cylinderMesh(0.09, 0.11, 5.2, 8, poleMat); pole.position.y = 2.6; g.add(pole);
+            var arm = boxMesh(2.1, 0.1, 0.1, poleMat); arm.position.set(-1.0, 5.1, 0); g.add(arm);
+            var housing = boxMesh(0.38, 1.0, 0.32, standard(0x14181c, { roughness: 0.7 }));
+            housing.position.set(-2.0, 4.85, 0); g.add(housing);
+            var colors = [0xff3b3b, 0xffc24a, 0x54ff9f];
+            for (var li = 0; li < 3; li++) {
+                var lamp = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), new THREE.MeshBasicMaterial({ color: colors[li] }));
+                lamp.position.set(-2.0, 5.18 - li * 0.28, 0.17); g.add(lamp);
+            }
+            return g;
+        }
+        for (var tl = 0; tl < 4; tl++) {
+            var light = makeTrafficLight();
+            light.position.set(12.4, 0, -18 - tl * 168);
+            addScroller(light, 672, 1, 270);
+        }
+
+        function makeBusStop(index) {
+            var g = new THREE.Group();
+            var frameMat = standard(0x303840, { metalness: 0.6, roughness: 0.4 });
+            var glassMat = new THREE.MeshStandardMaterial({ color: 0xa8dff0, metalness: 0.2, roughness: 0.12, transparent: true, opacity: 0.24, side: THREE.DoubleSide });
+            var roof = boxMesh(4.0, 0.15, 1.5, frameMat); roof.position.y = 2.6; g.add(roof);
+            [-1.9, 1.9].forEach(function (x) {
+                var post = boxMesh(0.1, 2.6, 0.1, frameMat); post.position.set(x, 1.3, 0.55); g.add(post);
+            });
+            var back = boxMesh(3.9, 2.1, 0.06, glassMat); back.position.set(0, 1.25, 0.62); g.add(back);
+            var bench = boxMesh(3.1, 0.12, 0.55, standard(0x5b4a32, { roughness: 0.8 })); bench.position.set(0, 0.55, 0); g.add(bench);
+            var signTex = makeCanvasTexture(256, 80, function (cg, w, h) {
+                cg.fillStyle = '#123e59'; cg.fillRect(0, 0, w, h);
+                cg.fillStyle = '#ffffff'; cg.font = 'bold 34px Arial'; cg.textAlign = 'center'; cg.textBaseline = 'middle';
+                cg.fillText('BUS · OCEAN DR', w / 2, h / 2);
+            });
+            var sign = boxMesh(2.5, 0.75, 0.08, new THREE.MeshBasicMaterial({ map: signTex }));
+            sign.position.set(0, 2.95, 0.7); g.add(sign);
+            return g;
+        }
+        for (var bs = 0; bs < 3; bs++) {
+            var stop = makeBusStop(bs);
+            stop.position.set(15.6, 0, -42 - bs * 184);
+            addScroller(stop, 552, 1, 230);
+        }
+
+        function makeCitySign(text, color) {
+            var g = new THREE.Group();
+            var tex = makeCanvasTexture(384, 96, function (cg, w, h) {
+                cg.fillStyle = '#0c1620'; cg.fillRect(0, 0, w, h);
+                cg.strokeStyle = color; cg.lineWidth = 5; cg.strokeRect(5, 5, w - 10, h - 10);
+                cg.fillStyle = '#eafaff'; cg.font = 'bold 32px Arial'; cg.textAlign = 'center'; cg.textBaseline = 'middle';
+                cg.fillText(text, w / 2, h / 2);
+            });
+            var board = boxMesh(5.8, 1.45, 0.12, new THREE.MeshBasicMaterial({ map: tex }));
+            board.position.y = 4.7; g.add(board);
+            [-2.1, 2.1].forEach(function (x) {
+                var post = boxMesh(0.12, 4.0, 0.12, standard(0x3a424a, { metalness: 0.5 }));
+                post.position.set(x, 2.0, 0); g.add(post);
+            });
+            return g;
+        }
+        var citySignNames = [['OCEAN DRIVE', '#5fe0ff'], ['NEON BOULEVARD', '#ff8fd0'], ['MARINA DISTRICT', '#ffd166']];
+        for (var csg = 0; csg < 6; csg++) {
+            var sn = citySignNames[csg % citySignNames.length];
+            var citySign = makeCitySign(sn[0], sn[1]);
+            citySign.position.set(17.2, 0, -70 - csg * 104);
+            addScroller(citySign, 624, 1, 260);
+        }
+
         for (var ui = 0; ui < (isMobileDevice ? 6 : 8); ui++) {
             var umb = makeUmbrellaCluster(ui);
             umb.position.set(10.8 + (ui % 2) * 1.5 + Math.random() * 0.8, 0, -6 - ui * 58);
@@ -3333,6 +3423,7 @@
         var hudT = 0;
         var maxX = ROAD_W / 2 - 1.3;
         var steerX = 0;
+        var steerAngle = 0;
         var fsdActive = false;
         var fsdLane = 2;
         var fsdThink = 0;
@@ -4002,6 +4093,12 @@
             var steerInput = 0;
             if (input.left) steerInput -= 1;
             if (input.right) steerInput += 1;
+            var steerTarget = 0;
+            if (fsdActive) steerTarget = (fsdSteerX - player.position.x) * 0.18;
+            else if (input.pointerActive) steerTarget = ((input.pointerX * maxX) - player.position.x) / Math.max(1, maxX) * 0.72;
+            else steerTarget = steerInput * 0.52;
+            steerTarget = Math.max(-0.58, Math.min(0.58, steerTarget));
+            steerAngle += (steerTarget - steerAngle) * Math.min(1, dt * 9);
             if (fsdActive) {
                 steerX += (fsdSteerX - steerX) * Math.min(1, dt * (2.0 + speedSteerFactor * 3.5));
                 if (Math.abs(speed) < 1) steerX = player.position.x;
@@ -4028,8 +4125,14 @@
 
             var yawLimit = driftIntent ? 0.78 : 0.42;
             var rollLimit = driftIntent ? 0.34 : 0.2;
-            var yawTarget = vx * 0.045 * (driftIntent ? 2.0 : 1) * (0.35 + speedSteerFactor * 0.65);
+            var yawTarget = vx * 0.045 * (driftIntent ? 2.0 : 1) * (0.35 + speedSteerFactor * 0.65) + steerAngle * 0.45;
             player.rotation.y = Math.max(-yawLimit, Math.min(yawLimit, yawTarget)) - roadTangentAt(player.position.z);
+            var steerPivots = player.userData.suspensionPivots || [];
+            for (var spi = 0; spi < steerPivots.length; spi++) {
+                if (steerPivots[spi].userData.front && steerPivots[spi].parent === player) {
+                    steerPivots[spi].rotation.y = steerAngle;
+                }
+            }
 
             player.rotation.z = Math.max(-rollLimit, Math.min(rollLimit, -vx * 0.022 * (driftIntent ? 1.7 : 1)));
             player.rotation.x = (brakeCmd ? 0.035 : 0) + Math.max(-0.03, Math.min(0.03, -vx * 0.002));
@@ -4343,7 +4446,7 @@
             var curveAhead = roadCurveOffset(-80) - roadCurveOffset(0);
             camera.lookAt(player.position.x * 0.5 + vx * 0.22 + curveAhead * 0.22, 0.5 + playerY * 0.9, -12);
             camera.rotateZ(-curveAhead * 0.0016 - bodyRoll * 0.1);
-            camera.rotateY(curveAhead * 0.0009);
+            camera.rotateY(curveAhead * 0.0009 - steerAngle * 0.16);
             camera.rotateX(bodyPitch * 0.05);
             var gearText;
             if (!engineOn) {

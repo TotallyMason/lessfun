@@ -6655,8 +6655,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.9";
-const UPDATE_NOTES = "Crash physics research pass: smooth crumple-zone falloff protects the cabin, real car geometry is merged into one soft body, normals rebuild during deformation, and a seatbelt tether keeps the driver ragdoll restrained";
+const APP_VERSION = "LessFun Public Beta 1.32.10";
+const UPDATE_NOTES = "Beach Racer gets a real city streetscape with parked cars, bus stops, traffic lights, signs and storefronts, plus proper steering angle that turns the front wheels and yaws the chase camera";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
