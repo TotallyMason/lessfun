@@ -9851,3 +9851,81 @@ body.film-grain-on .g3d-grain { display: block; }
     from { box-shadow: 0 0 0 rgba(95, 224, 255, 0.1); }
     to { box-shadow: 0 0 24px rgba(95, 224, 255, 0.45); }
 }
+
+.radio-controls button.radio-off {
+    flex: 0.7;
+    border-color: rgba(255, 120, 120, 0.3);
+    color: #ffb0b0;
+}
+
+/* Dead Coast fuel station */
+.dc-station-prompt {
+    position: absolute;
+    left: 50%;
+    bottom: 118px;
+    transform: translateX(-50%);
+    z-index: 8;
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 200, 90, 0.55);
+    background: rgba(20, 14, 4, 0.86);
+    color: #ffe2a0;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    cursor: pointer;
+    pointer-events: auto;
+    animation: radioPulse 1s ease-in-out infinite alternate;
+    white-space: nowrap;
+}
+.dc-station-panel {
+    position: absolute;
+    inset: 0;
+    z-index: 9;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    background: radial-gradient(circle at 50% 50%, rgba(20, 14, 6, 0.45), rgba(3, 3, 4, 0.82));
+    -webkit-backdrop-filter: blur(7px);
+    backdrop-filter: blur(7px);
+}
+.dc-station-card {
+    width: min(390px, 92vw);
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    padding: 22px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 196, 90, 0.34);
+    background: linear-gradient(155deg, rgba(42, 31, 16, 0.98), rgba(10, 8, 5, 0.99));
+    box-shadow: 0 26px 80px rgba(0, 0, 0, 0.7);
+    color: #fff4de;
+}
+.dc-station-card h3 { margin: 2px 0 0; font-size: 21px; }
+.dc-station-card > p { margin: 0; color: rgba(255, 235, 205, 0.55); font-size: 10px; letter-spacing: 0.08em; }
+.dc-station-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 2px; }
+.dc-station-stats span {
+    padding: 7px 8px; border-radius: 8px;
+    border: 1px solid rgba(255, 196, 90, 0.16);
+    background: rgba(255, 196, 90, 0.06);
+    color: rgba(255, 235, 205, 0.55); font-size: 9px; text-align: center;
+}
+.dc-station-stats b { display: block; color: #ffe2a0; font-size: 13px; margin-top: 2px; }
+.dc-station-card > button {
+    min-height: 40px;
+    border-radius: 9px;
+    border: 1px solid rgba(255, 196, 90, 0.3);
+    background: rgba(255, 196, 90, 0.08);
+    color: #ffe6b8;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.dc-station-card > button:hover { background: rgba(255, 196, 90, 0.16); }
+.dc-station-card > button:disabled { opacity: 0.42; cursor: default; }
+.dc-station-card > button.dc-station-back { margin-top: 4px; border-color: rgba(255,255,255,0.16); background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.7); }
+@media (max-width: 640px) {
+    .dc-station-prompt { bottom: 148px; font-size: 9px; padding: 7px 12px; }
+}

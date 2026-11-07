@@ -4728,7 +4728,7 @@
                 fpWheel.visible = cameraMode === 3 && !ragdollActive;
                 fpWheel.rotation.z = -steerAngle * 2.3;
             }
-            if (driverRagdoll) driverRagdoll.visible = !ragdollActive && cameraMode !== 3;
+            if (driverRagdoll) driverRagdoll.visible = false;
             if (sunLight && sunLight.target) {
                 sunLight.position.set(player.position.x + 18, 28, player.position.z + 12);
                 sunLight.target.position.set(player.position.x, 0, player.position.z - 10);
@@ -7494,6 +7494,62 @@
         for (var fi = 0; fi < 6; fi++) spawnPickup('fuel', 180 + fi * 170, laneXs[(fi + 2) % 3]);
         for (var pti = 0; pti < 3; pti++) spawnPickup('part', 700 + pti * 1500, laneXs[pti % 3]);
 
+        // Roadside fuel stations — stop, get out, and scavenge supplies.
+        var dcStations = [];
+        var stationDistances = [1400, 3000, 4600, 6200, 7800];
+        var stationOpen = false;
+        var activeStation = null;
+        var nearStation = null;
+
+        function makeStationMesh(side) {
+            var g = new THREE.Group();
+            var pad = box(24, 0.06, 16, standard(0x36383c, { roughness: 0.95 }));
+            pad.position.y = 0.03; g.add(pad);
+            var roofMat = standard(0xe8e2d4, { metalness: 0.3, roughness: 0.5 });
+            var roof = box(17, 0.5, 9, roofMat);
+            roof.position.set(0, 4.5, 0); g.add(roof);
+            var stripe = box(17.2, 0.22, 9.2, new THREE.MeshBasicMaterial({ color: 0xffc400 }));
+            stripe.position.set(0, 4.22, 0); g.add(stripe);
+            var poleMat = standard(0x6c7278, { metalness: 0.5, roughness: 0.4 });
+            [[-7, -3], [7, -3], [-7, 3], [7, 3]].forEach(function (pp) {
+                var pole = cylinder(0.16, 0.2, 4.3, 8, poleMat);
+                pole.position.set(pp[0], 2.15, pp[1]); g.add(pole);
+            });
+            var pumpMat = standard(0xcfd4d8, { metalness: 0.45, roughness: 0.4 });
+            [-4.5, 0].forEach(function (px) {
+                var pump = box(1.4, 2.2, 1.0, pumpMat);
+                pump.position.set(side * px, 1.1, 0); g.add(pump);
+                var screen = box(0.7, 0.5, 0.06, new THREE.MeshBasicMaterial({ color: 0x2ff6ff }));
+                screen.position.set(side * px, 1.5, -0.54); g.add(screen);
+                var hose = box(0.06, 1.2, 0.06, standard(0x1a1a1a));
+                hose.position.set(side * px + 0.75, 1.0, 0); g.add(hose);
+            });
+            var shop = box(6, 3.8, 5, standard(0x5f6a70, { roughness: 0.85 }));
+            shop.position.set(side * 8.5, 1.9, 0); g.add(shop);
+            var shopGlass = box(3.4, 1.4, 0.1, new THREE.MeshBasicMaterial({ color: 0x9fe8ff }));
+            shopGlass.position.set(side * 8.5, 2.2, -2.53); g.add(shopGlass);
+            var signTex = canvasTexture(256, 96, function (g2, w, h) {
+                g2.fillStyle = '#c0392b'; g2.fillRect(0, 0, w, h);
+                g2.strokeStyle = '#ffe6a8'; g2.lineWidth = 6; g2.strokeRect(5, 5, w - 10, h - 10);
+                g2.fillStyle = '#fff4d0'; g2.font = 'bold 48px Arial'; g2.textAlign = 'center'; g2.textBaseline = 'middle';
+                g2.fillText('FUEL', w / 2, h / 2);
+            });
+            var sign = new THREE.Mesh(new THREE.PlaneGeometry(5, 1.9), new THREE.MeshBasicMaterial({ map: signTex, transparent: true }));
+            sign.position.set(side * -9, 4.0, -6.5); g.add(sign);
+            var signPole = box(0.18, 4.5, 0.18, poleMat);
+            signPole.position.set(side * -9, 2.25, -6.5); g.add(signPole);
+            var glow = new THREE.Mesh(new THREE.PlaneGeometry(17, 9), new THREE.MeshBasicMaterial({ color: 0xffd88a, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false }));
+            glow.rotation.x = -Math.PI / 2; glow.position.set(0, 0.08, 0); g.add(glow);
+            return g;
+        }
+        for (var sti = 0; sti < stationDistances.length; sti++) {
+            var stSide = sti % 2 === 0 ? 1 : -1;
+            var stGroup = makeStationMesh(stSide);
+            stGroup.position.set(stSide * 15, 0, -stationDistances[sti]);
+            scene.add(stGroup);
+            dcStations.push({ dist: stationDistances[sti], side: stSide, group: stGroup, refueled: false, foodLooted: false, waterLooted: false, partLooted: false });
+        }
+
         // Zombies wander onto the road. Fast hits splatter them; slowing down
         // lets them claw at the car.
         var dcZombies = [];
@@ -7561,6 +7617,54 @@
         var elapsed = 0, hudT = 0, toastT = 0, finished = false;
         var dcCameraMode = 0;
 
+        function dcStationStatus() {
+            var st = activeStation;
+            if (!st) return;
+            var meta = document.getElementById('dcStationMeta');
+            if (meta) meta.textContent = 'Station ' + (dcStations.indexOf(st) + 1) + ' of ' + dcStations.length + ' · ' + (distance / 1000).toFixed(2) + ' km';
+            var sf = document.getElementById('dcStFuel'); if (sf) sf.textContent = Math.round(fuel) + '%';
+            var sfo = document.getElementById('dcStFood'); if (sfo) sfo.textContent = Math.round(food) + '%';
+            var sw = document.getElementById('dcStWater'); if (sw) sw.textContent = Math.round(water) + '%';
+            var rf = document.getElementById('dcStRefuel'); if (rf) { rf.disabled = st.refueled; rf.textContent = st.refueled ? 'Tank already filled' : 'Refuel +60'; }
+            var fd = document.getElementById('dcStFoodBtn'); if (fd) { fd.disabled = st.foodLooted; fd.textContent = st.foodLooted ? 'Food taken' : 'Take food +40'; }
+            var wt = document.getElementById('dcStWaterBtn'); if (wt) { wt.disabled = st.waterLooted; wt.textContent = st.waterLooted ? 'Water taken' : 'Take water +40'; }
+            var pt = document.getElementById('dcStPart'); if (pt) { pt.disabled = st.partLooted; pt.textContent = st.partLooted ? 'No parts left' : 'Search for a car part'; }
+        }
+
+        function dcOpenStation(st) {
+            if (!st || stationOpen) return;
+            stationOpen = true;
+            activeStation = st;
+            speed = 0;
+            var panel = document.getElementById('dcStationPanel');
+            if (panel) panel.style.display = 'flex';
+            var promptEl = document.getElementById('dcStationPrompt');
+            if (promptEl) promptEl.style.display = 'none';
+            dcStationStatus();
+            tone(520, 0.12, 'square', 0.05, 760);
+        }
+
+        function dcCloseStation() {
+            stationOpen = false;
+            var panel = document.getElementById('dcStationPanel');
+            if (panel) panel.style.display = 'none';
+        }
+
+        (function wireStationButtons() {
+            var refuel = document.getElementById('dcStRefuel');
+            if (refuel) refuel.onclick = function () { if (activeStation && !activeStation.refueled) { activeStation.refueled = true; fuel = Math.min(100, fuel + 60); toast('FUEL +60'); dcStationStatus(); } };
+            var foodBtn = document.getElementById('dcStFoodBtn');
+            if (foodBtn) foodBtn.onclick = function () { if (activeStation && !activeStation.foodLooted) { activeStation.foodLooted = true; food = Math.min(100, food + 40); toast('FOOD +40'); dcStationStatus(); } };
+            var waterBtn = document.getElementById('dcStWaterBtn');
+            if (waterBtn) waterBtn.onclick = function () { if (activeStation && !activeStation.waterLooted) { activeStation.waterLooted = true; water = Math.min(100, water + 40); toast('WATER +40'); dcStationStatus(); } };
+            var partBtn = document.getElementById('dcStPart');
+            if (partBtn) partBtn.onclick = function () { if (activeStation && !activeStation.partLooted) { activeStation.partLooted = true; applyPart(); dcStationStatus(); } };
+            var closeBtn = document.getElementById('dcStClose');
+            if (closeBtn) closeBtn.onclick = dcCloseStation;
+            var promptEl = document.getElementById('dcStationPrompt');
+            if (promptEl) promptEl.onclick = function () { if (nearStation && !stationOpen) dcOpenStation(nearStation); };
+        })();
+
         function partLabel() {
             return partsFound.length ? partsFound.join(' · ') : 'Stock Parts';
         }
@@ -7591,6 +7695,10 @@
         function update(dt) {
             dt = Math.min(dt, 0.05);
             elapsed += dt;
+            if (stationOpen) {
+                speed = 0;
+                return;
+            }
             if (input.cameraCycle) {
                 input.cameraCycle = false;
                 dcCameraMode = (dcCameraMode + 1) % 4;
@@ -7661,6 +7769,21 @@
                     respawnPickup(p);
                 }
                 if (p.dist - distance < -25 && p.type !== 'part') respawnPickup(p);
+            }
+
+            // Fuel stations.
+            nearStation = null;
+            for (var si2 = 0; si2 < dcStations.length; si2++) {
+                var stn = dcStations[si2];
+                stn.group.position.z = -(stn.dist - distance);
+                stn.group.visible = Math.abs(stn.dist - distance) < 90;
+                if (Math.abs(stn.dist - distance) < 18) nearStation = stn;
+            }
+            var prompt = document.getElementById('dcStationPrompt');
+            if (prompt) prompt.style.display = (!stationOpen && nearStation && speed < 2) ? 'block' : 'none';
+            if (nearStation && speed < 2 && input.interact && !stationOpen) {
+                input.interact = false;
+                dcOpenStation(nearStation);
             }
 
             // Zombies.

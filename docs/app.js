@@ -50,7 +50,7 @@ const ADMIN_POWER_DEFS = [
 ];
 let avatarCache = {};
 const GRAPHICS_PRESETS = {
-    potato: { scale: 0.5, shadows: false, level: 0, blur: false, label: 'Potato' },
+    potato: { scale: 0.5, shadows: false, level: 0, blur: false, label: 'Poteto' },
     medium: { scale: 0.7, shadows: false, level: 1, blur: false, label: 'Medium' },
     high: { scale: 0.85, shadows: true, level: 2, blur: true, label: 'High' },
     ultra: { scale: 1.0, shadows: true, level: 3, blur: true, label: 'Ultra' },
@@ -951,6 +951,25 @@ function openGame(id) {
                     '<div class="dc-zombies" id="dcZombies">ZOMBIES 0</div>' +
                     '<div class="dc-toast" id="dcToast"></div>' +
                 '</div>' : '') +
+            (game.id === 4 ?
+                '<div class="dc-station-prompt" id="dcStationPrompt" style="display:none;">STOP AT FUEL STATION · E / tap to get out</div>' +
+                '<div class="dc-station-panel" id="dcStationPanel" style="display:none;">' +
+                    '<div class="dc-station-card">' +
+                        '<span class="dc-kicker">FUEL STATION</span>' +
+                        '<h3>Get out & scavenge</h3>' +
+                        '<p id="dcStationMeta">Station</p>' +
+                        '<div class="dc-station-stats">' +
+                            '<span>Fuel <b id="dcStFuel">100%</b></span>' +
+                            '<span>Food <b id="dcStFood">100%</b></span>' +
+                            '<span>Water <b id="dcStWater">100%</b></span>' +
+                        '</div>' +
+                        '<button type="button" id="dcStRefuel">Refuel +60</button>' +
+                        '<button type="button" id="dcStFoodBtn">Take food +40</button>' +
+                        '<button type="button" id="dcStWaterBtn">Take water +40</button>' +
+                        '<button type="button" id="dcStPart">Search for a car part</button>' +
+                        '<button type="button" class="dc-station-back" id="dcStClose">Back to car</button>' +
+                    '</div>' +
+                '</div>' : '') +
             '<div class="game3d-remote-cams" id="g3dRemoteCams" style="display:none;"></div>' +
             (game.fpsMode ?
                 '<div class="fps-crosshair" id="g3dFpsCrosshair"><span></span></div>' +
@@ -1548,7 +1567,7 @@ function funtutuCanvasTest(durationMs) {
 
 function funtutuRecommendation(total) {
     if (total < 1600) {
-        return { preset: 'potato', label: 'Potato', scale: 0.5, shadows: false, blur: false, grain: false, slowmo: true,
+        return { preset: 'potato', label: 'Poteto', scale: 0.5, shadows: false, blur: false, grain: false, slowmo: true,
             note: 'Prioritise frame rate. Expect low detail, no shadows, and a soft image.' };
     }
     if (total < 5000) {
@@ -7615,8 +7634,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.30";
-const UPDATE_NOTES = "LessFun Radio now shows a buffering spinner and a pulsing glow while a station is tuning or rebuffering, so you can see when the stream is loading";
+const APP_VERSION = "LessFun Public Beta 1.32.31";
+const UPDATE_NOTES = "Dead Coast now has roadside fuel stations: slow down, press E or tap the prompt to get out, refuel, take food and water, and search for a rare car part. Also removes the Beach Racer driver, adds a radio Off switch for your own music, and renames the Potato preset to Poteto";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -10016,7 +10035,9 @@ function radioInit() {
     if (volume) volume.value = String(audio.volume);
     radioRenderList();
     radioUpdateNow();
-    radioSetStatus('Paused · tap Play');
+    var wasOff = false;
+    try { wasOff = localStorage.getItem('lessfun_radio_off') === '1'; } catch (e) {}
+    radioSetStatus(wasOff ? 'Radio off · play your own music' : 'Paused · tap Play');
 
     audio.addEventListener('playing', function () {
         radioHasSource = true;
@@ -10090,9 +10111,27 @@ function radioTune(index, autoplay) {
     }
 }
 
+function radioTurnOff() {
+    var audio = document.getElementById('lessfunRadioAudio');
+    if (audio) {
+        audio.pause();
+        audio.removeAttribute('src');
+        audio.load();
+    }
+    radioHasSource = false;
+    radioSetBuffering(false);
+    try { localStorage.setItem('lessfun_radio_off', '1'); } catch (e) {}
+    var playBtn = document.getElementById('radioPlayBtn');
+    if (playBtn) playBtn.textContent = 'Play';
+    var fab = document.getElementById('radioFab');
+    if (fab) fab.classList.remove('is-playing');
+    radioSetStatus('Radio off · play your own music');
+}
+
 function radioToggle() {
     var audio = document.getElementById('lessfunRadioAudio');
     if (!audio) return;
+    try { localStorage.removeItem('lessfun_radio_off'); } catch (e) {}
     if (!radioHasSource) {
         radioTune(radioIndex, true);
         return;
