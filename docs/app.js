@@ -7705,8 +7705,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.46";
-const UPDATE_NOTES = "The site changelog now lists every 1.32 update through 1.32.45, including Beach Racer racing, Dead Coast survival and fuel stations, LessFun Radio, showroom cars, Funtutu, messages and graphics changes";
+const APP_VERSION = "LessFun Public Beta 1.32.47";
+const UPDATE_NOTES = "Dead Coast now has reverse: hold brake at a stop to back up. Star Dodger is expanded with a space station, wormhole gate, asteroid belt, comets, mines, big asteroids, new pickups (rapid, triple, magnet, slow, bomb), hunter and brute enemies, and meteor showers";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

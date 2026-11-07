@@ -5168,6 +5168,46 @@
         nebulaGeo.setAttribute('position', new THREE.Float32BufferAttribute(nebula, 3));
         scene.add(new THREE.Points(nebulaGeo, new THREE.PointsMaterial({ color: 0x7f5bff, size: 1.2, transparent: true, opacity: 0.28, blending: THREE.AdditiveBlending, depthWrite: false })));
 
+        // Distant space station.
+        var station = new THREE.Group();
+        var stationCore = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 7, 8), new THREE.MeshStandardMaterial({ color: 0x8a94a6, metalness: 0.7, roughness: 0.35 }));
+        stationCore.rotation.z = Math.PI / 2; station.add(stationCore);
+        var stationRing = new THREE.Mesh(new THREE.TorusGeometry(4.2, 0.35, 6, 24), new THREE.MeshStandardMaterial({ color: 0x5a6270, metalness: 0.8, roughness: 0.3 }));
+        station.add(stationRing);
+        for (var spi2 = 0; spi2 < 4; spi2++) {
+            var panel = new THREE.Mesh(new THREE.BoxGeometry(0.16, 3.4, 1.6), new THREE.MeshStandardMaterial({ color: 0x2f6f9e, metalness: 0.6, roughness: 0.3, emissive: 0x0a2a44, emissiveIntensity: 0.8 }));
+            var pa = spi2 / 4 * Math.PI * 2;
+            panel.position.set(Math.cos(pa) * 4.2, Math.sin(pa) * 4.2, 0);
+            panel.rotation.z = pa;
+            station.add(panel);
+        }
+        station.position.set(42, 24, -190);
+        station.rotation.z = 0.35;
+        scene.add(station);
+
+        // Wormhole gate.
+        var gate = new THREE.Group();
+        var gateRing = new THREE.Mesh(new THREE.TorusGeometry(9, 0.45, 8, 48), neon(0x9b5cff, 1.6));
+        gate.add(gateRing);
+        var gateRing2 = new THREE.Mesh(new THREE.TorusGeometry(7.4, 0.2, 8, 48), neon(0x2ff6ff, 1.4));
+        gateRing2.rotation.z = 0.6; gate.add(gateRing2);
+        var gateCore = new THREE.Mesh(new THREE.CircleGeometry(7.1, 40), new THREE.MeshBasicMaterial({ color: 0x6f2fff, transparent: true, opacity: 0.18, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+        gate.add(gateCore);
+        gate.position.set(-46, -6, -230);
+        gate.rotation.y = 0.35;
+        scene.add(gate);
+
+        // Distant asteroid belt.
+        var belt = [];
+        for (var bi2 = 0; bi2 < 160; bi2++) {
+            var ba = Math.random() * Math.PI * 2;
+            var br = 70 + Math.random() * 70;
+            belt.push(Math.cos(ba) * br, (Math.random() - 0.5) * 22, -180 - Math.random() * 130);
+        }
+        var beltGeo = new THREE.BufferGeometry();
+        beltGeo.setAttribute('position', new THREE.Float32BufferAttribute(belt, 3));
+        scene.add(new THREE.Points(beltGeo, new THREE.PointsMaterial({ color: 0x8a7f9f, size: 0.9, transparent: true, opacity: 0.55 })));
+
         var ship = new THREE.Group();
         var hull = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.6, 5), neon(0x2ff6ff, 1.2));
         hull.rotation.x = -Math.PI / 2; ship.add(hull);
@@ -5193,12 +5233,31 @@
         thruster.position.z = 1.1;
         ship.add(thruster);
 
-        function spawnRock() {
-            var r = 0.7 + Math.random() * 1.1;
-            var m = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), rockMat);
+        function spawnRock(kind) {
+            var roll = Math.random();
+            var type = kind || (roll < 0.12 ? 'big' : roll < 0.26 ? 'comet' : roll < 0.38 ? 'mine' : 'rock');
+            var r = type === 'big' ? 1.5 + Math.random() * 1.1 : type === 'mine' ? 0.6 : 0.65 + Math.random() * 1.0;
+            var mat = type === 'mine' ? neon(0xff3b5c, 1.8) : rockMat;
+            var m = new THREE.Mesh(type === 'mine' ? new THREE.DodecahedronGeometry(r, 0) : new THREE.IcosahedronGeometry(r, 0), mat);
             m.position.set((Math.random() - 0.5) * 16, (Math.random() - 0.5) * 10, -110 - Math.random() * 40);
             m.userData.r = r;
-            m.userData.spin = (Math.random() - 0.5) * 2;
+            m.userData.spin = (Math.random() - 0.5) * (type === 'big' ? 1.1 : 2.4);
+            m.userData.extraSpeed = type === 'comet' ? 24 : 0;
+            if (type === 'mine') {
+                for (var mi = 0; mi < 6; mi++) {
+                    var spike = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.6, 5), neon(0xff6b7d, 1.4));
+                    var ma = mi / 6 * Math.PI * 2;
+                    spike.position.set(Math.cos(ma) * r, Math.sin(ma) * r, 0);
+                    spike.rotation.z = ma - Math.PI / 2;
+                    m.add(spike);
+                }
+            }
+            if (type === 'comet') {
+                var tail = new THREE.Mesh(new THREE.ConeGeometry(r * 0.7, r * 4.5, 6), new THREE.MeshBasicMaterial({ color: 0x8ffcff, transparent: true, opacity: 0.28, blending: THREE.AdditiveBlending, depthWrite: false }));
+                tail.rotation.x = Math.PI / 2;
+                tail.position.z = r * 2.6;
+                m.add(tail);
+            }
             scene.add(m); obstacles.push(m);
         }
         function spawnOrb() {
@@ -5206,8 +5265,9 @@
             m.position.set((Math.random() - 0.5) * 14, (Math.random() - 0.5) * 8, -90 - Math.random() * 60);
             scene.add(m); orbs.push(m);
         }
+        var PICKUP_COLORS = { shield: 0x5fe0ff, weapon: 0x54ff9f, rapid: 0xffd166, triple: 0xff70a6, magnet: 0x9b5cff, slow: 0x7fdbff, bomb: 0xff7a45 };
         function spawnPickup(kind) {
-            var color = kind === 'shield' ? 0x5fe0ff : 0x54ff9f;
+            var color = PICKUP_COLORS[kind] || 0x54ff9f;
             var g = new THREE.Group();
             var core = new THREE.Mesh(new THREE.OctahedronGeometry(0.46, 0), neon(color, 2.0));
             g.add(core);
@@ -5219,17 +5279,28 @@
             g.userData.ring = ring;
             scene.add(g); pickups.push(g);
         }
-        function spawnEnemy() {
+        function spawnEnemy(kind) {
+            var type = kind || (Math.random() < 0.24 ? 'hunter' : Math.random() < 0.12 ? 'brute' : 'scout');
             var g = new THREE.Group();
-            var body = new THREE.Mesh(new THREE.ConeGeometry(0.6, 1.5, 5), enemyMat);
+            var col = type === 'hunter' ? 0xff9f1c : type === 'brute' ? 0x9b5cff : 0xff3b5c;
+            var eMat = neon(col, 1.6);
+            var body = new THREE.Mesh(new THREE.ConeGeometry(type === 'brute' ? 1.0 : 0.6, type === 'brute' ? 2.2 : 1.5, 5), eMat);
             body.rotation.x = Math.PI / 2; g.add(body);
-            var wing = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.08, 0.35), enemyMat);
+            var wing = new THREE.Mesh(new THREE.BoxGeometry(type === 'brute' ? 3.0 : 2.0, 0.08, type === 'brute' ? 0.55 : 0.35), eMat);
             wing.position.z = 0.35; g.add(wing);
-            var eye = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), neon(0xfff2a0, 2.2));
+            var eye = new THREE.Mesh(new THREE.SphereGeometry(type === 'brute' ? 0.3 : 0.2, 10, 8), neon(0xfff2a0, 2.2));
             eye.position.set(0, 0, -0.5); g.add(eye);
+            if (type === 'hunter') {
+                var spike = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.9, 5), eMat);
+                spike.position.z = -0.9; spike.rotation.x = -Math.PI / 2; g.add(spike);
+            }
             g.position.set((Math.random() - 0.5) * 12, (Math.random() - 0.5) * 8, -150);
             g.userData.phase = Math.random() * Math.PI * 2;
             g.userData.baseX = g.position.x;
+            g.userData.type = type;
+            g.userData.r = type === 'brute' ? 2.2 : type === 'hunter' ? 1.6 : 1.4;
+            g.userData.extraSpeed = type === 'hunter' ? 26 : 0;
+            g.userData.hp = type === 'brute' ? 2 : 1;
             scene.add(g); enemies.push(g);
         }
         function blastAt(x, y, z, color) {
@@ -5241,11 +5312,14 @@
             blasts.push({ mesh: mesh, life: 0.34, max: 0.34 });
         }
         function fireLaser() {
-            var mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.55, 6), laserMat);
-            mesh.rotation.x = Math.PI / 2;
-            mesh.position.set(ship.position.x, ship.position.y, ship.position.z - 1.3);
-            scene.add(mesh);
-            lasers.push({ mesh: mesh, life: 1.5 });
+            var offsets = tripleT > 0 ? [-0.75, 0, 0.75] : [0];
+            for (var lf = 0; lf < offsets.length; lf++) {
+                var mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.55, 6), laserMat);
+                mesh.rotation.x = Math.PI / 2;
+                mesh.position.set(ship.position.x + offsets[lf], ship.position.y + (tripleT > 0 ? (lf - 1) * 0.18 : 0), ship.position.z - 1.3);
+                scene.add(mesh);
+                lasers.push({ mesh: mesh, life: 1.5 });
+            }
             tone(1320, 0.05, 'square', 0.028, 900);
         }
         function removeFrom(list, index) {
@@ -5262,6 +5336,7 @@
 
         var elapsed = 0, speed = 26, spawnT = 0, orbT = 0, pickupT = 7, enemyT = 12;
         var score = 0, weaponT = 0, shieldHits = 0, invulnT = 0, comboT = 0, combo = 1, laserCd = 0;
+        var rapidT = 0, tripleT = 0, magnetT = 0, slowT = 0, meteorT = 22;
 
         function update(dt) {
             elapsed += dt;
@@ -5290,7 +5365,7 @@
             laserCd = Math.max(0, laserCd - dt);
             if (input.tapQueued) {
                 input.tapQueued = false;
-                if (weaponT > 0 && laserCd <= 0) { fireLaser(); laserCd = 0.17; }
+                if (weaponT > 0 && laserCd <= 0) { fireLaser(); laserCd = rapidT > 0 ? 0.085 : 0.17; }
             }
 
             spawnT += dt;
@@ -5298,9 +5373,22 @@
             orbT += dt;
             if (orbT > 1.6) { orbT = 0; spawnOrb(); }
             pickupT -= dt;
-            if (pickupT <= 0) { spawnPickup(Math.random() < 0.5 ? 'shield' : 'weapon'); pickupT = 8 + Math.random() * 5; }
+            if (pickupT <= 0) {
+                var kinds = ['shield', 'weapon', 'rapid', 'triple', 'magnet', 'slow', 'bomb'];
+                spawnPickup(kinds[Math.floor(Math.random() * kinds.length)]);
+                pickupT = 6 + Math.random() * 4;
+            }
             enemyT -= dt;
-            if (enemyT <= 0 && elapsed > 8) { spawnEnemy(); enemyT = 9 + Math.random() * 6; }
+            if (enemyT <= 0 && elapsed > 8) { spawnEnemy(); enemyT = 7 + Math.random() * 5; }
+            meteorT -= dt;
+            if (meteorT <= 0) {
+                meteorT = 18 + Math.random() * 8;
+                for (var mw = 0; mw < 7; mw++) spawnRock(mw % 2 === 0 ? 'comet' : 'rock');
+            }
+            if (rapidT > 0) rapidT = Math.max(0, rapidT - dt);
+            if (tripleT > 0) tripleT = Math.max(0, tripleT - dt);
+            if (magnetT > 0) magnetT = Math.max(0, magnetT - dt);
+            if (slowT > 0) slowT = Math.max(0, slowT - dt);
 
             shieldMesh.visible = shieldHits > 0 || invulnT > 0;
             if (shieldMesh.visible) {
@@ -5310,7 +5398,7 @@
 
             for (var i = obstacles.length - 1; i >= 0; i--) {
                 var o = obstacles[i];
-                o.position.z += speed * dt;
+                o.position.z += (speed + (o.userData.extraSpeed || 0)) * (slowT > 0 ? 0.5 : 1) * dt;
                 o.rotation.x += o.userData.spin * dt;
                 o.rotation.y += o.userData.spin * dt * 0.7;
                 if (o.position.z > 10) { removeFrom(obstacles, i); continue; }
@@ -5335,6 +5423,10 @@
                 var ob = orbs[k];
                 ob.position.z += speed * dt;
                 ob.rotation.y += dt * 3;
+                if (magnetT > 0) {
+                    ob.position.x += (ship.position.x - ob.position.x) * Math.min(1, dt * 2.4);
+                    ob.position.y += (ship.position.y - ob.position.y) * Math.min(1, dt * 2.4);
+                }
                 if (ob.position.z > 10) { removeFrom(orbs, k); continue; }
                 var ox = ob.position.x - ship.position.x;
                 var oy = ob.position.y - ship.position.y;
@@ -5351,16 +5443,32 @@
                 pu.userData.ring.rotation.z += dt * 3;
                 if (pu.position.z > 10) { removeFrom(pickups, p); continue; }
                 if (pu.position.distanceTo(ship.position) < 2.4) {
-                    if (pu.userData.kind === 'shield') shieldHits = Math.min(2, shieldHits + 1);
-                    else weaponT = Math.max(weaponT, 11);
+                    var pk = pu.userData.kind;
+                    if (pk === 'shield') shieldHits = Math.min(3, shieldHits + 1);
+                    else if (pk === 'weapon') weaponT = Math.max(weaponT, 11);
+                    else if (pk === 'rapid') rapidT = Math.max(rapidT, 10);
+                    else if (pk === 'triple') tripleT = Math.max(tripleT, 10);
+                    else if (pk === 'magnet') magnetT = Math.max(magnetT, 10);
+                    else if (pk === 'slow') slowT = Math.max(slowT, 7);
+                    else if (pk === 'bomb') {
+                        for (var bo = obstacles.length - 1; bo >= 0; bo--) {
+                            blastAt(obstacles[bo].position.x, obstacles[bo].position.y, obstacles[bo].position.z, 0xff7a45);
+                            removeFrom(obstacles, bo);
+                        }
+                        for (var be = enemies.length - 1; be >= 0; be--) {
+                            blastAt(enemies[be].position.x, enemies[be].position.y, enemies[be].position.z, 0xff3b5c);
+                            removeFrom(enemies, be);
+                        }
+                        score += 300 * combo;
+                    }
                     score += 35 * combo; addCombo();
-                    blastAt(pu.position.x, pu.position.y, pu.position.z, pu.userData.kind === 'shield' ? 0x5fe0ff : 0x54ff9f);
+                    blastAt(pu.position.x, pu.position.y, pu.position.z, PICKUP_COLORS[pk] || 0x54ff9f);
                     removeFrom(pickups, p);
                 }
             }
             for (var e = enemies.length - 1; e >= 0; e--) {
                 var en = enemies[e];
-                en.position.z += (speed + 16) * dt;
+                en.position.z += (speed + 16 + (en.userData.extraSpeed || 0)) * (slowT > 0 ? 0.5 : 1) * dt;
                 en.position.x = en.userData.baseX + Math.sin(elapsed * 1.7 + en.userData.phase) * 2.4;
                 en.position.y += Math.sin(elapsed * 1.3 + en.userData.phase) * 3.5 * dt;
                 en.rotation.z += dt * 1.2;
@@ -5368,7 +5476,8 @@
                 var ex = en.position.x - ship.position.x;
                 var ey = en.position.y - ship.position.y;
                 var ez = en.position.z - ship.position.z;
-                if (ex * ex + ey * ey + ez * ez < 2.6 && invulnT <= 0) {
+                var enemyRad = en.userData.r || 1.4;
+                if (ex * ex + ey * ey + ez * ez < (enemyRad * enemyRad) && invulnT <= 0) {
                     if (shieldHits > 0) {
                         shieldHits--; invulnT = 0.9;
                         blastAt(en.position.x, en.position.y, en.position.z, 0xff3b5c);
@@ -5399,10 +5508,15 @@
                 if (!hit) {
                     for (var ei = enemies.length - 1; ei >= 0; ei--) {
                         var enemy = enemies[ei];
-                        if (enemy.position.distanceTo(la.mesh.position) < 2.0) {
-                            score += 150 * combo; addCombo();
-                            blastAt(enemy.position.x, enemy.position.y, enemy.position.z, 0xff3b5c);
-                            removeFrom(enemies, ei);
+                        if (enemy.position.distanceTo(la.mesh.position) < (enemy.userData.r || 1.4) + 0.7) {
+                            if (enemy.userData.hp > 1) {
+                                enemy.userData.hp--;
+                                blastAt(enemy.position.x, enemy.position.y, enemy.position.z, 0xffd166);
+                            } else {
+                                score += (enemy.userData.type === 'brute' ? 300 : enemy.userData.type === 'hunter' ? 220 : 150) * combo; addCombo();
+                                blastAt(enemy.position.x, enemy.position.y, enemy.position.z, 0xff3b5c);
+                                removeFrom(enemies, ei);
+                            }
                             hit = true; break;
                         }
                     }
@@ -5425,6 +5539,10 @@
             var status = [];
             if (shieldHits > 0) status.push('SHIELD ' + shieldHits);
             if (weaponT > 0) status.push('LASER ' + Math.ceil(weaponT));
+            if (rapidT > 0) status.push('RAPID ' + Math.ceil(rapidT));
+            if (tripleT > 0) status.push('TRIPLE ' + Math.ceil(tripleT));
+            if (magnetT > 0) status.push('MAGNET ' + Math.ceil(magnetT));
+            if (slowT > 0) status.push('SLOW ' + Math.ceil(slowT));
             status.push('x' + combo.toFixed(1));
             setHud(Math.round(score), Math.round(score) + ' PTS · ' + status.join(' · '));
         }
@@ -7886,10 +8004,17 @@
             steerSmooth += (steerTarget - steerSmooth) * Math.min(1, dt * 8);
 
             var topNow = maxSpeed * (fuel > 0 ? 1 : 0.28);
-            if (throttleSmooth > 0.01) speed += (accel * throttleSmooth - speed * 0.05) * dt;
-            else speed -= 2.4 * dt;
-            if (brakeSmooth > 0.01) speed -= brakePower * brakeSmooth * dt;
-            speed = Math.max(0, Math.min(topNow, speed));
+            var reverseMax = -13;
+            if (brakeSmooth > 0.01) {
+                if (speed > 0.4) speed -= brakePower * brakeSmooth * dt;
+                else speed -= 9.5 * brakeSmooth * dt;
+            } else if (throttleSmooth > 0.01) {
+                speed += (accel * throttleSmooth - speed * 0.05) * dt;
+            } else {
+                speed -= 2.4 * dt;
+            }
+            speed = Math.max(reverseMax, Math.min(topNow, speed));
+            if (Math.abs(speed) < 0.16) speed = 0;
             if (fuel <= 0) speed = Math.min(speed, 10);
 
             vx += steerSmooth * (8.5 * grip) * dt * Math.min(1, speed / 14);
@@ -7898,12 +8023,12 @@
             if (carX < -4.7) { carX = -4.7; vx *= -0.25; }
             if (carX > 4.7) { carX = 4.7; vx *= -0.25; }
 
-            distance += speed * dt;
+            distance = Math.max(0, distance + speed * dt);
 
             // Hunger, water, fuel, and health.
-            food = Math.max(0, food - (0.30 + speed * 0.0018) * dt);
-            water = Math.max(0, water - (0.36 + speed * 0.0021) * dt);
-            fuel = Math.max(0, fuel - (0.12 + speed * 0.0065) * fuelUse * dt);
+            food = Math.max(0, food - (0.30 + Math.abs(speed) * 0.0018) * dt);
+            water = Math.max(0, water - (0.36 + Math.abs(speed) * 0.0021) * dt);
+            fuel = Math.max(0, fuel - (0.12 + Math.abs(speed) * 0.0065) * fuelUse * dt);
             if (food <= 0 || water <= 0) health = Math.max(0, health - 3.2 * dt);
             if (fuel <= 0) health = Math.max(0, health - 0.8 * dt);
 
@@ -8067,7 +8192,7 @@
                 var hEl = document.getElementById('dcHealth'); if (hEl) hEl.style.width = health + '%';
                 var partEl = document.getElementById('dcPart'); if (partEl) partEl.textContent = partLabel();
                 var zEl = document.getElementById('dcZombies'); if (zEl) zEl.textContent = 'ZOMBIES ' + zombiesHit;
-                setPillText('g3dExtra', 'DEAD COAST · ' + Math.round(speed * 2.23694) + ' MPH');
+                setPillText('g3dExtra', 'DEAD COAST · ' + Math.round(Math.abs(speed) * 2.23694) + ' MPH' + (speed < -0.3 ? ' · R' : ''));
             }
             if (toastT > 0) {
                 toastT -= dt;
