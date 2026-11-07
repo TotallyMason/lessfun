@@ -185,12 +185,13 @@ handling real user data or payments.
 - Touch controls for NOS, drift, and gear shifts on phones and narrow screens
 - Mobile performance mode: lower pixel-ratio cap, shadows disabled, reduced traffic/zombie/building counts, cheaper particles, and motion blur off by default
 - Full touch controls for Dead Coast: movement stick, drag-to-look, fire, reload, jump, melee, use, and weapon swap
-- Beach Racer Racing: a closed 2,400 m loop, three laps, four adaptive AI rivals that scale to the player’s car and rubber-band for the win, no traffic, a race loading animation, and lap/position/timer HUD
+- Beach Racer Racing: a closed 2,400 m loop, three laps, four adaptive AI rivals that cruise at 780 km/h and rubber-band for the win, no traffic, a race loading animation, and lap/position/timer HUD
 - Beach Racer closed-loop multiplayer racing with friends and no traffic
 - 200-car showroom across 45+ real brands (BMW, Tesla, Toyota, Porsche, Ferrari, Lamborghini, McLaren, Nissan, Ford, and more) with real horsepower, 0-60, top speed, drivetrain, price tiers, search, pagination, buy/sell/drive, and persistent ownership
 - New players start in the free junk beater with the lawnmower engine, broken aero, and rust kit
-- Funtutu Test benchmark game with CPU integer/float, GPU shader, and Canvas 2D tests, a live work visualisation, a combined score, and an Apply Recommended button
-- Beach Racer opens in a 3D garage orbit view with Play, Race, Garage, and Showroom actions; Race opens a chooser for adaptive AI or friends
+- Funtutu Test benchmark game with longer CPU integer/float, GPU shader, and Canvas 2D tests, a live work visualisation, a combined score tuned so an average 2024 PC lands on Medium, and an Apply Recommended button
+- Beach Racer free-roam city: a real drivable grid with intersections, blocks, buildings, crosswalks, sidewalks, trees, streetlights, and parked cars
+- Beach Racer opens in a 3D garage orbit view with Play, Race, Garage, and Showroom actions; Play launches a free-roam city grid, and Race opens a chooser for adaptive AI or friends
 - In-game Garage shop for car parts, opened from the Beach Racer garage screen without leaving the game
 - Free downgrade parts for experimenting with slower builds
 - Straight segmented highway with aligned traffic, lanes, guardrails, signs, lights, posts, coins, ramps, and checkpoints
@@ -198,7 +199,7 @@ handling real user data or payments.
 - Coin-gift notifications in a bell menu, showing who sent Coins and how much
 - A one-time shared **+500 Coin** reward per session for playing multiplayer with at least one other person
 - Live Now Playing list in Friends showing what signed-in players are doing, with Join buttons
-- live throttle and brake input bars, no ignition bar, a mobile layout without the drift button, mph/km-h setting, a live FPS/resolution counter, 60 FPS-targeted automatic resolution scaling, one-piece road geometry, and throttled ocean/HUD updates
+- smooth vertical throttle and brake bars at the bottom left, no ignition bar, a mobile layout without the drift button, mph/km-h setting, a live FPS/resolution counter, 60 FPS-targeted automatic resolution scaling, one-piece road geometry, and throttled ocean/HUD updates
 - Graphics presets plus dynamic-shadow, crash slow-mo, film-grain, motion-blur, FPS-counter, and render-scale controls
 - 60 FPS-targeted crash cinema with a black fade into the slow-motion wreck render
 - Site-wide mobile pass: safe-area insets, full-height game modal, larger touch targets, 16px form inputs, scrollable store tabs, and responsive showroom/benchmark layouts

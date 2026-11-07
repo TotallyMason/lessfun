@@ -4,7 +4,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_Ev9umZevWcT-AwVHTPQLnw_DHdpDHWR";
 const supabaseClient = (typeof window !== 'undefined' && window.supabase) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 const games = [
-    { id: 1, name: "Beach Racer", description: "Outrun traffic on a six-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · ← → steer · Shift / N nitrous · F FSD · H honk · Q/E gears" },
+    { id: 1, name: "Beach Racer", description: "Outrun traffic on a six-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · A D / ← → steer · Shift / N nitrous" },
     { id: 2, name: "Tunnel Rush", description: "Thread the neon tunnel at warp speed", icon: "tunnel", controls: "Left / Right or drag to rotate" },
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
     { id: 4, name: "Dead Coast", description: "Survive endless zombie waves in first person", icon: "skull", controls: "WASD move · trackpad look · click fire · 1/2/3 weapons · R reload · V melee · B bandage · E loot · F light · Shift sprint" },
@@ -534,7 +534,15 @@ function startRaceMultiplayer() {
     garageMultiplayer();
 }
 
+function garageCity() {
+    cityModeSetting = true;
+    raceModeSetting = false;
+    raceAiSetting = false;
+    garagePlay(false);
+}
+
 function garageRace() {
+    cityModeSetting = false;
     garagePlay(true);
 }
 
@@ -567,6 +575,7 @@ function grantMultiplayerSessionReward() {
 function garagePlay(raceMode) {
     raceModeSetting = !!raceMode;
     raceAiSetting = !!raceMode;
+    cityModeSetting = !raceMode;
     const garage = document.getElementById('g3dGarage');
     if (garage) garage.style.display = 'none';
     const shop = document.getElementById('g3dGarageShop');
@@ -871,6 +880,7 @@ function mobileFsd() {
 let currentGameId = null;
 let raceModeSetting = false;
 let raceAiSetting = false;
+let cityModeSetting = false;
 let garageSuppressed = false;
 let startMenuSuppressed = false;
 let mpRewardSessionClaimed = false;
@@ -894,8 +904,6 @@ function openGame(id) {
             '<div class="game3d-hud">' +
                 '<div class="game3d-glass">' +
                     '<strong class="game3d-glass-status" id="g3dExtra">-</strong>' +
-                    (game.hasThrottle ? '<span class="game3d-glass-sep"></span><span class="game3d-glass-stat game3d-gear-pill"><small>Gear</small><strong id="g3dGear">1</strong></span>' : '') +
-                    (game.hasThrottle ? '<span class="game3d-glass-sep"></span><span class="game3d-glass-stat game3d-cp-pill"><small>CP</small><strong id="g3dCheckpoint">0</strong></span>' : '') +
                     (game.hasThrottle ? '<span class="game3d-glass-sep"></span><span class="game3d-glass-stat game3d-coin-pill"><small>Coins</small><strong id="g3dRunCoins">0</strong></span>' : '') +
                 '</div>' +
             '</div>' +
@@ -947,9 +955,6 @@ function openGame(id) {
             (game.hasThrottle ?
                 '<div class="game3d-touch-controls">' +
                     '<button type="button" class="game3d-touch-btn is-nitro" onpointerdown="event.preventDefault();mobileHold(\'nitro\',true)" onpointerup="mobileHold(\'nitro\',false)" onpointercancel="mobileHold(\'nitro\',false)" onpointerleave="mobileHold(\'nitro\',false)">NOS</button>' +
-                    '<button type="button" class="game3d-touch-btn is-fsd" onpointerdown="event.preventDefault();mobileFsd()">FSD</button>' +
-                    '<button type="button" class="game3d-touch-btn is-gear" onpointerdown="event.preventDefault();mobileShift(1)">▲</button>' +
-                    '<button type="button" class="game3d-touch-btn is-gear is-down" onpointerdown="event.preventDefault();mobileShift(-1)">▼</button>' +
                 '</div>' : '') +
             '<button class="game3d-msg-btn" id="g3dMsgBtn" type="button" onclick="toggleDmSidebar()">Messages</button>' +
             '<aside class="game3d-dm" id="g3dDmSidebar">' +
@@ -1097,7 +1102,7 @@ function openGame(id) {
                         '<p class="game3d-garage-sub">Orbit view · buy and equip parts in the Garage tab.</p>' +
                         '<div class="game3d-garage-stats" id="g3dGarageStats"></div>' +
                         '<div class="game3d-garage-actions">' +
-                            '<button type="button" class="game3d-mp-primary" onclick="garagePlay()">Play</button>' +
+                            '<button type="button" class="game3d-mp-primary" onclick="garageCity()">Play</button>' +
                             '<button type="button" class="game3d-mp-secondary" onclick="openRaceChoice()">Race</button>' +
                             '<button type="button" class="game3d-mp-secondary" onclick="openGarageShop()">Garage</button>' +
                             '<button type="button" class="game3d-mp-secondary" onclick="openShowroom()">Showroom</button>' +
@@ -1174,8 +1179,6 @@ function openGame(id) {
             '<div class="game3d-crash" id="g3dCrashFlash"></div>' +
             '<div class="g3d-grain" aria-hidden="true"></div>' +
             (game.id === 1 ? '<div class="g3d-cinema" id="g3dCinema"></div>' : '') +
-            (game.hasThrottle ? '<div class="game3d-fsd" id="g3dFsd"><span>FSD ACTIVE</span></div>' : '') +
-            (game.hasThrottle ? '<div class="game3d-fsd-hud" id="g3dFsdHud"><span>FSD</span><canvas id="g3dFsdCanvas" width="260" height="156"></canvas></div>' : '') +
             '<div class="game3d-warning" id="g3dWarning"></div>' +
             '<div class="game3d-over" id="g3dOver" style="display:none;">' +
                 '<div class="game3d-over-card">' +
@@ -1199,6 +1202,7 @@ function openGame(id) {
             cosmetics: getEquippedCosmetics(),
             raceMode: raceModeSetting,
             raceAi: raceAiSetting,
+            cityMode: cityModeSetting,
             zombieLoadout: getZombieLoadout(),
             onScore: function (name, score) { saveScore(name, score); },
             onCoins: function (amount) { awardRunCoins(amount); },
@@ -1536,7 +1540,7 @@ function funtutuRecommendation(total) {
     }
     if (total < 2600) {
         return { preset: 'medium', label: 'Medium', scale: 0.7, shadows: false, blur: false, grain: false, slowmo: true,
-            note: 'Smooth everyday play with reduced resolution and no dynamic shadows.' };
+            note: 'The baseline for an average 2024 PC: smooth everyday play with reduced resolution and no dynamic shadows.' };
     }
     if (total < 4200) {
         return { preset: 'high', label: 'High', scale: 0.85, shadows: true, blur: true, grain: false, slowmo: true,
@@ -1565,7 +1569,7 @@ async function runFuntutuTest() {
     funtutuProgress(8, 'Testing CPU integer pipeline');
     funtutuSetStep('cpu-int', 'running…', 'is-running');
     await funtutuNextFrame();
-    var cpuInt = funtutuCpuTest('int', 260);
+    var cpuInt = funtutuCpuTest('int', 700);
     if (token !== funtutuToken) return;
     var cpuIntScore = Math.round(cpuInt.ops / 1000000);
     funtutuSetStep('cpu-int', cpuIntScore + ' pts · ' + Math.round(cpuInt.ops / 1000) + 'k ops', 'is-done');
@@ -1573,7 +1577,7 @@ async function runFuntutuTest() {
 
     funtutuSetStep('cpu-float', 'running…', 'is-running');
     await funtutuNextFrame();
-    var cpuFloat = funtutuCpuTest('float', 260);
+    var cpuFloat = funtutuCpuTest('float', 700);
     if (token !== funtutuToken) return;
     var cpuFloatScore = Math.round(cpuFloat.ops / 300000);
     funtutuSetStep('cpu-float', cpuFloatScore + ' pts · ' + Math.round(cpuFloat.ops / 1000) + 'k ops', 'is-done');
@@ -1583,7 +1587,7 @@ async function runFuntutuTest() {
     await funtutuNextFrame();
     var hidden = document.createElement('canvas');
     hidden.width = 512; hidden.height = 288;
-    var gpu = await funtutuGpuTest(hidden, 620);
+    var gpu = await funtutuGpuTest(hidden, 1200);
     if (token !== funtutuToken) return;
     var gpuScore = Math.round(gpu.score);
     funtutuSetStep('gpu', gpu.supported ? (gpuScore + ' pts · ' + gpu.fps.toFixed(1) + ' FPS') : 'WebGL unavailable', 'is-done');
@@ -1591,7 +1595,7 @@ async function runFuntutuTest() {
 
     funtutuSetStep('canvas', 'running…', 'is-running');
     await funtutuNextFrame();
-    var canvasScore = Math.round(await funtutuCanvasTest(480));
+    var canvasScore = Math.round(await funtutuCanvasTest(900));
     if (token !== funtutuToken) return;
     funtutuSetStep('canvas', canvasScore + ' pts', 'is-done');
 
@@ -1614,7 +1618,7 @@ async function runFuntutuTest() {
                 '<span>GPU <b>' + gpuScore + '</b></span>' +
                 '<span>Canvas <b>' + canvasScore + '</b></span>' +
             '</div>' +
-            '<div class="funtutu-verdict"><strong>' + escapeHtml(rec.label) + '</strong><p>' + escapeHtml(rec.note) + '</p>' +
+            '<div class="funtutu-verdict"><strong>' + escapeHtml(rec.label) + '</strong><p>' + escapeHtml(rec.note) + ' An average 2024 desktop PC usually lands around Medium.</p>' +
             '<span class="funtutu-rec-tags">Render ' + Math.round(rec.scale * 100) + '% · Shadows ' + (rec.shadows ? 'on' : 'off') +
             ' · Motion blur ' + (rec.blur ? 'on' : 'off') + ' · Film grain ' + (rec.grain ? 'on' : 'off') + '</span></div>';
     }
@@ -7600,8 +7604,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.13";
-const UPDATE_NOTES = "Beach Racer controls are simpler: Play is the main button, Race now opens a chooser for AI or friends, the nitro bar is fixed, throttle and brake are shown as live bars, the ignition bar and mobile drift button are gone, and the AI racers are much faster";
+const APP_VERSION = "LessFun Public Beta 1.32.14";
+const UPDATE_NOTES = "Beach Racer gets a real free-roam city: Play drops you into a grid of streets, city blocks, intersections and buildings you can drive through. The HUD is simpler, throttle and brake are smoother vertical bars at the bottom left, AI racers now cruise at 780 km/h, and Funtutu Test runs longer with an average 2024 PC tuned to Medium";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

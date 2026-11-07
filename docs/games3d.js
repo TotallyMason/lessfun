@@ -2352,9 +2352,9 @@
                 if (nitroFill) nitroFill.style.width = Math.round(nitro) + '%';
             }
             var throttleFill = document.getElementById('g3dThrottleFill');
-            if (throttleFill) throttleFill.style.width = Math.round(throttleDisplay * 100) + '%';
+            if (throttleFill) throttleFill.style.height = Math.round(throttleDisplay * 100) + '%';
             var brakeFill = document.getElementById('g3dBrakeFill');
-            if (brakeFill) brakeFill.style.width = Math.round(brakeDisplay * 100) + '%';
+            if (brakeFill) brakeFill.style.height = Math.round(brakeDisplay * 100) + '%';
             var coinEl = document.getElementById('g3dRunCoins');
             if (coinEl) setPillText('g3dRunCoins', coinsCollected);
         }
@@ -3465,6 +3465,7 @@
         if (raceMode) { ignition = 1; engineOn = true; gearMode = 'D'; }
         var nitro = 100, nitroActive = false;
         var throttleDisplay = 0, brakeDisplay = 0;
+        var throttleSmooth = 0, brakeSmooth = 0;
         var nitroWasActive = false, nitroShiftT = 0;
         var coinsCollected = 0;
         var garageMode = false;
@@ -3847,15 +3848,14 @@
                     ai.speed = Math.max(0, ai.speed - 35 * dt);
                 } else {
                     var aiTotal = (ai.lap - 1) * RACE_LOOP + ai.distance;
-                    // AI pace scales with the player's real top speed, so the
-                    // pack stays competitive whether the player is in the junk
-                    // beater or a hypercar.
-                    var playerTop = Math.max(55, perf.topSpeed || 120);
-                    var target = playerTop * (0.80 + ai.skill * 0.13);
+                    // AI racers hold a 780 km/h cruise and only nudge their
+                    // pace to stay in the fight.
+                    var aiCruise = 780 / 3.6;
+                    var target = aiCruise * (0.98 + ai.skill * 0.02);
                     var diff = playerTotal - aiTotal;
-                    if (diff > 45) target += Math.min(playerTop * 0.20, diff * 0.10);
-                    else if (diff < -60) target -= Math.min(playerTop * 0.14, -diff * 0.08);
-                    target = Math.max(playerTop * 0.58, Math.min(playerTop * 1.01, target));
+                    if (diff > 45) target += Math.min(16, diff * 0.05);
+                    else if (diff < -60) target -= Math.min(12, -diff * 0.04);
+                    target = Math.max(aiCruise * 0.88, Math.min(aiCruise * 1.06, target));
                     ai.speed += (target - ai.speed) * Math.min(1, dt * 1.7);
                     ai.distance += ai.speed * dt;
                     if (ai.distance >= RACE_LOOP) {
@@ -4126,6 +4126,8 @@
             var brakeTarget = brakeCmd ? 1 : 0;
             throttleDisplay += (throttleTarget - throttleDisplay) * Math.min(1, dt * 14);
             brakeDisplay += (brakeTarget - brakeDisplay) * Math.min(1, dt * 14);
+            throttleSmooth += (throttleTarget - throttleSmooth) * Math.min(1, dt * 7);
+            brakeSmooth += (brakeTarget - brakeSmooth) * Math.min(1, dt * 9);
 
             honkCooldown = Math.max(0, honkCooldown - dt);
             if (input.honk) {
@@ -4198,11 +4200,11 @@
                 speed += (0 - speed) * Math.min(1, dt * 1.4);
             } else if (brakeCmd) {
                 var brakeDecel = (fsdActive && fsdEmergency) ? 165 : 58;
-                speed = Math.max(0, speed - brakeDecel * dt);
+                speed = Math.max(0, speed - brakeDecel * Math.max(0.18, brakeSmooth) * dt);
             } else if (throttleCmd) {
                 var topSpeedNow = (fsdActive ? FSD_MAX_SPEED : perf.topSpeed) * (nitroActive ? 1.32 : 1);
                 var pull = perf.accel * (fsdActive ? 4.5 : 1) * (nitroActive ? 2.35 : 1) * (1 - 0.5 * Math.min(1, speed / topSpeedNow));
-                speed = Math.min(topSpeedNow, speed + pull * dt);
+                speed = Math.min(topSpeedNow, speed + pull * (0.35 + 0.65 * throttleSmooth) * dt);
             } else if (speed > CREEP_SPEED) {
                 speed = Math.max(CREEP_SPEED, speed - 11 * dt);
             } else {
@@ -6728,6 +6730,390 @@
         };
     }
 
+    /* ---------------- Beach City (free-roam) ---------------- */
+    function createCity(ctx) {
+        var scene = ctx.scene, camera = ctx.camera, renderer = ctx.renderer;
+        if (renderer) renderer.shadowMap.enabled = false;
+        var cosmetics = (ctx.options && ctx.options.cosmetics) || {};
+        var carColor = cosmetics.paint != null ? cosmetics.paint : 0xef476f;
+
+        scene.background = new THREE.Color(0x9ed2ee);
+        scene.fog = new THREE.Fog(0xd8e9f3, 150, 470);
+
+        function standard(color, options) {
+            return new THREE.MeshStandardMaterial(Object.assign({
+                color: color, roughness: 0.62, metalness: 0.08
+            }, options || {}));
+        }
+        function box(w, h, d, mat) { return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); }
+        function cylinder(top, bottom, height, seg, mat) {
+            return new THREE.Mesh(new THREE.CylinderGeometry(top, bottom, height, seg || 10), mat);
+        }
+        function canvasTexture(w, h, draw, rx, ry) {
+            var c = document.createElement('canvas');
+            c.width = w; c.height = h;
+            draw(c.getContext('2d'), w, h);
+            var t = new THREE.CanvasTexture(c);
+            if (rx || ry) {
+                t.wrapS = THREE.RepeatWrapping;
+                t.wrapT = THREE.RepeatWrapping;
+                t.repeat.set(rx || 1, ry || 1);
+            }
+            return t;
+        }
+
+        var GRID = 5, BLOCK = 60, ROAD = 16;
+        var half = (GRID - 1) * BLOCK / 2;
+        var BOUND = half + ROAD / 2 + 8;
+        var roadCoords = [];
+        for (var gi = 0; gi < GRID; gi++) roadCoords.push((gi - (GRID - 1) / 2) * BLOCK);
+
+        // Ground.
+        var ground = new THREE.Mesh(new THREE.PlaneGeometry(BOUND * 2 + 160, BOUND * 2 + 160), standard(0x93a184, { roughness: 0.95 }));
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -0.02;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Road texture with lane dashes.
+        function roadTexture(vertical) {
+            return canvasTexture(64, 256, function (g, w, h) {
+                g.fillStyle = '#2b3038';
+                g.fillRect(0, 0, w, h);
+                g.fillStyle = 'rgba(255,255,255,0.16)';
+                g.fillRect(3, 0, 2, h);
+                g.fillRect(w - 5, 0, 2, h);
+                g.fillStyle = 'rgba(255,214,90,0.72)';
+                for (var y = 0; y < h; y += 32) g.fillRect(w / 2 - 1.5, y, 3, 18);
+            }, vertical ? 1 : 46, vertical ? 46 : 1);
+        }
+        var roadMatZ = new THREE.MeshStandardMaterial({ map: roadTexture(true), roughness: 0.94 });
+        var roadMatX = new THREE.MeshStandardMaterial({ map: roadTexture(false), roughness: 0.94 });
+        var roadLen = BOUND * 2 + ROAD * 2;
+        for (var ri = 0; ri < roadCoords.length; ri++) {
+            var rc = roadCoords[ri];
+            var rz = new THREE.Mesh(new THREE.PlaneGeometry(ROAD, roadLen), roadMatZ);
+            rz.rotation.x = -Math.PI / 2;
+            rz.position.set(rc, 0.02, 0);
+            rz.receiveShadow = true;
+            scene.add(rz);
+            var rx = new THREE.Mesh(new THREE.PlaneGeometry(roadLen, ROAD), roadMatX);
+            rx.rotation.x = -Math.PI / 2;
+            rx.position.set(0, 0.025, rc);
+            rx.receiveShadow = true;
+            scene.add(rx);
+        }
+
+        // Sidewalks.
+        var walkMat = standard(0xc3c4b8, { roughness: 0.9 });
+        for (var wi = 0; wi < roadCoords.length; wi++) {
+            var wc = roadCoords[wi];
+            [-1, 1].forEach(function (side) {
+                var sw = box(3, 0.18, roadLen, walkMat);
+                sw.position.set(wc + side * (ROAD / 2 + 1.5), 0.09, 0);
+                sw.receiveShadow = true;
+                scene.add(sw);
+                var sw2 = box(roadLen, 0.18, 3, walkMat);
+                sw2.position.set(0, 0.09, wc + side * (ROAD / 2 + 1.5));
+                sw2.receiveShadow = true;
+                scene.add(sw2);
+            });
+        }
+
+        // Crosswalk stripes at intersections.
+        var stripeMat = new THREE.MeshBasicMaterial({ color: 0xf2f2ea, transparent: true, opacity: 0.72 });
+        for (var xi = 0; xi < roadCoords.length; xi++) {
+            for (var zi = 0; zi < roadCoords.length; zi++) {
+                var xx = roadCoords[xi], zz = roadCoords[zi];
+                for (var si = 0; si < 2; si++) {
+                    var off = -ROAD / 2 + 3 + si * 6.4;
+                    var s1 = box(ROAD - 2, 0.02, 0.9, stripeMat);
+                    s1.position.set(xx, 0.045, zz + off);
+                    scene.add(s1);
+                    var s2 = box(0.9, 0.02, ROAD - 2, stripeMat);
+                    s2.position.set(xx + off, 0.045, zz);
+                    scene.add(s2);
+                }
+            }
+        }
+
+        // Facade textures.
+        function facadeTexture(base, warm) {
+            return canvasTexture(64, 128, function (g, w, h) {
+                g.fillStyle = base;
+                g.fillRect(0, 0, w, h);
+                for (var y = 8; y < h - 6; y += 16) {
+                    for (var x = 7; x < w - 6; x += 14) {
+                        var lit = Math.random() < 0.5;
+                        g.fillStyle = lit ? (Math.random() < 0.5 ? warm : '#ffe9b0') : 'rgba(22,38,52,0.9)';
+                        g.fillRect(x, y, 8, 9);
+                    }
+                }
+            }, 2, 2);
+        }
+        var facades = [
+            standard(0xffffff, { map: facadeTexture('#38424e', '#8fd4ff') }),
+            standard(0xffffff, { map: facadeTexture('#4a3f3a', '#ffd08a') }),
+            standard(0xffffff, { map: facadeTexture('#33463f', '#9dffd1') }),
+            standard(0xffffff, { map: facadeTexture('#45404f', '#d6b7ff') })
+        ];
+
+        var buildings = [];
+        var props = new THREE.Group();
+        scene.add(props);
+        var treeTrunkMat = standard(0x6b4a32);
+        var treeLeafMat = standard(0x3f7d46);
+        var glassMat = standard(0x11212b, { metalness: 0.6, roughness: 0.12, transparent: true, opacity: 0.9 });
+
+        function addTree(x, z, scale) {
+            var tr = new THREE.Group();
+            var trunk = cylinder(0.18 * scale, 0.24 * scale, 1.9 * scale, 7, treeTrunkMat);
+            trunk.position.y = 0.95 * scale;
+            tr.add(trunk);
+            var leaves = new THREE.Mesh(new THREE.IcosahedronGeometry(1.15 * scale, 0), treeLeafMat);
+            leaves.position.y = 2.35 * scale;
+            tr.add(leaves);
+            tr.position.set(x, 0, z);
+            props.add(tr);
+        }
+
+        // City blocks and buildings.
+        for (var bi = 0; bi < GRID - 1; bi++) {
+            for (var bj = 0; bj < GRID - 1; bj++) {
+                var x0 = roadCoords[bi] + ROAD / 2 + 2;
+                var x1 = roadCoords[bi + 1] - ROAD / 2 - 2;
+                var z0 = roadCoords[bj] + ROAD / 2 + 2;
+                var z1 = roadCoords[bj + 1] - ROAD / 2 - 2;
+                var isPark = Math.random() < 0.13;
+                if (isPark) {
+                    var park = box(x1 - x0 - 1, 0.04, z1 - z0 - 1, standard(0x6f9a5f, { roughness: 1 }));
+                    park.position.set((x0 + x1) / 2, 0.04, (z0 + z1) / 2);
+                    props.add(park);
+                    for (var pt = 0; pt < 5; pt++) {
+                        addTree(x0 + 3 + Math.random() * (x1 - x0 - 6), z0 + 3 + Math.random() * (z1 - z0 - 6), 0.8 + Math.random() * 0.5);
+                    }
+                    continue;
+                }
+                var lotW = (x1 - x0) / 2;
+                var lotD = (z1 - z0) / 2;
+                for (var sx = 0; sx < 2; sx++) {
+                    for (var sz = 0; sz < 2; sz++) {
+                        if (Math.random() < 0.14) {
+                            addTree(x0 + lotW * sx + lotW / 2, z0 + lotD * sz + lotD / 2, 0.7 + Math.random() * 0.4);
+                            continue;
+                        }
+                        var bw = Math.max(6, lotW - 4 - Math.random() * 2);
+                        var bd = Math.max(6, lotD - 4 - Math.random() * 2);
+                        var bh = 7 + Math.pow(Math.random(), 1.7) * 44;
+                        var cx = x0 + lotW * sx + lotW / 2;
+                        var cz = z0 + lotD * sz + lotD / 2;
+                        var bMat = facades[Math.floor(Math.random() * facades.length)];
+                        var bmesh = box(bw, bh, bd, bMat);
+                        bmesh.position.set(cx, bh / 2, cz);
+                        bmesh.receiveShadow = false;
+                        scene.add(bmesh);
+                        buildings.push({ minX: cx - bw / 2, maxX: cx + bw / 2, minZ: cz - bd / 2, maxZ: cz + bd / 2 });
+                        // Rooftop unit.
+                        var roof = box(bw * 0.3, 1.4, bd * 0.3, standard(0x5a6068, { metalness: 0.3 }));
+                        roof.position.set(cx, bh + 0.7, cz);
+                        scene.add(roof);
+                    }
+                }
+            }
+        }
+
+        // Streetlights at alternating intersections.
+        var poleMat = standard(0x3d444c, { metalness: 0.55, roughness: 0.4 });
+        var lampMat = new THREE.MeshBasicMaterial({ color: 0xffe6ad });
+        for (var li = 0; li < roadCoords.length; li++) {
+            for (var lj = 0; lj < roadCoords.length; lj++) {
+                if ((li + lj) % 3) continue;
+                var lx = roadCoords[li] + ROAD / 2 + 2.2;
+                var lz = roadCoords[lj] + ROAD / 2 + 2.2;
+                var pole = cylinder(0.11, 0.15, 7, 7, poleMat);
+                pole.position.set(lx, 3.5, lz);
+                props.add(pole);
+                var arm = box(2.4, 0.14, 0.14, poleMat);
+                arm.position.set(lx - 1.1, 7, lz);
+                props.add(arm);
+                var lamp = box(0.7, 0.16, 0.4, lampMat);
+                lamp.position.set(lx - 2.2, 6.92, lz);
+                props.add(lamp);
+            }
+        }
+
+        // Trees along the sidewalks.
+        for (var ti = 0; ti < roadCoords.length; ti++) {
+            for (var tz = -half; tz <= half; tz += 40) {
+                if (Math.random() < 0.36) addTree(roadCoords[ti] + ROAD / 2 + 3.4, tz + 4, 0.7 + Math.random() * 0.35);
+                if (Math.random() < 0.36) addTree(roadCoords[ti] - ROAD / 2 - 3.4, tz + 12, 0.7 + Math.random() * 0.35);
+            }
+        }
+
+        function buildCar(color) {
+            var g = new THREE.Group();
+            var bodyMat = new THREE.MeshStandardMaterial({ color: color, metalness: 0.55, roughness: 0.26, emissive: color, emissiveIntensity: 0.03 });
+            var body = box(1.86, 0.52, 4.05, bodyMat);
+            body.position.y = 0.62;
+            body.castShadow = true;
+            g.add(body);
+            var cabin = box(1.5, 0.52, 1.85, glassMat);
+            cabin.position.set(0, 1.08, 0.18);
+            g.add(cabin);
+            var hood = box(1.7, 0.16, 1.2, bodyMat);
+            hood.position.set(0, 0.9, -1.28);
+            g.add(hood);
+            var trimMat = standard(0x1c2026, { metalness: 0.4, roughness: 0.5 });
+            var bumperF = box(1.92, 0.22, 0.24, trimMat);
+            bumperF.position.set(0, 0.5, -2.02);
+            g.add(bumperF);
+            var bumperR = box(1.92, 0.22, 0.24, trimMat);
+            bumperR.position.set(0, 0.5, 2.02);
+            g.add(bumperR);
+            var headMat = new THREE.MeshBasicMaterial({ color: 0xfff3c4 });
+            [-0.62, 0.62].forEach(function (hx) {
+                var hl = box(0.34, 0.15, 0.08, headMat);
+                hl.position.set(hx, 0.78, -2.05);
+                g.add(hl);
+            });
+            var tailMat = new THREE.MeshBasicMaterial({ color: 0xff3b4f });
+            [-0.62, 0.62].forEach(function (tx) {
+                var tl = box(0.34, 0.14, 0.08, tailMat);
+                tl.position.set(tx, 0.78, 2.05);
+                g.add(tl);
+            });
+            var tireMat = standard(0x111318, { roughness: 0.95 });
+            var wheels = [];
+            [-0.94, 0.94].forEach(function (wx) {
+                [-1.3, 1.3].forEach(function (wz) {
+                    var w = cylinder(0.37, 0.37, 0.3, 12, tireMat);
+                    w.rotation.z = Math.PI / 2;
+                    w.position.set(wx, 0.38, wz);
+                    g.add(w);
+                    wheels.push(w);
+                });
+            });
+            g.userData.wheels = wheels;
+            g.userData.bodyMat = bodyMat;
+            g.userData.tailMat = tailMat;
+            return g;
+        }
+
+        // Parked cars along a few curbs.
+        for (var pi = 0; pi < 12; pi++) {
+            var pr = roadCoords[Math.floor(Math.random() * roadCoords.length)];
+            var side = Math.random() < 0.5 ? -1 : 1;
+            var along = (Math.random() - 0.5) * (half * 2 - 30);
+            var parked = buildCar([0xffffff, 0x223344, 0xb91c1c, 0x2d6a4f, 0xd4a373, 0x6b7280][pi % 6]);
+            parked.position.set(pr + side * (ROAD / 2 - 1.3), 0, along);
+            parked.rotation.y = Math.PI / 2;
+            scene.add(parked);
+        }
+
+        var player = buildCar(carColor);
+        scene.add(player);
+        var px = 0, pz = 0, heading = 0, speed = 0;
+        var steerSmooth = 0, throttleSmooth = 0, brakeSmooth = 0, driven = 0, cityHudT = 0;
+        var maxSpeed = 62;
+        player.position.set(px, 0, pz);
+
+        camera.fov = 64;
+        camera.updateProjectionMatrix();
+        camera.position.set(px, 4.6, pz + 10);
+        camera.lookAt(px, 1.1, pz - 6);
+
+        function blocked(x, z) {
+            if (Math.abs(x) > BOUND || Math.abs(z) > BOUND) return true;
+            for (var i = 0; i < buildings.length; i++) {
+                var b = buildings[i];
+                if (x > b.minX - 1.15 && x < b.maxX + 1.15 && z > b.minZ - 1.15 && z < b.maxZ + 1.15) return true;
+            }
+            return false;
+        }
+
+        function update(dt) {
+            dt = Math.min(dt, 0.05);
+            var throttleTarget = input.up ? 1 : 0;
+            var brakeTarget = input.brake ? 1 : 0;
+            throttleSmooth += (throttleTarget - throttleSmooth) * Math.min(1, dt * 5.5);
+            brakeSmooth += (brakeTarget - brakeSmooth) * Math.min(1, dt * 7.5);
+
+            var steerTarget = (input.left ? -1 : 0) + (input.right ? 1 : 0);
+            if (input.pointerActive) steerTarget = Math.max(-1, Math.min(1, input.pointerX * 1.25));
+            steerSmooth += (steerTarget - steerSmooth) * Math.min(1, dt * 8);
+
+            if (speed > 0.4) {
+                var turn = 1.55 * Math.min(1, speed / 10) * (1 - Math.min(0.45, speed / (maxSpeed * 4)));
+                heading -= steerSmooth * turn * dt;
+            }
+
+            var nitro = !!(input.nitro && throttleSmooth > 0.2);
+            var targetTop = maxSpeed * (nitro ? 1.32 : 1);
+            if (throttleSmooth > 0.01) {
+                speed += (16 * throttleSmooth * (nitro ? 1.5 : 1) - speed * 0.055) * dt;
+            } else {
+                speed -= 2.2 * dt;
+            }
+            if (brakeSmooth > 0.01) speed -= 30 * brakeSmooth * dt;
+            speed = Math.max(0, Math.min(targetTop, speed));
+
+            var dx = -Math.sin(heading) * speed * dt;
+            var dz = -Math.cos(heading) * speed * dt;
+            var oldX = px, oldZ = pz;
+            var nx = px + dx;
+            if (!blocked(nx, pz)) px = nx;
+            var nz = pz + dz;
+            if (!blocked(px, nz)) pz = nz;
+            var moved = Math.sqrt((px - oldX) * (px - oldX) + (pz - oldZ) * (pz - oldZ));
+            if (moved < speed * dt * 0.35 && speed > 4) speed *= 0.4;
+            driven += moved;
+
+            player.position.x = px;
+            player.position.z = pz;
+            player.rotation.y = heading;
+            player.rotation.z = -steerSmooth * 0.055 * Math.min(1, speed / 20);
+            player.rotation.x = 0;
+            var wheels = player.userData.wheels || [];
+            for (var w = 0; w < wheels.length; w++) wheels[w].rotation.x -= speed * dt * 2.4;
+            if (player.userData.tailMat) player.userData.tailMat.color.setHex(brakeSmooth > 0.15 ? 0xff2438 : 0x5a1018);
+
+            var back = 9.5 + speed * 0.07;
+            var tx = px + Math.sin(heading) * back;
+            var tz = pz + Math.cos(heading) * back;
+            camera.position.x += (tx - camera.position.x) * Math.min(1, dt * 5);
+            camera.position.z += (tz - camera.position.z) * Math.min(1, dt * 5);
+            camera.position.y += ((4.6 + speed * 0.025) - camera.position.y) * Math.min(1, dt * 4);
+            camera.lookAt(px - Math.sin(heading) * 8, 1.1, pz - Math.cos(heading) * 8);
+            var targetFov = 62 + Math.min(12, speed * 0.18);
+            camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 3);
+            camera.updateProjectionMatrix();
+
+            cityHudT -= dt;
+            if (cityHudT <= 0) {
+                cityHudT = 0.1;
+                setPillText('g3dExtra', 'CITY · ' + Math.round(speed * 2.23694) + ' MPH');
+            }
+            var throttleFill = document.getElementById('g3dThrottleFill');
+            if (throttleFill) throttleFill.style.height = Math.round(throttleSmooth * 100) + '%';
+            var brakeFill = document.getElementById('g3dBrakeFill');
+            if (brakeFill) brakeFill.style.height = Math.round(brakeSmooth * 100) + '%';
+        }
+
+        return {
+            over: false,
+            update: update,
+            getCoins: function () { return 0; },
+            getState: function () {
+                return { x: px, z: pz, heading: heading, speed: speed, driven: driven, city: true };
+            }
+        };
+    }
+
+    function factoryFor(gameId, opts) {
+        if (gameId === 1 && opts && opts.cityMode) return createCity;
+        return factories[gameId];
+    }
+
     var factories = {
         1: createRacer,
         2: createTunnel,
@@ -6975,7 +7361,7 @@
         lastCinemaFrame = 0;
         motionBlurAutoOff = isMobileDevice;
         lowFpsTime = 0;
-        var factory = factories[gameId];
+        var factory = factoryFor(gameId, lastStartOpts);
         active = factory ? factory({ scene: scene, camera: camera, input: input, options: opts || {}, renderer: renderer, container: container }) : null;
         if (!active) return;
 
@@ -7010,7 +7396,7 @@
         clock = new THREE.Clock();
         resetMotionBlurHistory();
         resize();
-        var factory = factories[lastGameId];
+        var factory = factoryFor(lastGameId, lastStartOpts);
         active = factory ? factory({ scene: scene, camera: camera, input: input, options: lastStartOpts || {}, renderer: renderer, container: container }) : null;
         if (!active) return false;
         resize();
