@@ -7700,8 +7700,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.40";
-const UPDATE_NOTES = "Dead Coast now makes you get out at fuel stations and fight zombies on foot for fuel, food, water, and rare car parts instead of picking supplies up from the road. Also confirms Poteto and no driver in the Beach Racer car";
+const APP_VERSION = "LessFun Public Beta 1.32.41";
+const UPDATE_NOTES = "Dead Coast fuel stations are much more common now, roughly every 700 metres, so you can stop, fight zombies on foot, and restock food, water, fuel, and rare car parts more often";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

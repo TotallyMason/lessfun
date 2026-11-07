@@ -7492,7 +7492,7 @@
 
         // Roadside fuel stations — stop, get out, and scavenge supplies.
         var dcStations = [];
-        var stationDistances = [1400, 3000, 4600, 6200, 7800];
+        var stationDistances = [700, 1400, 2100, 2800, 3500, 4200, 4900, 5600, 6300, 7000, 7700, 8400, 9100, 9700];
         var stationOpen = false;
         var activeStation = null;
         var nearStation = null;
