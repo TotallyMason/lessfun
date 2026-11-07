@@ -7634,8 +7634,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.31";
-const UPDATE_NOTES = "Dead Coast now has roadside fuel stations: slow down, press E or tap the prompt to get out, refuel, take food and water, and search for a rare car part. Also removes the Beach Racer driver, adds a radio Off switch for your own music, and renames the Potato preset to Poteto";
+const APP_VERSION = "LessFun Public Beta 1.32.32";
+const UPDATE_NOTES = "LessFun Radio now carries Kiss92, One FM 91.3, 96.3 Hao FM, and UFM 100.3. The other stations were removed. Dead Coast fuel stations, the radio Off switch, and Poteto remain";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -9959,15 +9959,6 @@ async function renderUsers() {
    LessFun Radio — real Singapore FM streams
    ============================================================ */
 const RADIO_STATIONS = [
-    { name: 'Class 95', freq: '95.0', lang: 'English', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/CLASS95AAC.aac' },
-    { name: 'Gold 905', freq: '90.5', lang: 'English', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/GOLD905AAC.aac' },
-    { name: '987FM', freq: '98.7', lang: 'English', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/987FMAAC.aac' },
-    { name: 'YES 933', freq: '93.3', lang: 'Chinese', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/YES933AAC.aac' },
-    { name: 'Capital 958', freq: '95.8', lang: 'Chinese', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/CAPITAL958FMAAC.aac' },
-    { name: 'Oli 968', freq: '96.8', lang: 'Tamil', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/OLI968FMAAC.aac' },
-    { name: 'Symphony 924', freq: '92.4', lang: 'Classical', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/SYMPHONY924AAC.aac' },
-    { name: 'Love 972', freq: '97.2', lang: 'Chinese', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/LOVE972FMAAC.aac' },
-    { name: 'Warna 942', freq: '94.2', lang: 'Malay', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/WARNA942FMAAC.aac' },
     { name: 'Kiss92', freq: '92.0', lang: 'English', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/KISS_92.mp3' },
     { name: 'One FM 91.3', freq: '91.3', lang: 'English', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/ONE_FM_913.mp3' },
     { name: '96.3 Hao FM', freq: '96.3', lang: 'Chinese', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/HAO_963.mp3' },
