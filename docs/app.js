@@ -7948,8 +7948,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.64";
-const UPDATE_NOTES = "Lorong 7 has been removed. The arcade now has Beach Racer, Tunnel Rush, Cube Stack, Dead Coast, Funtutu Test, and Snow Rush";
+const APP_VERSION = "LessFun Public Beta 1.32.65";
+const UPDATE_NOTES = "Draw and Guess is live: join the public lobby, take turns drawing a word, and race to guess other players drawings. Includes colors, sizes, eraser, timer, players and scores";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
