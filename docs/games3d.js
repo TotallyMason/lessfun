@@ -7341,7 +7341,7 @@
 
         var onFoot = false;
         var footX = 0, footZ = 0, footYaw = 0, footShotCd = 0;
-        var footAmmo = 12, footReserve = 48, footMeleeCd = 0;
+        var footAmmo = 12, footReserve = 48, footMeleeCd = 0, footPitch = 0;
         var footZombies = [];
         var footLoot = [];
 
@@ -7471,7 +7471,7 @@
                 }
             }
             var turn = (input.left ? 1 : 0) - (input.right ? 1 : 0);
-            if (input.pointerActive) footYaw = -input.pointerX * 1.45;
+            if (input.pointerActive && !dcPointerLocked) footYaw = -input.pointerX * 1.45;
             else footYaw += turn * 2.2 * dt;
             var fwd = (input.up ? 1 : 0) - (input.down ? 1 : 0);
             var fx = -Math.sin(footYaw), fz = -Math.cos(footYaw);
@@ -7570,7 +7570,7 @@
             }
 
             camera.position.set(footX, 1.55, footZ);
-            camera.lookAt(footX + fx * 12, 1.38, footZ + fz * 12);
+            camera.lookAt(footX + fx * 12, 1.38 + footPitch * 8, footZ + fz * 12);
             camera.fov = 72;
             camera.updateProjectionMatrix();
 
@@ -7638,6 +7638,28 @@
                 bl.vz = (Math.random() - 0.5) * 7;
                 break;
             }
+        }
+
+        var dcCanvas = renderer && renderer.domElement;
+        var dcPointerLocked = false;
+        if (dcCanvas) {
+            var dcLockHandler = function () {
+                if (document.pointerLockElement !== dcCanvas && dcCanvas.requestPointerLock) {
+                    try { dcCanvas.requestPointerLock(); } catch (e) {}
+                }
+            };
+            dcCanvas.addEventListener('click', dcLockHandler);
+            addCleanup(function () { dcCanvas.removeEventListener('click', dcLockHandler); });
+            var dcLockChange = function () { dcPointerLocked = document.pointerLockElement === dcCanvas; };
+            document.addEventListener('pointerlockchange', dcLockChange);
+            addCleanup(function () { document.removeEventListener('pointerlockchange', dcLockChange); });
+            var dcLockMove = function (e) {
+                if (!dcPointerLocked || !onFoot) return;
+                footYaw -= (e.movementX || 0) * 0.0022;
+                footPitch = Math.max(-0.55, Math.min(0.55, footPitch - (e.movementY || 0) * 0.002));
+            };
+            document.addEventListener('mousemove', dcLockMove);
+            addCleanup(function () { document.removeEventListener('mousemove', dcLockMove); });
         }
 
         var carX = 0, vx = 0, speed = 0, distance = 0;
@@ -8479,6 +8501,28 @@
         var score = 0, elapsed = 0, hudT = 0, heartbeatT = 0;
         camera.position.set(px, 1.6, pz);
 
+        var pointerCanvas = renderer && renderer.domElement;
+        var pointerLocked = false;
+        if (pointerCanvas) {
+            var lockHandler = function () {
+                if (document.pointerLockElement !== pointerCanvas && pointerCanvas.requestPointerLock) {
+                    try { pointerCanvas.requestPointerLock(); } catch (e) {}
+                }
+            };
+            pointerCanvas.addEventListener('click', lockHandler);
+            addCleanup(function () { pointerCanvas.removeEventListener('click', lockHandler); });
+            var lockChange = function () { pointerLocked = document.pointerLockElement === pointerCanvas; };
+            document.addEventListener('pointerlockchange', lockChange);
+            addCleanup(function () { document.removeEventListener('pointerlockchange', lockChange); });
+            var lockMove = function (e) {
+                if (!pointerLocked) return;
+                yaw -= (e.movementX || 0) * 0.0022;
+                pitch = Math.max(-0.65, Math.min(0.65, pitch - (e.movementY || 0) * 0.0022));
+            };
+            document.addEventListener('mousemove', lockMove);
+            addCleanup(function () { document.removeEventListener('mousemove', lockMove); });
+        }
+
         var testimonies = {
             '-15.6,1': 'She used to cry every night. Then one night it just stopped.',
             '0,-1': 'The lift always stops on the seventh floor, even when nobody pressed it.',
@@ -8586,7 +8630,7 @@
 
             var move = (input.up ? 1 : 0) - (input.down ? 1 : 0);
             var strafe = (input.right ? 1 : 0) - (input.left ? 1 : 0);
-            if (input.pointerActive) {
+            if (input.pointerActive && !pointerLocked) {
                 yaw = -input.pointerX * 1.45;
                 pitch = -input.pointerY * 0.7;
             }
@@ -8667,7 +8711,7 @@
                     else if (near && near.testimony && !near.heard) prompt.textContent = 'E · Listen';
                     else if (near === cryingDoor && truthCount >= 3 && !finalHeard) prompt.textContent = 'E · Open 12-07';
                     else if (near) prompt.textContent = 'E · Try door';
-                    else prompt.textContent = 'WASD move · drag look · E interact · F phone · R radio';
+                    else prompt.textContent = 'Click to lock mouse · WASD · E · F phone · R radio';
                 }
                 setHud(Math.round(score), 'LORONG 7 · ' + (finalHeard ? 'ESCAPE' : truthCount + '/3 TESTIMONIES'));
             }

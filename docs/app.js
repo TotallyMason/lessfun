@@ -7959,8 +7959,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.58";
-const UPDATE_NOTES = "Lorong 7 is a new HDB horror game: walk a night corridor, collect three testimonies, open flat 12-07, then escape a chasing shadow to the lift with your phone light and radio";
+const APP_VERSION = "LessFun Public Beta 1.32.59";
+const UPDATE_NOTES = "Lorong 7 and Dead Coast on-foot now support mouse pointer lock: click the game to capture the mouse, look with mouse movement, and press Esc to release. The desktop app already grants pointer-lock permission";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
