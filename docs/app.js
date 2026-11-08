@@ -11,7 +11,8 @@ const games = [
     { id: 6, name: "Funtutu Test", description: "Benchmark your GPU and CPU, then get recommended graphics settings", icon: "bolt", controls: "Press Run Test · apply the recommended settings when it finishes" },
     { id: 7, name: "Snow Rush", description: "Christmas sleigh run — collect gifts and dodge the ice", icon: "snow", controls: "WASD / arrows to fly · drag to steer · collect gifts · dodge ice" },
     { id: 8, name: "Draw & Guess", description: "Draw the word, guess your friends' drawings, and race to the top", icon: "draw", controls: "Draw with mouse / touch · type guesses in the box" },
-    { id: 9, name: "Lucky Spin", description: "Virtual-coin slot machine — pick a bet and chase the jackpot", icon: "dice", controls: "Pick a bet and spin · virtual Coins only" }
+    { id: 9, name: "Lucky Spin", description: "Virtual-coin slot machine — pick a bet and chase the jackpot", icon: "dice", controls: "Pick a bet and spin · virtual Coins only" },
+    { id: 10, name: "Changi Approach", description: "Land airliners at Changi through rain, fog and crosswind", icon: "plane", controls: "W/S throttle · ↑/↓ pitch · A/D roll · G gear · F flaps · Space go-around" }
 ];
 
 let currentUser = null;
@@ -432,7 +433,8 @@ function getIcon(name) {
         "rocket": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><path d="M12 3c3 2 5 5.5 5 9l-2.5 3h-5L7 12c0-3.5 2-7 5-9Z"/><circle cx="12" cy="9" r="1.6"/><path d="M9 15l-2 4 3-1M15 15l2 4-3-1"/></svg>',
         "skull": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><path d="M6 13a6 6 0 0 1 12 0v3a2 2 0 0 1-2 2h-1v2h-2v-2h-2v2H9v-2H8a2 2 0 0 1-2-2v-3Z"/><circle cx="9.5" cy="12" r="1.2" fill="white"/><circle cx="14.5" cy="12" r="1.2" fill="white"/><path d="M11 16h2"/></svg>',
         "snow": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"><path d="M12 2v20M3.3 7l17.4 10M3.3 17L20.7 7M12 5l-2 2M12 5l2 2M12 19l-2-2M12 19l2-2M5.6 9.4l2.7-.7M5.6 9.4l.7 2.7M18.4 14.6l-2.7.7M18.4 14.6l-.7-2.7M5.6 14.6l2.7.7M5.6 14.6l.7-2.7M18.4 9.4l-2.7-.7M18.4 9.4l-.7 2.7"/></svg>',
-        "draw": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m4 20 4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20Z"/><path d="m13.5 8.5 3 3"/><path d="M4 20h16"/></svg>'
+        "draw": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m4 20 4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20Z"/><path d="m13.5 8.5 3 3"/><path d="M4 20h16"/></svg>',
+        "plane": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 13.5 21 4l-4.5 9.5L21 20l-4 .5-4-5-3.5 3.5.5 3-2 .5-2-4.5-4.5-2 .5-2 3 .5L9 9l-7-1 .5-2.5Z"/></svg>'
     };
     return icons[name] || '';
 }
@@ -1256,6 +1258,20 @@ function openGame(id) {
                     '</div>' +
                 '</div>' : '') +
 
+            (game.id === 10 ?
+                '<div class="cx-hud">' +
+                    '<div class="cx-top"><span id="cxStatus">APPROACH</span><strong id="cxScore">0</strong></div>' +
+                    '<div class="cx-stats">' +
+                        '<div class="cx-stat"><small>ALT</small><b id="cxAlt">250 m</b></div>' +
+                        '<div class="cx-stat"><small>SPEED</small><b id="cxSpd">180 kt</b></div>' +
+                        '<div class="cx-stat"><small>V/S</small><b id="cxVs">↓0.0</b></div>' +
+                        '<div class="cx-stat"><small>THRESHOLD</small><b id="cxDist">1000 m</b></div>' +
+                    '</div>' +
+                    '<div class="cx-config"><span id="cxGear">GEAR UP</span><span id="cxFlaps">FLAPS 0</span><span id="cxWind">WIND 0 kt</span></div>' +
+                    '<div class="cx-guide" id="cxGuide">LOC OK · GS OK</div>' +
+                    '<div class="cx-message" id="cxMessage">Approach</div>' +
+                    '<div class="cx-buttons"><button type="button" id="cxGearBtn">Gear G</button><button type="button" id="cxFlapsBtn">Flaps F</button><button type="button" id="cxGoBtn">Go around ␣</button></div>' +
+                '</div>' : '') +
             '<div class="game3d-crash" id="g3dCrashFlash"></div>' +
             '<div class="g3d-grain" aria-hidden="true"></div>' +
             (game.id === 1 ? '<div class="g3d-cinema" id="g3dCinema"></div>' : '') +
@@ -8251,8 +8267,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.71";
-const UPDATE_NOTES = "Lucky Spin is a new virtual-coin slot machine: pick a bet from 10 to 1,000 Coins, spin three reels and win multipliers up to 60x. Virtual Coins only, with no real-money value or purchases";
+const APP_VERSION = "LessFun Public Beta 1.32.72";
+const UPDATE_NOTES = "Changi Approach is a new landing simulator: fly an airliner over the sea, manage throttle, pitch, gear and flaps, follow the glide path and touch down smoothly in rain, fog and crosswind";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

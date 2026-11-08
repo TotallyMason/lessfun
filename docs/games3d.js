@@ -8332,6 +8332,351 @@
         };
     }
 
+    /* ---------------- Changi Approach (landing sim) ---------------- */
+    function createChangiApproach(ctx) {
+        var scene = ctx.scene, camera = ctx.camera, renderer = ctx.renderer;
+        scene.background = new THREE.Color(0x6f8496);
+        scene.fog = new THREE.FogExp2(0x8aa0b2, 0.0018);
+        if (renderer) renderer.shadowMap.enabled = false;
+        camera.fov = 62;
+        camera.near = 0.1;
+        camera.far = 6000;
+
+        function std(color, opts) { return new THREE.MeshStandardMaterial(Object.assign({ color: color, roughness: 0.75, metalness: 0.08 }, opts || {})); }
+        function box(w, h, d, mat) { return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); }
+        function cyl(t, b, h, s, mat) { return new THREE.Mesh(new THREE.CylinderGeometry(t, b, h, s || 10), mat); }
+
+        scene.add(new THREE.HemisphereLight(0xbfd8ea, 0x42545f, 0.95));
+        var sun = new THREE.DirectionalLight(0xfff0d0, 1.15);
+        sun.position.set(-220, 300, 200);
+        scene.add(sun);
+        var ambient = new THREE.AmbientLight(0xffffff, 0.25);
+        scene.add(ambient);
+
+        // Sea.
+        var sea = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), std(0x31556b, { roughness: 0.55, metalness: 0.25 }));
+        sea.rotation.x = -Math.PI / 2;
+        sea.position.y = -0.5;
+        scene.add(sea);
+
+        // Runway texture.
+        var runwayCanvas = document.createElement('canvas'); runwayCanvas.width = 128; runwayCanvas.height = 1024;
+        var rg = runwayCanvas.getContext('2d');
+        rg.fillStyle = '#2b2e33'; rg.fillRect(0, 0, 128, 1024);
+        rg.fillStyle = 'rgba(255,255,255,0.9)';
+        for (var cy = 40; cy < 1024; cy += 90) rg.fillRect(61, cy, 6, 48);
+        rg.fillRect(8, 0, 4, 1024); rg.fillRect(116, 0, 4, 1024);
+        rg.fillStyle = 'rgba(255,255,255,0.85)';
+        for (var ty = 0; ty < 90; ty += 18) { rg.fillRect(44, ty, 12, 10); rg.fillRect(72, ty, 12, 10); }
+        for (var ty2 = 934; ty2 < 1024; ty2 += 18) { rg.fillRect(44, ty2, 12, 10); rg.fillRect(72, ty2, 12, 10); }
+        var runwayTex = new THREE.CanvasTexture(runwayCanvas);
+        runwayTex.wrapS = runwayTex.wrapT = THREE.RepeatWrapping;
+        runwayTex.repeat.set(1, 3);
+        var runway = new THREE.Mesh(new THREE.PlaneGeometry(62, 3200), std(0xffffff, { map: runwayTex, roughness: 0.9 }));
+        runway.rotation.x = -Math.PI / 2;
+        runway.position.set(0, 0.02, 0);
+        scene.add(runway);
+
+        // Grass strips and taxiway lights.
+        [-1, 1].forEach(function (side) {
+            var grass = new THREE.Mesh(new THREE.PlaneGeometry(500, 3400), std(0x3f5a46, { roughness: 1 }));
+            grass.rotation.x = -Math.PI / 2;
+            grass.position.set(side * 300, 0.01, 0);
+            scene.add(grass);
+        });
+
+        // Approach lights.
+        var lightMat = new THREE.MeshBasicMaterial({ color: 0xfff4d0 });
+        for (var lz = 1500; lz <= 2900; lz += 70) {
+            [-10, 0, 10].forEach(function (lx) {
+                var post = box(0.4, 0.8, 0.4, std(0x333333));
+                post.position.set(lx, 0.4, lz); scene.add(post);
+                var bulb = box(0.8, 0.8, 0.8, lightMat);
+                bulb.position.set(lx, 1.0, lz); scene.add(bulb);
+            });
+        }
+        for (var ez = 1540; ez <= 1600; ez += 20) {
+            [-14, 14].forEach(function (ex) {
+                var edge = box(1.4, 0.5, 1.4, new THREE.MeshBasicMaterial({ color: 0x2ff6ff }));
+                edge.position.set(ex, 0.3, ez); scene.add(edge);
+            });
+        }
+
+        // Terminal and city.
+        var terminal = box(220, 26, 90, std(0xb8c6cf, { metalness: 0.3, roughness: 0.5 }));
+        terminal.position.set(-190, 13, -900);
+        scene.add(terminal);
+        var tower = cyl(4, 5, 75, 10, std(0xd9e2ec));
+        tower.position.set(150, 37, -1050); scene.add(tower);
+        var towerTop = box(18, 8, 18, std(0x8fd6ff, { emissive: 0x2a6b8a, emissiveIntensity: 0.4 }));
+        towerTop.position.set(150, 78, -1050); scene.add(towerTop);
+        for (var bi = 0; bi < 22; bi++) {
+            var bh = 30 + Math.random() * 90;
+            var b = box(30 + Math.random() * 40, bh, 30 + Math.random() * 40, std(0x5a6a76, { roughness: 0.7 }));
+            var bx = (bi % 2 ? 1 : -1) * (420 + Math.random() * 500);
+            b.position.set(bx, bh / 2, -1200 - Math.random() * 900);
+            scene.add(b);
+        }
+
+        // Rain.
+        var rainPos = [];
+        var rainCount = isMobileDevice ? 500 : 1000;
+        for (var ri = 0; ri < rainCount; ri++) rainPos.push((Math.random() - 0.5) * 300, Math.random() * 260, -Math.random() * 600 + 300);
+        var rainGeo = new THREE.BufferGeometry();
+        rainGeo.setAttribute('position', new THREE.Float32BufferAttribute(rainPos, 3));
+        var rain = new THREE.Points(rainGeo, new THREE.PointsMaterial({ color: 0xbcd6e8, size: 0.7, transparent: true, opacity: 0.55, depthWrite: false }));
+        scene.add(rain);
+
+        // Airliner.
+        var jet = new THREE.Group();
+        var fuselageMat = std(0xe9eef2, { metalness: 0.45, roughness: 0.3 });
+        var fuse = cyl(2.6, 3.0, 34, 12, fuselageMat);
+        fuse.rotation.x = Math.PI / 2; jet.add(fuse);
+        var nose = new THREE.Mesh(new THREE.ConeGeometry(2.6, 5, 12), fuselageMat);
+        nose.rotation.x = -Math.PI / 2; nose.position.z = -19.5; jet.add(nose);
+        var wing = box(44, 0.7, 8, fuselageMat); wing.position.set(0, -0.4, 2); jet.add(wing);
+        var tailWing = box(15, 0.5, 4.5, fuselageMat); tailWing.position.set(0, 1.0, 15); jet.add(tailWing);
+        var fin = box(0.6, 8, 6, std(0x2a5b8a, { metalness: 0.4 })); fin.position.set(0, 4.2, 15); jet.add(fin);
+        [-1, 1].forEach(function (side) {
+            var engine = cyl(1.3, 1.4, 5.5, 10, std(0x59636e, { metalness: 0.6, roughness: 0.3 }));
+            engine.rotation.x = Math.PI / 2;
+            engine.position.set(side * 12, -1.1, 3);
+            jet.add(engine);
+        });
+        var gearGroup = new THREE.Group();
+        var wheelMat = std(0x15171a, { roughness: 0.9 });
+        var strutMat = std(0x8a949e, { metalness: 0.7 });
+        [[0, -2.8, -6], [-6, -2.5, 4], [6, -2.5, 4]].forEach(function (gp) {
+            var strut = cyl(0.15, 0.15, 2.6, 6, strutMat);
+            strut.position.set(gp[0], gp[1], gp[2]); gearGroup.add(strut);
+            var wheel = cyl(0.75, 0.75, 0.5, 10, wheelMat);
+            wheel.rotation.z = Math.PI / 2;
+            wheel.position.set(gp[0], gp[1] - 1.4, gp[2]); gearGroup.add(wheel);
+        });
+        jet.add(gearGroup);
+        var navLight = new THREE.PointLight(0xff3b3b, 1.2, 25); navLight.position.set(22, 0, 2); jet.add(navLight);
+        var strobe = new THREE.PointLight(0xffffff, 1.6, 35); strobe.position.set(0, 4, 15); jet.add(strobe);
+        scene.add(jet);
+
+        // State.
+        var jetState = {
+            x: 0, y: 260, z: 2600, heading: 0, pitch: 0, roll: 0, speed: 95, throttle: 0.55,
+            gear: false, flaps: 0, mode: 'approach', sink: 0, score: 0, landings: 0, attempt: 0,
+            message: '', messageT: 0, wind: 0, windDir: 1, rolloutT: 0
+        };
+        var keys = {};
+        function keyDown(e) {
+            var k = String(e.key || '').toLowerCase();
+            keys[k] = true;
+            if (k === 'g') toggleGear();
+            if (k === 'f') cycleFlaps();
+            if (k === ' ') { e.preventDefault(); goAround(); }
+        }
+        function keyUp(e) { keys[String(e.key || '').toLowerCase()] = false; }
+        document.addEventListener('keydown', keyDown);
+        document.addEventListener('keyup', keyUp);
+        addCleanup(function () { document.removeEventListener('keydown', keyDown); document.removeEventListener('keyup', keyUp); });
+
+        function toggleGear() {
+            if (jetState.mode !== 'approach') return;
+            jetState.gear = !jetState.gear;
+            tone(420, 0.1, 'square', 0.04, 620);
+        }
+        function cycleFlaps() {
+            if (jetState.mode !== 'approach') return;
+            jetState.flaps = (jetState.flaps + 1) % 3;
+            tone(320, 0.08, 'square', 0.035, 420);
+        }
+        function goAround() {
+            if (jetState.mode !== 'approach') return;
+            jetState.score = Math.max(0, jetState.score - 150);
+            startApproach(true);
+            tone(180, 0.3, 'sawtooth', 0.06, 420);
+        }
+
+        function startApproach(missed) {
+            jetState.attempt++;
+            jetState.x = (Math.random() - 0.5) * (120 + Math.min(120, jetState.attempt * 12));
+            jetState.y = 230 + Math.random() * 60;
+            jetState.z = 2550 + Math.random() * 300;
+            jetState.heading = 0;
+            jetState.pitch = 0;
+            jetState.roll = 0;
+            jetState.speed = 95;
+            jetState.throttle = 0.55;
+            jetState.gear = false;
+            jetState.flaps = 0;
+            jetState.mode = 'approach';
+            jetState.wind = Math.min(28, jetState.attempt * 3 + Math.random() * 3);
+            jetState.windDir = Math.random() < 0.5 ? -1 : 1;
+            jetState.message = missed ? 'GO AROUND · line up again' : 'APPROACH · gear G · flaps F';
+            jetState.messageT = 2.5;
+            if (sun) sun.intensity = 1.15 - Math.min(0.5, jetState.attempt * 0.06);
+            scene.fog.density = 0.0018 + Math.min(0.005, jetState.attempt * 0.0005);
+        }
+
+        function updateRain(dt) {
+            var arr = rainGeo.attributes.position.array;
+            for (var i = 0; i < rainCount; i++) {
+                arr[i * 3 + 1] -= (26 + (i % 5) * 4) * dt;
+                arr[i * 3 + 2] += jetState.speed * 0.22 * dt;
+                if (arr[i * 3 + 1] < 0) arr[i * 3 + 1] = 240;
+                if (arr[i * 3 + 2] > 350) arr[i * 3 + 2] = -600;
+            }
+            rainGeo.attributes.position.needsUpdate = true;
+        }
+
+        function updateHud() {
+            var alt = document.getElementById('cxAlt');
+            var spd = document.getElementById('cxSpd');
+            var vs = document.getElementById('cxVs');
+            var dst = document.getElementById('cxDist');
+            var gear = document.getElementById('cxGear');
+            var flaps = document.getElementById('cxFlaps');
+            var wind = document.getElementById('cxWind');
+            var score = document.getElementById('cxScore');
+            var status = document.getElementById('cxStatus');
+            var msg = document.getElementById('cxMessage');
+            var guide = document.getElementById('cxGuide');
+            var distToThreshold = jetState.z - 1600;
+            if (alt) alt.textContent = Math.max(0, Math.round(jetState.y)) + ' m';
+            if (spd) spd.textContent = Math.round(jetState.speed * 1.94384) + ' kt';
+            if (vs) vs.textContent = (jetState.sink >= 0 ? '↓' : '↑') + Math.abs(jetState.sink).toFixed(1) + ' m/s';
+            if (dst) dst.textContent = Math.max(0, Math.round(distToThreshold)) + ' m';
+            if (gear) { gear.textContent = jetState.gear ? 'GEAR DOWN' : 'GEAR UP'; gear.classList.toggle('is-ok', jetState.gear); }
+            if (flaps) { flaps.textContent = 'FLAPS ' + jetState.flaps; flaps.classList.toggle('is-ok', jetState.flaps > 0); }
+            if (wind) wind.textContent = 'WIND ' + Math.round(jetState.wind) + ' kt ' + (jetState.windDir > 0 ? '→' : '←');
+            if (score) score.textContent = Math.round(jetState.score).toLocaleString();
+            if (status) status.textContent = jetState.mode === 'rollout' ? 'ROLLOUT' : 'APPROACH';
+            if (msg) msg.textContent = (jetState.messageT > 0 ? jetState.message : (distToThreshold > 0 ? 'Aim for the centreline · 3° glide path' : 'Over the runway'));
+            if (guide) {
+                var loc = Math.abs(jetState.x) < 8 ? 'LOC OK' : 'LOC ' + (jetState.x > 0 ? 'RIGHT ' : 'LEFT ') + Math.round(Math.abs(jetState.x)) + 'm';
+                var expected = Math.max(0, distToThreshold) * 0.052 + 12;
+                var gs = jetState.y > expected + 35 ? 'GS HIGH' : jetState.y < expected - 35 ? 'GS LOW' : 'GS OK';
+                guide.textContent = loc + ' · ' + gs;
+            }
+        }
+
+        function land() {
+            var distFromThreshold = Math.abs(jetState.z - 1600);
+            var centerError = Math.abs(jetState.x);
+            var speedKt = jetState.speed * 1.94384;
+            var soft = jetState.sink < 7;
+            var onRunway = jetState.z < 1600 && jetState.z > -1300 && centerError < 26;
+            var configOk = jetState.gear && jetState.flaps > 0 && speedKt > 55 && speedKt < 180;
+            if (onRunway && soft && configOk) {
+                var points = 1000 + Math.round(400 - centerError * 12 - Math.max(0, jetState.sink) * 45 - Math.abs(speedKt - 135) * 5 + jetState.wind * 8);
+                jetState.score += Math.max(300, points);
+                jetState.landings++;
+                jetState.mode = 'rollout';
+                jetState.rolloutT = 4;
+                jetState.message = 'TOUCHDOWN · +' + Math.max(300, points) + ' points';
+                jetState.messageT = 4;
+                tone(520, 0.25, 'triangle', 0.06, 780);
+                tone(780, 0.3, 'triangle', 0.05, 1040);
+            } else {
+                jetState.mode = 'crashed';
+                jetState.message = 'CRASH · ' + (!onRunway ? 'missed the runway' : !configOk ? 'gear / flaps / speed' : 'sink rate too high');
+                endGame(Math.round(jetState.score));
+            }
+        }
+
+        function nextApproach() {
+            startApproach(false);
+        }
+
+        var elapsed = 0, hudT = 0;
+        startApproach(false);
+
+        function update(dt) {
+            elapsed += dt;
+            updateRain(dt);
+            if (jetState.messageT > 0) jetState.messageT -= dt;
+
+            if (jetState.mode === 'rollout') {
+                jetState.speed = Math.max(0, jetState.speed - 9 * dt);
+                jetState.z -= jetState.speed * dt;
+                jetState.rolloutT -= dt;
+                if (jetState.rolloutT <= 0) nextApproach();
+            } else if (jetState.mode === 'approach') {
+                // Throttle and attitude.
+                var throttleInput = (keys['w'] ? 1 : 0) - (keys['s'] ? 1 : 0);
+                jetState.throttle = Math.max(0.05, Math.min(1, jetState.throttle + throttleInput * 0.5 * dt));
+                if (input.pointerActive) {
+                    jetState.pitch += (-input.pointerY * 0.3 - jetState.pitch) * Math.min(1, dt * 2);
+                    jetState.roll += (input.pointerX * 0.35 - jetState.roll) * Math.min(1, dt * 2);
+                } else {
+                    var pitchInput = (keys['arrowup'] ? 1 : 0) - (keys['arrowdown'] ? 1 : 0);
+                    var rollInput = (keys['arrowright'] ? 1 : 0) - (keys['arrowleft'] ? 1 : 0);
+                    jetState.pitch += pitchInput * 0.35 * dt;
+                    jetState.roll += rollInput * 0.9 * dt;
+                }
+                jetState.pitch *= Math.max(0, 1 - dt * 0.7);
+                jetState.roll *= Math.max(0, 1 - dt * 1.4);
+                jetState.pitch = Math.max(-0.35, Math.min(0.35, jetState.pitch));
+                jetState.roll = Math.max(-0.55, Math.min(0.55, jetState.roll));
+                jetState.heading -= jetState.roll * 0.42 * dt;
+
+                var targetSpeed = 62 + jetState.throttle * 78 - jetState.flaps * 5 - (jetState.gear ? 3 : 0);
+                jetState.speed += (targetSpeed - jetState.speed) * Math.min(1, dt * 0.7);
+                jetState.speed = Math.max(45, Math.min(150, jetState.speed));
+
+                var lift = (jetState.speed - 55) * 0.12;
+                jetState.sink = 13 - lift - jetState.pitch * 55 - jetState.flaps * 3.2 - (jetState.gear ? 1.2 : 0);
+                jetState.sink = Math.max(-7, Math.min(20, jetState.sink));
+                jetState.y -= jetState.sink * dt;
+
+                var fx = -Math.sin(jetState.heading), fz = -Math.cos(jetState.heading);
+                jetState.x += (fx * jetState.speed + jetState.wind * jetState.windDir * 0.35) * dt;
+                jetState.z += fz * jetState.speed * dt;
+
+                // Ground contact.
+                if (jetState.y <= 0.7) {
+                    jetState.y = 0.7;
+                    land();
+                }
+                // Past the runway or far off course.
+                if (jetState.z < -1500 && jetState.y > 1) {
+                    jetState.message = 'PAST THE RUNWAY · SPACE to go around';
+                    jetState.messageT = 1;
+                }
+            }
+
+            // Aircraft visual.
+            jet.position.set(jetState.x, jetState.y, jetState.z);
+            jet.rotation.y = jetState.heading;
+            jet.rotation.z = -jetState.roll * 0.7;
+            jet.rotation.x = jetState.pitch * 0.6;
+            gearGroup.visible = jetState.gear;
+            navLight.intensity = 0.5 + Math.sin(elapsed * 6) * 0.3;
+            strobe.intensity = (elapsed % 1.2 < 0.08) ? 3 : 0.05;
+
+            // Camera chase.
+            var behind = 26, above = 9;
+            var cx = jetState.x + Math.sin(jetState.heading) * behind;
+            var cz = jetState.z + Math.cos(jetState.heading) * behind;
+            camera.position.x += (cx - camera.position.x) * Math.min(1, dt * 3.5);
+            camera.position.y += (jetState.y + above - camera.position.y) * Math.min(1, dt * 3.5);
+            camera.position.z += (cz - camera.position.z) * Math.min(1, dt * 3.5);
+            camera.lookAt(jetState.x - Math.sin(jetState.heading) * 40, jetState.y + 1.5, jetState.z - Math.cos(jetState.heading) * 40);
+
+            hudT -= dt;
+            if (hudT <= 0) { hudT = 0.1; updateHud(); }
+        }
+
+        // Mobile / button controls.
+        setTimeout(function () {
+            var gearBtn = document.getElementById('cxGearBtn');
+            if (gearBtn) gearBtn.onclick = toggleGear;
+            var flapsBtn = document.getElementById('cxFlapsBtn');
+            if (flapsBtn) flapsBtn.onclick = cycleFlaps;
+            var goBtn = document.getElementById('cxGoBtn');
+            if (goBtn) goBtn.onclick = goAround;
+        }, 30);
+
+        return { over: false, update: update, getScore: function () { return jetState.score; } };
+    }
+
     function factoryFor(gameId, opts) {
         if (gameId === 1 && opts && opts.cityMode) return createCity;
         return factories[gameId];
@@ -8342,7 +8687,8 @@
         2: createTunnel,
         3: createStack,
         4: createDeadCoast,
-        7: createSnowRush
+        7: createSnowRush,
+        10: createChangiApproach
     };
 
     function resetScene() {
