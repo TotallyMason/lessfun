@@ -25,8 +25,8 @@ Most games are real-time 3D scenes rendered with Three.js.
 Visit the live site at [https://totallymason.github.io/lessfun/](https://totallymason.github.io/lessfun/).
 
 Guests can play without an account, but guest scores and posts are not saved.
-Account mode keeps scores, posts, and Coins across devices once the Supabase
-tables below are created.
+Account mode keeps scores, posts, Coins and purchases across devices once the
+Supabase tables below are created.
 
 ## Run locally
 
@@ -55,7 +55,10 @@ speed, acceleration, and grip; the other categories are visual.
 | 14-day streak | +1,000 |
 
 New players start with **100 Coins**. Purchases are equipped immediately, and
-any owned cosmetic can be re-equipped for free. The Store has **23 global items**
+any owned cosmetic can be re-equipped for free. Signed-in purchases — cars,
+cosmetics, performance upgrades and Dead Coast weapons — are tied to the account
+and sync to every device you sign in on, including live updates between open
+tabs. The Store has **23 global items**
 and the Garage has **137 Beach Racer items**:
 
 | Category | Items | What it does |
@@ -105,12 +108,15 @@ full file:
   post reactions, reply reactions, and the newer owner toggles.
 - [`supabase/owner_debug.sql`](supabase/owner_debug.sql) — owner delete/update
   permissions.
+- [`supabase/wallet_sync.sql`](supabase/wallet_sync.sql) — optional dedicated
+  cars, equipped car, XP, achievements and stats columns. Purchases already sync
+  through the existing `equipped` JSON without it.
 
 Until migrations are run:
 
 - Scores fall back to `localStorage` on the device.
-- Coins fall back to a per-user `localStorage` wallet.
-- Account codes still sign in, but nothing syncs between devices.
+- Coins and purchases fall back to a per-user `localStorage` wallet, so they
+  stay on that device.
 - Friends, presence, bans, replies, reactions, uploads, and site-wide owner
   settings stay unavailable and the Owner Console reports which tables are
   missing.

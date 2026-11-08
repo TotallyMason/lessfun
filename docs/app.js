@@ -844,7 +844,10 @@ function zombieLoadoutKey() {
 
 function getZombieLoadout() {
     let data = null;
-    try { data = JSON.parse(localStorage.getItem(zombieLoadoutKey()) || 'null'); } catch (e) {}
+    if (wallet && wallet.zombie && typeof wallet.zombie === 'object') data = wallet.zombie;
+    if (!data) {
+        try { data = JSON.parse(localStorage.getItem(zombieLoadoutKey()) || 'null'); } catch (e) {}
+    }
     if (!data || typeof data !== 'object') data = {};
     const owned = Array.isArray(data.owned) && data.owned.length ? data.owned.slice() : ['pistol'];
     if (owned.indexOf('pistol') < 0) owned.unshift('pistol');
@@ -855,6 +858,7 @@ function getZombieLoadout() {
 
 function saveZombieLoadout(data) {
     try { localStorage.setItem(zombieLoadoutKey(), JSON.stringify(data)); } catch (e) {}
+    if (wallet) wallet.zombie = data;
 }
 
 function zombieArmoryStatus(message, isError) {
@@ -950,6 +954,7 @@ async function zombieSellWeapon(key) {
     delete loadout.upgrades[key];
     if (loadout.equipped === key) loadout.equipped = 'pistol';
     saveZombieLoadout(loadout);
+    if (wallet) await saveWallet();
     renderZombieArmory();
     zombieArmoryStatus('Sold ' + weapon.name + ' for ' + weapon.sell + ' Coins.', false);
 }
@@ -973,11 +978,12 @@ async function zombieUpgradeWeapon(key) {
     zombieArmoryStatus(weapon.name + ' upgraded to MK ' + (level + 2) + '.', false);
 }
 
-function zombieEquipWeapon(key) {
+async function zombieEquipWeapon(key) {
     const loadout = getZombieLoadout();
     if (loadout.owned.indexOf(key) < 0) return;
     loadout.equipped = key;
     saveZombieLoadout(loadout);
+    if (wallet) await saveWallet();
     renderZombieArmory();
     zombieArmoryStatus(ZOMBIE_SHOP[key].name + ' equipped.', false);
 }
@@ -6679,10 +6685,31 @@ function writeLocalWallet(w) {
     try { localStorage.setItem(walletStorageKey(w.username), JSON.stringify(w)); } catch (e) {}
 }
 
+function walletSyncExtras(w) {
+    return {
+        cars: Array.isArray(w.cars) ? w.cars.slice() : [],
+        equippedCar: typeof w.equippedCar === 'string' ? w.equippedCar : null,
+        xp: Number(w.xp) || 0,
+        achievements: Array.isArray(w.achievements) ? w.achievements.slice() : [],
+        stats: (w.stats && typeof w.stats === 'object') ? w.stats : {},
+        zombie: (w.zombie && typeof w.zombie === 'object') ? w.zombie : null
+    };
+}
+
+function walletEquippedForDb(w) {
+    var equipped = Object.assign({}, (w && w.equipped) || {});
+    equipped._purchases = walletSyncExtras(w || {});
+    return equipped;
+}
+
 function normalizeWallet(raw, username) {
     var w = raw || {};
     var inventory = Array.isArray(w.inventory) ? w.inventory.slice() : [];
     var equipped = Object.assign({}, w.equipped || {});
+    // Purchases travel inside the existing equipped JSON so they sync even on
+    // older wallets tables that do not have cars/achievements columns.
+    var extras = (equipped._purchases && typeof equipped._purchases === 'object') ? equipped._purchases : {};
+    delete equipped._purchases;
 
     COSMETICS.forEach(function (item) {
         if (item.default || item.cost === 0) {
@@ -6702,10 +6729,24 @@ function normalizeWallet(raw, username) {
         }
     });
 
-    var ownedCars = Array.isArray(w.cars) ? w.cars.filter(function (id) {
+    // Union the optional columns with the equipped JSON copy. A freshly added
+    // empty cars/achievements column must not hide purchases saved in the blob.
+    var carSource = (Array.isArray(w.cars) ? w.cars : []).slice();
+    (Array.isArray(extras.cars) ? extras.cars : []).forEach(function (id) {
+        if (carSource.indexOf(id) < 0) carSource.push(id);
+    });
+    var ownedCars = carSource.filter(function (id) {
         return typeof id === 'string' && CAR_CATALOG.some(function (car) { return car.id === id; });
-    }) : [];
-    var equippedCar = typeof w.equippedCar === 'string' && ownedCars.indexOf(w.equippedCar) >= 0 ? w.equippedCar : null;
+    });
+    var equippedCarId = typeof w.equippedCar === 'string' ? w.equippedCar : (typeof extras.equippedCar === 'string' ? extras.equippedCar : null);
+    var equippedCar = equippedCarId && ownedCars.indexOf(equippedCarId) >= 0 ? equippedCarId : null;
+    var xpSource = Math.max(Number(w.xp) || 0, Number(extras.xp) || 0);
+    var achSource = (Array.isArray(w.achievements) ? w.achievements : []).slice();
+    (Array.isArray(extras.achievements) ? extras.achievements : []).forEach(function (id) {
+        if (achSource.indexOf(id) < 0) achSource.push(id);
+    });
+    var statsSource = Object.assign({}, (extras.stats && typeof extras.stats === 'object') ? extras.stats : {}, (w.stats && typeof w.stats === 'object') ? w.stats : {});
+    var zombieSource = (w.zombie && typeof w.zombie === 'object') ? w.zombie : ((extras.zombie && typeof extras.zombie === 'object') ? extras.zombie : null);
 
     return {
         username: username,
@@ -6714,9 +6755,10 @@ function normalizeWallet(raw, username) {
         equipped: equipped,
         cars: ownedCars,
         equippedCar: equippedCar,
-        xp: Number.isFinite(w.xp) ? Math.max(0, Math.floor(w.xp)) : 0,
-        achievements: Array.isArray(w.achievements) ? w.achievements.filter(function (id) { return typeof id === 'string'; }) : [],
-        stats: (w.stats && typeof w.stats === 'object') ? w.stats : {},
+        xp: Number.isFinite(xpSource) ? Math.max(0, Math.floor(xpSource)) : 0,
+        achievements: achSource.filter(function (id) { return typeof id === 'string'; }),
+        stats: statsSource,
+        zombie: zombieSource,
         streak: Number.isFinite(w.streak) ? Math.max(0, Math.floor(w.streak)) : 0,
         lastPlayDay: typeof w.lastPlayDay === 'string' ? w.lastPlayDay : (typeof w.last_play_day === 'string' ? w.last_play_day : null),
         streakRewards: Array.isArray(w.streakRewards) ? w.streakRewards : (Array.isArray(w.streak_rewards) ? w.streak_rewards : []),
@@ -6734,7 +6776,11 @@ async function loadWallet() {
     wallet = local;
     renderWalletUI();
 
-    if (!(currentUser && currentUser.type === 'user' && supabaseClient)) return;
+    if (!(currentUser && currentUser.type === 'user' && supabaseClient)) {
+        walletRealtimeStop();
+        return;
+    }
+    walletRealtimeStart(username);
 
     try {
         var res = await supabaseClient
@@ -6750,34 +6796,62 @@ async function loadWallet() {
             // The car collection may live only in localStorage if the wallets
             // table has no cars/equipped_car columns. Merge both sides so a
             // bought or equipped showroom car never disappears on refresh.
+            var changed = false;
             var mergedCars = (remote.cars || []).slice();
             (local.cars || []).forEach(function (id) {
-                if (mergedCars.indexOf(id) < 0) mergedCars.push(id);
+                if (mergedCars.indexOf(id) < 0) { mergedCars.push(id); changed = true; }
             });
             remote.cars = mergedCars;
+            var mergedInv = (remote.inventory || []).slice();
+            (local.inventory || []).forEach(function (id) {
+                if (mergedInv.indexOf(id) < 0) { mergedInv.push(id); changed = true; }
+            });
+            remote.inventory = mergedInv;
+            if (remote.equippedCar && mergedCars.indexOf(remote.equippedCar) < 0) remote.equippedCar = null;
             if (!remote.equippedCar && local.equippedCar && mergedCars.indexOf(local.equippedCar) >= 0) {
-                remote.equippedCar = local.equippedCar;
+                remote.equippedCar = local.equippedCar; changed = true;
             }
-            local.cars = mergedCars;
-            if (!local.equippedCar && remote.equippedCar) local.equippedCar = remote.equippedCar;
-            remote.xp = Math.max(remote.xp || 0, local.xp || 0);
-            local.xp = remote.xp;
+            var mergedXp = Math.max(remote.xp || 0, local.xp || 0);
+            if (mergedXp !== (remote.xp || 0)) changed = true;
+            remote.xp = mergedXp;
             var mergedAch = (remote.achievements || []).slice();
-            (local.achievements || []).forEach(function (id) { if (mergedAch.indexOf(id) < 0) mergedAch.push(id); });
+            (local.achievements || []).forEach(function (id) { if (mergedAch.indexOf(id) < 0) { mergedAch.push(id); changed = true; } });
             remote.achievements = mergedAch;
-            local.achievements = mergedAch;
             var mergedStats = Object.assign({}, remote.stats || {});
             Object.keys(local.stats || {}).forEach(function (key) {
                 var a = Number(mergedStats[key]) || 0;
                 var b = Number(local.stats[key]) || 0;
-                mergedStats[key] = Math.max(a, b);
+                if (b > a) { mergedStats[key] = b; changed = true; }
             });
             remote.stats = mergedStats;
+            if (!remote.zombie && local.zombie) { remote.zombie = local.zombie; changed = true; }
+            var localNewer = local.updatedAt > remote.updatedAt;
+            if (localNewer) {
+                // An offline or in-flight purchase on this device wins.
+                remote.shells = local.shells;
+                remote.totalEarned = Math.max(remote.totalEarned || 0, local.totalEarned || 0);
+                remote.streak = local.streak;
+                remote.lastPlayDay = local.lastPlayDay;
+                remote.streakRewards = local.streakRewards;
+                remote.equipped = Object.assign({}, local.equipped);
+                if (local.equippedCar && mergedCars.indexOf(local.equippedCar) >= 0) remote.equippedCar = local.equippedCar;
+                if (local.zombie) remote.zombie = local.zombie;
+                COSMETIC_TYPES.forEach(function (type) {
+                    var cur = remote.equipped[type];
+                    if (!COSMETICS.some(function (item) { return item.id === cur && item.type === type && mergedInv.indexOf(item.id) >= 0; })) {
+                        var fb = COSMETICS.find(function (item) { return item.type === type && item.default; });
+                        remote.equipped[type] = fb ? fb.id : null;
+                    }
+                });
+            }
+            local.inventory = mergedInv;
+            local.cars = mergedCars;
+            local.xp = mergedXp;
+            local.achievements = mergedAch;
             local.stats = mergedStats;
-            if (walletMutated || local.updatedAt > remote.updatedAt) {
-                // The player earned or bought something while the request was
-                // in flight. Keep the newer local copy and push it up.
-                wallet = local;
+            local.zombie = remote.zombie || local.zombie || null;
+            if (walletMutated || localNewer || changed) {
+                wallet = remote;
                 await saveWallet();
             } else {
                 wallet = remote;
@@ -6788,7 +6862,7 @@ async function loadWallet() {
                 username: username,
                 shells: wallet.shells,
                 inventory: wallet.inventory,
-                equipped: wallet.equipped,
+                equipped: walletEquippedForDb(wallet),
                 streak: wallet.streak,
                 last_play_day: wallet.lastPlayDay,
                 streak_rewards: wallet.streakRewards,
@@ -6820,7 +6894,7 @@ async function saveWallet() {
             username: wallet.username,
             shells: wallet.shells,
             inventory: wallet.inventory,
-            equipped: wallet.equipped,
+            equipped: walletEquippedForDb(wallet),
             streak: wallet.streak,
             last_play_day: wallet.lastPlayDay,
             streak_rewards: wallet.streakRewards,
@@ -6839,6 +6913,61 @@ async function saveWallet() {
     } catch (e) {
         // Offline or table missing: localStorage remains the source of truth.
     }
+    walletBroadcast(wallet.username);
+}
+
+
+let walletRealtimeChannel = null;
+let walletRealtimeUser = '';
+let walletRealtimeReady = false;
+let walletReloadTimer = 0;
+let walletClientId = 'wc-' + Math.random().toString(36).slice(2, 10);
+
+function walletRealtimeStart(username) {
+    var key = String(username || '').toLowerCase();
+    if (!supabaseClient || !key || key === 'guest') return;
+    if (walletRealtimeChannel && walletRealtimeUser === key) return;
+    walletRealtimeStop();
+    try {
+        var channel = supabaseClient.channel('lessfun-wallet-' + key);
+        channel.on('broadcast', { event: 'wallet-changed' }, function (msg) {
+            var payload = (msg && msg.payload) || {};
+            if (payload.from === walletClientId) return;
+            if (payload.username && String(payload.username).toLowerCase() !== key) return;
+            if (walletReloadTimer) clearTimeout(walletReloadTimer);
+            walletReloadTimer = setTimeout(function () {
+                walletReloadTimer = 0;
+                if (currentUser && currentUser.type === 'user' && String(currentUser.username).toLowerCase() === key) loadWallet();
+            }, 400);
+        });
+        channel.subscribe(function (status) {
+            walletRealtimeReady = status === 'SUBSCRIBED';
+        });
+        walletRealtimeChannel = channel;
+        walletRealtimeUser = key;
+    } catch (e) {}
+}
+
+function walletRealtimeStop() {
+    walletRealtimeReady = false;
+    if (walletReloadTimer) { clearTimeout(walletReloadTimer); walletReloadTimer = 0; }
+    if (walletRealtimeChannel && supabaseClient) {
+        try { supabaseClient.removeChannel(walletRealtimeChannel); } catch (e) {}
+    }
+    walletRealtimeChannel = null;
+    walletRealtimeUser = '';
+}
+
+function walletBroadcast(username) {
+    if (!walletRealtimeChannel || !walletRealtimeReady) return;
+    try {
+        var sent = walletRealtimeChannel.send({
+            type: 'broadcast',
+            event: 'wallet-changed',
+            payload: { username: username || walletUsername(), from: walletClientId, at: Date.now() }
+        });
+        if (sent && sent.catch) sent.catch(function () {});
+    } catch (e) {}
 }
 
 function applyGlobalCosmetics() {
@@ -8196,8 +8325,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.81";
-const UPDATE_NOTES = "Drone Racing has been removed. The arcade now has Beach Racer, Tunnel Rush, Cube Stack, Dead Coast, Funtutu Test, Snow Rush, Draw and Guess, and Lucky Spin";
+const APP_VERSION = "LessFun Public Beta 1.32.82";
+const UPDATE_NOTES = "Purchases now belong to your account: cars, cosmetics, upgrades and Dead Coast weapons sync across your devices and update live in other open tabs";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
