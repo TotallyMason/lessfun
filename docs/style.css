@@ -10560,3 +10560,51 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     transition: opacity 0.35s linear;
     z-index: 1;
 }
+
+/* Draw & Guess */
+.dg-wrap {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: radial-gradient(circle at 50% 0%, #122433, #05090e 70%);
+    overflow: hidden;
+}
+.dg-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border-radius: 10px; background: rgba(16, 34, 46, 0.9); border: 1px solid rgba(95, 224, 255, 0.2); }
+.dg-kicker { display: block; color: rgba(140, 235, 255, 0.55); font-size: 8px; font-weight: 800; letter-spacing: 0.16em; }
+.dg-head strong { color: #eafaff; font-size: 16px; }
+.dg-timer { color: #ffd166; font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.dg-main { flex: 1; min-height: 0; display: flex; gap: 10px; }
+.dg-canvas { flex: 1; width: 100%; height: 100%; background: #0b1018; border-radius: 10px; border: 1px solid rgba(95, 224, 255, 0.24); touch-action: none; cursor: crosshair; }
+.dg-side { width: min(260px, 34vw); display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+.dg-players { display: flex; flex-direction: column; gap: 3px; max-height: 34%; overflow-y: auto; padding: 6px; border-radius: 9px; background: rgba(10, 24, 34, 0.8); border: 1px solid rgba(255,255,255,0.08); }
+.dg-player { display: flex; align-items: center; gap: 6px; font-size: 10px; color: rgba(230,245,255,0.72); }
+.dg-player.is-me { color: #8feaff; }
+.dg-avatar { width: 20px; height: 20px; border-radius: 50%; background: #2a3942; display: inline-flex; align-items: center; justify-content: center; color: #cfefff; font-size: 9px; font-weight: 800; flex: none; }
+.dg-player-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dg-player-score { color: #ffd166; font-weight: 800; }
+.dg-player small { color: rgba(255,255,255,0.35); font-size: 7px; }
+.dg-chat { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 7px; border-radius: 9px; background: rgba(10, 24, 34, 0.8); border: 1px solid rgba(255,255,255,0.08); }
+.dg-chat-row { font-size: 10px; color: rgba(230,245,255,0.7); line-height: 1.35; word-break: break-word; }
+.dg-chat-row b { color: #8feaff; }
+.dg-chat-row.is-system { color: #ffd166; font-style: italic; }
+.dg-guess-form { display: flex; gap: 5px; }
+.dg-guess-form input { flex: 1; min-width: 0; border-radius: 8px; border: 1px solid rgba(95,224,255,0.22); background: #0d1a24; color: #eafaff; padding: 8px 10px; font-size: 11px; }
+.dg-guess-form button { border-radius: 8px; border: 0; background: #00a884; color: #06120e; font: inherit; font-size: 10px; font-weight: 800; padding: 0 12px; cursor: pointer; }
+.dg-status { min-height: 12px; color: rgba(220,245,255,0.45); font-size: 8px; text-align: center; }
+.dg-tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 6px 8px; border-radius: 10px; background: rgba(10, 24, 34, 0.86); border: 1px solid rgba(255,255,255,0.08); }
+.dg-colors { display: flex; gap: 4px; }
+.dg-color { width: 22px; height: 22px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); background: var(--swatch); cursor: pointer; padding: 0; }
+.dg-color.is-active { border-color: #fff; box-shadow: 0 0 10px var(--swatch); }
+.dg-sizes, .dg-tools { display: flex; gap: 4px; }
+.dg-sizes button, .dg-tool { border-radius: 7px; border: 1px solid rgba(95,224,255,0.2); background: rgba(255,255,255,0.05); color: #d9f6ff; font: inherit; font-size: 9px; font-weight: 700; padding: 6px 9px; cursor: pointer; }
+.dg-tool.dg-start { background: rgba(0,168,132,0.2); border-color: rgba(0,168,132,0.5); color: #7dffd4; }
+.dg-empty { margin: 0; color: rgba(220,245,255,0.35); font-size: 9px; text-align: center; padding: 8px; }
+@media (max-width: 700px) {
+    .dg-main { flex-direction: column; }
+    .dg-side { width: 100%; max-height: 40%; }
+    .dg-canvas { min-height: 45vh; }
+    .dg-head strong { font-size: 13px; }
+}
