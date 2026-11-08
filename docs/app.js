@@ -8448,8 +8448,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.89";
-const UPDATE_NOTES = "Daily Gifts are live: claim once a day on the Games page for 50 to 500 Coins across a seven-day streak, synced to your account";
+const APP_VERSION = "LessFun Public Beta 1.32.90";
+const UPDATE_NOTES = "Daily Gifts are live, and a new Meggreatness portal button takes you straight to the site from the Games page";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

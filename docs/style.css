@@ -11020,3 +11020,11 @@ body.in-game .radio-dock { display: none; }
 @media (max-width: 640px) {
     .daily-gift-modal { max-height: calc(100vh - 28px); width: calc(100% - 16px); }
 }
+
+/* Single external portal button */
+.portal-btn { display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; padding: 10px 16px; border-radius: 999px; border: 1px solid rgba(255, 209, 102, 0.42); background: linear-gradient(145deg, rgba(255, 209, 102, 0.16), rgba(255, 138, 45, 0.08)); color: #ffe2a0; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-decoration: none; box-shadow: 0 10px 26px rgba(0, 0, 0, 0.18); transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease; }
+.portal-btn:hover { transform: translateY(-1px); border-color: rgba(255, 225, 160, 0.7); background: linear-gradient(145deg, rgba(255, 209, 102, 0.24), rgba(255, 138, 45, 0.14)); }
+.portal-btn svg { flex: 0 0 auto; }
+@media (max-width: 640px) {
+    .portal-btn { padding: 9px 13px; font-size: 10px; }
+}
