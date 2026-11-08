@@ -8,7 +8,6 @@ const games = [
     { id: 2, name: "Tunnel Rush", description: "Thread the neon tunnel at warp speed", icon: "tunnel", controls: "Left / Right or drag to rotate" },
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
     { id: 4, name: "Dead Coast", description: "Drive 10 km through the dead coast, scavenging food, water, fuel, and car parts", icon: "skull", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · A D / ← → steer · C camera · drag to steer on mobile · survive 10 km" },
-    { id: 5, name: "Star Dodger", description: "Weave through an asteroid storm", icon: "rocket", controls: "WASD / arrow keys to fly · drag to steer · Space / click fires when armed" },
     { id: 6, name: "Funtutu Test", description: "Benchmark your GPU and CPU, then get recommended graphics settings", icon: "bolt", controls: "Press Run Test · apply the recommended settings when it finishes" },
     { id: 7, name: "Snow Rush", description: "Christmas sleigh run — collect gifts and dodge the ice", icon: "snow", controls: "WASD / arrows to fly · drag to steer · collect gifts · dodge ice" }
 ];
@@ -25,7 +24,6 @@ const RACER_MP_PUBLIC_MAX = 50;
 const ARCADE_MP_MAX = 20;
 const ARCADE_MP_GAMES = {
     2: { name: 'Tunnel Rush', channel: 'lessfun-arcade-tunnel-public' },
-    5: { name: 'Star Dodger', channel: 'lessfun-arcade-star-public' }
 };
 let arcadeMp = {
     gameId: 0,
@@ -1264,7 +1262,7 @@ function openGame(id) {
     }
     garageSuppressed = false;
     lastRunCoins = 0;
-    if ((id === 2 || id === 5) && !startMenuSuppressed) {
+    if (id === 2 && !startMenuSuppressed) {
         const startMenu = document.getElementById('g3dStartMenu');
         if (startMenu) startMenu.style.display = 'flex';
         if (window.Games3D) window.Games3D.setPaused(true);
@@ -2346,7 +2344,7 @@ function racerMpCopyCode() {
 
 
 /* ============================================================
-   Tunnel Rush / Star Dodger live public multiplayer
+   Tunnel Rush live public multiplayer
    ============================================================ */
 function arcadeMpConfig() {
     return ARCADE_MP_GAMES[currentGameId] || null;
@@ -7115,8 +7113,6 @@ const ACHIEVEMENTS = [
     { id: 'zombie_10', name: 'Zombie Hunter', desc: 'Kill 10 zombies in one run', icon: '🧟' },
     { id: 'zombie_100', name: 'Exterminator', desc: 'Kill 100 zombies total', icon: '☠️' },
     { id: 'dc_10km', name: 'Long Haul', desc: 'Finish the 10 km Dead Coast run', icon: '🛣️' },
-    { id: 'star_wave5', name: 'Deep Space', desc: 'Reach Star Dodger wave 5', icon: '🌌' },
-    { id: 'star_boss', name: 'Boss Breaker', desc: 'Defeat a Star Dodger boss', icon: '👾' },
     { id: 'coin_10k', name: 'Coin Collector', desc: 'Earn 10,000 Coins total', icon: '🪙' },
     { id: 'social', name: 'Social', desc: 'Make a Community post', icon: '💬' }
 ];
@@ -7206,13 +7202,6 @@ function checkGameAchievements(score, seconds) {
             if ((ds.zombiesHit || 0) >= 10) unlockAchievement('zombie_10');
             if ((wallet.stats.zombies || 0) >= 100) unlockAchievement('zombie_100');
             if ((ds.distance || 0) >= 10000) unlockAchievement('dc_10km');
-        }
-    } else if (currentGameId === 5) {
-        var ss = (window.Games3D && window.Games3D.getSkyState) ? window.Games3D.getSkyState() : null;
-        if (ss) {
-            wallet.stats.starWave = Math.max(wallet.stats.starWave || 0, ss.wave || 1);
-            if ((ss.wave || 1) >= 5) unlockAchievement('star_wave5');
-            if ((ss.bossKills || 0) >= 1) unlockAchievement('star_boss');
         }
     }
     saveWallet();
@@ -7904,8 +7893,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.54";
-const UPDATE_NOTES = "Dead Coast on-foot combat now has ammo, R reload, V punches, and paid station supplies. Radio can be moved to any corner, drifts are shorter and dodging quicker, F1 cars have an open cockpit with halo rings, and Snow Rush is a new Christmas sleigh game";
+const APP_VERSION = "LessFun Public Beta 1.32.55";
+const UPDATE_NOTES = "Star Dodger has been removed. The arcade now has Beach Racer, Tunnel Rush, Cube Stack, Dead Coast, Funtutu Test, and the Christmas Snow Rush game";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
