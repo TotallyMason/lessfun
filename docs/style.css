@@ -11028,3 +11028,287 @@ body.in-game .radio-dock { display: none; }
 @media (max-width: 640px) {
     .portal-btn { padding: 9px 13px; font-size: 10px; }
 }
+
+/* ============================================================
+   Liquid Glass 2 — softer Apple-style materials
+   ============================================================ */
+:root {
+    --lg-surface: rgba(28, 31, 40, 0.48);
+    --lg-surface-strong: rgba(18, 20, 27, 0.68);
+    --lg-line: rgba(255, 255, 255, 0.14);
+    --lg-line-bright: rgba(255, 255, 255, 0.3);
+    --lg-highlight: rgba(255, 255, 255, 0.46);
+    --lg-shadow: 0 28px 80px rgba(0, 0, 0, 0.48);
+    --lg-inner: inset 0 1px 0 rgba(255, 255, 255, 0.24), inset 0 -1px 0 rgba(255, 255, 255, 0.045);
+    --lg-radius: 26px;
+    --lg-blue: #0a84ff;
+}
+
+html { background: #050507; }
+body {
+    background: #050507;
+    color: #f5f7fb;
+    letter-spacing: -0.01em;
+}
+
+body::before {
+    background:
+        radial-gradient(44% 42% at 18% 8%, rgba(90, 150, 255, 0.22) 0%, transparent 70%),
+        radial-gradient(36% 38% at 84% 14%, rgba(255, 130, 195, 0.15) 0%, transparent 70%),
+        radial-gradient(52% 48% at 50% 100%, rgba(74, 220, 190, 0.12) 0%, transparent 72%),
+        radial-gradient(26% 26% at 68% 58%, rgba(255, 210, 120, 0.06) 0%, transparent 70%);
+    filter: blur(64px) saturate(135%);
+}
+
+body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0.022;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+    mix-blend-mode: soft-light;
+}
+
+/* Floating glass navigation dock */
+.top-nav {
+    top: 14px;
+    width: min(1240px, calc(100% - 28px));
+    max-width: none;
+    margin: 14px auto 0;
+    border-radius: 22px;
+    border: 1px solid var(--lg-line);
+    background:
+        linear-gradient(180deg, rgba(48, 52, 64, 0.52) 0%, rgba(18, 20, 27, 0.42) 100%);
+    -webkit-backdrop-filter: blur(34px) saturate(190%);
+    backdrop-filter: blur(34px) saturate(190%);
+    box-shadow: var(--lg-shadow), var(--lg-inner);
+}
+.top-nav::before {
+    opacity: 0.5;
+    background: linear-gradient(110deg, rgba(255,255,255,0.3), rgba(255,255,255,0.02) 30%, transparent 55%, rgba(170,205,255,0.12) 85%, rgba(255,255,255,0.24));
+}
+.nav-container { height: 54px; }
+
+.nav-btn {
+    border-radius: 999px;
+    color: rgba(245, 248, 255, 0.72);
+    font-weight: 500;
+}
+.nav-btn:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.11);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24), 0 6px 18px rgba(0, 0, 0, 0.24);
+}
+.nav-btn.active {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.07));
+    color: #fff;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 8px 22px rgba(0, 0, 0, 0.28);
+}
+
+/* Soft glass cards with colour refraction */
+.game-card,
+.store-card,
+.support-card,
+.community-post,
+.community-post-form,
+.settings-group,
+.info-card,
+.daily-gift-banner,
+.snow-event {
+    border-radius: var(--lg-radius);
+    background:
+        radial-gradient(130% 120% at 8% 0%, rgba(255, 255, 255, 0.13) 0%, transparent 42%),
+        radial-gradient(80% 90% at 100% 100%, rgba(120, 170, 255, 0.09) 0%, transparent 55%),
+        linear-gradient(155deg, rgba(42, 46, 58, 0.55) 0%, rgba(14, 16, 22, 0.64) 100%);
+    border: 1px solid var(--lg-line);
+    -webkit-backdrop-filter: blur(36px) saturate(175%);
+    backdrop-filter: blur(36px) saturate(175%);
+    box-shadow: var(--lg-shadow), var(--lg-inner);
+}
+.game-card::before,
+.store-card::before,
+.support-card::before,
+.community-post::before,
+.community-post-form::before,
+.settings-group::before,
+.info-card::before {
+    background: linear-gradient(115deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.04) 24%, transparent 48%, rgba(170,205,255,0.08) 74%, rgba(255,255,255,0.2) 100%);
+    opacity: 0.48;
+}
+.game-card { border-radius: var(--lg-radius); }
+.game-card::after {
+    content: '';
+    position: absolute;
+    width: 190px;
+    height: 190px;
+    right: -70px;
+    top: -90px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(120, 180, 255, 0.22), rgba(120, 180, 255, 0) 68%);
+    filter: blur(8px);
+    pointer-events: none;
+    transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s ease;
+    opacity: 0.8;
+}
+.game-card:hover { transform: translateY(-6px) scale(1.008); border-color: var(--lg-line-bright); }
+.game-card:hover::after { transform: translate(-12px, 14px) scale(1.15); opacity: 1; }
+.game-card h3 { font-weight: 650; letter-spacing: -0.025em; }
+.game-card p { color: rgba(232, 240, 250, 0.5); }
+
+/* Apple-blue glass primary actions */
+.game-btn-3d {
+    border-radius: 16px;
+    border: 1px solid rgba(175, 214, 255, 0.55);
+    background: linear-gradient(180deg, #5ac8fa 0%, #0a84ff 58%, #0066d6 100%);
+    box-shadow:
+        0 14px 36px rgba(10, 132, 255, 0.32),
+        inset 0 1px 0 rgba(255, 255, 255, 0.65),
+        inset 0 -2px 6px rgba(0, 0, 0, 0.18);
+    color: #fff;
+}
+.game-btn-3d:hover {
+    box-shadow:
+        0 20px 48px rgba(10, 132, 255, 0.42),
+        inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+/* Frosted modal sheets */
+.modal-content {
+    border-radius: 30px;
+    border: 1px solid var(--lg-line);
+    background:
+        radial-gradient(120% 70% at 50% 0%, rgba(255, 255, 255, 0.1) 0%, transparent 55%),
+        linear-gradient(180deg, rgba(30, 33, 43, 0.72) 0%, rgba(8, 9, 13, 0.84) 100%);
+    -webkit-backdrop-filter: blur(50px) saturate(185%);
+    backdrop-filter: blur(50px) saturate(185%);
+    box-shadow: 0 42px 130px rgba(0, 0, 0, 0.62), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.modal-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.025);
+}
+.modal-backdrop { background: rgba(2, 4, 8, 0.56); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+.modal-close {
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.04));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+/* Glass inputs */
+.auth-input, .post-input, .guess-input-3d, .search-box, .gift-field input {
+    border-radius: 13px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.035)) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+}
+.auth-input:focus, .post-input:focus, .guess-input-3d:focus, .gift-field input:focus {
+    border-color: rgba(120, 190, 255, 0.6);
+    box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* Portal button as clear Apple glass */
+.portal-btn {
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.055));
+    color: #f4f8ff;
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    backdrop-filter: blur(22px) saturate(180%);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.42);
+    font-weight: 600;
+}
+.portal-btn:hover {
+    border-color: rgba(150, 205, 255, 0.5);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.08));
+    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.34), 0 0 0 4px rgba(10, 132, 255, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.portal-btn svg { color: #7cc4ff; }
+
+/* Typography polish */
+h1, .store-heading, .settings-group h2 {
+    font-weight: 700;
+    letter-spacing: -0.045em;
+}
+.subtitle { color: rgba(232, 240, 250, 0.46); letter-spacing: -0.01em; }
+.daily-gift-banner {
+    border-color: rgba(255, 255, 255, 0.15);
+    background:
+        radial-gradient(100% 130% at 6% 50%, rgba(255, 205, 120, 0.14), transparent 38%),
+        linear-gradient(150deg, rgba(46, 44, 50, 0.55), rgba(16, 17, 22, 0.66));
+}
+.daily-gift-banner.is-claimed {
+    border-color: rgba(150, 230, 190, 0.2);
+    background: linear-gradient(150deg, rgba(30, 48, 40, 0.55), rgba(12, 18, 16, 0.66));
+}
+
+/* Subtle scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.16); border-radius: 999px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.28); background-clip: content-box; }
+
+@media (max-width: 640px) {
+    .top-nav { top: 8px; width: calc(100% - 16px); margin-top: 8px; border-radius: 18px; }
+    .nav-container { height: 50px; }
+    .modal-content { border-radius: 24px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body::before { animation: none; }
+    .game-card, .game-card::after, .top-nav, .portal-btn, .nav-btn { transition: none; }
+}
+
+/* Apple accent overrides (theme gradient uses !important) */
+body { background: transparent; }
+.nav-btn.active {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.09)) !important;
+    color: #fff !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 8px 22px rgba(0, 0, 0, 0.3) !important;
+}
+.game-btn-3d,
+.game3d-mp-primary {
+    background: linear-gradient(180deg, #64c8ff 0%, #0a84ff 55%, #0066d6 100%) !important;
+    border-color: rgba(180, 220, 255, 0.62) !important;
+    color: #fff !important;
+    box-shadow: 0 14px 36px rgba(10, 132, 255, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.62), inset 0 -2px 6px rgba(0, 0, 0, 0.2) !important;
+}
+.game-btn-3d:hover,
+.game3d-mp-primary:hover {
+    box-shadow: 0 20px 48px rgba(10, 132, 255, 0.44), inset 0 1px 0 rgba(255, 255, 255, 0.72) !important;
+}
+.game-featured-tag {
+    background: linear-gradient(180deg, rgba(120, 200, 255, 0.95), rgba(10, 132, 255, 0.92)) !important;
+    color: #fff !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+.store-tab.active {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.08)) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+    color: #fff !important;
+}
+
+/* Richer ambient light behind the glass */
+body {
+    background:
+        radial-gradient(58% 48% at 10% -4%, rgba(38, 96, 200, 0.26) 0%, transparent 66%),
+        radial-gradient(46% 42% at 96% 2%, rgba(170, 55, 120, 0.16) 0%, transparent 70%),
+        radial-gradient(60% 46% at 50% 104%, rgba(28, 150, 132, 0.12) 0%, transparent 70%),
+        #050507 !important;
+    background-attachment: fixed;
+}
+.game-card,
+.store-card,
+.support-card,
+.community-post,
+.community-post-form,
+.settings-group,
+.info-card,
+.snow-event {
+    background:
+        radial-gradient(130% 120% at 8% 0%, rgba(255, 255, 255, 0.18) 0%, transparent 44%),
+        radial-gradient(80% 90% at 100% 100%, rgba(120, 175, 255, 0.12) 0%, transparent 56%),
+        linear-gradient(155deg, rgba(60, 66, 82, 0.56) 0%, rgba(18, 20, 28, 0.68) 100%);
+}

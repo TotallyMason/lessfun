@@ -8448,8 +8448,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.90";
-const UPDATE_NOTES = "Daily Gifts are live, and a new Meggreatness portal button takes you straight to the site from the Games page";
+const APP_VERSION = "LessFun Public Beta 1.32.91";
+const UPDATE_NOTES = "The site has a new Apple-style liquid-glass look: floating glass navigation, frosted cards, ambient light, refined type and clear blue glass actions";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
