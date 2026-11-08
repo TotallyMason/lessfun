@@ -7948,8 +7948,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.67";
-const UPDATE_NOTES = "Draw and Guess now shows exactly who is drawing with a highlighted banner and player row, keeps the round timer visible, and lets the host choose the next drawer from a dropdown";
+const APP_VERSION = "LessFun Public Beta 1.32.68";
+const UPDATE_NOTES = "Draw and Guess now lands on a random drawer each round, and the guess feed only keeps the latest 5 messages visible";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -10784,6 +10784,7 @@ function dgAppendChat(name, text, system) {
     row.className = 'dg-chat-row' + (system ? ' is-system' : '');
     row.innerHTML = system ? escapeHtml(text) : '<b>' + escapeHtml(name) + '</b> ' + escapeHtml(text);
     chat.appendChild(row);
+    while (chat.children.length > 5) chat.removeChild(chat.firstChild);
     chat.scrollTop = chat.scrollHeight;
 }
 
@@ -10830,13 +10831,9 @@ function dgStartRound() {
     if (!dgIsHost() || !supabaseClient) return;
     var list = dgPlayersSorted();
     if (list.length < 2) { dgSetStatus('Need at least 2 players to start.'); return; }
-    var drawer = null;
-    if (drawGame.chosenDrawer) drawer = list.find(function (p) { return p.id === drawGame.chosenDrawer; });
-    if (!drawer) {
-        var prevIndex = list.findIndex(function (p) { return p.id === drawGame.drawerId; });
-        var nextIndex = prevIndex >= 0 ? (prevIndex + 1) % list.length : 0;
-        drawer = list[nextIndex];
-    }
+    var candidates = list.filter(function (p) { return p.id !== drawGame.drawerId; });
+    if (!candidates.length) candidates = list;
+    var drawer = candidates[Math.floor(Math.random() * candidates.length)];
     var word = DG_WORDS[Math.floor(Math.random() * DG_WORDS.length)];
     drawGame.word = word;
     drawGame.drawerId = drawer.id;
@@ -10998,7 +10995,6 @@ function openDrawGuessGame() {
                 '<div class="dg-sizes"><button type="button" onclick="dgSetSize(2)">S</button><button type="button" onclick="dgSetSize(4)">M</button><button type="button" onclick="dgSetSize(8)">L</button></div>' +
                 '<button type="button" class="dg-tool" onclick="dgToggleEraser()">Eraser</button>' +
                 '<button type="button" class="dg-tool" onclick="dgClear()">Clear</button>' +
-                '<label class="dg-choose" id="dgChooseWrap">Drawer <select id="dgDrawerSelect" onchange="dgChooseDrawer(this.value)"></select></label>' +
                 '<button type="button" class="dg-tool dg-start" id="dgStartBtn" onclick="dgStartRound()">Start round</button>' +
                 '<button type="button" class="dg-tool" onclick="closeGame()">Leave</button>' +
             '</div>' +
