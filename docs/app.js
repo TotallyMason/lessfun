@@ -11,7 +11,8 @@ const games = [
     { id: 6, name: "Funtutu Test", description: "Benchmark your GPU and CPU, then get recommended graphics settings", icon: "bolt", controls: "Press Run Test · apply the recommended settings when it finishes" },
     { id: 7, name: "Snow Rush", description: "Christmas sleigh run — collect gifts and dodge the ice", icon: "snow", controls: "WASD / arrows to fly · drag to steer · collect gifts · dodge ice" },
     { id: 8, name: "Draw & Guess", description: "Draw the word, guess your friends' drawings, and race to the top", icon: "draw", controls: "Draw with mouse / touch · type guesses in the box" },
-    { id: 9, name: "Lucky Spin", description: "Virtual-coin slot machine — pick a bet and chase the jackpot", icon: "dice", controls: "Pick a bet and spin · virtual Coins only" }
+    { id: 9, name: "Lucky Spin", description: "Virtual-coin slot machine — pick a bet and chase the jackpot", icon: "dice", controls: "Pick a bet and spin · virtual Coins only" },
+    { id: 13, name: "Boeing Landing", description: "Side-view 737 landing sim with flaps, spoilers and live suspension", icon: "plane", controls: "W/S pitch · A/D throttle · Space brakes · F flaps · G gear" }
 ];
 
 let currentUser = null;
@@ -1013,6 +1014,7 @@ let gameToastTimer = 0;
 function openGame(id) {
     const game = games.find(g => g.id === id);
     if (!game) return;
+    document.body.classList.add('in-game');
     if (arcadeMp.connected && arcadeMp.gameId && arcadeMp.gameId !== id) arcadeMpLeave(true);
     if (zombieMp.connected && id !== 4) zombieMpLeave(true);
     if (isGameDisabled(id)) {
@@ -1021,6 +1023,7 @@ function openGame(id) {
     }
     if (id === 8) { openDrawGuessGame(); return; }
     if (id === 9) { openLuckySpinGame(); return; }
+    if (id === 13) { openLandingSim(); return; }
     currentGameId = id;
     trackRecentGame(id);
     if (id === 4) startMenuSuppressed = false;
@@ -1456,9 +1459,11 @@ function closeGame() {
     if (window.Games3D) window.Games3D.stop();
     if (typeof dgDestroy === 'function') dgDestroy();
     if (typeof luckyCleanup === 'function') luckyCleanup();
+    if (typeof landingCleanup === 'function') landingCleanup();
     funtutuToken++;
     funtutuRunning = false;
     document.getElementById('gameModal').style.display = 'none';
+    document.body.classList.remove('in-game');
     currentGameId = null;
 }
 
@@ -8325,8 +8330,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.82";
-const UPDATE_NOTES = "Purchases now belong to your account: cars, cosmetics, upgrades and Dead Coast weapons sync across your devices and update live in other open tabs";
+const APP_VERSION = "LessFun Public Beta 1.32.83";
+const UPDATE_NOTES = "Boeing Landing is live: fly a side-view 737 approach, manage flaps and throttle, flare over the runway and feel the suspension settle as you brake";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
