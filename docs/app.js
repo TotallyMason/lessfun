@@ -11,7 +11,8 @@ const games = [
     { id: 6, name: "Funtutu Test", description: "Benchmark your GPU and CPU, then get recommended graphics settings", icon: "bolt", controls: "Press Run Test · apply the recommended settings when it finishes" },
     { id: 7, name: "Snow Rush", description: "Christmas sleigh run — collect gifts and dodge the ice", icon: "snow", controls: "WASD / arrows to fly · drag to steer · collect gifts · dodge ice" },
     { id: 8, name: "Draw & Guess", description: "Draw the word, guess your friends' drawings, and race to the top", icon: "draw", controls: "Draw with mouse / touch · type guesses in the box" },
-    { id: 9, name: "Lucky Spin", description: "Virtual-coin slot machine — pick a bet and chase the jackpot", icon: "dice", controls: "Pick a bet and spin · virtual Coins only" }
+    { id: 9, name: "Lucky Spin", description: "Virtual-coin slot machine — pick a bet and chase the jackpot", icon: "dice", controls: "Pick a bet and spin · virtual Coins only" },
+    { id: 11, name: "Bowling", description: "Ten-pin bowling with trick lanes, power throws and strikes", icon: "circle", controls: "A/D or drag to aim · hold Space or Bowl to charge · release to throw" }
 ];
 
 let currentUser = null;
@@ -1306,6 +1307,14 @@ function openGame(id) {
                     '</div>' +
                 '</div>' : '') +
 
+            (game.id === 11 ?
+                '<div class="bw-hud">' +
+                    '<div class="bw-top"><span id="bwFrame">FRAME 1/10</span><strong id="bwScore">0</strong></div>' +
+                    '<div class="bw-stats"><span id="bwRoll">ROLL 1</span><span id="bwPins">10 PINS</span><span id="bwMod">NORMAL LANE</span></div>' +
+                    '<div class="bw-power"><small>POWER</small><div class="bw-track"><i id="bwPowerFill"></i></div></div>' +
+                    '<div class="bw-msg" id="bwMsg">A/D aim · hold Space to charge</div>' +
+                    '<button type="button" class="bw-bowl" id="bwBowlBtn">Hold to Bowl</button>' +
+                '</div>' : '') +
             '<div class="game3d-crash" id="g3dCrashFlash"></div>' +
             '<div class="g3d-grain" aria-hidden="true"></div>' +
             (game.id === 1 ? '<div class="g3d-cinema" id="g3dCinema"></div>' : '') +
@@ -8195,8 +8204,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.75";
-const UPDATE_NOTES = "Changi Approach has been removed. The arcade now has Beach Racer, Tunnel Rush, Cube Stack, Dead Coast, Funtutu Test, Snow Rush, Draw and Guess, and Lucky Spin";
+const APP_VERSION = "LessFun Public Beta 1.32.76";
+const UPDATE_NOTES = "Bowling is live: aim, charge your power and throw across ten frames with strikes, spares and random trick lanes such as bumpers, oil and narrow lanes";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

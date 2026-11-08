@@ -10798,3 +10798,23 @@ body.reduce-motion *::after {
     .recent-chip { flex: 0 0 auto; }
     .game-card:hover { transform: none; }
 }
+
+/* Bowling HUD */
+.bw-hud { position: absolute; inset: 0; z-index: 6; pointer-events: none; font-family: inherit; }
+.bw-top { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; padding: 7px 16px; border-radius: 999px; background: rgba(6, 12, 20, 0.78); border: 1px solid rgba(255, 47, 208, 0.32); }
+.bw-top span { color: #ff9fe8; font-size: 9px; font-weight: 800; letter-spacing: 0.14em; }
+.bw-top strong { color: #ffe2a0; font-size: 15px; font-weight: 900; }
+.bw-stats { position: absolute; top: 70px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; }
+.bw-stats span { padding: 4px 9px; border-radius: 6px; background: rgba(4, 10, 18, 0.72); border: 1px solid rgba(95,224,255,0.16); color: rgba(220,245,255,0.62); font-size: 8px; font-weight: 800; letter-spacing: 0.08em; }
+.bw-power { position: absolute; left: 16px; bottom: 22px; width: min(260px, 42vw); display: flex; align-items: center; gap: 7px; padding: 7px 10px; border-radius: 9px; background: rgba(4, 10, 18, 0.75); border: 1px solid rgba(95,224,255,0.2); }
+.bw-power small { color: rgba(140,235,255,0.55); font-size: 7px; font-weight: 800; letter-spacing: 0.12em; }
+.bw-track { flex: 1; height: 8px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,0.1); }
+.bw-track i { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, #2fa56f, #ffd166, #ff3b3b); transition: width 0.06s linear; }
+.bw-msg { position: absolute; left: 50%; bottom: 72px; transform: translateX(-50%); color: #ffe2a0; font-size: 11px; font-weight: 700; text-shadow: 0 1px 6px #000; white-space: nowrap; }
+.bw-bowl { position: absolute; right: 18px; bottom: 20px; pointer-events: auto; min-width: 150px; min-height: 52px; border-radius: 999px; border: 1px solid rgba(255, 209, 102, 0.55); background: linear-gradient(145deg, #ffd166, #ff8a00); color: #241400; font: inherit; font-size: 13px; font-weight: 900; letter-spacing: 0.08em; cursor: pointer; }
+@media (max-width: 640px) {
+    .bw-stats { top: 62px; gap: 4px; }
+    .bw-power { bottom: 92px; width: 48vw; }
+    .bw-bowl { bottom: 16px; min-width: 120px; min-height: 46px; }
+    .bw-msg { bottom: 142px; font-size: 9px; }
+}
