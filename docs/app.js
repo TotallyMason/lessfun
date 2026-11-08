@@ -460,6 +460,47 @@ function showView(view) {
     touchPresence();
 }
 
+function updateSnowCountdown() {
+    var el = document.getElementById('snowCountdown');
+    if (!el) return;
+    var now = new Date();
+    var year = now.getFullYear();
+    var target = new Date(year, 11, 25, 0, 0, 0);
+    if (now > target) target = new Date(year + 1, 11, 25, 0, 0, 0);
+    var diff = Math.max(0, target.getTime() - now.getTime());
+    var days = Math.floor(diff / 86400000);
+    var hours = Math.floor(diff / 3600000) % 24;
+    var mins = Math.floor(diff / 60000) % 60;
+    el.textContent = 'Christmas in ' + days + 'd ' + hours + 'h ' + mins + 'm · limited event';
+}
+
+async function renderSnowLeaderboard() {
+    var host = document.getElementById('snowLeaderboardList');
+    if (!host) return;
+    var best = 0;
+    try { best = Number(localStorage.getItem('lessfun_snowrush_best')) || 0; } catch (e) {}
+    var rows = [];
+    if (supabaseClient) {
+        try {
+            var res = await supabaseClient.from('scores').select('username,score').eq('game', 'Snow Rush').order('score', { ascending: false }).limit(5);
+            if (!res.error && Array.isArray(res.data)) rows = res.data;
+        } catch (e) {}
+    }
+    if (!rows.length) {
+        host.innerHTML = '<p class="snow-empty">No scores yet. Your best: <b>' + best.toLocaleString() + '</b></p>';
+        return;
+    }
+    host.innerHTML = rows.map(function (row, index) {
+        return '<div class="snow-score-row"><span>' + (index + 1) + '</span><b>' + escapeHtml(row.username || 'Player') + '</b><strong>' + Number(row.score || 0).toLocaleString() + '</strong></div>';
+    }).join('');
+}
+
+function initSnowEvent() {
+    updateSnowCountdown();
+    setInterval(updateSnowCountdown, 60000);
+    renderSnowLeaderboard();
+}
+
 function renderGames() {
     const gameList = document.getElementById('gameList');
     if (!gameList) return;
@@ -5898,6 +5939,8 @@ const COSMETICS = [
     { id: 'theme_candy', type: 'theme', name: 'Candy Shop', cost: 1600, color: '#ff70a6', accent2: '#70d6ff' },
     { id: 'theme_noir', type: 'theme', name: 'Noir Film', cost: 2000, color: '#e5e7eb', accent2: '#6b7280' },
     { id: 'theme_cyber', type: 'theme', name: 'Cyberdeck', cost: 2400, color: '#00f5d4', accent2: '#f15bb5' },
+    { id: 'theme_christmas', type: 'theme', name: 'Christmas Event', cost: 0, color: '#2e7d32', accent2: '#c62828' },
+    { id: 'frame_snow', type: 'frame', name: 'Snow Ring', cost: 0, color: '#e8f4ff' },
 
     // Extra avatar frames
     { id: 'frame_emerald', type: 'frame', name: 'Emerald Ring', cost: 900, color: '#10b981' },
@@ -7214,6 +7257,13 @@ function handleGameOver(score, seconds) {
     if (fin) fin.textContent = score;
     if (over) over.style.display = 'flex';
 
+    if (currentGameId === 7) {
+        try {
+            var prevBest = Number(localStorage.getItem('lessfun_snowrush_best')) || 0;
+            if (score > prevBest) localStorage.setItem('lessfun_snowrush_best', String(Math.round(score)));
+        } catch (e) {}
+        renderSnowLeaderboard();
+    }
     awardXp(Math.max(10, Math.round((Number(score) || 0) / 8) + Math.round((Number(seconds) || 0) / 2)));
     checkGameAchievements(Number(score) || 0, Number(seconds) || 0);
     var trackCoins = lastRunCoins;
@@ -7893,8 +7943,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.56";
-const UPDATE_NOTES = "Tunnel Rush is more fun with collectible energy orbs, shields, combo multipliers and near-miss bonuses. Cube Stack now rewards perfect placements with combos, gold bonus blocks, particle bursts and a score HUD";
+const APP_VERSION = "LessFun Public Beta 1.32.57";
+const UPDATE_NOTES = "Snow Rush is now a full Christmas event: candy-cane boost gates, snowstorms, the Grinch boss, a gift leaderboard, a home event countdown, and Christmas theme and frame cosmetics";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -7970,6 +8020,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     applySoundSetting();
     applyUnitSetting();
     radioInit();
+    initSnowEvent();
 });
 
 document.addEventListener('visibilitychange', function () {

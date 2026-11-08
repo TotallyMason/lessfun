@@ -8086,13 +8086,78 @@
         for (var a = 0; a < 5; a++) spawnIce();
         for (var b2 = 0; b2 < 4; b2++) spawnGift();
 
+        var candyGates = [], bossProjectiles = [], boss = null;
+        var stormT = 20, stormActive = 0, candyT = 7, boostT = 0;
+        var bossActive = false, bossDefeated = false, bossT = 0, bossFireT = 0;
+
+        function spawnCandyGate() {
+            var g = new THREE.Group();
+            var white = new THREE.MeshStandardMaterial({ color: 0xf5f5f0, roughness: 0.4 });
+            var red = new THREE.MeshStandardMaterial({ color: 0xc0392b, roughness: 0.45 });
+            [-2.2, 2.2].forEach(function (side) {
+                var pole = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 6, 8), white);
+                pole.position.set(side, 3, 0); g.add(pole);
+                for (var r = 1; r <= 5; r++) {
+                    var ring = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.055, 6, 14), red);
+                    ring.rotation.x = Math.PI / 2; ring.position.set(side, r, 0); g.add(ring);
+                }
+            });
+            var bar = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.3, 0.34), red);
+            bar.position.set(0, 6, 0); g.add(bar);
+            var lights = new THREE.Mesh(new THREE.BoxGeometry(4.5, 0.08, 0.1), neon(0xffd166, 1.4));
+            lights.position.set(0, 5.82, 0.18); g.add(lights);
+            var gx = (Math.random() - 0.5) * 8;
+            g.position.set(gx, 0, -110 - Math.random() * 30);
+            scene.add(g);
+            candyGates.push({ group: g, x: gx, used: false });
+        }
+
+        function spawnGrinchBoss() {
+            var g = new THREE.Group();
+            var green = new THREE.MeshStandardMaterial({ color: 0x2e6b35, emissive: 0x0a2a10, emissiveIntensity: 0.5, roughness: 0.6 });
+            var sled = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.8, 2.2), new THREE.MeshStandardMaterial({ color: 0x4a1a1a, metalness: 0.4, roughness: 0.4 }));
+            sled.position.y = 1; g.add(sled);
+            var body = new THREE.Mesh(new THREE.SphereGeometry(1.0, 12, 10), green);
+            body.scale.set(1, 1.15, 0.85); body.position.set(0, 2.1, 0); g.add(body);
+            var head = new THREE.Mesh(new THREE.SphereGeometry(0.6, 12, 10), green);
+            head.position.set(0, 3.2, -0.2); g.add(head);
+            var hat = new THREE.Mesh(new THREE.ConeGeometry(0.55, 1.1, 8), new THREE.MeshStandardMaterial({ color: 0xc0392b }));
+            hat.position.set(0, 3.9, -0.2); g.add(hat);
+            var sack = new THREE.Mesh(new THREE.SphereGeometry(1.0, 10, 8), new THREE.MeshStandardMaterial({ color: 0x8b1e2d }));
+            sack.position.set(-1.2, 1.8, 0.4); g.add(sack);
+            var eyeMat = new THREE.MeshBasicMaterial({ color: 0xffe066 });
+            [-0.24, 0.24].forEach(function (ex) {
+                var eye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), eyeMat);
+                eye.position.set(ex, 3.25, -0.75); g.add(eye);
+            });
+            g.position.set(0, 0, -60);
+            g.userData.baseX = 0;
+            scene.add(g);
+            boss = g;
+            bossActive = true;
+            bossT = 12;
+            bossFireT = 0.8;
+            tone(120, 0.5, 'sawtooth', 0.1, 50);
+            tone(180, 0.4, 'square', 0.06, 90);
+        }
+
         var elapsed = 0, speed = 24, iceT = 0, giftT = 0, score = 0, combo = 1, comboT = 0;
 
         function update(dt) {
             elapsed += dt;
-            speed = Math.min(70, 24 + elapsed * 1.0);
+            var baseSpeed = Math.min(70, 24 + elapsed * 1.0);
+            speed = baseSpeed * (boostT > 0 ? 1.32 : 1) * (stormActive > 0 ? 1.08 : 1);
             score += dt * 12 * combo;
             if (comboT > 0) { comboT -= dt; if (comboT <= 0) combo = 1; }
+            if (boostT > 0) boostT = Math.max(0, boostT - dt);
+            if (stormActive > 0) stormActive = Math.max(0, stormActive - dt);
+            stormT -= dt;
+            if (stormT <= 0) { stormT = 24 + Math.random() * 6; stormActive = 7; tone(220, 0.25, 'triangle', 0.05, 120); }
+            scene.fog.density = stormActive > 0 ? 0.024 : 0.014;
+            snow.material.size = stormActive > 0 ? 0.42 : 0.22;
+            candyT -= dt;
+            if (candyT <= 0) { candyT = 9 + Math.random() * 4; spawnCandyGate(); }
+            if (elapsed > 42 && !bossActive && !bossDefeated) spawnGrinchBoss();
 
             var tx = sleigh.position.x, ty = sleigh.position.y;
             if (input.left) tx -= dt * 30;
@@ -8155,6 +8220,63 @@
                     removeFrom(gifts, g2);
                 }
             }
+            for (var cg = candyGates.length - 1; cg >= 0; cg--) {
+                var gate = candyGates[cg];
+                gate.group.position.z += speed * dt;
+                if (gate.group.position.z > 14) { scene.remove(gate.group); candyGates.splice(cg, 1); continue; }
+                if (!gate.used && Math.abs(gate.group.position.z) < 2.5 && Math.abs(sleigh.position.x - gate.x) < 2.2) {
+                    gate.used = true;
+                    boostT = 2.6;
+                    score += 250 * combo;
+                    combo = Math.min(5, combo + 0.5); comboT = 4;
+                    blastAt(sleigh.position.x, sleigh.position.y, -2, 0xffd166);
+                    tone(880, 0.14, 'triangle', 0.06, 1320);
+                }
+            }
+
+            if (bossActive && boss) {
+                bossT -= dt;
+                boss.position.x += (sleigh.position.x * 0.7 - boss.position.x) * Math.min(1, dt * 1.8);
+                boss.position.y = 2.5 + Math.sin(elapsed * 2) * 0.4;
+                boss.rotation.z = Math.sin(elapsed * 2.4) * 0.08;
+                bossFireT -= dt;
+                if (bossFireT <= 0) {
+                    bossFireT = 1.1;
+                    var proj = new THREE.Mesh(new THREE.IcosahedronGeometry(0.34, 0), iceMat);
+                    proj.position.copy(boss.position);
+                    proj.position.y += 3.2;
+                    scene.add(proj);
+                    var dx = sleigh.position.x - proj.position.x;
+                    var dy = sleigh.position.y - proj.position.y;
+                    var dz = 4 - proj.position.z;
+                    var len = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+                    bossProjectiles.push({ mesh: proj, vx: dx / len * 30, vy: dy / len * 30, vz: dz / len * 30 });
+                    tone(140, 0.1, 'square', 0.04, 90);
+                }
+                if (bossT <= 0) {
+                    scene.remove(boss);
+                    boss = null;
+                    bossActive = false;
+                    bossDefeated = true;
+                    score += 2000;
+                    combo = Math.min(5, combo + 1); comboT = 4;
+                    tone(660, 0.4, 'triangle', 0.08, 990);
+                }
+            }
+            for (var bp2 = bossProjectiles.length - 1; bp2 >= 0; bp2--) {
+                var pr = bossProjectiles[bp2];
+                pr.mesh.position.x += pr.vx * dt;
+                pr.mesh.position.y += pr.vy * dt;
+                pr.mesh.position.z += pr.vz * dt;
+                pr.mesh.rotation.x += dt * 4;
+                if (pr.mesh.position.z > 15 || pr.mesh.position.y < -8) { scene.remove(pr.mesh); bossProjectiles.splice(bp2, 1); continue; }
+                if (pr.mesh.position.distanceTo(sleigh.position) < 1.2) {
+                    blastAt(pr.mesh.position.x, pr.mesh.position.y, pr.mesh.position.z, 0x8fdcff);
+                    endGame(Math.round(score));
+                    return;
+                }
+            }
+
             for (var s3 = sparks.length - 1; s3 >= 0; s3--) {
                 var sp2 = sparks[s3];
                 sp2.life -= dt;
@@ -8167,7 +8289,11 @@
             camera.position.x += (sleigh.position.x * 0.55 - camera.position.x) * Math.min(1, dt * 4);
             camera.position.y += (sleigh.position.y * 0.4 + 3.4 - camera.position.y) * Math.min(1, dt * 4);
             camera.lookAt(sleigh.position.x * 0.45, sleigh.position.y * 0.5 + 1.2, -14);
-            setHud(Math.round(score), 'SNOW RUSH · ' + Math.round(score) + ' PTS · x' + combo.toFixed(1));
+            var snowStatus = 'SNOW RUSH · ' + Math.round(score) + ' PTS · x' + combo.toFixed(1);
+            if (boostT > 0) snowStatus += ' · BOOST';
+            if (stormActive > 0) snowStatus += ' · SNOWSTORM';
+            if (bossActive) snowStatus += ' · GRINCH ' + Math.ceil(bossT) + 's';
+            setHud(Math.round(score), snowStatus);
         }
 
         return { over: false, update: update, getScore: function () { return score; } };

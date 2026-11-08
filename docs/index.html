@@ -10,7 +10,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261240">
+    <link rel="stylesheet" href="style.css?v=20261241">
 </head>
 <body>
     <div id="updateShutdown" class="update-shutdown" style="display:none;">
@@ -122,6 +122,19 @@
                 <p class="subtitle">All your favorite mini games</p>
             </header>
             <div id="gameList" class="game-grid"></div>
+            <section class="snow-event" id="snowEvent">
+                <div class="snow-event-copy">
+                    <span>CHRISTMAS EVENT</span>
+                    <h2>❄ Snow Rush</h2>
+                    <p>Fly Santa's sleigh, collect gifts, dodge ice, survive the Grinch and the snowstorms.</p>
+                    <p class="snow-countdown" id="snowCountdown">Christmas countdown loading…</p>
+                    <button type="button" class="game-btn-3d" onclick="openGame(7)">Play Snow Rush</button>
+                </div>
+                <div class="snow-leaderboard">
+                    <h3>Gift leaderboard</h3>
+                    <div id="snowLeaderboardList"><p>Loading…</p></div>
+                </div>
+            </section>
         </div>
     </div>
 
@@ -916,7 +929,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Public Beta 1.32.56</p>
+                            <p>LessFun Public Beta 1.32.57</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -974,6 +987,7 @@
                             <li><strong>1.32.53</strong> — Dead Coast on-foot ammo, reload, punches and paid station supplies; radio can move to any corner; shorter drifts and quicker dodging; F1 open cockpit with halo rings; new Christmas game Snow Rush.</li>
                             <li><strong>1.32.55</strong> — Star Dodger removed from the game list.</li>
                             <li><strong>1.32.56</strong> — Tunnel Rush gets energy orbs, shields, combos and near-miss bonuses. Cube Stack gets perfect-placement bonuses, gold blocks, combos, particle bursts and a score HUD.</li>
+                            <li><strong>1.32.57</strong> — Christmas event: Snow Rush gets candy-cane boost gates, snowstorms, the Grinch boss, a gift leaderboard, a home event banner with countdown, and Christmas cosmetics.</li>
                         </ul>
                     </div>
                     <div class="info-card">
@@ -1278,7 +1292,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
-    <script src="games3d.js?v=20261240"></script>
-    <script src="app.js?v=20261240"></script>
+    <script src="games3d.js?v=20261241"></script>
+    <script src="app.js?v=20261241"></script>
 </body>
 </html>
