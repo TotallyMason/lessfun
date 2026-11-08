@@ -7471,7 +7471,7 @@
                 }
             }
             var turn = (input.left ? 1 : 0) - (input.right ? 1 : 0);
-            if (input.pointerActive && !dcPointerLocked) footYaw = -input.pointerX * 1.45;
+            if (input.pointerActive && document.pointerLockElement !== dcCanvas) footYaw = -input.pointerX * 1.45;
             else footYaw += turn * 2.2 * dt;
             var fwd = (input.up ? 1 : 0) - (input.down ? 1 : 0);
             var fx = -Math.sin(footYaw), fz = -Math.cos(footYaw);
@@ -7647,6 +7647,9 @@
                 if (document.pointerLockElement !== dcCanvas && dcCanvas.requestPointerLock) {
                     try { dcCanvas.requestPointerLock(); } catch (e) {}
                 }
+                input.pointerActive = false;
+                input.pointerX = 0;
+                input.pointerY = 0;
             };
             dcCanvas.addEventListener('click', dcLockHandler);
             addCleanup(function () { dcCanvas.removeEventListener('click', dcLockHandler); });
@@ -7654,9 +7657,11 @@
             document.addEventListener('pointerlockchange', dcLockChange);
             addCleanup(function () { document.removeEventListener('pointerlockchange', dcLockChange); });
             var dcLockMove = function (e) {
-                if (!dcPointerLocked || !onFoot) return;
-                footYaw -= (e.movementX || 0) * 0.0022;
-                footPitch = Math.max(-0.55, Math.min(0.55, footPitch - (e.movementY || 0) * 0.002));
+                if (document.pointerLockElement !== dcCanvas || !onFoot) return;
+                var dmx = Math.max(-55, Math.min(55, e.movementX || 0));
+                var dmy = Math.max(-45, Math.min(45, e.movementY || 0));
+                footYaw -= dmx * 0.001;
+                footPitch = Math.max(-0.55, Math.min(0.55, footPitch - dmy * 0.001));
             };
             document.addEventListener('mousemove', dcLockMove);
             addCleanup(function () { document.removeEventListener('mousemove', dcLockMove); });
@@ -8508,6 +8513,9 @@
                 if (document.pointerLockElement !== pointerCanvas && pointerCanvas.requestPointerLock) {
                     try { pointerCanvas.requestPointerLock(); } catch (e) {}
                 }
+                input.pointerActive = false;
+                input.pointerX = 0;
+                input.pointerY = 0;
             };
             pointerCanvas.addEventListener('click', lockHandler);
             addCleanup(function () { pointerCanvas.removeEventListener('click', lockHandler); });
@@ -8515,9 +8523,11 @@
             document.addEventListener('pointerlockchange', lockChange);
             addCleanup(function () { document.removeEventListener('pointerlockchange', lockChange); });
             var lockMove = function (e) {
-                if (!pointerLocked) return;
-                yaw -= (e.movementX || 0) * 0.0022;
-                pitch = Math.max(-0.65, Math.min(0.65, pitch - (e.movementY || 0) * 0.0022));
+                if (document.pointerLockElement !== pointerCanvas) return;
+                var mx = Math.max(-55, Math.min(55, e.movementX || 0));
+                var my = Math.max(-45, Math.min(45, e.movementY || 0));
+                yaw -= mx * 0.001;
+                pitch = Math.max(-0.6, Math.min(0.6, pitch - my * 0.001));
             };
             document.addEventListener('mousemove', lockMove);
             addCleanup(function () { document.removeEventListener('mousemove', lockMove); });
@@ -8630,7 +8640,7 @@
 
             var move = (input.up ? 1 : 0) - (input.down ? 1 : 0);
             var strafe = (input.right ? 1 : 0) - (input.left ? 1 : 0);
-            if (input.pointerActive && !pointerLocked) {
+            if (input.pointerActive && document.pointerLockElement !== pointerCanvas) {
                 yaw = -input.pointerX * 1.45;
                 pitch = -input.pointerY * 0.7;
             }

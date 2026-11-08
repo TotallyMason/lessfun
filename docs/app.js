@@ -7959,8 +7959,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.59";
-const UPDATE_NOTES = "Lorong 7 and Dead Coast on-foot now support mouse pointer lock: click the game to capture the mouse, look with mouse movement, and press Esc to release. The desktop app already grants pointer-lock permission";
+const APP_VERSION = "LessFun Public Beta 1.32.60";
+const UPDATE_NOTES = "Mouse pointer lock no longer spins wildly: Lorong 7 and Dead Coast now use clamped, lower-sensitivity mouse movement for looking around, with drag-to-look still available when unlocked";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
