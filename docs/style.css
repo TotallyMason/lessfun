@@ -11312,3 +11312,168 @@ body {
         radial-gradient(80% 90% at 100% 100%, rgba(120, 175, 255, 0.12) 0%, transparent 56%),
         linear-gradient(155deg, rgba(60, 66, 82, 0.56) 0%, rgba(18, 20, 28, 0.68) 100%);
 }
+
+/* ============================================================
+   iOS 27 motion language — fluid, light, spring-smooth
+   ============================================================ */
+:root {
+    --ios-spring: cubic-bezier(0.22, 1, 0.36, 1);
+    --ios-spring-soft: cubic-bezier(0.16, 1, 0.3, 1);
+    --ios-quick: cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+
+/* Views materialize from a slight blur and lift */
+.view {
+    animation: iosViewIn 0.55s var(--ios-spring) both !important;
+}
+@keyframes iosViewIn {
+    from { opacity: 0; transform: translateY(12px) scale(0.994); filter: blur(9px); }
+    to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+/* Cards rise with a soft spring instead of a hard fade */
+.game-card {
+    animation: iosCardIn 0.62s var(--ios-spring) both;
+    transition:
+        transform 0.55s var(--ios-spring),
+        border-color 0.4s ease,
+        box-shadow 0.5s ease;
+}
+.game-card:nth-child(1) { animation-delay: 0.02s; }
+.game-card:nth-child(2) { animation-delay: 0.06s; }
+.game-card:nth-child(3) { animation-delay: 0.1s; }
+.game-card:nth-child(4) { animation-delay: 0.14s; }
+.game-card:nth-child(5) { animation-delay: 0.18s; }
+.game-card:nth-child(6) { animation-delay: 0.22s; }
+.game-card:nth-child(7) { animation-delay: 0.26s; }
+.game-card:nth-child(8) { animation-delay: 0.3s; }
+.game-card:nth-child(9) { animation-delay: 0.34s; }
+@keyframes iosCardIn {
+    from { opacity: 0; transform: translateY(18px) scale(0.985); filter: blur(6px); }
+    to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+.game-card:hover { transform: translateY(-5px) scale(1.006); }
+.game-card:active { transform: translateY(-1px) scale(0.992); transition-duration: 0.18s; }
+
+/* Specular highlight follows the pointer across the glass */
+.game-card::before,
+.store-card::before,
+.support-card::before,
+.community-post::before,
+.community-post-form::before,
+.settings-group::before,
+.info-card::before,
+.daily-gift-banner::before,
+.nav-btn::before {
+    background:
+        radial-gradient(190px circle at var(--mx, 50%) var(--my, 0%), rgba(255, 255, 255, 0.26), transparent 64%),
+        linear-gradient(115deg, rgba(255,255,255,0.26) 0%, rgba(255,255,255,0.04) 26%, transparent 50%, rgba(170,205,255,0.08) 76%, rgba(255,255,255,0.18) 100%);
+    opacity: 0.5;
+    transition: opacity 0.45s ease;
+}
+.game-card:hover::before,
+.store-card:hover::before,
+.support-card:hover::before,
+.community-post:hover::before,
+.daily-gift-banner:hover::before {
+    opacity: 0.9;
+}
+
+/* Navigation pills flex and settle */
+.nav-btn {
+    position: relative;
+    transition:
+        color 0.35s ease,
+        background 0.45s var(--ios-spring),
+        box-shadow 0.45s var(--ios-spring),
+        transform 0.45s var(--ios-spring);
+}
+.nav-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+}
+.nav-btn:hover { transform: translateY(-1px); }
+.nav-btn:active { transform: scale(0.955); transition-duration: 0.16s; }
+.nav-btn.active { transform: none; }
+
+/* Buttons compress on touch, rebound softly */
+.game-btn-3d,
+.portal-btn,
+.daily-gift-btn,
+.daily-gift-claim,
+.modal-close,
+.game3d-mp-primary,
+.game3d-mp-secondary,
+.cosmetic-btn {
+    transition:
+        transform 0.42s var(--ios-spring),
+        box-shadow 0.42s ease,
+        background 0.4s ease,
+        border-color 0.35s ease,
+        opacity 0.3s ease;
+}
+.game-btn-3d:active,
+.portal-btn:active,
+.daily-gift-btn:active,
+.daily-gift-claim:active,
+.modal-close:active,
+.game3d-mp-primary:active,
+.cosmetic-btn:active {
+    transform: scale(0.955);
+    transition-duration: 0.14s;
+}
+
+/* Sheets slide up and de-blur like iOS */
+.modal:not(#gameModal) .modal-content {
+    animation: iosSheetIn 0.5s var(--ios-spring) both;
+}
+@keyframes iosSheetIn {
+    from { opacity: 0; transform: translateY(22px) scale(0.968); filter: blur(10px); }
+    to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+.modal:not(#gameModal) .modal-backdrop {
+    animation: iosBackdropIn 0.35s ease both;
+}
+@keyframes iosBackdropIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* Daily gift tiles cascade in */
+.daily-gift-tile {
+    animation: iosTileIn 0.5s var(--ios-spring) both;
+}
+.daily-gift-tile:nth-child(1) { animation-delay: 0.02s; }
+.daily-gift-tile:nth-child(2) { animation-delay: 0.05s; }
+.daily-gift-tile:nth-child(3) { animation-delay: 0.08s; }
+.daily-gift-tile:nth-child(4) { animation-delay: 0.11s; }
+.daily-gift-tile:nth-child(5) { animation-delay: 0.14s; }
+.daily-gift-tile:nth-child(6) { animation-delay: 0.17s; }
+.daily-gift-tile:nth-child(7) { animation-delay: 0.2s; }
+@keyframes iosTileIn {
+    from { opacity: 0; transform: translateY(10px) scale(0.92); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Menu / toast spring */
+.nav-btn,
+.top-notification,
+.global-toast {
+    will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .view, .game-card, .daily-gift-tile,
+    .modal:not(#gameModal) .modal-content,
+    .modal:not(#gameModal) .modal-backdrop {
+        animation: none !important;
+    }
+    .game-card, .nav-btn, .game-btn-3d, .portal-btn, .daily-gift-btn, .daily-gift-claim {
+        transition: none !important;
+    }
+}
+.daily-gift-banner { position: relative; }

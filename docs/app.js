@@ -8448,8 +8448,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.91";
-const UPDATE_NOTES = "The site has a new Apple-style liquid-glass look: floating glass navigation, frosted cards, ambient light, refined type and clear blue glass actions";
+const APP_VERSION = "LessFun Public Beta 1.32.92";
+const UPDATE_NOTES = "New iOS 27-style motion is live: springy view transitions, blur-to-clear cards, pointer-tracked glass highlights, tactile button presses and fluid modal sheets";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -8507,6 +8507,19 @@ function checkForUpdates() {
         localStorage.setItem('lessfun_version', APP_VERSION);
     }
 }
+
+const GLASS_POINTER_SELECTOR = '.game-card,.store-card,.support-card,.daily-gift-banner,.portal-btn,.settings-group,.info-card,.community-post,.community-post-form,.nav-btn,.game-btn-3d';
+
+document.addEventListener('pointermove', function (event) {
+    var target = event.target;
+    if (!target || !target.closest) return;
+    var el = target.closest(GLASS_POINTER_SELECTOR);
+    if (!el) return;
+    var rect = el.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    el.style.setProperty('--mx', (((event.clientX - rect.left) / rect.width) * 100).toFixed(2) + '%');
+    el.style.setProperty('--my', (((event.clientY - rect.top) / rect.height) * 100).toFixed(2) + '%');
+}, { passive: true });
 
 document.addEventListener('DOMContentLoaded', ()=>{
     loadSiteSettings();
