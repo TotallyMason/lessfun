@@ -1261,8 +1261,9 @@ function openGame(id) {
                 '<div class="lorong-hud">' +
                     '<div class="lorong-objective" id="lorongObjective">Find 3 testimonies · 0/3</div>' +
                     '<div class="lorong-prompt" id="lorongPrompt">WASD move · drag look · E interact · F phone · R radio</div>' +
-                    '<div class="lorong-stats"><span id="lorongBattery">PHONE 100% · F</span><span id="lorongRadio">RADIO OFF · R</span></div>' +
+                    '<div class="lorong-stats"><span id="lorongStamina">STAMINA 100% · SHIFT</span><span id="lorongSanity">SANITY 100%</span><span id="lorongNotes">NOTES 0/3</span><span id="lorongKey">KEY —</span><span id="lorongBattery">PHONE 100% · F</span><span id="lorongRadio">RADIO OFF · R</span></div>' +
                     '<button type="button" class="lorong-lock" id="lorongLockBtn" onclick="Games3D.lockPointer()">🔒 Click to lock mouse</button>' +
+                    '<div class="lorong-fear" id="lorongFear"></div>' +
                 '</div>' +
                 '<div class="lorong-dialog" id="lorongDialog" style="display:none;">' +
                     '<div class="lorong-dialog-card"><p id="lorongDialogText"></p><button type="button" onclick="closeLorongDialog()">Close</button></div>' +
@@ -7960,8 +7961,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.62";
-const UPDATE_NOTES = "Lorong 7 has a clear Click to lock mouse button, plus a much darker corridor, vignette, rain and drone ambience, thunder, whispers, footsteps and a heartbeat when the shadow gets close";
+const APP_VERSION = "LessFun Public Beta 1.32.63";
+const UPDATE_NOTES = "Lorong 7 now has sprint and stamina, sanity, hiding cupboards, three notes, a spare key, a breaker puzzle, a shadow that patrols and hears you, and escape or true endings depending on what you found";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

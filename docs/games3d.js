@@ -8533,6 +8533,49 @@
         liftSign.position.set(0, 2.72, -30.68); lift.add(liftSign);
         scene.add(lift);
 
+        // Notes, key, hiding cupboards and breaker box.
+        var noteMat = new THREE.MeshBasicMaterial({ color: 0xe8dfc8 });
+        var noteTexts = [
+            'She cries at 3am. The neighbours stopped complaining years ago.',
+            'The spare key to 12-07 is under the pot by 12-11. Do not use the lift alone.',
+            'Three people heard her. Three people are still in this block.'
+        ];
+        var notePositions = [{ z: 6, side: -1 }, { z: -10, side: 1 }, { z: 24, side: -1 }];
+        notePositions.forEach(function (np, ni) {
+            var paper = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.24), noteMat);
+            paper.rotation.x = -Math.PI / 2;
+            paper.position.set(np.side * 1.35, 0.012, np.z);
+            scene.add(paper);
+            var glow = new THREE.PointLight(0xffe6b0, 0.18, 3);
+            glow.position.set(np.side * 1.35, 0.4, np.z); scene.add(glow);
+            notes.push({ mesh: paper, z: np.z, side: np.side, text: noteTexts[ni], taken: false });
+        });
+        var keyMesh = new THREE.Group();
+        var keyMat = new THREE.MeshStandardMaterial({ color: 0xffd166, metalness: 0.85, roughness: 0.25 });
+        var kb = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.04, 0.1), keyMat); keyMesh.add(kb);
+        var kr = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.025, 6, 12), keyMat); kr.position.x = -0.18; keyMesh.add(kr);
+        keyMesh.position.set(1.35, 0.03, -22);
+        scene.add(keyMesh);
+        var keyGlow = new THREE.PointLight(0xffd166, 0.22, 3); keyGlow.position.set(1.35, 0.5, -22); scene.add(keyGlow);
+        keyItem = { mesh: keyMesh, z: -22, side: 1 };
+        var cupboardMat = std(0x4a3b2e, { roughness: 0.85 });
+        [{ z: -6, side: 1 }, { z: 14, side: -1 }].forEach(function (hp) {
+            var cup = box(0.6, 2.2, 1.3, cupboardMat);
+            cup.position.set(hp.side * 1.95, 1.1, hp.z);
+            scene.add(cup);
+            var cupDoor = box(0.06, 2.0, 1.2, std(0x5c4a38));
+            cupDoor.position.set(hp.side * 1.62, 1.1, hp.z);
+            scene.add(cupDoor);
+            hideSpots.push({ z: hp.z, side: hp.side });
+        });
+        var breakerGroup = new THREE.Group();
+        var breakerPanel = box(0.08, 0.8, 0.55, std(0x5f6a70, { metalness: 0.5, roughness: 0.4 }));
+        breakerPanel.position.set(-2.1, 1.5, -12); breakerGroup.add(breakerPanel);
+        var breakerSwitch = box(0.06, 0.18, 0.1, new THREE.MeshBasicMaterial({ color: 0xff3b3b }));
+        breakerSwitch.position.set(-2.04, 1.5, -12); breakerGroup.add(breakerSwitch);
+        scene.add(breakerGroup);
+        breakerBox = { z: -12, side: -1, switchMesh: breakerSwitch };
+
         // Phone light.
         var phoneLight = new THREE.PointLight(0xfff2cc, 0, 12, 1.8);
         phoneLight.position.set(0, -0.1, 0);
@@ -8556,6 +8599,9 @@
         var truthCount = 0, finalHeard = false, shadowActive = false, shadowSpeed = 2.8;
         var battery = 100, phoneOn = false, radioOn = false, dialogOpen = false, ended = false;
         var score = 0, elapsed = 0, hudT = 0, heartbeatT = 0;
+        var stamina = 100, sprinting = false, sanity = 100;
+        var hidden = false, hideSpot = null, shadowState = 'patrol', shadowSearchT = 0, patrolTarget = 0;
+        var notesFound = 0, hasKey = false, breakerOn = 0, pendingEnd = 0, notes = [], keyItem = null, hideSpots = [], breakerBox = null;
         camera.position.set(px, 1.6, pz);
 
         var pointerCanvas = renderer && renderer.domElement;
@@ -8627,12 +8673,76 @@
             return null;
         }
 
+        function nearNote() {
+            for (var i = 0; i < notes.length; i++) {
+                var n = notes[i];
+                if (!n.taken && Math.abs(pz - n.z) < 1.2 && Math.abs(px - n.side * 1.35) < 1.1) return n;
+            }
+            return null;
+        }
+        function nearKey() {
+            return (!hasKey && Math.abs(pz - keyItem.z) < 1.2 && Math.abs(px - keyItem.side * 1.35) < 1.1) ? keyItem : null;
+        }
+        function nearHide() {
+            for (var i = 0; i < hideSpots.length; i++) {
+                var hp = hideSpots[i];
+                if (Math.abs(pz - hp.z) < 1.4 && Math.abs(px - hp.side * 1.55) < 1.1) return hp;
+            }
+            return null;
+        }
+        function nearBreaker() {
+            return (breakerBox && Math.abs(pz - breakerBox.z) < 1.4 && Math.abs(px + 1.8) < 1.0) ? breakerBox : null;
+        }
+
         function interact() {
             if (dialogOpen) { window.__lorongDialogClose = true; return; }
+            if (hidden) {
+                hidden = false;
+                tone(180, 0.1, 'square', 0.04, 120);
+                return;
+            }
+            if (nearHide()) {
+                hideSpot = nearHide();
+                hidden = true;
+                px = hideSpot.side * 1.55;
+                pz = hideSpot.z;
+                yaw = hideSpot.side > 0 ? Math.PI / 2 : -Math.PI / 2;
+                pitch = 0;
+                showDialog('You slip inside the cupboard. The door clicks shut. You can still hear the corridor.');
+                return;
+            }
+            if (nearNote()) {
+                var n = nearNote();
+                n.taken = true;
+                n.mesh.visible = false;
+                notesFound++;
+                score += 80;
+                showDialog(n.text);
+                tone(420, 0.12, 'triangle', 0.04, 300);
+                return;
+            }
+            if (nearKey()) {
+                hasKey = true;
+                keyItem.mesh.visible = false;
+                score += 120;
+                showDialog('A spare key. The tag reads 12-07.');
+                tone(760, 0.16, 'triangle', 0.05, 1100);
+                return;
+            }
+            if (nearBreaker()) {
+                breakerOn = 30;
+                shadow.lastKnown = { x: px, z: pz };
+                if (shadowActive) shadowState = 'search';
+                showDialog('The breaker slams back on. Every light in the corridor wakes up — and something heard you.');
+                tone(90, 0.5, 'sawtooth', 0.08, 40);
+                return;
+            }
             if (finalHeard && Math.abs(pz + 29) < 3.2 && Math.abs(px) < 1.8) {
-                ended = true;
-                score += 1500;
-                endGame(Math.round(score));
+                var trueEnding = notesFound >= 3;
+                pendingEnd = Math.round(score + (trueEnding ? 2600 : 1200) + notesFound * 120);
+                showDialog(trueEnding
+                    ? 'TRUE ENDING\n\nYou step into the lift with all three testimonies and the spare key. The doors close. Somewhere behind you, the crying finally stops — but the lift stops at a floor that is not yours.'
+                    : 'ESCAPE ENDING\n\nYou escape, but you leave the corridor with only part of the truth. The crying follows you home.');
                 return;
             }
             if (nearDoor()) {
@@ -8647,17 +8757,30 @@
                         redDoorLight.intensity = 1.6;
                         tone(180, 0.4, 'sawtooth', 0.06, 90);
                     }
+                    if (!shadowActive && truthCount >= 1) {
+                        shadowActive = true;
+                        shadow.visible = true;
+                        shadow.position.set(0, 0, 26);
+                        patrolTarget = 10;
+                        tone(70, 0.8, 'sawtooth', 0.08, 35);
+                    }
                     return;
                 }
                 if (cryingDoor && d === cryingDoor) {
-                    if (truthCount >= 3 && !finalHeard) {
+                    if (truthCount >= 3 && !hasKey) {
+                        showDialog('12-07 is locked. There is a spare key somewhere in the corridor.');
+                        return;
+                    }
+                    if (truthCount >= 3 && hasKey && !finalHeard) {
                         finalHeard = true;
                         score += 500;
-                        showDialog('The door opens by itself. A voice says: "You took too long."');
+                        showDialog('The key turns. The door opens by itself. A voice says: "You took too long."');
                         shadow.visible = true;
-                        shadow.position.set(px, 0, pz + 14);
+                        shadow.position.set(px, 0, pz + 16);
                         shadowActive = true;
-                        flickerLights.forEach(function (fl) { fl.light.intensity = 0.15; });
+                        shadowState = 'chase';
+                        shadowSpeed = 3.9;
+                        flickerLights.forEach(function (fl) { fl.light.intensity = 0.12; });
                         tone(70, 0.9, 'sawtooth', 0.1, 35);
                         return;
                     }
@@ -8670,7 +8793,7 @@
                 return;
             }
             if (Math.abs(pz + 29) < 3.2 && Math.abs(px) < 1.8) {
-                showDialog(finalHeard ? 'The lift doors open. Get in.' : 'The lift is dead. The button does nothing.');
+                showDialog('The lift is dead. The button does nothing.');
                 tone(180, 0.15, 'square', 0.04, 120);
             }
         }
@@ -8689,6 +8812,7 @@
                 dialogOpen = false;
                 var el = document.getElementById('lorongDialog');
                 if (el) el.style.display = 'none';
+                if (pendingEnd) { ended = true; endGame(pendingEnd); return; }
             }
             if (input.interact) { input.interact = false; interact(); }
             if (input.fsdToggle) {
@@ -8710,69 +8834,134 @@
 
             var move = (input.up ? 1 : 0) - (input.down ? 1 : 0);
             var strafe = (input.right ? 1 : 0) - (input.left ? 1 : 0);
-            if (input.pointerActive && document.pointerLockElement !== pointerCanvas) {
-                yaw = -input.pointerX * 1.45;
-                pitch = -input.pointerY * 0.7;
+            if (hidden) {
+                var hs = hideSpot;
+                px = hs.side * 1.55;
+                pz = hs.z;
+                yaw = hs.side > 0 ? Math.PI / 2 : -Math.PI / 2;
+                pitch = 0;
+                stamina = Math.min(100, stamina + 20 * dt);
+                sanity = Math.min(100, sanity + 0.9 * dt);
+            } else {
+                if (input.pointerActive && document.pointerLockElement !== pointerCanvas) {
+                    yaw = -input.pointerX * 1.45;
+                    pitch = -input.pointerY * 0.7;
+                }
+                sprinting = !!(input.nitro && stamina > 0);
+                var speed = sprinting ? 5.7 : 3.2;
+                if (sprinting) stamina = Math.max(0, stamina - 24 * dt);
+                else stamina = Math.min(100, stamina + 14 * dt);
+                var fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+                var rx = Math.cos(yaw), rz = -Math.sin(yaw);
+                var moving = (move !== 0 || strafe !== 0);
+                px += (fx * move + rx * strafe) * speed * dt;
+                pz += (fz * move + rz * strafe) * speed * dt;
+                if (moving && ambienceStarted) {
+                    stepT -= dt;
+                    if (stepT <= 0) { stepT = sprinting ? 0.32 : 0.48; tone(62, 0.08, 'sine', 0.035, 34); }
+                }
+                px = Math.max(-1.8, Math.min(1.8, px));
+                pz = Math.max(-29.5, Math.min(29.5, pz));
             }
-            var speed = 3.6;
-            var fx = -Math.sin(yaw), fz = -Math.cos(yaw);
-            var rx = Math.cos(yaw), rz = -Math.sin(yaw);
-            var moving = (move !== 0 || strafe !== 0);
-            px += (fx * move + rx * strafe) * speed * dt;
-            pz += (fz * move + rz * strafe) * speed * dt;
-            if (moving && ambienceStarted) {
-                stepT -= dt;
-                if (stepT <= 0) { stepT = 0.46; tone(62, 0.08, 'sine', 0.035, 34); }
-            }
-            px = Math.max(-1.8, Math.min(1.8, px));
-            pz = Math.max(-29.5, Math.min(29.5, pz));
 
-            // Phone battery.
+            // Phone battery and breaker.
             if (phoneOn) {
                 battery = Math.max(0, battery - 2.1 * dt);
                 if (battery <= 0) { phoneOn = false; phoneLight.intensity = 0; }
             }
             phoneLight.intensity = phoneOn ? (1.25 + Math.sin(elapsed * 16) * 0.12) : 0;
+            if (breakerOn > 0) breakerOn = Math.max(0, breakerOn - dt);
+            if (breakerBox && breakerBox.switchMesh) breakerBox.switchMesh.material.color.setHex(breakerOn > 0 ? 0x54ff9f : 0xff3b3b);
+
+            // Sanity.
+            var shadowDistNow = shadowActive ? Math.sqrt((px - shadow.position.x) * (px - shadow.position.x) + (pz - shadow.position.z) * (pz - shadow.position.z)) : 99;
+            var inLight = phoneOn || breakerOn > 0;
+            if (!hidden) {
+                sanity += (inLight ? 0.55 : -1.15) * dt;
+                if (shadowDistNow < 11) sanity -= (1 - shadowDistNow / 11) * 3.6 * dt;
+            }
+            sanity = Math.max(0, Math.min(100, sanity));
 
             // Flicker.
             for (var i = 0; i < flickerLights.length; i++) {
                 var fl = flickerLights[i];
                 var flick = 0.75 + Math.sin(elapsed * 7 + fl.phase) * 0.06;
                 if (Math.sin(elapsed * 13 + fl.phase * 2) > 0.94) flick *= 0.15;
-                fl.light.intensity = shadowActive ? 0.12 : flick;
-                fl.mesh.material.color.setHex(shadowActive ? 0x5a2020 : 0xfff0c8);
+                fl.light.intensity = breakerOn > 0 ? 0.92 : (shadowActive ? 0.12 : flick);
+                fl.mesh.material.color.setHex(breakerOn > 0 ? 0xfff4d0 : (shadowActive ? 0x5a2020 : 0xfff0c8));
             }
 
-            // Shadow chase.
+            // Shadow AI: patrol, hear, chase, search, hide.
+            if (!shadowActive && (truthCount >= 1 || elapsed > 25)) {
+                shadowActive = true;
+                shadow.visible = true;
+                shadow.position.set(0, 0, 26);
+                shadow.lastKnown = { x: 0, z: 20 };
+                patrolTarget = 12;
+            }
             if (shadowActive && !ended) {
                 var sx = shadow.position.x, sz = shadow.position.z;
                 var dx = px - sx, dz = pz - sz;
                 var dist = Math.sqrt(dx * dx + dz * dz);
-                if (dist > 0.01) {
-                    shadow.position.x += (dx / dist) * shadowSpeed * dt;
-                    shadow.position.z += (dz / dist) * shadowSpeed * dt;
+                var canSee = !hidden && dist < (phoneOn ? 10 : 6.5);
+                var canHear = !hidden && sprinting && dist < 16;
+                if (canSee || canHear) {
+                    shadowState = 'chase';
+                    shadow.lastKnown = { x: px, z: pz };
+                    shadowSpeed = canHear && !canSee ? 3.2 : 3.55;
                 }
+                if (hidden && shadowState === 'chase') {
+                    shadowState = 'search';
+                    shadowSearchT = 5;
+                }
+                var tx = px, tz = pz, moveSpeed = shadowSpeed;
+                if (shadowState === 'chase') {
+                    tx = px; tz = pz;
+                    if (dist > 24) shadowState = 'patrol';
+                } else if (shadowState === 'search') {
+                    tx = shadow.lastKnown.x; tz = shadow.lastKnown.z;
+                    moveSpeed = 2.4;
+                    shadowSearchT -= dt;
+                    if (shadowSearchT <= 0) shadowState = 'patrol';
+                } else {
+                    tx = 0; tz = patrolTarget;
+                    moveSpeed = 1.15;
+                    if (Math.abs(sz - patrolTarget) < 1.2) {
+                        patrolTarget = -24 + Math.random() * 48;
+                    }
+                }
+                var tdx = tx - sx, tdz = tz - sz;
+                var tdist = Math.sqrt(tdx * tdx + tdz * tdz);
+                if (tdist > 0.05) {
+                    shadow.position.x += (tdx / tdist) * moveSpeed * dt;
+                    shadow.position.z += (tdz / tdist) * moveSpeed * dt;
+                }
+                shadow.position.x = Math.max(-1.5, Math.min(1.5, shadow.position.x));
+                shadow.position.z = Math.max(-29, Math.min(29, shadow.position.z));
                 shadow.lookAt(px, 1.6, pz);
                 shadow.rotation.y = Math.atan2(dx, dz) + Math.PI;
                 shadow.position.y = Math.sin(elapsed * 6) * 0.03;
-                if (dist < 1.25) {
+                if (!hidden && dist < 1.25) {
                     ended = true;
                     endGame(Math.round(score + truthCount * 50));
                     return;
                 }
-                heartbeatT -= dt;
-                if (heartbeatT <= 0) {
-                    heartbeatT = Math.max(0.35, 1.2 - (1 - Math.min(1, dist / 20)) * 0.7);
-                    tone(58, 0.12, 'sine', 0.06, 42);
+                if (dist < 16 && !hidden) {
+                    heartbeatT -= dt;
+                    if (heartbeatT <= 0) {
+                        heartbeatT = Math.max(0.34, 1.15 - (1 - Math.min(1, dist / 18)) * 0.7);
+                        tone(58, 0.12, 'sine', 0.06, 42);
+                    }
                 }
-                if (Math.random() < dt * 0.35) tone(1200, 0.03, 'square', 0.02, 400);
+                if (shadowState === 'chase' && Math.random() < dt * 0.5) tone(1200, 0.03, 'square', 0.02, 400);
             }
 
             // Camera.
             camera.position.x += (px - camera.position.x) * Math.min(1, dt * 12);
             camera.position.z += (pz - camera.position.z) * Math.min(1, dt * 12);
-            camera.position.y = 1.6 + Math.sin(elapsed * 1.7) * 0.022;
+            camera.position.y = 1.6 + Math.sin(elapsed * 1.7) * 0.022 + (hidden ? -0.15 : 0);
             camera.lookAt(px - Math.sin(yaw) * 20, 1.45 + pitch * 8, pz - Math.cos(yaw) * 20);
+            camera.rotateZ(Math.sin(elapsed * 1.3) * 0.006 + (sanity < 35 ? Math.sin(elapsed * 9) * 0.012 : 0));
 
             // HUD.
             hudT -= dt;
@@ -8780,13 +8969,25 @@
                 hudT = 0.12;
                 var obj = document.getElementById('lorongObjective');
                 if (obj) {
-                    if (!finalHeard) obj.textContent = truthCount < 3 ? 'Find 3 testimonies · ' + truthCount + '/3' : 'Go to the red door 12-07';
-                    else obj.textContent = 'RUN TO THE LIFT';
+                    if (finalHeard) obj.textContent = 'RUN TO THE LIFT';
+                    else if (truthCount < 3) obj.textContent = 'Find 3 testimonies · ' + truthCount + '/3';
+                    else if (!hasKey) obj.textContent = 'Find the spare key';
+                    else obj.textContent = 'Open flat 12-07';
                 }
                 var bat = document.getElementById('lorongBattery');
                 if (bat) bat.textContent = 'PHONE ' + Math.round(battery) + '% · F';
                 var rad = document.getElementById('lorongRadio');
                 if (rad) rad.textContent = radioOn ? 'RADIO ON · R' : 'RADIO OFF · R';
+                var stm = document.getElementById('lorongStamina');
+                if (stm) stm.textContent = 'STAMINA ' + Math.round(stamina) + '% · SHIFT';
+                var san = document.getElementById('lorongSanity');
+                if (san) san.textContent = 'SANITY ' + Math.round(sanity) + '%';
+                var nts = document.getElementById('lorongNotes');
+                if (nts) nts.textContent = 'NOTES ' + notesFound + '/3';
+                var ky = document.getElementById('lorongKey');
+                if (ky) ky.textContent = hasKey ? 'KEY 12-07' : 'KEY —';
+                var fear = document.getElementById('lorongFear');
+                if (fear) fear.style.opacity = String(Math.min(0.75, (100 - sanity) / 100 * 0.8));
                 var lockBtn = document.getElementById('lorongLockBtn');
                 if (lockBtn) lockBtn.style.display = (document.pointerLockElement === pointerCanvas) ? 'none' : 'inline-flex';
                 var prompt = document.getElementById('lorongPrompt');
@@ -8794,17 +8995,28 @@
                 var nearLift = Math.abs(pz + 29) < 3.2 && Math.abs(px) < 1.8;
                 if (prompt) {
                     if (dialogOpen) prompt.textContent = 'E or Close to continue';
+                    else if (hidden) prompt.textContent = 'E · Leave cupboard';
+                    else if (nearHide()) prompt.textContent = 'E · Hide in cupboard';
+                    else if (nearNote()) prompt.textContent = 'E · Read note';
+                    else if (nearKey()) prompt.textContent = 'E · Take key';
+                    else if (nearBreaker()) prompt.textContent = 'E · Reset breaker';
                     else if (nearLift) prompt.textContent = 'E · Use lift';
                     else if (near && near.testimony && !near.heard) prompt.textContent = 'E · Listen';
-                    else if (near === cryingDoor && truthCount >= 3 && !finalHeard) prompt.textContent = 'E · Open 12-07';
+                    else if (near === cryingDoor && truthCount >= 3 && hasKey && !finalHeard) prompt.textContent = 'E · Open 12-07';
                     else if (near) prompt.textContent = 'E · Try door';
-                    else prompt.textContent = 'Click to lock mouse · WASD · E · F phone · R radio';
+                    else prompt.textContent = 'Click to lock mouse · WASD · Shift sprint · E · F phone · R radio';
                 }
                 setHud(Math.round(score), 'LORONG 7 · ' + (finalHeard ? 'ESCAPE' : truthCount + '/3 TESTIMONIES'));
             }
         }
 
-        return { over: false, update: update, getScore: function () { return score; } };
+        return {
+            over: false,
+            update: update,
+            getScore: function () { return score; },
+            lockPointer: function () { if (pointerCanvas) { ensureAudio(); try { pointerCanvas.focus(); pointerCanvas.requestPointerLock(); } catch (e) {} } },
+            isPointerLocked: function () { return document.pointerLockElement === pointerCanvas; }
+        };
     }
 
     function factoryFor(gameId, opts) {
