@@ -506,18 +506,17 @@ function renderGarageStats() {
     const host = document.getElementById('g3dGarageStats');
     if (!host) return;
     const perf = getEquippedCosmetics().performance || {};
-    const top = Math.round(((perf.topSpeed || 1) - 1) * 100);
-    const accel = Math.round(((perf.accel || 1) - 1) * 100);
-    const grip = Math.round(((perf.grip || 1) - 1) * 100);
-    function chip(label, value, pct) {
-        return '<span class="game3d-garage-chip"><strong>' + escapeHtml(label) + '</strong> ' + escapeHtml(value) +
-            (pct != null ? ' <em class="' + (pct >= 0 ? 'is-up' : 'is-down') + '">' + (pct > 0 ? '+' : '') + pct + '%</em>' : '') + '</span>';
+    const car = getEquippedCar();
+    const carName = car ? car.year + ' ' + car.brand + ' ' + car.model : 'Free Junk Beater';
+    const topMph = Math.round(192 * (perf.topSpeed || 1) * 2.23694);
+    function chip(label, value) {
+        return '<span class="game3d-garage-chip"><strong>' + escapeHtml(label) + '</strong> ' + escapeHtml(value) + '</span>';
     }
     host.innerHTML =
-        chip('Body', garageEquippedName('body'), top) +
-        chip('Engine', garageEquippedName('engine'), accel) +
-        chip('Aero', garageEquippedName('aero'), grip) +
-        chip('Kit', garageEquippedName('kit'), null);
+        chip('Car', carName) +
+        chip('Top', topMph + ' mph') +
+        chip('Accel', (perf.accel || 1).toFixed(2) + 'x') +
+        chip('Grip', (perf.grip || 1).toFixed(2) + 'x');
 }
 
 function startMenuSolo() {
@@ -1132,13 +1131,12 @@ function openGame(id) {
                     '<div class="game3d-garage-card">' +
                         '<span class="game3d-garage-kicker">BEACH RACER · GARAGE</span>' +
                         '<h2>Your ride</h2>' +
-                        '<p class="game3d-garage-sub">Orbit view · buy and equip parts in the Garage tab.</p>' +
+                        '<p class="game3d-garage-sub">Buy and drive cars from the Garage. No part customisation.</p>' +
                         '<div class="game3d-garage-stats" id="g3dGarageStats"></div>' +
                         '<div class="game3d-garage-actions">' +
                             '<button type="button" class="game3d-mp-primary" onclick="garagePlay()">Play</button>' +
                             '<button type="button" class="game3d-mp-secondary" onclick="openRaceChoice()">Race</button>' +
-                            '<button type="button" class="game3d-mp-secondary" onclick="openGarageShop()">Garage</button>' +
-                            '<button type="button" class="game3d-mp-secondary" onclick="openShowroom()">Showroom</button>' +
+                            '<button type="button" class="game3d-mp-secondary" onclick="openShowroom()">Garage</button>' +
                         '</div>' +
                     '</div>' +
                     '<div class="game3d-race-choice" id="g3dRaceChoice" style="display:none;">' +
@@ -1175,7 +1173,7 @@ function openGame(id) {
                 '<div class="game3d-showroom" id="g3dShowroom" style="display:none;">' +
                     '<div class="game3d-showroom-inner">' +
                         '<div class="game3d-showroom-head">' +
-                            '<div><span class="game3d-garage-kicker">BEACH RACER · SHOWROOM</span><h2>200 performance cars</h2></div>' +
+                            '<div><span class="game3d-garage-kicker">BEACH RACER · GARAGE</span><h2>Buy cars</h2></div>' +
                             '<div class="game3d-showroom-balance" id="g3dShowroomBalance">— Coins</div>' +
                             '<button type="button" class="game3d-mp-x" onclick="closeShowroom()">×</button>' +
                         '</div>' +
@@ -7889,8 +7887,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.51";
-const UPDATE_NOTES = "The Help tab and tutorial are removed. Navigation is cleaner: the LessFun logo returns to Games, every view change scrolls to the top, and the top bar is less crowded. Radio buffering and WhatsApp-style chats remain";
+const APP_VERSION = "LessFun Public Beta 1.32.52";
+const UPDATE_NOTES = "Car customisation is removed: the Garage now only buys and equips cars, the Showroom button is gone, and every owned car is kept. Class 95 was removed from the radio";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -10217,7 +10215,6 @@ async function renderUsers() {
    LessFun Radio — real Singapore FM streams
    ============================================================ */
 const RADIO_STATIONS = [
-    { name: 'Class 95', freq: '95.0', lang: 'English', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/CLASS95AAC.aac' },
     { name: 'CNA 938', freq: '93.8', lang: 'News', url: 'https://22893.live.streamtheworld.com/938NOW_SC' },
     { name: 'Kiss92', freq: '92.0', lang: 'English', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/KISS_92.mp3' },
     { name: 'One FM 91.3', freq: '91.3', lang: 'English', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/ONE_FM_913.mp3' },
