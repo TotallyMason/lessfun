@@ -8402,10 +8402,39 @@
             });
         }
 
+        // Runway edge lights.
+        for (var rz = -1500; rz <= 1500; rz += 55) {
+            [-34, 34].forEach(function (ex2) {
+                var edgeBulb = box(0.7, 0.5, 0.7, new THREE.MeshBasicMaterial({ color: 0xffe6a0 }));
+                edgeBulb.position.set(ex2, 0.35, rz); scene.add(edgeBulb);
+            });
+        }
+        // PAPI glide slope lights.
+        for (var pp = 0; pp < 4; pp++) {
+            var papi = box(2.0, 0.8, 1.4, new THREE.MeshBasicMaterial({ color: pp < 2 ? 0xffffff : 0xff3b3b }));
+            papi.position.set(-48 + pp * 4, 0.5, 1620);
+            scene.add(papi);
+        }
+        // Windsock.
+        var sockPole = cyl(0.14, 0.18, 7, 8, std(0xd9e2ec, { metalness: 0.5 }));
+        sockPole.position.set(55, 3.5, 1660); scene.add(sockPole);
+        var windsock = new THREE.Mesh(new THREE.ConeGeometry(0.9, 4.5, 10, 1, true), new THREE.MeshStandardMaterial({ color: 0xff7b00, roughness: 0.8, side: THREE.DoubleSide }));
+        windsock.rotation.z = Math.PI / 2;
+        windsock.position.set(57.2, 6.8, 1660);
+        scene.add(windsock);
+
         // Terminal and city.
         var terminal = box(220, 26, 90, std(0xb8c6cf, { metalness: 0.3, roughness: 0.5 }));
         terminal.position.set(-190, 13, -900);
         scene.add(terminal);
+        var terminalGlass = box(212, 6, 0.6, new THREE.MeshBasicMaterial({ color: 0x9fe8ff, transparent: true, opacity: 0.55 }));
+        terminalGlass.position.set(-190, 14, -854.5); scene.add(terminalGlass);
+        for (var jb = 0; jb < 6; jb++) {
+            var bridge = box(4, 3, 16, std(0xb8c6cf));
+            bridge.position.set(-95 - jb * 26, 3, -880); scene.add(bridge);
+            var bridgeGlass = box(3.6, 1.2, 14, new THREE.MeshBasicMaterial({ color: 0x8fd6ff, transparent: true, opacity: 0.5 }));
+            bridgeGlass.position.set(-95 - jb * 26, 3.2, -880); scene.add(bridgeGlass);
+        }
         var tower = cyl(4, 5, 75, 10, std(0xd9e2ec));
         tower.position.set(150, 37, -1050); scene.add(tower);
         var towerTop = box(18, 8, 18, std(0x8fd6ff, { emissive: 0x2a6b8a, emissiveIntensity: 0.4 }));
@@ -8427,35 +8456,78 @@
         var rain = new THREE.Points(rainGeo, new THREE.PointsMaterial({ color: 0xbcd6e8, size: 0.7, transparent: true, opacity: 0.55, depthWrite: false }));
         scene.add(rain);
 
-        // Airliner.
+        // Airliner — detailed model.
         var jet = new THREE.Group();
-        var fuselageMat = std(0xe9eef2, { metalness: 0.45, roughness: 0.3 });
-        var fuse = cyl(2.6, 3.0, 34, 12, fuselageMat);
-        fuse.rotation.x = Math.PI / 2; jet.add(fuse);
-        var nose = new THREE.Mesh(new THREE.ConeGeometry(2.6, 5, 12), fuselageMat);
-        nose.rotation.x = -Math.PI / 2; nose.position.z = -19.5; jet.add(nose);
-        var wing = box(44, 0.7, 8, fuselageMat); wing.position.set(0, -0.4, 2); jet.add(wing);
-        var tailWing = box(15, 0.5, 4.5, fuselageMat); tailWing.position.set(0, 1.0, 15); jet.add(tailWing);
-        var fin = box(0.6, 8, 6, std(0x2a5b8a, { metalness: 0.4 })); fin.position.set(0, 4.2, 15); jet.add(fin);
+        var fuselageMat = std(0xf1f5f8, { metalness: 0.5, roughness: 0.26 });
+        var stripeMat = std(0xc0392b, { metalness: 0.35, roughness: 0.4 });
+        var darkMat = std(0x121a22, { metalness: 0.6, roughness: 0.2 });
+        var wingMat = std(0xe4eaee, { metalness: 0.45, roughness: 0.34 });
+        var engineMat = std(0x7d8894, { metalness: 0.7, roughness: 0.25 });
+        var fuse = cyl(2.8, 3.0, 30, 16, fuselageMat);
+        fuse.rotation.x = Math.PI / 2; fuse.position.z = 2; jet.add(fuse);
+        var nose = new THREE.Mesh(new THREE.ConeGeometry(2.8, 6, 16), fuselageMat);
+        nose.rotation.x = -Math.PI / 2; nose.position.z = -16; jet.add(nose);
+        var tailCone = new THREE.Mesh(new THREE.ConeGeometry(2.9, 7, 16), fuselageMat);
+        tailCone.rotation.x = Math.PI / 2; tailCone.position.z = 20.5; jet.add(tailCone);
+        var cockpit = box(3.8, 1.1, 0.3, darkMat);
+        cockpit.position.set(0, 1.5, -13.2); cockpit.rotation.x = -0.25; jet.add(cockpit);
         [-1, 1].forEach(function (side) {
-            var engine = cyl(1.3, 1.4, 5.5, 10, std(0x59636e, { metalness: 0.6, roughness: 0.3 }));
+            var cabin = box(0.08, 0.34, 24, new THREE.MeshBasicMaterial({ color: 0x1c3346, transparent: true, opacity: 0.85 }));
+            cabin.position.set(side * 2.82, 1.0, 3); jet.add(cabin);
+            var stripe = box(0.09, 0.38, 28, stripeMat);
+            stripe.position.set(side * 2.84, 0.1, 2); jet.add(stripe);
+        });
+        var wing = box(46, 0.75, 9, wingMat);
+        wing.position.set(0, -0.25, 2); jet.add(wing);
+        [-1, 1].forEach(function (side) {
+            var winglet = box(0.35, 3.2, 2.6, wingMat);
+            winglet.position.set(side * 22.6, 1.3, 3.4);
+            winglet.rotation.z = side * 0.28;
+            jet.add(winglet);
+        });
+        var tailWing = box(16, 0.5, 4.6, wingMat);
+        tailWing.position.set(0, 1.1, 18); jet.add(tailWing);
+        var fin = box(0.7, 9, 6.5, stripeMat);
+        fin.position.set(0, 5.0, 19.5); fin.rotation.x = -0.16; jet.add(fin);
+        var finTip = box(0.72, 1.2, 3.0, fuselageMat);
+        finTip.position.set(0, 9.4, 19.0); finTip.rotation.x = -0.16; jet.add(finTip);
+        var flapMeshes = [];
+        [-1, 1].forEach(function (side) {
+            var engine = cyl(1.55, 1.75, 6.2, 14, engineMat);
             engine.rotation.x = Math.PI / 2;
-            engine.position.set(side * 12, -1.1, 3);
+            engine.position.set(side * 12.5, -1.2, 2.5);
             jet.add(engine);
+            var fan = new THREE.Mesh(new THREE.CircleGeometry(1.3, 16), darkMat);
+            fan.position.set(side * 12.5, -1.2, -0.7);
+            jet.add(fan);
+            var pylon = box(1.1, 1.4, 3.4, wingMat);
+            pylon.position.set(side * 11.2, 0.3, 2.8); jet.add(pylon);
+            var flap = box(9, 0.16, 2.1, wingMat);
+            flap.position.set(side * 15.2, -0.55, 6.1);
+            jet.add(flap);
+            flapMeshes.push(flap);
+            var gearDoor = box(1.0, 0.08, 2.0, fuselageMat);
+            gearDoor.position.set(side * 4.2, -2.4, 4); jet.add(gearDoor);
         });
         var gearGroup = new THREE.Group();
         var wheelMat = std(0x15171a, { roughness: 0.9 });
-        var strutMat = std(0x8a949e, { metalness: 0.7 });
-        [[0, -2.8, -6], [-6, -2.5, 4], [6, -2.5, 4]].forEach(function (gp) {
-            var strut = cyl(0.15, 0.15, 2.6, 6, strutMat);
+        var strutMat = std(0x9aa5af, { metalness: 0.75, roughness: 0.25 });
+        [[0, -2.9, -6], [-6.2, -2.6, 5], [6.2, -2.6, 5]].forEach(function (gp) {
+            var strut = cyl(0.16, 0.16, 2.7, 8, strutMat);
             strut.position.set(gp[0], gp[1], gp[2]); gearGroup.add(strut);
-            var wheel = cyl(0.75, 0.75, 0.5, 10, wheelMat);
-            wheel.rotation.z = Math.PI / 2;
-            wheel.position.set(gp[0], gp[1] - 1.4, gp[2]); gearGroup.add(wheel);
+            var bogie = box(1.4, 0.25, 1.4, strutMat);
+            bogie.position.set(gp[0], gp[1] - 1.35, gp[2]); gearGroup.add(bogie);
+            [-0.42, 0.42].forEach(function (wx) {
+                var wheel = cyl(0.72, 0.72, 0.46, 12, wheelMat);
+                wheel.rotation.z = Math.PI / 2;
+                wheel.position.set(gp[0] + wx, gp[1] - 1.45, gp[2]); gearGroup.add(wheel);
+            });
         });
         jet.add(gearGroup);
-        var navLight = new THREE.PointLight(0xff3b3b, 1.2, 25); navLight.position.set(22, 0, 2); jet.add(navLight);
-        var strobe = new THREE.PointLight(0xffffff, 1.6, 35); strobe.position.set(0, 4, 15); jet.add(strobe);
+        var navRed = new THREE.PointLight(0xff3b3b, 1.1, 28); navRed.position.set(-22.5, 0.4, 3); jet.add(navRed);
+        var navGreen = new THREE.PointLight(0x54ff9f, 1.1, 28); navGreen.position.set(22.5, 0.4, 3); jet.add(navGreen);
+        var strobe = new THREE.PointLight(0xffffff, 1.8, 40); strobe.position.set(0, 9.5, 19); jet.add(strobe);
+        var beacon = new THREE.PointLight(0xff3b3b, 1.4, 20); beacon.position.set(0, 3.1, 2); jet.add(beacon);
         scene.add(jet);
 
         // State.
@@ -8534,6 +8606,7 @@
             var gear = document.getElementById('cxGear');
             var flaps = document.getElementById('cxFlaps');
             var wind = document.getElementById('cxWind');
+            var brake = document.getElementById('cxBrake');
             var score = document.getElementById('cxScore');
             var status = document.getElementById('cxStatus');
             var msg = document.getElementById('cxMessage');
@@ -8546,6 +8619,11 @@
             if (gear) { gear.textContent = jetState.gear ? 'GEAR DOWN' : 'GEAR UP'; gear.classList.toggle('is-ok', jetState.gear); }
             if (flaps) { flaps.textContent = 'FLAPS ' + jetState.flaps; flaps.classList.toggle('is-ok', jetState.flaps > 0); }
             if (wind) wind.textContent = 'WIND ' + Math.round(jetState.wind) + ' kt ' + (jetState.windDir > 0 ? '→' : '←');
+            if (brake) { brake.textContent = keys['b'] ? 'BRAKE ON' : 'BRAKE OFF'; brake.classList.toggle('is-ok', !!keys['b']); }
+            var thrFill = document.getElementById('cxThrottleFill');
+            if (thrFill) thrFill.style.width = Math.round(jetState.throttle * 100) + '%';
+            var thrPct = document.getElementById('cxThrottlePct');
+            if (thrPct) thrPct.textContent = Math.round(jetState.throttle * 100) + '%';
             if (score) score.textContent = Math.round(jetState.score).toLocaleString();
             if (status) status.textContent = jetState.mode === 'rollout' ? 'ROLLOUT' : 'APPROACH';
             if (msg) msg.textContent = (jetState.messageT > 0 ? jetState.message : (distToThreshold > 0 ? 'Aim for the centreline · 3° glide path' : 'Over the runway'));
@@ -8594,10 +8672,12 @@
             if (jetState.messageT > 0) jetState.messageT -= dt;
 
             if (jetState.mode === 'rollout') {
-                jetState.speed = Math.max(0, jetState.speed - 9 * dt);
+                var brakeForce = keys['b'] ? 20 : 0;
+                var reverseForce = keys['s'] ? 10 : 0;
+                jetState.speed = Math.max(0, jetState.speed - (6 + brakeForce + reverseForce) * dt);
                 jetState.z -= jetState.speed * dt;
                 jetState.rolloutT -= dt;
-                if (jetState.rolloutT <= 0) nextApproach();
+                if (jetState.rolloutT <= 0 || jetState.speed < 2) nextApproach();
             } else if (jetState.mode === 'approach') {
                 // Throttle and attitude.
                 var throttleInput = (keys['w'] ? 1 : 0) - (keys['s'] ? 1 : 0);
@@ -8617,8 +8697,8 @@
                 jetState.roll = Math.max(-0.55, Math.min(0.55, jetState.roll));
                 jetState.heading -= jetState.roll * 0.42 * dt;
 
-                var targetSpeed = 62 + jetState.throttle * 78 - jetState.flaps * 5 - (jetState.gear ? 3 : 0);
-                jetState.speed += (targetSpeed - jetState.speed) * Math.min(1, dt * 0.7);
+                var targetSpeed = 62 + jetState.throttle * 78 - jetState.flaps * 5 - (jetState.gear ? 3 : 0) - (keys['b'] ? 14 : 0);
+                jetState.speed += (targetSpeed - jetState.speed) * Math.min(1, dt * 1.1);
                 jetState.speed = Math.max(45, Math.min(150, jetState.speed));
 
                 var lift = (jetState.speed - 55) * 0.12;
@@ -8648,7 +8728,9 @@
             jet.rotation.z = -jetState.roll * 0.7;
             jet.rotation.x = jetState.pitch * 0.6;
             gearGroup.visible = jetState.gear;
-            navLight.intensity = 0.5 + Math.sin(elapsed * 6) * 0.3;
+            for (var fi = 0; fi < flapMeshes.length; fi++) flapMeshes[fi].rotation.x = -jetState.flaps * 0.22;
+            navRed.intensity = 0.5 + Math.sin(elapsed * 6) * 0.3;
+            navGreen.intensity = 0.5 + Math.sin(elapsed * 6 + 0.6) * 0.3;
             strobe.intensity = (elapsed % 1.2 < 0.08) ? 3 : 0.05;
 
             // Camera chase.
@@ -8672,6 +8754,8 @@
             if (flapsBtn) flapsBtn.onclick = cycleFlaps;
             var goBtn = document.getElementById('cxGoBtn');
             if (goBtn) goBtn.onclick = goAround;
+            var brakeBtn = document.getElementById('cxBrakeBtn');
+            if (brakeBtn) brakeBtn.onclick = function () { keys['b'] = !keys['b']; };
         }, 30);
 
         return { over: false, update: update, getScore: function () { return jetState.score; } };

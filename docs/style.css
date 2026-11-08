@@ -10706,3 +10706,25 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     .cx-message { bottom: 178px; font-size: 9px; }
     .cx-guide { bottom: 146px; }
 }
+
+/* Changi throttle bar */
+.cx-throttle {
+    position: absolute;
+    left: 16px;
+    bottom: 18px;
+    width: min(260px, 40vw);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 10px;
+    border-radius: 9px;
+    background: rgba(4, 12, 20, 0.75);
+    border: 1px solid rgba(95, 224, 255, 0.2);
+}
+.cx-throttle small { color: rgba(140,235,255,0.55); font-size: 7px; font-weight: 800; letter-spacing: 0.12em; }
+.cx-thr-track { flex: 1; height: 7px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,0.1); }
+.cx-thr-track i { display: block; height: 100%; width: 55%; border-radius: inherit; background: linear-gradient(90deg, #2fa56f, #7dff9d); transition: width 0.08s linear; }
+.cx-throttle b { color: #d9f6ff; font-size: 9px; min-width: 30px; text-align: right; }
+@media (max-width: 640px) {
+    .cx-throttle { bottom: 92px; width: 52vw; }
+}

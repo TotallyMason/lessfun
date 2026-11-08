@@ -1267,10 +1267,11 @@ function openGame(id) {
                         '<div class="cx-stat"><small>V/S</small><b id="cxVs">↓0.0</b></div>' +
                         '<div class="cx-stat"><small>THRESHOLD</small><b id="cxDist">1000 m</b></div>' +
                     '</div>' +
-                    '<div class="cx-config"><span id="cxGear">GEAR UP</span><span id="cxFlaps">FLAPS 0</span><span id="cxWind">WIND 0 kt</span></div>' +
+                    '<div class="cx-config"><span id="cxGear">GEAR UP</span><span id="cxFlaps">FLAPS 0</span><span id="cxBrake">BRAKE OFF</span><span id="cxWind">WIND 0 kt</span></div>' +
+                    '<div class="cx-throttle"><small>THR</small><div class="cx-thr-track"><i id="cxThrottleFill"></i></div><b id="cxThrottlePct">55%</b></div>' +
                     '<div class="cx-guide" id="cxGuide">LOC OK · GS OK</div>' +
                     '<div class="cx-message" id="cxMessage">Approach</div>' +
-                    '<div class="cx-buttons"><button type="button" id="cxGearBtn">Gear G</button><button type="button" id="cxFlapsBtn">Flaps F</button><button type="button" id="cxGoBtn">Go around ␣</button></div>' +
+                    '<div class="cx-buttons"><button type="button" id="cxGearBtn">Gear G</button><button type="button" id="cxFlapsBtn">Flaps F</button><button type="button" id="cxBrakeBtn">Brake B</button><button type="button" id="cxGoBtn">Go around ␣</button></div>' +
                 '</div>' : '') +
             '<div class="game3d-crash" id="g3dCrashFlash"></div>' +
             '<div class="g3d-grain" aria-hidden="true"></div>' +
@@ -7472,109 +7473,6 @@ async function awardCoins(seconds) {
     return result;
 }
 
-const XP_PER_LEVEL = 1000;
-const ACHIEVEMENTS = [
-    { id: 'first_run', name: 'First Run', desc: 'Finish any game', icon: '🏁' },
-    { id: 'racer_speed', name: '200 Club', desc: 'Hit 200 km/h in Beach Racer', icon: '💨' },
-    { id: 'racer_race', name: 'Racer', desc: 'Finish a race', icon: '🏆' },
-    { id: 'zombie_10', name: 'Zombie Hunter', desc: 'Kill 10 zombies in one run', icon: '🧟' },
-    { id: 'zombie_100', name: 'Exterminator', desc: 'Kill 100 zombies total', icon: '☠️' },
-    { id: 'dc_10km', name: 'Long Haul', desc: 'Finish the 10 km Dead Coast run', icon: '🛣️' },
-    { id: 'coin_10k', name: 'Coin Collector', desc: 'Earn 10,000 Coins total', icon: '🪙' },
-    { id: 'social', name: 'Social', desc: 'Make a Community post', icon: '💬' }
-];
-
-function playerLevel() {
-    return 1 + Math.floor(((wallet && wallet.xp) || 0) / XP_PER_LEVEL);
-}
-
-function playerXpInLevel() {
-    return ((wallet && wallet.xp) || 0) % XP_PER_LEVEL;
-}
-
-function playerHasAchievement(id) {
-    return !!(wallet && Array.isArray(wallet.achievements) && wallet.achievements.indexOf(id) >= 0);
-}
-
-function unlockAchievement(id) {
-    if (!wallet || playerHasAchievement(id)) return false;
-    var def = ACHIEVEMENTS.find(function (a) { return a.id === id; });
-    if (!def) return false;
-    wallet.achievements = wallet.achievements || [];
-    wallet.achievements.push(id);
-    saveWallet();
-    showGameToast(def.icon + ' ACHIEVEMENT · ' + def.name);
-    renderProfileProgress();
-    return true;
-}
-
-function awardXp(amount) {
-    if (!wallet) return;
-    var gain = Math.max(0, Math.floor(Number(amount) || 0));
-    if (!gain) return;
-    var before = playerLevel();
-    wallet.xp = (wallet.xp || 0) + gain;
-    var after = playerLevel();
-    if (after > before) {
-        wallet.shells = (wallet.shells || 0) + 100;
-        wallet.totalEarned = (wallet.totalEarned || 0) + 100;
-        showGameToast('LEVEL ' + after + ' · +100 Coins');
-    }
-    saveWallet();
-    renderWalletUI();
-    renderProfileProgress();
-}
-
-function renderProfileProgress() {
-    var wrap = document.getElementById('profileLevel');
-    if (!wrap) return;
-    var level = playerLevel();
-    var xp = playerXpInLevel();
-    var label = document.getElementById('profileLevelLabel');
-    if (label) label.textContent = 'Level ' + level;
-    var xpLabel = document.getElementById('profileXpLabel');
-    if (xpLabel) xpLabel.textContent = xp.toLocaleString() + ' / ' + XP_PER_LEVEL.toLocaleString() + ' XP';
-    var fill = document.getElementById('profileXpFill');
-    if (fill) fill.style.width = Math.min(100, xp / XP_PER_LEVEL * 100) + '%';
-    var badges = document.getElementById('profileBadges');
-    if (badges) {
-        var owned = (wallet && wallet.achievements) || [];
-        if (!owned.length) {
-            badges.innerHTML = '<span class="profile-badge-empty">No badges yet — play a game to start earning XP.</span>';
-        } else {
-            badges.innerHTML = ACHIEVEMENTS.filter(function (a) { return owned.indexOf(a.id) >= 0; }).map(function (a) {
-                return '<span class="profile-badge" title="' + escapeAttr(a.desc) + '">' + a.icon + ' ' + escapeHtml(a.name) + '</span>';
-            }).join('');
-        }
-    }
-}
-
-function checkGameAchievements(score, seconds) {
-    if (!wallet) return;
-    unlockAchievement('first_run');
-    wallet.stats = wallet.stats || {};
-    wallet.stats.runs = (wallet.stats.runs || 0) + 1;
-    wallet.stats.bestScore = Math.max(wallet.stats.bestScore || 0, score || 0);
-    wallet.stats.playSeconds = (wallet.stats.playSeconds || 0) + (seconds || 0);
-    if ((wallet.totalEarned || 0) >= 10000) unlockAchievement('coin_10k');
-    if (currentGameId === 1) {
-        if (raceModeSetting) unlockAchievement('racer_race');
-        var rs = (window.Games3D && window.Games3D.getRacerState) ? window.Games3D.getRacerState() : null;
-        if (rs && Math.abs(rs.speed || 0) * 2.23694 >= 200) unlockAchievement('racer_speed');
-    } else if (currentGameId === 4) {
-        var ds = (window.Games3D && window.Games3D.getZombieState) ? window.Games3D.getZombieState() : null;
-        if (ds) {
-            wallet.stats.zombies = (wallet.stats.zombies || 0) + (ds.zombiesHit || 0);
-            wallet.stats.bestDistance = Math.max(wallet.stats.bestDistance || 0, ds.distance || 0);
-            if ((ds.zombiesHit || 0) >= 10) unlockAchievement('zombie_10');
-            if ((wallet.stats.zombies || 0) >= 100) unlockAchievement('zombie_100');
-            if ((ds.distance || 0) >= 10000) unlockAchievement('dc_10km');
-        }
-    }
-    saveWallet();
-    renderProfileProgress();
-}
-
 function handleGameOver(score, seconds) {
     var over = document.getElementById('g3dOver');
     var fin = document.getElementById('g3dFinal');
@@ -7588,8 +7486,6 @@ function handleGameOver(score, seconds) {
         } catch (e) {}
         renderSnowLeaderboard();
     }
-    awardXp(Math.max(10, Math.round((Number(score) || 0) / 8) + Math.round((Number(seconds) || 0) / 2)));
-    checkGameAchievements(Number(score) || 0, Number(seconds) || 0);
     var trackCoins = lastRunCoins;
     awardCoins(seconds).then(function (result) {
         var el = document.getElementById('g3dEarned');
@@ -7820,7 +7716,6 @@ async function createPost() {
         pendingPostMedia = null;
         renderPostMediaPreview();
         renderCommunity();
-        unlockAchievement('social');
     } catch (e) {
         alert(e.message || 'Error');
     }
@@ -8267,8 +8162,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.72";
-const UPDATE_NOTES = "Changi Approach is a new landing simulator: fly an airliner over the sea, manage throttle, pitch, gear and flaps, follow the glide path and touch down smoothly in rain, fog and crosswind";
+const APP_VERSION = "LessFun Public Beta 1.32.73";
+const UPDATE_NOTES = "Levels and achievements are removed. Changi Approach now has a detailed airliner model and airport, plus a live throttle bar, speedbrake in the air, and wheel brakes plus reverse thrust after touchdown";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -8357,7 +8252,6 @@ document.addEventListener('visibilitychange', function () {
 function openProfile(username) {
     if (!username) { openAuthModal(); return; }
     document.getElementById('profileModal').style.display = 'flex';
-    renderProfileProgress();
     document.getElementById('profileTitle').textContent = username + "'s Profile";
     document.getElementById('profileUsername').textContent = username;
     const safe = safeAvatarValue(avatarForUser(username));
