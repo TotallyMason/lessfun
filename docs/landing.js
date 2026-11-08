@@ -70,6 +70,8 @@
             tireComp: 0.06,
             oleoComp: 0.3,
             armComp: 0.03,
+            strokeMain: 0.32,
+            strokeVel: 0,
             noseTire: 0,
             noseOleo: 0,
             noseArm: 0,
@@ -281,10 +283,12 @@
         sim.airGrace = 0;
         sim.groundTimer = 0;
         var impact = Math.max(0, -sim.touchVy);
-        sim.tireComp = clamp(0.06 + impact * 0.028, 0.06, PARTS.tire);
-        sim.oleoComp = clamp(0.3 + impact * 0.085, 0.3, PARTS.oleo * 0.82);
-        sim.armComp = 0.03;
-        sim.compMain = Math.min(GEAR_MAIN.max, sim.tireComp + sim.oleoComp + sim.armComp);
+        sim.strokeMain = clamp(0.06 + impact * 0.02, 0.06, 0.22);
+        sim.strokeVel = impact * 0.8;
+        sim.tireComp = clamp(0.03 + impact * 0.008, 0.03, 0.12);
+        sim.oleoComp = sim.strokeMain * 0.84;
+        sim.armComp = sim.strokeMain * 0.16;
+        sim.compMain = Math.min(GEAR_MAIN.max, sim.strokeMain + sim.tireComp);
         sim.brakeHeat = 0;
         sim.compVel = 0;
         sim.pitchVel = 0;
@@ -309,6 +313,16 @@
         scoreLanding();
     }
 
+    function oleoGas(stroke, staticLoad, staticStroke, gasLength, n) {
+        var column = Math.max(0.05, gasLength - (stroke - staticStroke));
+        return staticLoad * Math.pow(gasLength / column, n);
+    }
+
+    function oleoDamper(vel, compressionC, reboundC) {
+        var c = vel >= 0 ? compressionC : reboundC;
+        return c * vel * Math.abs(vel);
+    }
+
     function stepGround(dt) {
         var restPitch = -0.006;
         var pitchInput = (sim.keys.up ? 1 : 0) - (sim.keys.down ? 1 : 0);
@@ -318,28 +332,39 @@
         sim.pitch += sim.pitchVel * dt;
         sim.pitch = clamp(sim.pitch, -0.12, 0.2);
 
-        // One-way oleo travel: the gear only compresses downward under the
-        // aircraft's weight and never springs back during the rollout.
-        var speedLoad = 1 - clamp(sim.vx / 80, 0, 1);
-        var impactLoad = Math.min(0.26, Math.max(0, -sim.touchVy) * 0.04);
+        // Aerodynamics while rolling: lift unloads the gear as speed rises.
+        var v = Math.max(0.5, sim.vx);
+        var flapLift = (sim.flaps / 40) * 0.86;
+        var cl = 0.32 + 3.8 * clamp(sim.pitch, -0.13, 0.2) + flapLift;
+        var q = 0.5 * RHO * v * v;
+        var lift = q * WING_AREA * cl * (1 - 0.78 * clamp(sim.spoilers, 0, 1));
+        var cd = 0.028 + sim.gearAnim * 0.016 + (sim.flaps / 40) * 0.024 + 0.048 * cl * cl + sim.spoilers * 0.04;
+        var drag = q * WING_AREA * cd;
+        var thrust = sim.throttle * MAX_THRUST;
+        var weight = MASS * G;
+        var netLoad = Math.max(0, weight - lift);
 
-        // Four-stage gear: the tire squashes first, then the oleo piston
-        // travels, then the trailing arm rotates. Every stage only moves
-        // further down as the weight comes off the wing and onto the wheels.
-        var tireTarget = clamp(0.06 + impactLoad * 0.55 + speedLoad * 0.12, 0.06, PARTS.tire);
-        var oleoTarget = clamp(0.3 + impactLoad * 2.4 + speedLoad * 0.52, 0.3, PARTS.oleo * 0.94);
-        var armTarget = clamp(0.03 + speedLoad * 0.32 + impactLoad * 0.08, 0.03, PARTS.arm);
-        if (sim.tireComp < tireTarget) sim.tireComp = Math.min(tireTarget, sim.tireComp + dt * 1.6);
-        if (sim.oleoComp < oleoTarget) sim.oleoComp = Math.min(oleoTarget, sim.oleoComp + dt * 0.5);
-        if (sim.armComp < armTarget) sim.armComp = Math.min(armTarget, sim.armComp + dt * 0.27);
-        sim.compMain = Math.min(GEAR_MAIN.max, sim.tireComp + sim.oleoComp + sim.armComp);
+        // Oleo-pneumatic main gear: polytropic nitrogen spring plus
+        // velocity-squared hydraulic damping through the metering orifice.
+        var staticMain = weight * 0.445;
+        var loadMain = netLoad * 0.445;
+        var fgMain = oleoGas(sim.strokeMain, staticMain, 0.5, 0.8, 1.35);
+        var fdMain = oleoDamper(sim.strokeVel, 95000, 170000);
+        var mainAcc = (loadMain - fgMain - fdMain) / (MASS * 0.45);
+        sim.strokeVel += mainAcc * dt;
+        sim.strokeMain += sim.strokeVel * dt;
+        if (sim.strokeMain < 0) { sim.strokeMain = 0; sim.strokeVel = Math.max(0, sim.strokeVel); }
+        if (sim.strokeMain > 1.1) { sim.strokeMain = 1.1; sim.strokeVel = Math.min(0, sim.strokeVel); }
+        sim.tireComp = clamp((fgMain + Math.abs(fdMain)) / (staticMain * 1.55) * 0.14, 0.03, 0.24);
+        sim.oleoComp = sim.strokeMain * 0.84;
+        sim.armComp = sim.strokeMain * 0.16;
+        sim.compMain = Math.min(GEAR_MAIN.max, sim.strokeMain + sim.tireComp);
 
         sim.y = -GEAR_MAIN.offset * Math.sin(sim.pitch) - (MAIN_BOTTOM + sim.compMain) * Math.cos(sim.pitch);
         var noseRaw = -NOSE_BOTTOM - (sim.y + GEAR_NOSE.offset * Math.sin(sim.pitch)) / Math.max(0.9, Math.cos(sim.pitch));
         var noseGeo = clamp(noseRaw, 0, GEAR_NOSE.max);
-        if (noseGeo > sim.compNose) {
-            sim.compNose = Math.min(noseGeo, sim.compNose + dt * 0.62);
-        }
+        if (noseGeo > sim.compNose) sim.compNose = Math.min(noseGeo, sim.compNose + dt * 0.62);
+        else sim.compNose = Math.max(noseGeo, sim.compNose - dt * 0.35);
         sim.noseTire = sim.compNose * 0.14;
         sim.noseOleo = sim.compNose * 0.66;
         sim.noseArm = sim.compNose * 0.2;
@@ -350,15 +375,6 @@
         sim.gearAnim = smooth(sim.gearAnim, 1, 1.4, dt);
         sim.flaps = smooth(sim.flaps, sim.flapsTarget, 1.6, dt);
         sim.wheelAngle += (sim.vx / GEAR_MAIN.wheel) * dt;
-
-        var v = Math.max(0.5, sim.vx);
-        var flapLift = (sim.flaps / 40) * 0.86;
-        var cl = 0.32 + 3.8 * clamp(sim.pitch, -0.13, 0.2) + flapLift;
-        var q = 0.5 * RHO * v * v;
-        var lift = q * WING_AREA * cl;
-        var cd = 0.028 + sim.gearAnim * 0.016 + (sim.flaps / 40) * 0.024 + 0.048 * cl * cl + sim.spoilers * 0.04;
-        var drag = q * WING_AREA * cd;
-        var thrust = sim.throttle * MAX_THRUST;
 
         var wheelBrake = sim.keys.brake ? 3.1 : (sim.throttle < 0.06 ? 0.5 : 0.08);
         var rolling = 0.02 + (sim.vx > 1 ? 0.015 : 0);

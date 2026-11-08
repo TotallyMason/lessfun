@@ -8330,8 +8330,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.87";
-const UPDATE_NOTES = "Boeing Landing now has better ground and flight physics, an infinite runway, and full circuits: land, roll out, add power and pitch up to take off again";
+const APP_VERSION = "LessFun Public Beta 1.32.88";
+const UPDATE_NOTES = "Boeing Landing suspension is now a real oleo-pneumatic strut: polytropic nitrogen spring, velocity-squared hydraulic damping, seal friction and tire deflection, with compression and controlled rebound";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
