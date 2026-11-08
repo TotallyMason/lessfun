@@ -10608,3 +10608,41 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     .dg-canvas { min-height: 45vh; }
     .dg-head strong { font-size: 13px; }
 }
+
+.dg-clock { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.dg-clock small { color: rgba(220,245,255,0.45); font-size: 7px; font-weight: 800; letter-spacing: 0.14em; }
+.dg-drawer-banner {
+    padding: 7px 12px;
+    border-radius: 9px;
+    background: rgba(10, 24, 34, 0.85);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: rgba(220,245,255,0.55);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-align: center;
+}
+.dg-drawer-banner.is-active {
+    border-color: rgba(0,168,132,0.45);
+    background: rgba(0,168,132,0.14);
+    color: #7dffd4;
+}
+.dg-player.is-drawing { color: #ffe2a0; background: rgba(255,209,102,0.08); border-radius: 6px; }
+.dg-choose {
+    display: none;
+    align-items: center;
+    gap: 5px;
+    color: rgba(220,245,255,0.55);
+    font-size: 9px;
+    font-weight: 700;
+}
+.dg-choose select {
+    border-radius: 7px;
+    border: 1px solid rgba(95,224,255,0.24);
+    background: #0d1a24;
+    color: #d9f6ff;
+    font: inherit;
+    font-size: 9px;
+    padding: 5px 7px;
+    max-width: 120px;
+}

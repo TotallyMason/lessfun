@@ -7948,8 +7948,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.66";
-const UPDATE_NOTES = "Draw and Guess now has 100 single-word prompts, from merlion and kopi to dragon, astronaut, pizza and snowman";
+const APP_VERSION = "LessFun Public Beta 1.32.67";
+const UPDATE_NOTES = "Draw and Guess now shows exactly who is drawing with a highlighted banner and player row, keeps the round timer visible, and lets the host choose the next drawer from a dropdown";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -10668,6 +10668,7 @@ let drawGame = {
     eraser: false,
     scores: {},
     guesses: {},
+    chosenDrawer: '',
     roundActive: false
 };
 
@@ -10719,13 +10720,43 @@ function dgRenderPlayers() {
         if (p.id === drawGame.hostId) tags.push('host');
         if (p.id === drawGame.drawerId) tags.push('drawing');
         if (p.id === drawGame.id) tags.push('you');
-        return '<div class="dg-player' + (p.id === drawGame.id ? ' is-me' : '') + '">' +
+        return '<div class="dg-player' + (p.id === drawGame.id ? ' is-me' : '') + (p.id === drawGame.drawerId ? ' is-drawing' : '') + '">' +
             '<span class="dg-avatar">' + escapeHtml(p.name.charAt(0).toUpperCase()) + '</span>' +
             '<span class="dg-player-name">' + escapeHtml(p.name) + '</span>' +
             '<span class="dg-player-score">' + p.score + '</span>' +
             (tags.length ? '<small>' + tags.join(' · ') + '</small>' : '') +
         '</div>';
     }).join('') || '<p class="dg-empty">Connecting…</p>';
+
+    var select = document.getElementById('dgDrawerSelect');
+    var wrap = document.getElementById('dgChooseWrap');
+    if (wrap) wrap.style.display = (dgIsHost() && !drawGame.roundActive && list.length > 1) ? 'flex' : 'none';
+    if (select) {
+        var current = drawGame.chosenDrawer || '';
+        select.innerHTML = list.map(function (p) {
+            return '<option value="' + escapeAttr(p.id) + '"' + (p.id === current ? ' selected' : '') + '>' + escapeHtml(p.name) + '</option>';
+        }).join('');
+        if (list.length && !list.some(function (p) { return p.id === current; })) {
+            drawGame.chosenDrawer = list[0].id;
+            select.value = list[0].id;
+        } else if (!current && list.length) {
+            drawGame.chosenDrawer = list[0].id;
+            select.value = list[0].id;
+        }
+    }
+    var banner = document.getElementById('dgDrawerBanner');
+    if (banner) {
+        if (drawGame.roundActive && drawGame.drawerId) {
+            var drawer = list.find(function (p) { return p.id === drawGame.drawerId; });
+            banner.textContent = '✏️ ' + (drawer ? drawer.name : 'A player') + ' is drawing' + (dgIsDrawer() ? ' — that is you!' : '');
+            banner.classList.add('is-active');
+        } else {
+            banner.textContent = dgIsHost() ? 'Choose a drawer and start the round' : 'Waiting for the host to start…';
+            banner.classList.remove('is-active');
+        }
+    }
+    var startBtn = document.getElementById('dgStartBtn');
+    if (startBtn) startBtn.style.display = (dgIsHost() && !drawGame.roundActive) ? 'inline-flex' : 'none';
 }
 
 function dgRenderWord() {
@@ -10737,6 +10768,13 @@ function dgRenderWord() {
     }
     if (dgIsDrawer()) el.textContent = drawGame.word;
     else el.textContent = drawGame.word.split('').map(function () { return '_'; }).join(' ');
+    var banner = document.getElementById('dgDrawerBanner');
+    if (banner && drawGame.roundActive) {
+        var list = dgPlayersSorted();
+        var drawer = list.find(function (p) { return p.id === drawGame.drawerId; });
+        banner.textContent = '✏️ ' + (drawer ? drawer.name : 'A player') + ' is drawing' + (dgIsDrawer() ? ' — that is you!' : '');
+        banner.classList.add('is-active');
+    }
 }
 
 function dgAppendChat(name, text, system) {
@@ -10784,13 +10822,21 @@ function dgClearCanvas() {
     g.fillRect(0, 0, canvas.width, canvas.height);
 }
 
+function dgChooseDrawer(id) {
+    drawGame.chosenDrawer = String(id || '');
+}
+
 function dgStartRound() {
     if (!dgIsHost() || !supabaseClient) return;
     var list = dgPlayersSorted();
     if (list.length < 2) { dgSetStatus('Need at least 2 players to start.'); return; }
-    var prevIndex = list.findIndex(function (p) { return p.id === drawGame.drawerId; });
-    var nextIndex = prevIndex >= 0 ? (prevIndex + 1) % list.length : 0;
-    var drawer = list[nextIndex];
+    var drawer = null;
+    if (drawGame.chosenDrawer) drawer = list.find(function (p) { return p.id === drawGame.chosenDrawer; });
+    if (!drawer) {
+        var prevIndex = list.findIndex(function (p) { return p.id === drawGame.drawerId; });
+        var nextIndex = prevIndex >= 0 ? (prevIndex + 1) % list.length : 0;
+        drawer = list[nextIndex];
+    }
     var word = DG_WORDS[Math.floor(Math.random() * DG_WORDS.length)];
     drawGame.word = word;
     drawGame.drawerId = drawer.id;
@@ -10932,8 +10978,9 @@ function openDrawGuessGame() {
         '<div class="dg-wrap">' +
             '<div class="dg-head">' +
                 '<div><span class="dg-kicker">LESSFUN · DRAW & GUESS</span><strong id="dgWord">Waiting for a round…</strong></div>' +
-                '<div class="dg-timer" id="dgTimer">--</div>' +
+                '<div class="dg-clock"><small>TIME</small><span class="dg-timer" id="dgTimer">--</span></div>' +
             '</div>' +
+            '<div class="dg-drawer-banner" id="dgDrawerBanner">Waiting for players…</div>' +
             '<div class="dg-main">' +
                 '<canvas id="dgCanvas" class="dg-canvas" width="900" height="520"></canvas>' +
                 '<aside class="dg-side">' +
@@ -10951,6 +10998,7 @@ function openDrawGuessGame() {
                 '<div class="dg-sizes"><button type="button" onclick="dgSetSize(2)">S</button><button type="button" onclick="dgSetSize(4)">M</button><button type="button" onclick="dgSetSize(8)">L</button></div>' +
                 '<button type="button" class="dg-tool" onclick="dgToggleEraser()">Eraser</button>' +
                 '<button type="button" class="dg-tool" onclick="dgClear()">Clear</button>' +
+                '<label class="dg-choose" id="dgChooseWrap">Drawer <select id="dgDrawerSelect" onchange="dgChooseDrawer(this.value)"></select></label>' +
                 '<button type="button" class="dg-tool dg-start" id="dgStartBtn" onclick="dgStartRound()">Start round</button>' +
                 '<button type="button" class="dg-tool" onclick="closeGame()">Leave</button>' +
             '</div>' +
