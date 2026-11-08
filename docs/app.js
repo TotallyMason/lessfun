@@ -8330,8 +8330,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.84";
-const UPDATE_NOTES = "Boeing Landing suspension is now easy to see: oversized one-way oleo travel, coil springs and live MAIN/NOSE compression callouts that only go down through the rollout";
+const APP_VERSION = "LessFun Public Beta 1.32.85";
+const UPDATE_NOTES = "Boeing Landing no longer has accidents: every touchdown is absorbed by the visible one-way suspension, and the view stays on the compressed gear after landing";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

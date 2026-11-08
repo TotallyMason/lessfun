@@ -243,8 +243,15 @@
             touchdown();
             return;
         }
-        if (sim.y < -2) {
-            finish(true, 'The aircraft went below the runway.');
+        if (sim.y < -1) {
+            sim.y = 2;
+            touchdown();
+        }
+        // If the approach drifts past the runway, settle it onto the grass
+        // rather than ending the run with an accident.
+        if (sim.x > RUNWAY_END + 50 && sim.y > 6) {
+            sim.y = 6;
+            sim.vy = -1.4;
         }
     }
 
@@ -261,28 +268,14 @@
         sim.y = -GEAR_MAIN.offset * Math.sin(sim.pitch) - (MAIN_BOTTOM + sim.compMain) * Math.cos(sim.pitch);
         sim.brakes = false;
         sim.spoilers = 1;
-
-        if (sim.x < 0) {
-            spawnDust(sim.x, 1.2);
-            finish(true, 'Landed short of the runway.');
-            return;
-        }
-        if (sim.gearAnim < 0.85) {
-            finish(true, 'Gear-up landing. The fuselage hit the runway.');
-            return;
-        }
-        if (sim.touchVy < -6.5) {
-            spawnDust(sim.x, 2);
-            finish(true, 'Hard landing — the gear collapsed (' + Math.round(-sim.touchVy * 196.85) + ' fpm).');
-            return;
-        }
-        if (sim.touchPitch < -0.045) {
-            finish(true, 'Nose-gear strike. Flare the aircraft before touchdown.');
-            return;
-        }
+        // Suspension is the point of this sim: keep the gear down and absorb
+        // every touchdown, no matter how hard or where it happens.
+        sim.gearTarget = 1;
+        sim.gearAnim = 1;
         spawnDust(sim.x - 9, 1);
         spawnDust(sim.x + 12, 0.6);
-        sim.shake = 0.6;
+        if (sim.x < 0) spawnDust(sim.x, 1.2);
+        sim.shake = Math.min(1.1, 0.4 + Math.max(0, -sim.touchVy) * 0.08);
         var fpm = Math.round(-sim.touchVy * 196.85);
         toast('TOUCHDOWN · ' + fpm + ' fpm');
         var st = document.getElementById('lsimState');
@@ -324,9 +317,9 @@
         sim.vx = Math.max(0, sim.vx - brake * dt + thrust * dt);
         sim.x += sim.vx * dt;
 
-        if (sim.x > RUNWAY_END && sim.vx > 0.5) {
-            finish(true, 'Runway overrun — the aircraft left the paved surface.');
-            return;
+        if (sim.x > RUNWAY_END) {
+            // Roll out onto the grass with extra drag instead of crashing.
+            sim.vx = Math.max(0, sim.vx - dt * 3.2);
         }
         if (sim.vx <= 0.8) {
             landedPending += dt;
@@ -353,33 +346,25 @@
     function finish(crashed, reason) {
         if (sim.finished) return;
         sim.finished = true;
-        sim.crashed = !!crashed;
-        sim.reason = reason || '';
+        sim.crashed = false;
+        sim.reason = '';
         running = false;
-        var result = { total: 0, rating: 'Crashed' };
-        if (!crashed) {
-            result = computeScore();
-            sim.score = result.total;
-            sim.rating = result.rating;
-            sim.coins = Math.max(5, Math.round(result.total / 40));
-            sim.stopX = sim.x;
-            if (typeof saveScore === 'function') saveScore('Boeing Landing', result.total);
-            if (typeof awardRunCoins === 'function') awardRunCoins(sim.coins);
-            beep(660, 0.12, 'triangle', 0.05);
-            setTimeout(function () { beep(880, 0.18, 'triangle', 0.05); }, 130);
-        } else {
-            sim.reason = reason;
-            sim.score = 0;
-            sim.coins = 0;
-            sim.shake = 1.2;
-            smokeTimer = 0;
-            beep(140, 0.5, 'sawtooth', 0.09, 60);
-        }
+        var result = computeScore();
+        sim.score = result.total;
+        sim.rating = result.rating;
+        sim.coins = Math.max(5, Math.round(result.total / 40));
+        sim.stopX = sim.x;
+        if (typeof saveScore === 'function') saveScore('Boeing Landing', result.total);
+        if (typeof awardRunCoins === 'function') awardRunCoins(sim.coins);
+        beep(660, 0.12, 'triangle', 0.05);
+        setTimeout(function () { beep(880, 0.18, 'triangle', 0.05); }, 130);
         var sc = document.getElementById('lsimScore');
         if (sc) sc.textContent = sim.score.toLocaleString();
         var st = document.getElementById('lsimState');
-        if (st) st.textContent = crashed ? 'ACCIDENT' : 'STOPPED';
-        showOverlay(result);
+        if (st) st.textContent = 'LANDED · ' + result.rating.toUpperCase();
+        var ov = document.getElementById('lsimOverlay');
+        if (ov) ov.style.display = 'none';
+        toast(result.rating + ' landing · ' + result.total.toLocaleString() + ' points · +' + sim.coins + ' Coins');
     }
 
     function showOverlay(result) {
