@@ -7904,7 +7904,7 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.53";
+const APP_VERSION = "LessFun Public Beta 1.32.54";
 const UPDATE_NOTES = "Dead Coast on-foot combat now has ammo, R reload, V punches, and paid station supplies. Radio can be moved to any corner, drifts are shorter and dodging quicker, F1 cars have an open cockpit with halo rings, and Snow Rush is a new Christmas sleigh game";
 
 let updateShutdownTimer = 0;
