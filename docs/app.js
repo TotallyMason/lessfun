@@ -11,8 +11,7 @@ const games = [
     { id: 6, name: "Funtutu Test", description: "Benchmark your GPU and CPU, then get recommended graphics settings", icon: "bolt", controls: "Press Run Test · apply the recommended settings when it finishes" },
     { id: 7, name: "Snow Rush", description: "Christmas sleigh run — collect gifts and dodge the ice", icon: "snow", controls: "WASD / arrows to fly · drag to steer · collect gifts · dodge ice" },
     { id: 8, name: "Draw & Guess", description: "Draw the word, guess your friends' drawings, and race to the top", icon: "draw", controls: "Draw with mouse / touch · type guesses in the box" },
-    { id: 9, name: "Lucky Spin", description: "Virtual-coin slot machine — pick a bet and chase the jackpot", icon: "dice", controls: "Pick a bet and spin · virtual Coins only" },
-    { id: 10, name: "Changi Approach", description: "Land airliners at Changi through rain, fog and crosswind", icon: "plane", controls: "W/S throttle · ↑/↓ pitch · A/D roll · G gear · F flaps · Space go-around" }
+    { id: 9, name: "Lucky Spin", description: "Virtual-coin slot machine — pick a bet and chase the jackpot", icon: "dice", controls: "Pick a bet and spin · virtual Coins only" }
 ];
 
 let currentUser = null;
@@ -1307,21 +1306,6 @@ function openGame(id) {
                     '</div>' +
                 '</div>' : '') +
 
-            (game.id === 10 ?
-                '<div class="cx-hud">' +
-                    '<div class="cx-top"><span id="cxStatus">APPROACH</span><strong id="cxScore">0</strong></div>' +
-                    '<div class="cx-stats">' +
-                        '<div class="cx-stat"><small>ALT</small><b id="cxAlt">250 m</b></div>' +
-                        '<div class="cx-stat"><small>SPEED</small><b id="cxSpd">180 kt</b></div>' +
-                        '<div class="cx-stat"><small>V/S</small><b id="cxVs">↓0.0</b></div>' +
-                        '<div class="cx-stat"><small>THRESHOLD</small><b id="cxDist">1000 m</b></div>' +
-                    '</div>' +
-                    '<div class="cx-config"><span id="cxGear">GEAR UP</span><span id="cxFlaps">FLAPS 0</span><span id="cxBrake">BRAKE OFF</span><span id="cxWind">WIND 0 kt</span></div>' +
-                    '<div class="cx-throttle"><small>THR</small><div class="cx-thr-track"><i id="cxThrottleFill"></i></div><b id="cxThrottlePct">55%</b></div>' +
-                    '<div class="cx-guide" id="cxGuide">LOC OK · GS OK</div>' +
-                    '<div class="cx-message" id="cxMessage">Approach</div>' +
-                    '<div class="cx-buttons"><button type="button" id="cxGearBtn">Gear G</button><button type="button" id="cxFlapsBtn">Flaps F</button><button type="button" id="cxBrakeBtn">Brake B</button><button type="button" id="cxGoBtn">Go around ␣</button></div>' +
-                '</div>' : '') +
             '<div class="game3d-crash" id="g3dCrashFlash"></div>' +
             '<div class="g3d-grain" aria-hidden="true"></div>' +
             (game.id === 1 ? '<div class="g3d-cinema" id="g3dCinema"></div>' : '') +
@@ -8211,8 +8195,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.74";
-const UPDATE_NOTES = "A full site polish pass: Recently Played games, a Back to Games button, Reduce Motion setting, smoother cards and navigation, better scrollbars, and mobile hover fixes. Levels and achievements are removed";
+const APP_VERSION = "LessFun Public Beta 1.32.75";
+const UPDATE_NOTES = "Changi Approach has been removed. The arcade now has Beach Racer, Tunnel Rush, Cube Stack, Dead Coast, Funtutu Test, Snow Rush, Draw and Guess, and Lucky Spin";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
