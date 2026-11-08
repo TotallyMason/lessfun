@@ -9,8 +9,7 @@ const games = [
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
     { id: 4, name: "Dead Coast", description: "Drive 10 km through the dead coast, scavenging food, water, fuel, and car parts", icon: "skull", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · A D / ← → steer · C camera · drag to steer on mobile · survive 10 km" },
     { id: 6, name: "Funtutu Test", description: "Benchmark your GPU and CPU, then get recommended graphics settings", icon: "bolt", controls: "Press Run Test · apply the recommended settings when it finishes" },
-    { id: 7, name: "Snow Rush", description: "Christmas sleigh run — collect gifts and dodge the ice", icon: "snow", controls: "WASD / arrows to fly · drag to steer · collect gifts · dodge ice" },
-    { id: 8, name: "Lorong 7", description: "HDB corridor horror — collect testimonies and escape", icon: "skull", controls: "WASD move · drag look · E interact · F phone light · R radio" }
+    { id: 7, name: "Snow Rush", description: "Christmas sleigh run — collect gifts and dodge the ice", icon: "snow", controls: "WASD / arrows to fly · drag to steer · collect gifts · dodge ice" }
 ];
 
 let currentUser = null;
@@ -938,11 +937,6 @@ function setRacerGear(mode) {
     if (window.Games3D && window.Games3D.setGearMode) window.Games3D.setGearMode(mode);
 }
 
-function closeLorongDialog() {
-    window.__lorongDialogClose = true;
-    var el = document.getElementById('lorongDialog');
-    if (el) el.style.display = 'none';
-}
 
 function mobileFsd() {
     if (window.Games3D && window.Games3D.toggleFsd) window.Games3D.toggleFsd();
@@ -1257,17 +1251,6 @@ function openGame(id) {
                     '</div>' +
                 '</div>' : '') +
 
-            (game.id === 8 ?
-                '<div class="lorong-hud">' +
-                    '<div class="lorong-objective" id="lorongObjective">Find 3 testimonies · 0/3</div>' +
-                    '<div class="lorong-prompt" id="lorongPrompt">WASD move · drag look · E interact · F phone · R radio</div>' +
-                    '<div class="lorong-stats"><span id="lorongStamina">STAMINA 100% · SHIFT</span><span id="lorongSanity">SANITY 100%</span><span id="lorongNotes">NOTES 0/3</span><span id="lorongKey">KEY —</span><span id="lorongBattery">PHONE 100% · F</span><span id="lorongRadio">RADIO OFF · R</span></div>' +
-                    '<button type="button" class="lorong-lock" id="lorongLockBtn" onclick="Games3D.lockPointer()">🔒 Click to lock mouse</button>' +
-                    '<div class="lorong-fear" id="lorongFear"></div>' +
-                '</div>' +
-                '<div class="lorong-dialog" id="lorongDialog" style="display:none;">' +
-                    '<div class="lorong-dialog-card"><p id="lorongDialogText"></p><button type="button" onclick="closeLorongDialog()">Close</button></div>' +
-                '</div>' : '') +
             '<div class="game3d-crash" id="g3dCrashFlash"></div>' +
             '<div class="g3d-grain" aria-hidden="true"></div>' +
             (game.id === 1 ? '<div class="g3d-cinema" id="g3dCinema"></div>' : '') +
@@ -7961,8 +7944,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.63";
-const UPDATE_NOTES = "Lorong 7 now has sprint and stamina, sanity, hiding cupboards, three notes, a spare key, a breaker puzzle, a shadow that patrols and hears you, and escape or true endings depending on what you found";
+const APP_VERSION = "LessFun Public Beta 1.32.64";
+const UPDATE_NOTES = "Lorong 7 has been removed. The arcade now has Beach Racer, Tunnel Rush, Cube Stack, Dead Coast, Funtutu Test, and Snow Rush";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
