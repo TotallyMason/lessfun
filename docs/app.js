@@ -439,6 +439,7 @@ function showView(view) {
         alert('Owner tools are locked. Sign in as TotallyMason and unlock them first.');
         return;
     }
+    window.scrollTo(0, 0);
     document.getElementById('gamesView').style.display = 'none';
     document.getElementById('storeView').style.display = 'none';
     if (document.getElementById('garageView')) document.getElementById('garageView').style.display = 'none';
@@ -7888,8 +7889,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.50";
-const UPDATE_NOTES = "Radio buffers faster with preconnects, preloading and automatic retry. Messages now switch between the chat list and a single chat like WhatsApp, with no contact list while chatting. The Close Messages button is gone, and a new Help panel makes every section and control easier to find";
+const APP_VERSION = "LessFun Public Beta 1.32.51";
+const UPDATE_NOTES = "The Help tab and tutorial are removed. Navigation is cleaner: the LessFun logo returns to Games, every view change scrolls to the top, and the top bar is less crowded. Radio buffering and WhatsApp-style chats remain";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -7973,29 +7974,6 @@ document.addEventListener('visibilitychange', function () {
         checkForServerUpdate();
     }
 });
-
-function openHelp() {
-    var modal = document.getElementById('helpModal');
-    if (!modal) return;
-    var v = document.getElementById('helpVersion');
-    if (v) v.textContent = APP_VERSION;
-    modal.style.display = 'flex';
-}
-
-function closeHelp() {
-    var modal = document.getElementById('helpModal');
-    if (modal) modal.style.display = 'none';
-}
-
-function helpGo(view) {
-    closeHelp();
-    if (view === 'garage') {
-        showView('store');
-        if (typeof setStoreFilter === 'function') setStoreFilter('body');
-        return;
-    }
-    showView(view);
-}
 
 function openProfile(username) {
     if (!username) { openAuthModal(); return; }
