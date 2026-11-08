@@ -14,6 +14,7 @@ A 3D arcade with a liquid-glass interface. Play it at
 | Snow Rush | Christmas sleigh game: collect gifts, hit candy boosts, survive snowstorms and the Grinch. |
 | Draw & Guess | Live public drawing game: one player draws, everyone else races to guess the word. |
 | Lucky Spin | Virtual-coin slot machine with bets, jackpots and a 60× top payout. |
+| Tranq Arena | Top-down tranquilizer battle: dart rivals to sleep, spend 1 energy to revive, survive to the final two. Includes a solo arena against bots and a public multiplayer lobby. |
 | Boeing Landing | 2D side-view 737 landing sim with an infinite runway: manage pitch, throttle, flaps and gear, flare over the threshold, watch the multi-stage suspension work, then add power to take off and fly another circuit. Ground handling uses lift, drag, rolling friction and rotation; the main gear uses a real oleo-pneumatic model — polytropic nitrogen spring, velocity-squared hydraulic damping, seal friction and tire deflection — with controlled rebound. Every touchdown is absorbed with no crash or accident endings. |
 
 | Dead Coast | Drive 10 km through a ruined coast, managing food, water, fuel, and car health while scavenging better car parts. |

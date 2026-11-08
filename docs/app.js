@@ -12,7 +12,8 @@ const games = [
     { id: 7, name: "Snow Rush", description: "Christmas sleigh run — collect gifts and dodge the ice", icon: "snow", controls: "WASD / arrows to fly · drag to steer · collect gifts · dodge ice" },
     { id: 8, name: "Draw & Guess", description: "Draw the word, guess your friends' drawings, and race to the top", icon: "draw", controls: "Draw with mouse / touch · type guesses in the box" },
     { id: 9, name: "Lucky Spin", description: "Virtual-coin slot machine — pick a bet and chase the jackpot", icon: "dice", controls: "Pick a bet and spin · virtual Coins only" },
-    { id: 13, name: "Boeing Landing", description: "Side-view 737 landing sim with flaps, spoilers and live suspension", icon: "plane", controls: "W/S pitch · A/D throttle · Space brakes · F flaps · G gear" }
+    { id: 13, name: "Boeing Landing", description: "Side-view 737 landing sim with flaps, spoilers and live suspension", icon: "plane", controls: "W/S pitch · A/D throttle · Space brakes · F flaps · G gear" },
+    { id: 14, name: "Tranq Arena", description: "Top-down tranquilizer showdown — put rivals to sleep, spend energy to revive, reach the final two", icon: "dart", controls: "WASD move · mouse aim · click / Space shoot · one revive costs 1 energy" }
 ];
 
 let currentUser = null;
@@ -451,6 +452,7 @@ function getIcon(name) {
         "snow": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"><path d="M12 2v20M3.3 7l17.4 10M3.3 17L20.7 7M12 5l-2 2M12 5l2 2M12 19l-2-2M12 19l2-2M5.6 9.4l2.7-.7M5.6 9.4l.7 2.7M18.4 14.6l-2.7.7M18.4 14.6l-.7-2.7M5.6 14.6l2.7.7M5.6 14.6l.7-2.7M18.4 9.4l-2.7-.7M18.4 9.4l-.7 2.7"/></svg>',
         "draw": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m4 20 4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20Z"/><path d="m13.5 8.5 3 3"/><path d="M4 20h16"/></svg>',
         "plane": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 13.5 21 4l-4.5 9.5L21 20l-4 .5-4-5-3.5 3.5.5 3-2 .5-2-4.5-4.5-2 .5-2 3 .5L9 9l-7-1 .5-2.5Z"/></svg>',
+        "dart": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m14 10 6-6M16 2l6 6M12 8l4 4"/><path d="m4 20 8-8"/><path d="m2 18 2-2 4 4-2 2-4-4Z"/><path d="M13 11l-2 2"/></svg>',
         "paw": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"><ellipse cx="12" cy="15.5" rx="4.6" ry="4"/><circle cx="5.5" cy="10" r="2.1"/><circle cx="9.5" cy="6.3" r="2.1"/><circle cx="14.5" cy="6.3" r="2.1"/><circle cx="18.5" cy="10" r="2.1"/></svg>',
     };
     return icons[name] || '';
@@ -1024,6 +1026,7 @@ function openGame(id) {
     if (id === 8) { openDrawGuessGame(); return; }
     if (id === 9) { openLuckySpinGame(); return; }
     if (id === 13) { openLandingSim(); return; }
+    if (id === 14) { openTranqGame(); return; }
     currentGameId = id;
     trackRecentGame(id);
     if (id === 4) startMenuSuppressed = false;
@@ -1460,6 +1463,7 @@ function closeGame() {
     if (typeof dgDestroy === 'function') dgDestroy();
     if (typeof luckyCleanup === 'function') luckyCleanup();
     if (typeof landingCleanup === 'function') landingCleanup();
+    if (typeof tranqCleanup === 'function') tranqCleanup();
     funtutuToken++;
     funtutuRunning = false;
     document.getElementById('gameModal').style.display = 'none';
@@ -8448,8 +8452,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.92";
-const UPDATE_NOTES = "New iOS 27-style motion is live: springy view transitions, blur-to-clear cards, pointer-tracked glass highlights, tactile button presses and fluid modal sheets";
+const APP_VERSION = "LessFun Public Beta 1.32.93";
+const UPDATE_NOTES = "Tranq Arena is live: a solo or public multiplayer tranquilizer showdown where rivals spend energy to revive and only the final two survive";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
