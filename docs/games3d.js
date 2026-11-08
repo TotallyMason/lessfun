@@ -8323,14 +8323,20 @@
             setHud(Math.round(score), snowStatus);
         }
 
-        return { over: false, update: update, getScore: function () { return score; } };
+        return {
+            over: false,
+            update: update,
+            getScore: function () { return score; },
+            lockPointer: function () { if (pointerCanvas) { ensureAudio(); try { pointerCanvas.focus(); pointerCanvas.requestPointerLock(); } catch (e) {} } },
+            isPointerLocked: function () { return document.pointerLockElement === pointerCanvas; }
+        };
     }
 
     /* ---------------- Lorong 7 (HDB horror) ---------------- */
     function createLorong7(ctx) {
         var scene = ctx.scene, camera = ctx.camera, renderer = ctx.renderer;
         scene.background = new THREE.Color(0x04070a);
-        scene.fog = new THREE.FogExp2(0x070b10, 0.035);
+        scene.fog = new THREE.FogExp2(0x05080c, 0.062);
         if (renderer) renderer.shadowMap.enabled = false;
         camera.fov = 72;
         camera.near = 0.05;
@@ -8367,8 +8373,52 @@
             } catch (e) {}
         }
 
-        scene.add(new THREE.AmbientLight(0x1a2430, 0.85));
-        var corridorGlow = new THREE.PointLight(0xffcf8a, 0.55, 26); corridorGlow.position.set(0, 2.6, 0); scene.add(corridorGlow);
+        var ambienceStarted = false, thunderT = 6, whisperT = 12, stepT = 0;
+        function startAmbience() {
+            if (ambienceStarted || !audioCtx) return;
+            ambienceStarted = true;
+            try {
+                var drone = audioCtx.createOscillator();
+                var droneGain = audioCtx.createGain();
+                drone.type = 'sawtooth'; drone.frequency.value = 41;
+                droneGain.gain.value = 0.018;
+                drone.connect(droneGain); droneGain.connect(audioCtx.destination); drone.start();
+                var drone2 = audioCtx.createOscillator();
+                var drone2Gain = audioCtx.createGain();
+                drone2.type = 'sine'; drone2.frequency.value = 58.5;
+                drone2Gain.gain.value = 0.012;
+                drone2.connect(drone2Gain); drone2Gain.connect(audioCtx.destination); drone2.start();
+                var len = audioCtx.sampleRate * 2;
+                var buffer = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+                var data = buffer.getChannelData(0);
+                for (var i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * 0.5;
+                var rain = audioCtx.createBufferSource();
+                rain.buffer = buffer; rain.loop = true;
+                var rainFilter = audioCtx.createBiquadFilter();
+                rainFilter.type = 'lowpass'; rainFilter.frequency.value = 950;
+                var rainGain = audioCtx.createGain(); rainGain.gain.value = 0.02;
+                rain.connect(rainFilter); rainFilter.connect(rainGain); rainGain.connect(audioCtx.destination);
+                rain.start();
+            } catch (e) {}
+        }
+        function ensureAudio() {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                startAmbience();
+            } catch (e) {}
+        }
+        function thunder() {
+            tone(38, 1.4, 'sawtooth', 0.09, 20);
+            tone(62, 1.1, 'triangle', 0.05, 24);
+            setTimeout(function () { tone(44, 0.7, 'sawtooth', 0.05, 18); }, 260);
+        }
+        function whisper() {
+            tone(1800 + Math.random() * 900, 0.5, 'sine', 0.018, 400);
+        }
+
+        scene.add(new THREE.AmbientLight(0x101820, 0.22));
+        var corridorGlow = new THREE.PointLight(0xffcf8a, 0.22, 22); corridorGlow.position.set(0, 2.6, 0); scene.add(corridorGlow);
         var redDoorLight = new THREE.PointLight(0xff2a3a, 0, 10); redDoorLight.position.set(-1.9, 2.2, 20); scene.add(redDoorLight);
         var liftLight = new THREE.PointLight(0x8fd6ff, 0.8, 14); liftLight.position.set(0, 2.4, -29); scene.add(liftLight);
 
@@ -8446,9 +8496,9 @@
             housing.position.set(0, 2.94, lz); scene.add(housing);
             var tube = box(0.9, 0.04, 0.16, new THREE.MeshBasicMaterial({ color: 0xfff0c8 }));
             tube.position.set(0, 2.9, lz); scene.add(tube);
-            var pl = new THREE.PointLight(0xffdfa8, 0.75, 15);
+            var pl = new THREE.PointLight(0xffdfa8, 0.38, 13);
             pl.position.set(0, 2.7, lz); scene.add(pl);
-            flickerLights.push({ mesh: tube, light: pl, base: 0.75, phase: Math.random() * 10 });
+            flickerLights.push({ mesh: tube, light: pl, base: 0.38, phase: Math.random() * 10 });
         }
 
         // HDB props: laundry, plants, shoe racks.
@@ -8511,7 +8561,10 @@
         var pointerCanvas = renderer && renderer.domElement;
         var pointerLocked = false;
         if (pointerCanvas) {
+            pointerCanvas.tabIndex = -1;
             var lockHandler = function () {
+                ensureAudio();
+                try { pointerCanvas.focus(); } catch (e) {}
                 if (document.pointerLockElement !== pointerCanvas && pointerCanvas.requestPointerLock) {
                     try { pointerCanvas.requestPointerLock(); } catch (e) {}
                 }
@@ -8533,6 +8586,15 @@
             };
             document.addEventListener('mousemove', lockMove);
             addCleanup(function () { document.removeEventListener('mousemove', lockMove); });
+            var audioKey = function () { ensureAudio(); };
+            document.addEventListener('keydown', audioKey);
+            addCleanup(function () { document.removeEventListener('keydown', audioKey); });
+            var lockError = function () {
+                var p = document.getElementById('lorongPrompt');
+                if (p) p.textContent = 'Pointer lock blocked · drag to look';
+            };
+            document.addEventListener('pointerlockerror', lockError);
+            addCleanup(function () { document.removeEventListener('pointerlockerror', lockError); });
         }
 
         var testimonies = {
@@ -8616,6 +8678,12 @@
         function update(dt) {
             dt = Math.min(dt, 0.05);
             elapsed += dt;
+            if (ambienceStarted && !dialogOpen) {
+                thunderT -= dt;
+                if (thunderT <= 0) { thunderT = 18 + Math.random() * 22; thunder(); }
+                whisperT -= dt;
+                if (whisperT <= 0) { whisperT = 10 + Math.random() * 18; whisper(); }
+            }
             if (window.__lorongDialogClose) {
                 window.__lorongDialogClose = false;
                 dialogOpen = false;
@@ -8649,8 +8717,13 @@
             var speed = 3.6;
             var fx = -Math.sin(yaw), fz = -Math.cos(yaw);
             var rx = Math.cos(yaw), rz = -Math.sin(yaw);
+            var moving = (move !== 0 || strafe !== 0);
             px += (fx * move + rx * strafe) * speed * dt;
             pz += (fz * move + rz * strafe) * speed * dt;
+            if (moving && ambienceStarted) {
+                stepT -= dt;
+                if (stepT <= 0) { stepT = 0.46; tone(62, 0.08, 'sine', 0.035, 34); }
+            }
             px = Math.max(-1.8, Math.min(1.8, px));
             pz = Math.max(-29.5, Math.min(29.5, pz));
 
@@ -8698,7 +8771,7 @@
             // Camera.
             camera.position.x += (px - camera.position.x) * Math.min(1, dt * 12);
             camera.position.z += (pz - camera.position.z) * Math.min(1, dt * 12);
-            camera.position.y = 1.6 + Math.sin(elapsed * 8) * 0.012;
+            camera.position.y = 1.6 + Math.sin(elapsed * 1.7) * 0.022;
             camera.lookAt(px - Math.sin(yaw) * 20, 1.45 + pitch * 8, pz - Math.cos(yaw) * 20);
 
             // HUD.
@@ -8714,6 +8787,8 @@
                 if (bat) bat.textContent = 'PHONE ' + Math.round(battery) + '% · F';
                 var rad = document.getElementById('lorongRadio');
                 if (rad) rad.textContent = radioOn ? 'RADIO ON · R' : 'RADIO OFF · R';
+                var lockBtn = document.getElementById('lorongLockBtn');
+                if (lockBtn) lockBtn.style.display = (document.pointerLockElement === pointerCanvas) ? 'none' : 'inline-flex';
                 var prompt = document.getElementById('lorongPrompt');
                 var near = nearDoor();
                 var nearLift = Math.abs(pz + 29) < 3.2 && Math.abs(px) < 1.8;
@@ -9301,6 +9376,9 @@
     function getCurrentScore() {
         return active && active.getScore ? active.getScore() : 0;
     }
+    function lockPointer() {
+        if (active && active.lockPointer) active.lockPointer();
+    }
     function teleportRacer(distance, x) {
         if (active && active.teleport) active.teleport(distance, x);
     }
@@ -9358,6 +9436,7 @@
         toggleFsd: toggleFsd,
         toggleShadowHelper: toggleShadowHelper,
         getCurrentScore: getCurrentScore,
+        lockPointer: lockPointer,
         getRacerState: getRacerState,
         getRacerInfo: getRacerInfo
     };

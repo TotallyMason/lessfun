@@ -1262,6 +1262,7 @@ function openGame(id) {
                     '<div class="lorong-objective" id="lorongObjective">Find 3 testimonies · 0/3</div>' +
                     '<div class="lorong-prompt" id="lorongPrompt">WASD move · drag look · E interact · F phone · R radio</div>' +
                     '<div class="lorong-stats"><span id="lorongBattery">PHONE 100% · F</span><span id="lorongRadio">RADIO OFF · R</span></div>' +
+                    '<button type="button" class="lorong-lock" id="lorongLockBtn" onclick="Games3D.lockPointer()">🔒 Click to lock mouse</button>' +
                 '</div>' +
                 '<div class="lorong-dialog" id="lorongDialog" style="display:none;">' +
                     '<div class="lorong-dialog-card"><p id="lorongDialogText"></p><button type="button" onclick="closeLorongDialog()">Close</button></div>' +
@@ -7959,8 +7960,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.61";
-const UPDATE_NOTES = "Lorong 7 corridor doors are fixed: they now sit flush in the walls on the correct side instead of looking permanently open across the hallway";
+const APP_VERSION = "LessFun Public Beta 1.32.62";
+const UPDATE_NOTES = "Lorong 7 has a clear Click to lock mouse button, plus a much darker corridor, vignette, rain and drone ambience, thunder, whispers, footsteps and a heartbeat when the shadow gets close";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
