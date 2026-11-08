@@ -10972,3 +10972,51 @@ body.in-game .radio-dock { display: none; }
 .lsim-bar.is-tire i { background: linear-gradient(90deg, #5fe7ff, #2aa9d8); }
 .lsim-bar.is-oleo i { background: linear-gradient(90deg, #ffd166, #ff8a4d); }
 .lsim-bar.is-arm i { background: linear-gradient(90deg, #c084fc, #7c5cff); }
+
+/* Daily Gifts */
+.daily-gift-banner { display: flex; align-items: center; gap: 14px; padding: 13px 16px; margin: 0 0 18px; border-radius: 18px; border: 1px solid rgba(255, 201, 112, 0.3); background: radial-gradient(circle at 8% 50%, rgba(255, 190, 90, 0.18), transparent 34%), linear-gradient(135deg, rgba(40, 27, 14, 0.92), rgba(15, 14, 12, 0.96)); box-shadow: 0 16px 38px rgba(0, 0, 0, 0.22); cursor: pointer; transition: transform 0.18s ease, border-color 0.18s ease; }
+.daily-gift-banner:hover { transform: translateY(-1px); border-color: rgba(255, 214, 130, 0.55); }
+.daily-gift-banner.is-claimed { border-color: rgba(125, 255, 176, 0.22); background: linear-gradient(135deg, rgba(14, 34, 24, 0.92), rgba(10, 18, 15, 0.96)); }
+.daily-gift-art { flex: 0 0 46px; height: 46px; display: grid; place-items: center; border-radius: 14px; background: rgba(255, 209, 102, 0.1); border: 1px solid rgba(255, 209, 102, 0.25); font-size: 25px; }
+.daily-gift-banner.is-claimed .daily-gift-art { filter: grayscale(0.35); opacity: 0.8; }
+.daily-gift-copy { min-width: 0; flex: 1; }
+.daily-gift-copy span { color: rgba(255, 212, 140, 0.6); font-size: 7px; font-weight: 900; letter-spacing: 0.18em; }
+.daily-gift-copy h2 { margin: 2px 0 2px; color: #ffe2a0; font-size: 17px; font-weight: 800; }
+.daily-gift-banner.is-claimed .daily-gift-copy h2 { color: #b9f5d2; }
+.daily-gift-copy p { margin: 0; color: rgba(225, 235, 240, 0.52); font-size: 9px; font-weight: 600; line-height: 1.4; }
+.daily-gift-btn { flex: 0 0 auto; min-height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid rgba(255, 209, 102, 0.5); background: linear-gradient(145deg, #ffd166, #ff9d2e); color: #261500; font: inherit; font-size: 10px; font-weight: 900; letter-spacing: 0.06em; cursor: pointer; }
+.daily-gift-btn:disabled { border-color: rgba(125, 255, 176, 0.3); background: rgba(125, 255, 176, 0.12); color: #b9f5d2; cursor: default; }
+
+.daily-gift-modal { height: auto; max-height: calc(100vh - 80px); border-radius: 22px; overflow-y: auto; }
+.daily-gift-streak { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.daily-gift-streak strong { color: #ffe2a0; font-size: 13px; font-weight: 800; }
+.daily-gift-streak span { color: rgba(220, 240, 250, 0.45); font-size: 8px; font-weight: 800; letter-spacing: 0.1em; }
+.daily-gift-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.daily-gift-tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 9px 3px 7px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.035); text-align: center; }
+.daily-gift-tile span { color: rgba(220, 240, 250, 0.42); font-size: 6px; font-weight: 900; letter-spacing: 0.08em; }
+.daily-gift-tile strong { color: #eafaff; font-size: 12px; font-weight: 900; }
+.daily-gift-tile small { color: rgba(220, 240, 250, 0.36); font-size: 6px; font-weight: 700; }
+.daily-gift-tile i { min-height: 11px; color: #7dffb0; font-size: 9px; font-style: normal; }
+.daily-gift-tile.is-claimed { border-color: rgba(125, 255, 176, 0.26); background: rgba(125, 255, 176, 0.08); }
+.daily-gift-tile.is-claimed strong { color: #b9f5d2; }
+.daily-gift-tile.is-current { border-color: rgba(255, 209, 102, 0.68); background: linear-gradient(160deg, rgba(255, 209, 102, 0.18), rgba(255, 138, 45, 0.08)); box-shadow: 0 0 18px rgba(255, 190, 80, 0.18); }
+.daily-gift-tile.is-current strong { color: #ffe2a0; }
+.daily-gift-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; }
+.daily-gift-balance { display: inline-flex; align-items: center; gap: 5px; color: #ffe2a0; font-size: 10px; font-weight: 800; }
+.daily-gift-note { margin: 0; color: rgba(220, 240, 250, 0.4); font-size: 8px; line-height: 1.35; text-align: right; }
+.daily-gift-claim { width: 100%; min-height: 48px; margin-top: 12px; border-radius: 999px; border: 1px solid rgba(255, 209, 102, 0.55); background: linear-gradient(145deg, #ffd166, #ff9d2e); color: #261500; font: inherit; font-size: 12px; font-weight: 900; letter-spacing: 0.08em; cursor: pointer; }
+.daily-gift-claim:disabled { border-color: rgba(125, 255, 176, 0.28); background: rgba(125, 255, 176, 0.1); color: #b9f5d2; cursor: default; }
+.daily-gift-result { min-height: 14px; margin: 8px 0 0; color: #7dffb0; font-size: 9px; font-weight: 800; text-align: center; }
+@media (max-width: 640px) {
+    .daily-gift-banner { padding: 10px 11px; gap: 9px; border-radius: 14px; }
+    .daily-gift-art { flex-basis: 38px; height: 38px; font-size: 20px; border-radius: 11px; }
+    .daily-gift-copy h2 { font-size: 14px; }
+    .daily-gift-copy p { font-size: 8px; }
+    .daily-gift-btn { min-height: 34px; padding: 0 12px; font-size: 9px; }
+    .daily-gift-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .daily-gift-foot { flex-direction: column; align-items: flex-start; }
+    .daily-gift-note { text-align: left; }
+}
+@media (max-width: 640px) {
+    .daily-gift-modal { max-height: calc(100vh - 28px); width: calc(100% - 16px); }
+}

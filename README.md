@@ -51,9 +51,12 @@ speed, acceleration, and grip; the other categories are visual.
 | --- | --- |
 | Every second of play | 1 (minimum 1 per run) |
 | First run of the day | +25 |
+| Daily gift (7-day cycle) | 50, 75, 100, 150, 200, 300, 500 |
 | 3-day streak | +150 |
 | 7-day streak | +400 |
 | 14-day streak | +1,000 |
+
+A **Daily Gift** banner on the Games page gives one claim per day, with rewards rising across a seven-day streak (50 → 500 Coins). Gift streaks are stored in the account wallet and sync across devices for signed-in players.
 
 New players start with **100 Coins**. Purchases are equipped immediately, and
 any owned cosmetic can be re-equipped for free. Signed-in purchases — cars,

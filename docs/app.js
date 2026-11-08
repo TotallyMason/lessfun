@@ -5839,6 +5839,7 @@ const SHELLS_START = 100;
 const WALLET_STORAGE_PREFIX = 'lessfun_wallet_v1_';
 const DAILY_BONUS = 25;
 const STREAK_BONUSES = { 3: 150, 7: 400, 14: 1000 };
+const DAILY_GIFTS = [50, 75, 100, 150, 200, 300, 500];
 
 const COSMETICS = [
     // Global themes (apply to the whole app and every game)
@@ -6697,7 +6698,8 @@ function walletSyncExtras(w) {
         xp: Number(w.xp) || 0,
         achievements: Array.isArray(w.achievements) ? w.achievements.slice() : [],
         stats: (w.stats && typeof w.stats === 'object') ? w.stats : {},
-        zombie: (w.zombie && typeof w.zombie === 'object') ? w.zombie : null
+        zombie: (w.zombie && typeof w.zombie === 'object') ? w.zombie : null,
+        gift: (w.gift && typeof w.gift === 'object') ? w.gift : null
     };
 }
 
@@ -6752,6 +6754,9 @@ function normalizeWallet(raw, username) {
     });
     var statsSource = Object.assign({}, (extras.stats && typeof extras.stats === 'object') ? extras.stats : {}, (w.stats && typeof w.stats === 'object') ? w.stats : {});
     var zombieSource = (w.zombie && typeof w.zombie === 'object') ? w.zombie : ((extras.zombie && typeof extras.zombie === 'object') ? extras.zombie : null);
+    var giftSource = (w.gift && typeof w.gift === 'object') ? w.gift : ((extras.gift && typeof extras.gift === 'object') ? extras.gift : {});
+    var giftClaim = typeof giftSource.lastClaim === 'string' ? giftSource.lastClaim : '';
+    var giftStreak = Number.isFinite(giftSource.streak) ? Math.max(0, Math.floor(giftSource.streak)) : 0;
 
     return {
         username: username,
@@ -6764,6 +6769,7 @@ function normalizeWallet(raw, username) {
         achievements: achSource.filter(function (id) { return typeof id === 'string'; }),
         stats: statsSource,
         zombie: zombieSource,
+        gift: { lastClaim: giftClaim, streak: giftStreak },
         streak: Number.isFinite(w.streak) ? Math.max(0, Math.floor(w.streak)) : 0,
         lastPlayDay: typeof w.lastPlayDay === 'string' ? w.lastPlayDay : (typeof w.last_play_day === 'string' ? w.last_play_day : null),
         streakRewards: Array.isArray(w.streakRewards) ? w.streakRewards : (Array.isArray(w.streak_rewards) ? w.streak_rewards : []),
@@ -6830,6 +6836,12 @@ async function loadWallet() {
             });
             remote.stats = mergedStats;
             if (!remote.zombie && local.zombie) { remote.zombie = local.zombie; changed = true; }
+            if ((local.gift.lastClaim || '') > (remote.gift.lastClaim || '') ||
+                ((local.gift.lastClaim || '') === (remote.gift.lastClaim || '') && (local.gift.streak || 0) > (remote.gift.streak || 0))) {
+                remote.gift = local.gift;
+                changed = true;
+            }
+            local.gift = remote.gift;
             var localNewer = local.updatedAt > remote.updatedAt;
             if (localNewer) {
                 // An offline or in-flight purchase on this device wins.
@@ -6993,6 +7005,111 @@ function applyGlobalCosmetics() {
     root.style.setProperty('--frame-color', frameOn ? (frame.color || '#ffd166') : 'transparent');
 }
 
+function dailyGiftState() {
+    var today = dayKey();
+    var gift = (wallet && wallet.gift) || { lastClaim: '', streak: 0 };
+    var claimed = gift.lastClaim === today;
+    var gap = gift.lastClaim ? dayNumber(today) - dayNumber(gift.lastClaim) : 0;
+    var streak;
+    if (claimed) streak = Math.max(1, Number(gift.streak) || 1);
+    else if (gap === 1) streak = Math.max(1, (Number(gift.streak) || 0) + 1);
+    else streak = 1;
+    var day = ((streak - 1) % 7) + 1;
+    return {
+        claimed: claimed,
+        streak: streak,
+        day: day,
+        amount: DAILY_GIFTS[day - 1],
+        lastClaim: gift.lastClaim
+    };
+}
+
+function renderDailyGift() {
+    var banner = document.getElementById('dailyGiftBanner');
+    if (!banner) return;
+    var title = document.getElementById('dailyGiftTitle');
+    var sub = document.getElementById('dailyGiftSub');
+    var btn = document.getElementById('dailyGiftBtn');
+    if (!wallet) {
+        if (title) title.textContent = 'Daily gift';
+        if (sub) sub.textContent = 'Loading your reward…';
+        if (btn) { btn.disabled = true; btn.textContent = 'Loading'; }
+        return;
+    }
+    var st = dailyGiftState();
+    banner.classList.toggle('is-claimed', st.claimed);
+    if (title) title.textContent = st.claimed ? 'Gift claimed today' : 'Daily gift ready';
+    if (sub) {
+        sub.textContent = st.claimed
+            ? 'Day ' + st.day + ' claimed · ' + st.streak + '-day streak · come back tomorrow'
+            : 'Day ' + st.day + ' of 7 · ' + st.amount.toLocaleString() + ' Coins · ' + st.streak + '-day streak';
+    }
+    if (btn) {
+        btn.disabled = st.claimed;
+        btn.textContent = st.claimed ? 'Claimed ✓' : 'Claim ' + st.amount.toLocaleString();
+    }
+}
+
+function openDailyGift() {
+    if (!wallet) { showGameToast('Daily gift is still loading.'); return; }
+    var modal = document.getElementById('dailyGiftModal');
+    if (!modal) return;
+    renderDailyGiftModal();
+    modal.style.display = 'flex';
+}
+
+function closeDailyGift() {
+    var modal = document.getElementById('dailyGiftModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function renderDailyGiftModal() {
+    var grid = document.getElementById('dailyGiftGrid');
+    if (!grid || !wallet) return;
+    var st = dailyGiftState();
+    var streakEl = document.getElementById('dailyGiftStreak');
+    if (streakEl) streakEl.innerHTML = '<strong>' + st.streak + '-day streak</strong><span>Day ' + st.day + ' of 7</span>';
+    grid.innerHTML = DAILY_GIFTS.map(function (amount, index) {
+        var day = index + 1;
+        var claimed = st.claimed ? day <= st.day : day < st.day;
+        var current = day === st.day && !st.claimed;
+        var cls = 'daily-gift-tile' + (claimed ? ' is-claimed' : '') + (current ? ' is-current' : '');
+        return '<div class="' + cls + '">' +
+            '<span>DAY ' + day + '</span>' +
+            '<strong>' + amount.toLocaleString() + '</strong>' +
+            '<small>Coins</small>' +
+            '<i>' + (claimed ? '✓' : (current ? '🎁' : '')) + '</i>' +
+        '</div>';
+    }).join('');
+    var balance = document.getElementById('dailyGiftBalance');
+    if (balance) balance.innerHTML = shellIcon(13) + ' ' + wallet.shells.toLocaleString() + ' Coins';
+    var claim = document.getElementById('dailyGiftClaim');
+    if (claim) {
+        claim.disabled = st.claimed;
+        claim.textContent = st.claimed ? 'Claimed · come back tomorrow' : 'Claim ' + st.amount.toLocaleString() + ' Coins';
+    }
+    var note = document.getElementById('dailyGiftNote');
+    if (note) {
+        if (!currentUser || currentUser.type !== 'user') note.textContent = 'Sign in to keep your gift streak across devices.';
+        else note.textContent = st.claimed ? 'Your next gift unlocks at midnight.' : 'Claim today to keep the streak alive.';
+    }
+}
+
+async function claimDailyGift() {
+    if (!wallet) { showGameToast('Daily gift is still loading.'); return; }
+    var st = dailyGiftState();
+    if (st.claimed) { showGameToast('Your gift is already claimed today.'); return; }
+    wallet.gift = { lastClaim: dayKey(), streak: st.streak };
+    wallet.shells = Math.max(0, (Number(wallet.shells) || 0) + st.amount);
+    wallet.totalEarned = Math.max(0, (Number(wallet.totalEarned) || 0) + st.amount);
+    await saveWallet();
+    renderWalletUI();
+    renderDailyGiftModal();
+    var result = document.getElementById('dailyGiftResult');
+    if (result) result.textContent = '+' + st.amount.toLocaleString() + ' Coins · ' + st.streak + '-day streak';
+    showGameToast('Daily gift · +' + st.amount.toLocaleString() + ' Coins');
+}
+
 window.LessFunGetCoins = function () {
     return wallet ? (Number(wallet.shells) || 0) : 0;
 };
@@ -7031,6 +7148,7 @@ function renderWalletUI() {
         garageGuest.style.display = (!currentUser || currentUser.type !== 'user') ? 'block' : 'none';
     }
     applyGlobalCosmetics();
+    renderDailyGift();
 }
 
 function getEquippedCar() {
@@ -8330,8 +8448,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.88";
-const UPDATE_NOTES = "Boeing Landing suspension is now a real oleo-pneumatic strut: polytropic nitrogen spring, velocity-squared hydraulic damping, seal friction and tire deflection, with compression and controlled rebound";
+const APP_VERSION = "LessFun Public Beta 1.32.89";
+const UPDATE_NOTES = "Daily Gifts are live: claim once a day on the Games page for 50 to 500 Coins across a seven-day streak, synced to your account";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
