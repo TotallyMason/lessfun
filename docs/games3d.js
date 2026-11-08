@@ -8299,6 +8299,383 @@
         return { over: false, update: update, getScore: function () { return score; } };
     }
 
+    /* ---------------- Lorong 7 (HDB horror) ---------------- */
+    function createLorong7(ctx) {
+        var scene = ctx.scene, camera = ctx.camera, renderer = ctx.renderer;
+        scene.background = new THREE.Color(0x04070a);
+        scene.fog = new THREE.FogExp2(0x070b10, 0.035);
+        if (renderer) renderer.shadowMap.enabled = false;
+        camera.fov = 72;
+        camera.near = 0.05;
+        camera.far = 140;
+        scene.add(camera);
+
+        function std(color, opts) {
+            return new THREE.MeshStandardMaterial(Object.assign({ color: color, roughness: 0.82, metalness: 0.08 }, opts || {}));
+        }
+        function box(w, h, d, mat) { return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); }
+        function cyl(t, b, h, s, mat) { return new THREE.Mesh(new THREE.CylinderGeometry(t, b, h, s || 8), mat); }
+        function canvasTex(w, h, draw, rx, ry) {
+            var c = document.createElement('canvas'); c.width = w; c.height = h;
+            draw(c.getContext('2d'), w, h);
+            var t = new THREE.CanvasTexture(c);
+            if (rx || ry) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx || 1, ry || 1); }
+            return t;
+        }
+
+        var audioCtx = null;
+        function tone(freq, dur, type, vol, end) {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                var now = audioCtx.currentTime;
+                var o = audioCtx.createOscillator();
+                var g = audioCtx.createGain();
+                o.type = type || 'sine';
+                o.frequency.setValueAtTime(freq, now);
+                if (end) o.frequency.exponentialRampToValueAtTime(Math.max(20, end), now + dur);
+                g.gain.setValueAtTime(Math.max(0.0001, vol || 0.04), now);
+                g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+                o.connect(g); g.connect(audioCtx.destination);
+                o.start(now); o.stop(now + dur + 0.02);
+            } catch (e) {}
+        }
+
+        scene.add(new THREE.AmbientLight(0x1a2430, 0.85));
+        var corridorGlow = new THREE.PointLight(0xffcf8a, 0.55, 26); corridorGlow.position.set(0, 2.6, 0); scene.add(corridorGlow);
+        var redDoorLight = new THREE.PointLight(0xff2a3a, 0, 10); redDoorLight.position.set(-1.9, 2.2, 20); scene.add(redDoorLight);
+        var liftLight = new THREE.PointLight(0x8fd6ff, 0.8, 14); liftLight.position.set(0, 2.4, -29); scene.add(liftLight);
+
+        // Corridor shell.
+        var floorTex = canvasTex(128, 128, function (g, w, h) {
+            g.fillStyle = '#3e3a35'; g.fillRect(0, 0, w, h);
+            for (var y = 0; y < h; y += 16) for (var x = 0; x < w; x += 16) {
+                g.fillStyle = ((x / 16 + y / 16) % 2) ? '#47433d' : '#393631';
+                g.fillRect(x + 1, y + 1, 14, 14);
+            }
+            g.fillStyle = 'rgba(0,0,0,0.18)';
+            for (var i = 0; i < 40; i++) g.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+        }, 3, 22);
+        var floor = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 64), std(0xffffff, { map: floorTex, roughness: 0.95 }));
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.set(0, 0, 0);
+        scene.add(floor);
+        var ceiling = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 64), std(0x22252a, { roughness: 0.9 }));
+        ceiling.rotation.x = Math.PI / 2;
+        ceiling.position.set(0, 3.0, 0);
+        scene.add(ceiling);
+
+        var wallMat = std(0x8d8a80, { roughness: 0.92 });
+        var wallTexMat = new THREE.MeshStandardMaterial({ color: 0x9a958a, roughness: 0.95 });
+        [-1, 1].forEach(function (side) {
+            var wall = box(0.16, 3.0, 64, wallTexMat);
+            wall.position.set(side * 2.25, 1.5, 0);
+            scene.add(wall);
+            var rail = box(0.05, 0.06, 64, std(0x5c5a55, { metalness: 0.4 }));
+            rail.position.set(side * 2.16, 1.05, 0); scene.add(rail);
+        });
+        var endWallA = box(4.6, 3.0, 0.16, wallMat); endWallA.position.set(0, 1.5, 32); scene.add(endWallA);
+        var endWallB = box(4.6, 3.0, 0.16, wallMat); endWallB.position.set(0, 1.5, -32); scene.add(endWallB);
+
+        // Doors.
+        var doors = [];
+        var doorMat = std(0x4a3b2e, { roughness: 0.86 });
+        var frameMat = std(0x2f2a26, { metalness: 0.25, roughness: 0.7 });
+        function unitTexture(label) {
+            return canvasTex(128, 64, function (g, w, h) {
+                g.fillStyle = '#d9d3c4'; g.fillRect(0, 0, w, h);
+                g.strokeStyle = '#2a2a2a'; g.lineWidth = 3; g.strokeRect(3, 3, w - 6, h - 6);
+                g.fillStyle = '#1d1d1d'; g.font = 'bold 26px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle';
+                g.fillText(label, w / 2, h / 2);
+            });
+        }
+        var doorIndex = 1;
+        for (var z = -26; z <= 26; z += 5.2) {
+            [-1, 1].forEach(function (side) {
+                var d = box(1.0, 2.15, 0.1, doorMat);
+                d.position.set(side * 2.15, 1.12, z);
+                scene.add(d);
+                var frame = box(1.14, 2.3, 0.06, frameMat);
+                frame.position.set(side * 2.19, 1.15, z);
+                scene.add(frame);
+                var label = '12-' + (doorIndex < 10 ? '0' : '') + doorIndex;
+                var sign = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.24), new THREE.MeshBasicMaterial({ map: unitTexture(label) }));
+                sign.position.set(side * 2.2, 2.35, z);
+                sign.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+                scene.add(sign);
+                var knob = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), std(0xc9b47a, { metalness: 0.8, roughness: 0.3 }));
+                knob.position.set(side * 2.08, 1.05, z + 0.32);
+                scene.add(knob);
+                doors.push({ z: z, side: side, label: label, mesh: d, heard: false });
+                doorIndex++;
+            });
+        }
+
+        // Ceiling lights + flicker.
+        var flickerLights = [];
+        for (var lz = -27; lz <= 27; lz += 9) {
+            var housing = box(1.1, 0.08, 0.3, std(0x2b2d30));
+            housing.position.set(0, 2.94, lz); scene.add(housing);
+            var tube = box(0.9, 0.04, 0.16, new THREE.MeshBasicMaterial({ color: 0xfff0c8 }));
+            tube.position.set(0, 2.9, lz); scene.add(tube);
+            var pl = new THREE.PointLight(0xffdfa8, 0.75, 15);
+            pl.position.set(0, 2.7, lz); scene.add(pl);
+            flickerLights.push({ mesh: tube, light: pl, base: 0.75, phase: Math.random() * 10 });
+        }
+
+        // HDB props: laundry, plants, shoe racks.
+        var clothColors = [0xc0392b, 0x2e86c1, 0xf1c40f, 0x27ae60, 0x8e44ad];
+        for (var ci = 0; ci < 14; ci++) {
+            var cloth = new THREE.Mesh(new THREE.PlaneGeometry(0.7 + Math.random() * 0.5, 0.9 + Math.random() * 0.7), new THREE.MeshStandardMaterial({ color: clothColors[ci % clothColors.length], side: THREE.DoubleSide, roughness: 0.9 }));
+            cloth.position.set((ci % 2 ? 1 : -1) * (1.6 + Math.random() * 0.3), 2.1, -22 + ci * 3.2);
+            cloth.rotation.y = Math.PI / 2;
+            scene.add(cloth);
+            var rope = box(0.02, 0.02, 2.2, std(0x8a8a8a));
+            rope.position.set((ci % 2 ? 1 : -1) * 2.05, 2.5, -22 + ci * 3.2); scene.add(rope);
+        }
+        for (var pi = 0; pi < 10; pi++) {
+            var pot = cyl(0.18, 0.14, 0.3, 8, std(0x8a5a3a)); pot.position.set((pi % 2 ? 1 : -1) * 1.85, 0.15, -20 + pi * 4.6); scene.add(pot);
+            var leaf = new THREE.Mesh(new THREE.IcosahedronGeometry(0.28, 0), std(0x2e6b35)); leaf.position.set(pot.position.x, 0.52, pot.position.z); scene.add(leaf);
+        }
+
+        // The crying flat and lift.
+        var cryingDoor = doors.find(function (d) { return d.side < 0 && Math.abs(d.z - 20) < 2.7; });
+        if (cryingDoor) cryingDoor.mesh.material = std(0x5c1f1f, { roughness: 0.8, emissive: 0x2a0505, emissiveIntensity: 0.5 });
+        var lift = new THREE.Group();
+        var liftFrame = box(2.4, 2.8, 0.2, std(0x3a3e44, { metalness: 0.7, roughness: 0.3 }));
+        liftFrame.position.set(0, 1.4, -30.9); lift.add(liftFrame);
+        var liftDoorMat = std(0x6b7077, { metalness: 0.85, roughness: 0.25 });
+        [-0.58, 0.58].forEach(function (x) {
+            var door = box(1.1, 2.5, 0.08, liftDoorMat);
+            door.position.set(x, 1.3, -30.78); lift.add(door);
+        });
+        var liftButton = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), new THREE.MeshBasicMaterial({ color: 0x8fd6ff }));
+        liftButton.position.set(1.1, 1.25, -30.7); lift.add(liftButton);
+        var liftSign = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.2), new THREE.MeshBasicMaterial({ map: unitTexture('LIFT') }));
+        liftSign.position.set(0, 2.72, -30.68); lift.add(liftSign);
+        scene.add(lift);
+
+        // Phone light.
+        var phoneLight = new THREE.PointLight(0xfff2cc, 0, 12, 1.8);
+        phoneLight.position.set(0, -0.1, 0);
+        camera.add(phoneLight);
+
+        // Shadow figure.
+        var shadow = new THREE.Group();
+        var shadowMat = new THREE.MeshStandardMaterial({ color: 0x050507, roughness: 1, metalness: 0 });
+        var sBody = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.5, 1.7, 8), shadowMat); sBody.position.y = 1.1; shadow.add(sBody);
+        var sHead = new THREE.Mesh(new THREE.SphereGeometry(0.26, 10, 8), shadowMat); sHead.position.y = 2.15; shadow.add(sHead);
+        var eyeMat = new THREE.MeshBasicMaterial({ color: 0xff2a3a });
+        [-0.09, 0.09].forEach(function (ex) {
+            var eye = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 4), eyeMat);
+            eye.position.set(ex, 2.18, -0.22); shadow.add(eye);
+        });
+        shadow.visible = false;
+        scene.add(shadow);
+
+        // State.
+        var px = 0, pz = 0, yaw = 0, pitch = 0;
+        var truthCount = 0, finalHeard = false, shadowActive = false, shadowSpeed = 2.8;
+        var battery = 100, phoneOn = false, radioOn = false, dialogOpen = false, ended = false;
+        var score = 0, elapsed = 0, hudT = 0, heartbeatT = 0;
+        camera.position.set(px, 1.6, pz);
+
+        var testimonies = {
+            '-15.6,1': 'She used to cry every night. Then one night it just stopped.',
+            '0,-1': 'The lift always stops on the seventh floor, even when nobody pressed it.',
+            '10.4,1': 'They say the crying stops only when someone opens 12-07.'
+        };
+        var testimonyDoors = [
+            { z: -15.6, side: 1 }, { z: 0, side: -1 }, { z: 10.4, side: 1 }
+        ];
+        testimonyDoors.forEach(function (td) {
+            var door = doors.find(function (d) { return d.side === td.side && Math.abs(d.z - td.z) < 1.1; });
+            if (door) door.testimony = testimonies[td.z + ',' + td.side];
+        });
+
+        function showDialog(text) {
+            var el = document.getElementById('lorongDialog');
+            var tx = document.getElementById('lorongDialogText');
+            if (tx) tx.textContent = text;
+            if (el) el.style.display = 'flex';
+            dialogOpen = true;
+            window.__lorongDialogClose = false;
+        }
+
+        function nearDoor() {
+            for (var i = 0; i < doors.length; i++) {
+                var d = doors[i];
+                if (Math.abs(pz - d.z) < 1.4 && Math.abs(px - d.side * 1.6) < 1.2) return d;
+            }
+            return null;
+        }
+
+        function interact() {
+            if (dialogOpen) { window.__lorongDialogClose = true; return; }
+            if (finalHeard && Math.abs(pz + 29) < 3.2 && Math.abs(px) < 1.8) {
+                ended = true;
+                score += 1500;
+                endGame(Math.round(score));
+                return;
+            }
+            if (nearDoor()) {
+                var d = nearDoor();
+                if (d.testimony && !d.heard) {
+                    d.heard = true;
+                    truthCount++;
+                    score += 200;
+                    showDialog(d.testimony);
+                    tone(320, 0.16, 'triangle', 0.05, 220);
+                    if (truthCount >= 3) {
+                        redDoorLight.intensity = 1.6;
+                        tone(180, 0.4, 'sawtooth', 0.06, 90);
+                    }
+                    return;
+                }
+                if (cryingDoor && d === cryingDoor) {
+                    if (truthCount >= 3 && !finalHeard) {
+                        finalHeard = true;
+                        score += 500;
+                        showDialog('The door opens by itself. A voice says: "You took too long."');
+                        shadow.visible = true;
+                        shadow.position.set(px, 0, pz + 14);
+                        shadowActive = true;
+                        flickerLights.forEach(function (fl) { fl.light.intensity = 0.15; });
+                        tone(70, 0.9, 'sawtooth', 0.1, 35);
+                        return;
+                    }
+                    if (truthCount < 3) {
+                        showDialog('The door is warm. You hear breathing. Not yet.');
+                        return;
+                    }
+                }
+                showDialog('The door is locked. You hear a television inside.');
+                return;
+            }
+            if (Math.abs(pz + 29) < 3.2 && Math.abs(px) < 1.8) {
+                showDialog(finalHeard ? 'The lift doors open. Get in.' : 'The lift is dead. The button does nothing.');
+                tone(180, 0.15, 'square', 0.04, 120);
+            }
+        }
+
+        function update(dt) {
+            dt = Math.min(dt, 0.05);
+            elapsed += dt;
+            if (window.__lorongDialogClose) {
+                window.__lorongDialogClose = false;
+                dialogOpen = false;
+                var el = document.getElementById('lorongDialog');
+                if (el) el.style.display = 'none';
+            }
+            if (input.interact) { input.interact = false; interact(); }
+            if (input.fsdToggle) {
+                input.fsdToggle = false;
+                phoneOn = !phoneOn && battery > 0;
+                phoneLight.intensity = phoneOn ? 1.5 : 0;
+                tone(phoneOn ? 540 : 260, 0.06, 'square', 0.03, phoneOn ? 720 : 180);
+            }
+            if (input.reload) {
+                input.reload = false;
+                radioOn = !radioOn;
+                tone(radioOn ? 120 : 90, 0.12, 'sawtooth', 0.03, radioOn ? 160 : 60);
+            }
+            if (dialogOpen) {
+                camera.position.set(px, 1.6, pz);
+                camera.lookAt(px - Math.sin(yaw) * 10, 1.45 + pitch * 4, pz - Math.cos(yaw) * 10);
+                return;
+            }
+
+            var move = (input.up ? 1 : 0) - (input.down ? 1 : 0);
+            var strafe = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+            if (input.pointerActive) {
+                yaw = -input.pointerX * 1.45;
+                pitch = -input.pointerY * 0.7;
+            }
+            var speed = 3.6;
+            var fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+            var rx = Math.cos(yaw), rz = -Math.sin(yaw);
+            px += (fx * move + rx * strafe) * speed * dt;
+            pz += (fz * move + rz * strafe) * speed * dt;
+            px = Math.max(-1.8, Math.min(1.8, px));
+            pz = Math.max(-29.5, Math.min(29.5, pz));
+
+            // Phone battery.
+            if (phoneOn) {
+                battery = Math.max(0, battery - 2.1 * dt);
+                if (battery <= 0) { phoneOn = false; phoneLight.intensity = 0; }
+            }
+            phoneLight.intensity = phoneOn ? (1.25 + Math.sin(elapsed * 16) * 0.12) : 0;
+
+            // Flicker.
+            for (var i = 0; i < flickerLights.length; i++) {
+                var fl = flickerLights[i];
+                var flick = 0.75 + Math.sin(elapsed * 7 + fl.phase) * 0.06;
+                if (Math.sin(elapsed * 13 + fl.phase * 2) > 0.94) flick *= 0.15;
+                fl.light.intensity = shadowActive ? 0.12 : flick;
+                fl.mesh.material.color.setHex(shadowActive ? 0x5a2020 : 0xfff0c8);
+            }
+
+            // Shadow chase.
+            if (shadowActive && !ended) {
+                var sx = shadow.position.x, sz = shadow.position.z;
+                var dx = px - sx, dz = pz - sz;
+                var dist = Math.sqrt(dx * dx + dz * dz);
+                if (dist > 0.01) {
+                    shadow.position.x += (dx / dist) * shadowSpeed * dt;
+                    shadow.position.z += (dz / dist) * shadowSpeed * dt;
+                }
+                shadow.lookAt(px, 1.6, pz);
+                shadow.rotation.y = Math.atan2(dx, dz) + Math.PI;
+                shadow.position.y = Math.sin(elapsed * 6) * 0.03;
+                if (dist < 1.25) {
+                    ended = true;
+                    endGame(Math.round(score + truthCount * 50));
+                    return;
+                }
+                heartbeatT -= dt;
+                if (heartbeatT <= 0) {
+                    heartbeatT = Math.max(0.35, 1.2 - (1 - Math.min(1, dist / 20)) * 0.7);
+                    tone(58, 0.12, 'sine', 0.06, 42);
+                }
+                if (Math.random() < dt * 0.35) tone(1200, 0.03, 'square', 0.02, 400);
+            }
+
+            // Camera.
+            camera.position.x += (px - camera.position.x) * Math.min(1, dt * 12);
+            camera.position.z += (pz - camera.position.z) * Math.min(1, dt * 12);
+            camera.position.y = 1.6 + Math.sin(elapsed * 8) * 0.012;
+            camera.lookAt(px - Math.sin(yaw) * 20, 1.45 + pitch * 8, pz - Math.cos(yaw) * 20);
+
+            // HUD.
+            hudT -= dt;
+            if (hudT <= 0) {
+                hudT = 0.12;
+                var obj = document.getElementById('lorongObjective');
+                if (obj) {
+                    if (!finalHeard) obj.textContent = truthCount < 3 ? 'Find 3 testimonies · ' + truthCount + '/3' : 'Go to the red door 12-07';
+                    else obj.textContent = 'RUN TO THE LIFT';
+                }
+                var bat = document.getElementById('lorongBattery');
+                if (bat) bat.textContent = 'PHONE ' + Math.round(battery) + '% · F';
+                var rad = document.getElementById('lorongRadio');
+                if (rad) rad.textContent = radioOn ? 'RADIO ON · R' : 'RADIO OFF · R';
+                var prompt = document.getElementById('lorongPrompt');
+                var near = nearDoor();
+                var nearLift = Math.abs(pz + 29) < 3.2 && Math.abs(px) < 1.8;
+                if (prompt) {
+                    if (dialogOpen) prompt.textContent = 'E or Close to continue';
+                    else if (nearLift) prompt.textContent = 'E · Use lift';
+                    else if (near && near.testimony && !near.heard) prompt.textContent = 'E · Listen';
+                    else if (near === cryingDoor && truthCount >= 3 && !finalHeard) prompt.textContent = 'E · Open 12-07';
+                    else if (near) prompt.textContent = 'E · Try door';
+                    else prompt.textContent = 'WASD move · drag look · E interact · F phone · R radio';
+                }
+                setHud(Math.round(score), 'LORONG 7 · ' + (finalHeard ? 'ESCAPE' : truthCount + '/3 TESTIMONIES'));
+            }
+        }
+
+        return { over: false, update: update, getScore: function () { return score; } };
+    }
+
     function factoryFor(gameId, opts) {
         if (gameId === 1 && opts && opts.cityMode) return createCity;
         return factories[gameId];
@@ -8309,7 +8686,8 @@
         2: createTunnel,
         3: createStack,
         4: createDeadCoast,
-        7: createSnowRush
+        7: createSnowRush,
+        8: createLorong7
     };
 
     function resetScene() {

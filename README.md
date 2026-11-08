@@ -11,6 +11,8 @@ A 3D arcade with a liquid-glass interface. Play it at
 | Tunnel Rush | Thread an endless neon tunnel and rotate through the gaps. |
 | Cube Stack | Stack the tower as high as you can before the blocks drift away. |
 | Funtutu Test | GPU/CPU benchmark that shows its work, produces a score, and recommends graphics settings for this device. |
+| Snow Rush | Christmas sleigh game: collect gifts, hit candy boosts, survive snowstorms and the Grinch. |
+| Lorong 7 | HDB corridor horror: collect three testimonies, open 12-07, and escape the shadow to the lift. |
 | Dead Coast | Drive 10 km through a ruined coast, managing food, water, fuel, and car health while scavenging better car parts. |
 | Star Dodger | Weave through an asteroid storm at increasing speed. |
 

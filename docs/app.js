@@ -9,7 +9,8 @@ const games = [
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
     { id: 4, name: "Dead Coast", description: "Drive 10 km through the dead coast, scavenging food, water, fuel, and car parts", icon: "skull", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · A D / ← → steer · C camera · drag to steer on mobile · survive 10 km" },
     { id: 6, name: "Funtutu Test", description: "Benchmark your GPU and CPU, then get recommended graphics settings", icon: "bolt", controls: "Press Run Test · apply the recommended settings when it finishes" },
-    { id: 7, name: "Snow Rush", description: "Christmas sleigh run — collect gifts and dodge the ice", icon: "snow", controls: "WASD / arrows to fly · drag to steer · collect gifts · dodge ice" }
+    { id: 7, name: "Snow Rush", description: "Christmas sleigh run — collect gifts and dodge the ice", icon: "snow", controls: "WASD / arrows to fly · drag to steer · collect gifts · dodge ice" },
+    { id: 8, name: "Lorong 7", description: "HDB corridor horror — collect testimonies and escape", icon: "skull", controls: "WASD move · drag look · E interact · F phone light · R radio" }
 ];
 
 let currentUser = null;
@@ -937,6 +938,12 @@ function setRacerGear(mode) {
     if (window.Games3D && window.Games3D.setGearMode) window.Games3D.setGearMode(mode);
 }
 
+function closeLorongDialog() {
+    window.__lorongDialogClose = true;
+    var el = document.getElementById('lorongDialog');
+    if (el) el.style.display = 'none';
+}
+
 function mobileFsd() {
     if (window.Games3D && window.Games3D.toggleFsd) window.Games3D.toggleFsd();
 }
@@ -1250,6 +1257,15 @@ function openGame(id) {
                     '</div>' +
                 '</div>' : '') +
 
+            (game.id === 8 ?
+                '<div class="lorong-hud">' +
+                    '<div class="lorong-objective" id="lorongObjective">Find 3 testimonies · 0/3</div>' +
+                    '<div class="lorong-prompt" id="lorongPrompt">WASD move · drag look · E interact · F phone · R radio</div>' +
+                    '<div class="lorong-stats"><span id="lorongBattery">PHONE 100% · F</span><span id="lorongRadio">RADIO OFF · R</span></div>' +
+                '</div>' +
+                '<div class="lorong-dialog" id="lorongDialog" style="display:none;">' +
+                    '<div class="lorong-dialog-card"><p id="lorongDialogText"></p><button type="button" onclick="closeLorongDialog()">Close</button></div>' +
+                '</div>' : '') +
             '<div class="game3d-crash" id="g3dCrashFlash"></div>' +
             '<div class="g3d-grain" aria-hidden="true"></div>' +
             (game.id === 1 ? '<div class="g3d-cinema" id="g3dCinema"></div>' : '') +
@@ -7943,8 +7959,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.57";
-const UPDATE_NOTES = "Snow Rush is now a full Christmas event: candy-cane boost gates, snowstorms, the Grinch boss, a gift leaderboard, a home event countdown, and Christmas theme and frame cosmetics";
+const APP_VERSION = "LessFun Public Beta 1.32.58";
+const UPDATE_NOTES = "Lorong 7 is a new HDB horror game: walk a night corridor, collect three testimonies, open flat 12-07, then escape a chasing shadow to the lift with your phone light and radio";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
