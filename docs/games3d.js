@@ -8332,6 +8332,299 @@
         };
     }
 
+    /* ---------------- Drone Racing ---------------- */
+    function createDroneRacing(ctx) {
+        var scene = ctx.scene, camera = ctx.camera, renderer = ctx.renderer;
+        scene.background = new THREE.Color(0x071019);
+        scene.fog = new THREE.FogExp2(0x0a1a26, 0.006);
+        if (renderer) renderer.shadowMap.enabled = false;
+        camera.fov = 72;
+        camera.near = 0.1;
+        camera.far = 900;
+
+        function std(color, opts) { return new THREE.MeshStandardMaterial(Object.assign({ color: color, roughness: 0.55, metalness: 0.2 }, opts || {})); }
+        function box(w, h, d, mat) { return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); }
+        function cyl(t, b, h, s, mat) { return new THREE.Mesh(new THREE.CylinderGeometry(t, b, h, s || 8), mat); }
+        function neon(color, intensity) {
+            return new THREE.MeshStandardMaterial({ color: color, emissive: color, emissiveIntensity: intensity == null ? 1.2 : intensity, metalness: 0.4, roughness: 0.3 });
+        }
+
+        scene.add(new THREE.HemisphereLight(0x9fc8ff, 0x1a2430, 1.15));
+        var sun = new THREE.DirectionalLight(0xfff0d0, 1.1);
+        sun.position.set(80, 140, 60);
+        scene.add(sun);
+
+        // Ground / city grid.
+        var ground = new THREE.Mesh(new THREE.PlaneGeometry(1200, 1200), std(0x0d1820, { roughness: 0.95 }));
+        ground.rotation.x = -Math.PI / 2;
+        scene.add(ground);
+        var grid = new THREE.GridHelper(900, 60, 0x1f5566, 0x12303a);
+        grid.position.y = 0.02;
+        scene.add(grid);
+        for (var bi = 0; bi < 46; bi++) {
+            var h = 16 + Math.random() * 70;
+            var bw = 12 + Math.random() * 20;
+            var b = box(bw, h, bw, std(0x142430, { metalness: 0.35, roughness: 0.6 }));
+            var ang = Math.random() * Math.PI * 2;
+            var rad = 170 + Math.random() * 260;
+            b.position.set(Math.cos(ang) * rad, h / 2, Math.sin(ang) * rad);
+            scene.add(b);
+            var win = box(bw * 0.7, 0.6, 0.05, new THREE.MeshBasicMaterial({ color: 0x8fd6ff, transparent: true, opacity: 0.4 }));
+            win.position.set(b.position.x, h * 0.65, b.position.z - bw / 2 - 0.03);
+            scene.add(win);
+        }
+
+        // Course gates.
+        var gatePositions = [
+            [0, 14, -90], [55, 22, -160], [120, 12, -80], [110, 18, 40],
+            [45, 26, 120], [-40, 14, 130], [-110, 24, 40], [-110, 12, -70]
+        ];
+        var gates = [];
+        function buildGate(pos, index) {
+            var g = new THREE.Group();
+            var ring = new THREE.Mesh(new THREE.TorusGeometry(6.5, 0.38, 8, 40), neon(index === 0 ? 0x2ff6ff : 0x7f5bff, index === 0 ? 1.6 : 0.9));
+            g.add(ring);
+            var disc = new THREE.Mesh(new THREE.CircleGeometry(6.1, 36), new THREE.MeshBasicMaterial({ color: 0x2ff6ff, transparent: true, opacity: index === 0 ? 0.08 : 0.02, side: THREE.DoubleSide, depthWrite: false }));
+            g.add(disc);
+            g.position.set(pos[0], pos[1], pos[2]);
+            var next = gatePositions[(index + 1) % gatePositions.length];
+            g.rotation.y = Math.atan2(next[0] - pos[0], next[2] - pos[2]);
+            scene.add(g);
+            gates.push({ group: g, ring: ring, disc: disc, pos: new THREE.Vector3(pos[0], pos[1], pos[2]) });
+        }
+        gatePositions.forEach(buildGate);
+        function highlightGate(index) {
+            gates.forEach(function (g, i) {
+                var active = i === index;
+                g.ring.material.color.setHex(active ? 0x2ff6ff : 0x7f5bff);
+                g.ring.material.emissive.setHex(active ? 0x2ff6ff : 0x7f5bff);
+                g.ring.material.emissiveIntensity = active ? 1.8 : 0.7;
+                g.disc.material.opacity = active ? 0.08 : 0.02;
+            });
+        }
+
+        // Drone model.
+        function buildDrone(color, isPlayer) {
+            var g = new THREE.Group();
+            var bodyMat = isPlayer ? neon(color, 0.5) : std(color, { metalness: 0.5, roughness: 0.3, emissive: color, emissiveIntensity: 0.2 });
+            var body = box(1.0, 0.3, 1.4, bodyMat); g.add(body);
+            var canopy = box(0.6, 0.28, 0.6, new THREE.MeshStandardMaterial({ color: 0x0a1a24, metalness: 0.7, roughness: 0.15 }));
+            canopy.position.set(0, 0.22, 0.1); g.add(canopy);
+            var arms = [];
+            [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (a) {
+                var arm = box(0.12, 0.1, 1.0, bodyMat);
+                arm.position.set(a[0] * 0.55, 0, a[1] * 0.55);
+                arm.rotation.y = a[0] * a[1] > 0 ? Math.PI / 4 : -Math.PI / 4;
+                g.add(arm);
+                var rotor = new THREE.Mesh(new THREE.CircleGeometry(0.42, 16), new THREE.MeshBasicMaterial({ color: 0x9feaff, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false }));
+                rotor.rotation.x = -Math.PI / 2;
+                rotor.position.set(a[0] * 0.7, 0.12, a[1] * 0.7);
+                g.add(rotor);
+                arms.push(rotor);
+            });
+            g.userData.rotors = arms;
+            if (isPlayer) {
+                var light = new THREE.PointLight(0x2ff6ff, 0.7, 14);
+                light.position.set(0, 0.1, -0.8);
+                g.add(light);
+                g.userData.light = light;
+            }
+            return g;
+        }
+        var drone = buildDrone(0x2ff6ff, true);
+        drone.position.set(0, 14, 0);
+        scene.add(drone);
+
+        // Remote ghost drones.
+        var remoteDrones = {};
+        function setRemotes(list) {
+            var seen = {};
+            (list || []).forEach(function (r) {
+                if (!r || !r.id) return;
+                seen[r.id] = true;
+                if (!remoteDrones[r.id]) {
+                    var g = buildDrone(r.color || 0xff5d8f, false);
+                    scene.add(g);
+                    remoteDrones[r.id] = { mesh: g, target: new THREE.Vector3(), yaw: 0, pitch: 0, name: r.name || 'Drone' };
+                }
+                var rd = remoteDrones[r.id];
+                rd.target.set(Number(r.x) || 0, Number(r.y) || 10, Number(r.z) || 0);
+                rd.yaw = Number(r.yaw) || 0;
+                rd.pitch = Number(r.pitch) || 0;
+                rd.lap = Number(r.lap) || 1;
+                rd.gate = Number(r.gate) || 0;
+            });
+            Object.keys(remoteDrones).forEach(function (id) {
+                if (!seen[id]) { scene.remove(remoteDrones[id].mesh); delete remoteDrones[id]; }
+            });
+        }
+
+        // State.
+        var yaw = 0, pitch = 0, roll = 0, speed = 32, altitude = 14;
+        var boost = 100, boosting = false;
+        var gateIndex = 0, lap = 1, elapsed = 0, countdown = 3.2, finished = false;
+        var score = 0, raceT = 0;
+        var keys = {};
+        function down(e) {
+            var k = String(e.key || '').toLowerCase();
+            keys[k] = true;
+            if (k === ' ') e.preventDefault();
+        }
+        function up(e) { keys[String(e.key || '').toLowerCase()] = false; }
+        document.addEventListener('keydown', down);
+        document.addEventListener('keyup', up);
+        addCleanup(function () { document.removeEventListener('keydown', down); document.removeEventListener('keyup', up); });
+
+        highlightGate(0);
+
+        function updateHud() {
+            var lapEl = document.getElementById('drLap');
+            if (lapEl) lapEl.textContent = 'LAP ' + Math.min(3, lap) + '/3';
+            var gateEl = document.getElementById('drGate');
+            if (gateEl) gateEl.textContent = 'GATE ' + (gateIndex + 1) + '/' + gates.length;
+            var timeEl = document.getElementById('drTime');
+            if (timeEl) {
+                var t = Math.max(0, raceT);
+                var m = Math.floor(t / 60);
+                var s = t % 60;
+                timeEl.textContent = m + ':' + (s < 10 ? '0' : '') + s.toFixed(1);
+            }
+            var spd = document.getElementById('drSpeed');
+            if (spd) spd.textContent = Math.round(speed * 3.6) + ' km/h';
+            var bst = document.getElementById('drBoost');
+            if (bst) bst.textContent = 'BOOST ' + Math.round(boost) + '%';
+            var posEl = document.getElementById('drPos');
+            if (posEl) {
+                var progress = (lap - 1) * gates.length + gateIndex;
+                var ahead = 0;
+                Object.keys(remoteDrones).forEach(function (id) {
+                    var r = remoteDrones[id];
+                    if ((r.lap || 1) > lap || ((r.lap || 1) === lap && (r.gate || 0) > gateIndex)) ahead++;
+                });
+                posEl.textContent = 'POS ' + (ahead + 1) + '/' + (Object.keys(remoteDrones).length + 1);
+            }
+            var cnt = document.getElementById('drCount');
+            if (cnt) {
+                if (countdown > 0) { cnt.style.display = 'flex'; cnt.textContent = Math.ceil(countdown); }
+                else { cnt.style.display = 'none'; }
+            }
+            var msg = document.getElementById('drMsg');
+            if (msg && msg.textContent && elapsed > 4) msg.textContent = '';
+        }
+
+        var hudT = 0;
+        function update(dt) {
+            dt = Math.min(dt, 0.05);
+            elapsed += dt;
+            if (countdown > 0) {
+                countdown -= dt;
+                updateHud();
+                // idle hover
+                drone.position.y = 14 + Math.sin(elapsed * 2) * 0.12;
+                drone.rotation.y = yaw;
+                camera.position.set(0, 18, 14);
+                camera.lookAt(drone.position.x, drone.position.y, drone.position.z - 20);
+                return;
+            }
+            raceT += dt;
+            var throttle = (keys['w'] ? 1 : 0) - (keys['s'] ? 1 : 0);
+            speed = Math.max(0, Math.min(72, speed + throttle * 18 * dt));
+            if (speed < 18) speed += (18 - speed) * Math.min(1, dt * 0.8);
+            boosting = !!(input.nitro && boost > 0);
+            if (boosting) { boost = Math.max(0, boost - 26 * dt); speed = Math.min(86, speed + 20 * dt); }
+            else boost = Math.min(100, boost + 9 * dt);
+
+            var steer = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+            if (input.pointerActive) steer = input.pointerX * 1.2;
+            yaw -= steer * 1.25 * dt;
+            var vertical = 0;
+            if (keys[' ']) vertical = 1;
+            if (keys['c']) vertical = -1;
+            if (input.pointerActive) vertical = -input.pointerY * 1.2;
+            altitude += vertical * 11 * dt;
+            altitude = Math.max(3, Math.min(90, altitude));
+            pitch += ((vertical * 0.22) - pitch) * Math.min(1, dt * 3);
+            roll += ((-steer * 0.35) - roll) * Math.min(1, dt * 4);
+
+            var fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+            drone.position.x += fx * speed * dt;
+            drone.position.z += fz * speed * dt;
+            drone.position.y += (altitude - drone.position.y) * Math.min(1, dt * 3.2);
+            drone.rotation.y = yaw;
+            drone.rotation.x = pitch * 0.6;
+            drone.rotation.z = roll;
+            speed = Math.min(speed, 90);
+
+            var rotors = drone.userData.rotors || [];
+            for (var ri = 0; ri < rotors.length; ri++) rotors[ri].rotation.z += dt * (30 + speed * 0.6);
+            if (drone.userData.light) drone.userData.light.intensity = 0.5 + (boosting ? 1.4 : 0.2);
+
+            // Gate pass.
+            var gate = gates[gateIndex];
+            if (gate && drone.position.distanceTo(gate.pos) < 8.5) {
+                gateIndex++;
+                score += 200;
+                tone(760, 0.1, 'triangle', 0.045, 1100);
+                if (gateIndex >= gates.length) {
+                    gateIndex = 0;
+                    lap++;
+                    score += 1000;
+                    tone(980, 0.2, 'triangle', 0.06, 1320);
+                    if (lap > 3) {
+                        finished = true;
+                        var bonus = Math.max(0, 4000 - Math.round(raceT * 6));
+                        score += bonus;
+                        endGame(Math.round(score));
+                        return;
+                    }
+                }
+                highlightGate(gateIndex);
+            }
+
+            // Remote drones.
+            Object.keys(remoteDrones).forEach(function (id) {
+                var rd = remoteDrones[id];
+                rd.mesh.position.lerp(rd.target, Math.min(1, dt * 6));
+                rd.mesh.rotation.y = rd.yaw;
+                rd.mesh.rotation.x = rd.pitch * 0.6;
+                var rr = rd.mesh.userData.rotors || [];
+                for (var j = 0; j < rr.length; j++) rr[j].rotation.z += dt * 26;
+            });
+
+            // Camera.
+            var back = 12 + speed * 0.08;
+            var camX = drone.position.x + Math.sin(yaw) * back;
+            var camZ = drone.position.z + Math.cos(yaw) * back;
+            camera.position.x += (camX - camera.position.x) * Math.min(1, dt * 4);
+            camera.position.z += (camZ - camera.position.z) * Math.min(1, dt * 4);
+            camera.position.y += (drone.position.y + 4.2 - camera.position.y) * Math.min(1, dt * 4);
+            camera.lookAt(drone.position.x - Math.sin(yaw) * 18, drone.position.y + 0.5, drone.position.z - Math.cos(yaw) * 18);
+            camera.rotation.z = roll * 0.2;
+
+            hudT -= dt;
+            if (hudT <= 0) { hudT = 0.1; updateHud(); }
+        }
+
+        return {
+            over: false,
+            update: update,
+            getScore: function () { return score; },
+            setRemotes: setRemotes,
+            setControl: function (name, on) {
+                if (name === 'up') keys[' '] = !!on;
+                else if (name === 'down') keys['c'] = !!on;
+                else if (name === 'boost') input.nitro = !!on;
+            },
+            getState: function () {
+                return {
+                    x: drone.position.x, y: drone.position.y, z: drone.position.z,
+                    yaw: yaw, pitch: pitch, lap: lap, gate: gateIndex,
+                    speed: speed, boosting: boosting, time: raceT, finished: finished
+                };
+            }
+        };
+    }
+
     function factoryFor(gameId, opts) {
         if (gameId === 1 && opts && opts.cityMode) return createCity;
         return factories[gameId];
@@ -8342,7 +8635,8 @@
         2: createTunnel,
         3: createStack,
         4: createDeadCoast,
-        7: createSnowRush
+        7: createSnowRush,
+        12: createDroneRacing
     };
 
     function resetScene() {
@@ -8900,6 +9194,15 @@
     function getCurrentScore() {
         return active && active.getScore ? active.getScore() : 0;
     }
+    function getDroneState() {
+        return active && active.getState ? active.getState() : null;
+    }
+    function setDroneRemotes(list) {
+        if (active && active.setRemotes) active.setRemotes(list || []);
+    }
+    function setDroneControl(name, on) {
+        if (active && active.setControl) active.setControl(name, on);
+    }
     function lockPointer() {
         if (active && active.lockPointer) active.lockPointer();
     }
@@ -8960,6 +9263,9 @@
         toggleFsd: toggleFsd,
         toggleShadowHelper: toggleShadowHelper,
         getCurrentScore: getCurrentScore,
+        getDroneState: getDroneState,
+        setDroneRemotes: setDroneRemotes,
+        setDroneControl: setDroneControl,
         lockPointer: lockPointer,
         getRacerState: getRacerState,
         getRacerInfo: getRacerInfo

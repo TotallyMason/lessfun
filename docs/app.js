@@ -11,7 +11,8 @@ const games = [
     { id: 6, name: "Funtutu Test", description: "Benchmark your GPU and CPU, then get recommended graphics settings", icon: "bolt", controls: "Press Run Test · apply the recommended settings when it finishes" },
     { id: 7, name: "Snow Rush", description: "Christmas sleigh run — collect gifts and dodge the ice", icon: "snow", controls: "WASD / arrows to fly · drag to steer · collect gifts · dodge ice" },
     { id: 8, name: "Draw & Guess", description: "Draw the word, guess your friends' drawings, and race to the top", icon: "draw", controls: "Draw with mouse / touch · type guesses in the box" },
-    { id: 9, name: "Lucky Spin", description: "Virtual-coin slot machine — pick a bet and chase the jackpot", icon: "dice", controls: "Pick a bet and spin · virtual Coins only" }
+    { id: 9, name: "Lucky Spin", description: "Virtual-coin slot machine — pick a bet and chase the jackpot", icon: "dice", controls: "Pick a bet and spin · virtual Coins only" },
+    { id: 12, name: "Drone Racing", description: "3D multiplayer drone racing through neon city gates", icon: "drone", controls: "W/S speed · A/D turn · Space up · C down · Shift boost · drag to steer" }
 ];
 
 let currentUser = null;
@@ -450,7 +451,8 @@ function getIcon(name) {
         "snow": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"><path d="M12 2v20M3.3 7l17.4 10M3.3 17L20.7 7M12 5l-2 2M12 5l2 2M12 19l-2-2M12 19l2-2M5.6 9.4l2.7-.7M5.6 9.4l.7 2.7M18.4 14.6l-2.7.7M18.4 14.6l-.7-2.7M5.6 14.6l2.7.7M5.6 14.6l.7-2.7M18.4 9.4l-2.7-.7M18.4 9.4l-.7 2.7"/></svg>',
         "draw": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m4 20 4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20Z"/><path d="m13.5 8.5 3 3"/><path d="M4 20h16"/></svg>',
         "plane": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 13.5 21 4l-4.5 9.5L21 20l-4 .5-4-5-3.5 3.5.5 3-2 .5-2-4.5-4.5-2 .5-2 3 .5L9 9l-7-1 .5-2.5Z"/></svg>',
-        "paw": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"><ellipse cx="12" cy="15.5" rx="4.6" ry="4"/><circle cx="5.5" cy="10" r="2.1"/><circle cx="9.5" cy="6.3" r="2.1"/><circle cx="14.5" cy="6.3" r="2.1"/><circle cx="18.5" cy="10" r="2.1"/></svg>'
+        "paw": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"><ellipse cx="12" cy="15.5" rx="4.6" ry="4"/><circle cx="5.5" cy="10" r="2.1"/><circle cx="9.5" cy="6.3" r="2.1"/><circle cx="14.5" cy="6.3" r="2.1"/><circle cx="18.5" cy="10" r="2.1"/></svg>',
+        "drone": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="6" height="6" rx="1.5"/><path d="M9 9 5 5M15 9l4-4M9 15l-4 4M15 15l4 4"/><circle cx="4.5" cy="4.5" r="2"/><circle cx="19.5" cy="4.5" r="2"/><circle cx="4.5" cy="19.5" r="2"/><circle cx="19.5" cy="19.5" r="2"/></svg>'
     };
     return icons[name] || '';
 }
@@ -1307,6 +1309,14 @@ function openGame(id) {
                     '</div>' +
                 '</div>' : '') +
 
+            (game.id === 12 ?
+                '<div class="dr-hud">' +
+                    '<div class="dr-top"><span id="drLap">LAP 1/3</span><span id="drGate">GATE 1/8</span><strong id="drTime">0:00.0</strong></div>' +
+                    '<div class="dr-stats"><span id="drSpeed">0 km/h</span><span id="drBoost">BOOST 100%</span><span id="drPos">POS 1/1</span><span id="drPlayers">1 DRONE</span></div>' +
+                    '<div class="dr-count" id="drCount">3</div>' +
+                    '<div class="dr-msg" id="drMsg"></div>' +
+                    '<div class="dr-buttons"><button type="button" onpointerdown="event.preventDefault();droneHold(\'up\',true)" onpointerup="droneHold(\'up\',false)" onpointercancel="droneHold(\'up\',false)" onpointerleave="droneHold(\'up\',false)">▲ Up</button><button type="button" onpointerdown="event.preventDefault();droneHold(\'down\',true)" onpointerup="droneHold(\'down\',false)" onpointercancel="droneHold(\'down\',false)" onpointerleave="droneHold(\'down\',false)">▼ Down</button><button type="button" onpointerdown="event.preventDefault();droneHold(\'boost\',true)" onpointerup="droneHold(\'boost\',false)" onpointercancel="droneHold(\'boost\',false)" onpointerleave="droneHold(\'boost\',false)">Boost</button></div>' +
+                '</div>' : '') +
             '<div class="game3d-crash" id="g3dCrashFlash"></div>' +
             '<div class="g3d-grain" aria-hidden="true"></div>' +
             (game.id === 1 ? '<div class="g3d-cinema" id="g3dCinema"></div>' : '') +
@@ -1343,6 +1353,7 @@ function openGame(id) {
         applyRenderScaleSetting();
         applySoundSetting();
         applyUnitSetting();
+        if (id === 12) droneMpStart();
     }
     if (id === 1 && !garageSuppressed) {
         if (window.Games3D && window.Games3D.setGarageMode) window.Games3D.setGarageMode(true);
@@ -1450,6 +1461,7 @@ function closeGame() {
     if (window.Games3D) window.Games3D.stop();
     if (typeof dgDestroy === 'function') dgDestroy();
     if (typeof luckyCleanup === 'function') luckyCleanup();
+    if (typeof droneMpStop === 'function') droneMpStop();
     funtutuToken++;
     funtutuRunning = false;
     document.getElementById('gameModal').style.display = 'none';
@@ -8196,8 +8208,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.79";
-const UPDATE_NOTES = "Pet Cafe has been removed. The arcade now has Beach Racer, Tunnel Rush, Cube Stack, Dead Coast, Funtutu Test, Snow Rush, Draw and Guess, and Lucky Spin";
+const APP_VERSION = "LessFun Public Beta 1.32.80";
+const UPDATE_NOTES = "Drone Racing is live: fly through eight neon gates across three laps, use boost and altitude control, and race alongside other players as live ghost drones";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -11472,3 +11484,81 @@ function openLuckySpinGame() {
     luckyBalanceText();
 }
 
+
+/* ============================================================
+   Drone Racing multiplayer ghosts
+   ============================================================ */
+let droneMp = { channel: null, id: '', name: '', timer: 0, remotes: {}, color: 0x2ff6ff };
+const DRONE_COLORS = [0x2ff6ff, 0xff5d8f, 0xffd166, 0x7dff4d, 0xff7b00, 0x9b5de5, 0x54ff9f, 0xff3b5c];
+
+function droneHold(control, on) {
+    if (window.Games3D && window.Games3D.setDroneControl) window.Games3D.setDroneControl(control, !!on);
+}
+
+function droneMpStart() {
+    if (!supabaseClient || droneMp.channel) return;
+    droneMp.id = 'dr-' + Math.random().toString(36).slice(2, 10);
+    droneMp.name = (currentUser && currentUser.type === 'user' && currentUser.username) ? currentUser.username : 'Drone-' + Math.random().toString(36).slice(2, 5);
+    droneMp.color = DRONE_COLORS[Math.floor(Math.random() * DRONE_COLORS.length)];
+    try {
+        var channel = supabaseClient.channel('lessfun-drone-public', {
+            config: { presence: { key: droneMp.id } }
+        });
+        channel.on('presence', { event: 'sync' }, function () {
+            var el = document.getElementById('drPlayers');
+            if (el) {
+                var state = channel.presenceState() || {};
+                el.textContent = Object.keys(state).length + ' DRONES';
+            }
+        });
+        channel.on('broadcast', { event: 'drone-state' }, function (msg) {
+            var p = msg.payload || {};
+            if (!p.id || p.id === droneMp.id) return;
+            droneMp.remotes[p.id] = { id: p.id, name: p.name || 'Drone', x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch, lap: p.lap, gate: p.gate, color: p.color, at: Date.now() };
+        });
+        channel.subscribe(function (status) {
+            if (status === 'SUBSCRIBED') channel.track({ name: droneMp.name });
+        });
+        droneMp.channel = channel;
+    } catch (e) {}
+    clearInterval(droneMp.timer);
+    droneMp.timer = setInterval(droneMpSend, 100);
+}
+
+function droneMpSend() {
+    if (!droneMp.channel || !window.Games3D) return;
+    var state = window.Games3D.getDroneState ? window.Games3D.getDroneState() : null;
+    if (!state) return;
+    try {
+        var sent = droneMp.channel.send({
+            type: 'broadcast', event: 'drone-state',
+            payload: {
+                id: droneMp.id, name: droneMp.name, x: state.x, y: state.y, z: state.z,
+                yaw: state.yaw, pitch: state.pitch, lap: state.lap, gate: state.gate, color: droneMp.color
+            }
+        });
+        if (sent && sent.catch) sent.catch(function () {});
+    } catch (e) {}
+    var now = Date.now();
+    var list = [];
+    Object.keys(droneMp.remotes).forEach(function (id) {
+        var r = droneMp.remotes[id];
+        if (now - r.at > 3500) { delete droneMp.remotes[id]; return; }
+        list.push(r);
+    });
+    if (window.Games3D.setDroneRemotes) window.Games3D.setDroneRemotes(list);
+    var el = document.getElementById('drPlayers');
+    if (el) el.textContent = (list.length + 1) + ' DRONE' + (list.length ? 'S' : '');
+}
+
+function droneMpStop() {
+    clearInterval(droneMp.timer);
+    droneMp.timer = 0;
+    if (droneMp.channel && supabaseClient) {
+        try { droneMp.channel.untrack(); } catch (e) {}
+        try { supabaseClient.removeChannel(droneMp.channel); } catch (e) {}
+    }
+    droneMp.channel = null;
+    droneMp.remotes = {};
+    if (window.Games3D && window.Games3D.setDroneRemotes) window.Games3D.setDroneRemotes([]);
+}

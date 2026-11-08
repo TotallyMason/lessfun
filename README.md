@@ -14,11 +14,12 @@ A 3D arcade with a liquid-glass interface. Play it at
 | Snow Rush | Christmas sleigh game: collect gifts, hit candy boosts, survive snowstorms and the Grinch. |
 | Draw & Guess | Live public drawing game: one player draws, everyone else races to guess the word. |
 | Lucky Spin | Virtual-coin slot machine with bets, jackpots and a 60× top payout. |
+| Drone Racing | 3D multiplayer drone racing through neon city gates: three laps and eight gates, with boost and altitude control. Other players in the public lobby appear as live ghost drones. |
 
 | Dead Coast | Drive 10 km through a ruined coast, managing food, water, fuel, and car health while scavenging better car parts. |
 | Star Dodger | Weave through an asteroid storm at increasing speed. |
 
-All five games are real-time 3D scenes rendered with Three.js.
+Most games are real-time 3D scenes rendered with Three.js.
 
 ## Play
 

@@ -10865,3 +10865,20 @@ body.reduce-motion *::after {
     .pc-side { width: 100%; max-height: 42%; }
     .pc-canvas { height: 30vh; }
 }
+
+/* Drone Racing HUD */
+.dr-hud { position: absolute; inset: 0; z-index: 6; pointer-events: none; font-family: inherit; }
+.dr-top { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; padding: 7px 16px; border-radius: 999px; background: rgba(4, 14, 22, 0.78); border: 1px solid rgba(95, 224, 255, 0.3); }
+.dr-top span { color: #8feaff; font-size: 9px; font-weight: 800; letter-spacing: 0.12em; }
+.dr-top strong { color: #ffe2a0; font-size: 14px; font-variant-numeric: tabular-nums; }
+.dr-stats { position: absolute; top: 72px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.dr-stats span { padding: 4px 9px; border-radius: 6px; background: rgba(4, 12, 20, 0.7); border: 1px solid rgba(95,224,255,0.16); color: rgba(220,245,255,0.62); font-size: 8px; font-weight: 800; letter-spacing: 0.06em; }
+.dr-count { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; color: #eafaff; font-size: 84px; font-weight: 900; text-shadow: 0 0 40px rgba(95,224,255,0.6); }
+.dr-msg { position: absolute; left: 50%; bottom: 100px; transform: translateX(-50%); color: #ffe2a0; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.dr-buttons { position: absolute; right: 16px; bottom: 18px; display: flex; gap: 5px; pointer-events: auto; }
+.dr-buttons button { min-width: 54px; min-height: 42px; border-radius: 8px; border: 1px solid rgba(95,224,255,0.26); background: rgba(6,18,28,0.82); color: #d9f6ff; font: inherit; font-size: 9px; font-weight: 700; cursor: pointer; touch-action: none; }
+@media (max-width: 640px) {
+    .dr-top { top: 10px; gap: 7px; padding: 5px 10px; }
+    .dr-stats { top: 58px; font-size: 7px; }
+    .dr-buttons { bottom: 12px; }
+}
