@@ -64,6 +64,7 @@ let graphicsPresetSetting = 'extreme';
 let autoGraphicsSetting = false;
 let motionBlurSetting = !isMobileUI;
 let showFpsSetting = true;
+let reduceMotionSetting = false;
 let shadowSetting = !isMobileUI;
 let grainSetting = false;
 let crashSlowmoSetting = true;
@@ -75,6 +76,8 @@ try {
     else motionBlurSetting = !isMobileUI;
     const savedFps = localStorage.getItem('lessfun_show_fps');
     if (savedFps != null) showFpsSetting = savedFps !== '0';
+    const savedMotion = localStorage.getItem('lessfun_reduce_motion');
+    if (savedMotion != null) reduceMotionSetting = savedMotion === '1';
     const savedPreset = localStorage.getItem('lessfun_graphics_preset');
     if (savedPreset && GRAPHICS_PRESETS[savedPreset]) graphicsPresetSetting = savedPreset;
     const savedAuto = localStorage.getItem('lessfun_auto_graphics');
@@ -127,12 +130,25 @@ function applyRenderScaleSetting() {
     if (blur) blur.checked = motionBlurSetting;
     const fps = document.getElementById('fpsCounterToggle');
     if (fps) fps.checked = showFpsSetting;
+    applyReduceMotionSetting();
     const shadows = document.getElementById('shadowsToggle');
     if (shadows) shadows.checked = shadowSetting;
     const grain = document.getElementById('filmGrainToggle');
     if (grain) grain.checked = grainSetting;
     const slowmo = document.getElementById('crashSlowmoToggle');
     if (slowmo) slowmo.checked = crashSlowmoSetting;
+}
+
+function applyReduceMotionSetting() {
+    if (document.body) document.body.classList.toggle('reduce-motion', reduceMotionSetting);
+    var toggle = document.getElementById('reduceMotionToggle');
+    if (toggle) toggle.checked = reduceMotionSetting;
+}
+
+function setReduceMotionSetting(on) {
+    reduceMotionSetting = !!on;
+    try { localStorage.setItem('lessfun_reduce_motion', reduceMotionSetting ? '1' : '0'); } catch (e) {}
+    applyReduceMotionSetting();
 }
 
 function setGraphicsPresetSetting(value) {
@@ -504,6 +520,38 @@ function initSnowEvent() {
     updateSnowCountdown();
     setInterval(updateSnowCountdown, 60000);
     renderSnowLeaderboard();
+}
+
+function trackRecentGame(id) {
+    try {
+        var raw = localStorage.getItem('lessfun_recent_games');
+        var list = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(list)) list = [];
+        list = list.filter(function (x) { return Number(x) !== Number(id); });
+        list.unshift(Number(id));
+        list = list.slice(0, 4);
+        localStorage.setItem('lessfun_recent_games', JSON.stringify(list));
+    } catch (e) {}
+    renderRecentGames();
+}
+
+function renderRecentGames() {
+    var host = document.getElementById('recentGames');
+    if (!host) return;
+    var ids = [];
+    try {
+        var raw = localStorage.getItem('lessfun_recent_games');
+        ids = raw ? JSON.parse(raw) : [];
+    } catch (e) { ids = []; }
+    if (!Array.isArray(ids)) ids = [];
+    var items = ids.map(function (id) { return games.find(function (g) { return g.id === Number(id); }); }).filter(Boolean);
+    if (!items.length) { host.style.display = 'none'; host.innerHTML = ''; return; }
+    host.style.display = 'flex';
+    host.innerHTML = '<span class="recent-label">RECENTLY PLAYED</span>' + items.map(function (game) {
+        return '<button type="button" class="recent-chip" onclick="openGame(' + game.id + ')">' +
+            getIcon(game.icon).replace('width="24" height="24"', 'width="14" height="14"') +
+            '<span>' + escapeHtml(game.name) + '</span></button>';
+    }).join('');
 }
 
 function renderGames() {
@@ -968,6 +1016,7 @@ function openGame(id) {
     if (id === 8) { openDrawGuessGame(); return; }
     if (id === 9) { openLuckySpinGame(); return; }
     currentGameId = id;
+    trackRecentGame(id);
     if (id === 4) startMenuSuppressed = false;
     document.getElementById('modalGameTitle').textContent = game.name;
     const body = document.getElementById('modalGameBody');
@@ -8162,8 +8211,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.73";
-const UPDATE_NOTES = "Levels and achievements are removed. Changi Approach now has a detailed airliner model and airport, plus a live throttle bar, speedbrake in the air, and wheel brakes plus reverse thrust after touchdown";
+const APP_VERSION = "LessFun Public Beta 1.32.74";
+const UPDATE_NOTES = "A full site polish pass: Recently Played games, a Back to Games button, Reduce Motion setting, smoother cards and navigation, better scrollbars, and mobile hover fixes. Levels and achievements are removed";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -8225,6 +8274,7 @@ function checkForUpdates() {
 document.addEventListener('DOMContentLoaded', ()=>{
     loadSiteSettings();
     renderGames();
+    renderRecentGames();
     loadUser();
     verifyAccountState();
     initViewCounter();
