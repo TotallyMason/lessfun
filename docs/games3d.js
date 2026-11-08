@@ -8420,9 +8420,11 @@
             [-1, 1].forEach(function (side) {
                 var d = box(1.0, 2.15, 0.1, doorMat);
                 d.position.set(side * 2.15, 1.12, z);
+                d.rotation.y = Math.PI / 2;
                 scene.add(d);
                 var frame = box(1.14, 2.3, 0.06, frameMat);
                 frame.position.set(side * 2.19, 1.15, z);
+                frame.rotation.y = Math.PI / 2;
                 scene.add(frame);
                 var label = '12-' + (doorIndex < 10 ? '0' : '') + doorIndex;
                 var sign = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.24), new THREE.MeshBasicMaterial({ map: unitTexture(label) }));

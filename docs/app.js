@@ -7959,8 +7959,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.60";
-const UPDATE_NOTES = "Mouse pointer lock no longer spins wildly: Lorong 7 and Dead Coast now use clamped, lower-sensitivity mouse movement for looking around, with drag-to-look still available when unlocked";
+const APP_VERSION = "LessFun Public Beta 1.32.61";
+const UPDATE_NOTES = "Lorong 7 corridor doors are fixed: they now sit flush in the walls on the correct side instead of looking permanently open across the hallway";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
