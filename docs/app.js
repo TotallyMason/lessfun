@@ -8330,8 +8330,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.83";
-const UPDATE_NOTES = "Boeing Landing is live: fly a side-view 737 approach, manage flaps and throttle, flare over the runway and feel the suspension settle as you brake";
+const APP_VERSION = "LessFun Public Beta 1.32.84";
+const UPDATE_NOTES = "Boeing Landing suspension is now easy to see: oversized one-way oleo travel, coil springs and live MAIN/NOSE compression callouts that only go down through the rollout";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

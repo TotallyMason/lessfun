@@ -13,8 +13,8 @@
     var PITCH_INERTIA = 6.5e6;
     var GS_ANGLE = 3 * Math.PI / 180;
 
-    var GEAR_MAIN = { offset: -9.5, attachY: -1.2, strut: 3.6, wheel: 0.55, max: 0.9 };
-    var GEAR_NOSE = { offset: 12, attachY: -0.9, strut: 3.65, wheel: 0.5, max: 0.55 };
+    var GEAR_MAIN = { offset: -9.5, attachY: -1.2, strut: 3.6, wheel: 0.55, max: 1.35 };
+    var GEAR_NOSE = { offset: 12, attachY: -0.9, strut: 3.65, wheel: 0.5, max: 1.05 };
     var MAIN_BOTTOM = GEAR_MAIN.attachY - GEAR_MAIN.strut - GEAR_MAIN.wheel;
     var NOSE_BOTTOM = GEAR_NOSE.attachY - GEAR_NOSE.strut - GEAR_NOSE.wheel;
 
@@ -62,7 +62,7 @@
             touchPitch: 0,
             touchSpeed: 0,
             stopX: 0,
-            compMain: 0.3,
+            compMain: 0.42,
             compNose: 0,
             compVel: 0,
             pitchVel: 0,
@@ -255,8 +255,8 @@
         sim.touchX = sim.x;
         sim.onGround = true;
         sim.vy = 0;
-        sim.compMain = clamp(0.3 + Math.max(0, -sim.touchVy) * 0.075, 0.3, 0.82);
-        sim.compVel = Math.max(0, -sim.touchVy) * 0.8;
+        sim.compMain = clamp(0.5 + Math.max(0, -sim.touchVy) * 0.05, 0.5, 0.72);
+        sim.compVel = 0;
         sim.pitchVel = 0;
         sim.y = -GEAR_MAIN.offset * Math.sin(sim.pitch) - (MAIN_BOTTOM + sim.compMain) * Math.cos(sim.pitch);
         sim.brakes = false;
@@ -297,12 +297,21 @@
         sim.pitch += sim.pitchVel * dt;
         sim.pitch = clamp(sim.pitch, -0.12, 0.16);
 
-        var targetComp = 0.3 + Math.min(0.16, Math.abs(sim.pitch + 0.006) * 0.8);
-        sim.compVel += ((targetComp - sim.compMain) * 52 - sim.compVel * 8.5) * dt;
-        sim.compMain = clamp(sim.compMain + sim.compVel * dt, 0.06, GEAR_MAIN.max);
+        // One-way oleo travel: the gear only compresses downward under the
+        // aircraft's weight and never springs back during the rollout.
+        var speedLoad = 1 - clamp(sim.vx / 80, 0, 1);
+        var impactLoad = Math.min(0.26, Math.max(0, -sim.touchVy) * 0.04);
+        var targetComp = 0.5 + speedLoad * 0.5 + impactLoad + Math.abs(sim.pitch + 0.006) * 0.6;
+        targetComp = clamp(targetComp, 0.5, GEAR_MAIN.max * 0.94);
+        if (sim.compMain < targetComp) {
+            sim.compMain = Math.min(targetComp, sim.compMain + dt * 0.48);
+        }
         sim.y = -GEAR_MAIN.offset * Math.sin(sim.pitch) - (MAIN_BOTTOM + sim.compMain) * Math.cos(sim.pitch);
         var noseRaw = -NOSE_BOTTOM - (sim.y + GEAR_NOSE.offset * Math.sin(sim.pitch)) / Math.max(0.9, Math.cos(sim.pitch));
-        sim.compNose = clamp(noseRaw, 0, GEAR_NOSE.max);
+        var noseGeo = clamp(noseRaw, 0, GEAR_NOSE.max);
+        if (noseGeo > sim.compNose) {
+            sim.compNose = Math.min(noseGeo, sim.compNose + dt * 0.7);
+        }
 
         sim.gearAnim = smooth(sim.gearAnim, 1, 1.4, dt);
         sim.flaps = smooth(sim.flaps, sim.flapsTarget, 1.6, dt);
@@ -429,7 +438,7 @@
     function updateCamera(dt) {
         var targetScale;
         if (sim.onGround) {
-            targetScale = 8.1;
+            targetScale = clamp(W * 0.55 / 39, 7, 12);
         } else if (sim.y < 28) {
             targetScale = clamp(4.2 + (28 - sim.y) * 0.22, 4.2, 8.1);
         } else {
@@ -467,16 +476,14 @@
         if (gear) gear.classList.toggle('is-warn', !sim.gearTarget);
         var brake = document.getElementById('lsimBrakeVal');
         if (brake) brake.classList.toggle('is-on', !!sim.keys.brake);
-        if (force || !sim.onGround) {
-            var state = document.getElementById('lsimState');
-            if (state && !sim.finished) {
-                var dist = Math.max(0, -sim.x);
-                if (sim.onGround) state.textContent = sim.vx > 2 ? 'BRAKING' : 'ROLLING OUT';
-                else if (dist < 120 || sim.y < 12) state.textContent = 'FLARE';
-                else if (dist < 700) state.textContent = 'FINAL';
-                else state.textContent = 'APPROACH';
-                state.classList.toggle('is-warn', !sim.onGround && !sim.gearTarget);
-            }
+        var state = document.getElementById('lsimState');
+        if (state && !sim.finished) {
+            var dist = Math.max(0, -sim.x);
+            if (sim.onGround) state.textContent = sim.vx > 2 ? 'BRAKING' : 'ROLLING OUT';
+            else if (dist < 120 || sim.y < 12) state.textContent = 'FLARE';
+            else if (dist < 700) state.textContent = 'FINAL';
+            else state.textContent = 'APPROACH';
+            state.classList.toggle('is-warn', !sim.onGround && !sim.gearTarget);
         }
         var papi = document.getElementById('lsimPapiText');
         if (papi) {
@@ -802,6 +809,53 @@
 
         drawPlaneShadowless();
         ctx.restore();
+        drawSuspensionCallouts();
+    }
+
+    function drawSuspensionCallouts() {
+        if (!sim.onGround) return;
+        var gears = [
+            { x: sim.x + GEAR_MAIN.offset, comp: sim.compMain, max: GEAR_MAIN.max, label: 'MAIN' },
+            { x: sim.x + GEAR_NOSE.offset, comp: sim.compNose, max: GEAR_NOSE.max, label: 'NOSE' }
+        ];
+        for (var i = 0; i < gears.length; i++) {
+            var g = gears[i];
+            var px = sx(g.x);
+            if (px < -60 || px > W + 60) continue;
+            var gy = groundY();
+            var boxW = 58, boxH = 54;
+            var bx = px - boxW / 2;
+            var by = gy - 92;
+            var pct = clamp(g.comp / g.max, 0, 1);
+            ctx.fillStyle = 'rgba(5, 14, 20, 0.82)';
+            ctx.strokeStyle = 'rgba(255, 209, 102, 0.5)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect ? ctx.roundRect(bx, by, boxW, boxH, 7) : ctx.rect(bx, by, boxW, boxH);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(255, 220, 160, 0.65)';
+            ctx.font = '800 6px system-ui, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(g.label, px, by + 10);
+            ctx.fillStyle = '#ffe2a0';
+            ctx.font = '900 12px system-ui, sans-serif';
+            ctx.fillText(Math.round(pct * 100) + '%', px, by + 25);
+            // Vertical travel gauge: fills downward as the oleo compresses.
+            var trackX = px - 4, trackY = by + 31, trackW = 8, trackH = 15;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+            ctx.fillRect(trackX, trackY, trackW, trackH);
+            ctx.fillStyle = '#ffb15e';
+            ctx.fillRect(trackX, trackY, trackW, Math.max(1, trackH * pct));
+            ctx.fillStyle = 'rgba(255, 225, 170, 0.7)';
+            ctx.beginPath();
+            ctx.moveTo(px - 3, by + 48);
+            ctx.lineTo(px + 3, by + 48);
+            ctx.lineTo(px, by + 52);
+            ctx.closePath();
+            ctx.fill();
+        }
+        ctx.textAlign = 'left';
     }
 
     function drawPlaneShadowless() {
@@ -949,12 +1003,28 @@
         drawGearLeg(GEAR_NOSE, sim.compNose, false);
     }
 
+    function drawGearSpring(offX, topY, bottomY, radius, turns) {
+        var height = topY - bottomY;
+        if (height <= 0.05) return;
+        ctx.strokeStyle = '#ffd166';
+        ctx.lineWidth = 0.13;
+        ctx.beginPath();
+        var segs = turns * 2;
+        for (var i = 0; i <= segs; i++) {
+            var y = topY - (height * i) / segs;
+            var x = offX + (i === 0 || i === segs ? 0 : (i % 2 ? radius : -radius));
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+    }
+
     function drawGearLeg(gear, comp, isMain) {
         if (sim.gearAnim < 0.08) return;
         var extend = sim.gearAnim;
         var strut = gear.strut * extend;
         var axleY = gear.attachY - (strut - comp);
-        var wheelR = gear.wheel * (0.85 + 0.15 * extend);
+        var wheelR = gear.wheel * (1.18 + 0.15 * extend);
         var offX = gear.offset;
 
         // Gear door when retracting.
@@ -963,13 +1033,15 @@
             ctx.fillRect(offX - 1.4, gear.attachY - 0.2, 2.8, 0.35);
         }
 
-        // Oleo strut: upper housing and polished piston.
+        // Heavy oleo strut: wide housing, polished piston and a coil spring
+        // so the compression travel is obvious from the side.
         ctx.fillStyle = '#79868f';
-        ctx.fillRect(offX - 0.22, gear.attachY - strut * 0.52, 0.44, strut * 0.55);
+        ctx.fillRect(offX - 0.34, gear.attachY - strut * 0.58, 0.68, strut * 0.62);
         ctx.fillStyle = '#cfd8de';
-        ctx.fillRect(offX - 0.14, gear.attachY - strut, 0.28, strut * 0.54);
+        ctx.fillRect(offX - 0.23, gear.attachY - strut, 0.46, strut * 0.6);
         ctx.fillStyle = '#5f6a72';
-        ctx.fillRect(offX - 0.3, gear.attachY - strut * 0.58, 0.6, 0.24);
+        ctx.fillRect(offX - 0.44, gear.attachY - strut * 0.6, 0.88, 0.3);
+        drawGearSpring(offX, gear.attachY - strut * 0.16, axleY + 0.3, 0.3, 5);
 
         // Torque link.
         ctx.strokeStyle = '#9aa7b0';
@@ -1081,8 +1153,8 @@
                         '<div class="lsim-sys-row"><span>FLAPS</span><b id="lsimFlapVal">30°</b></div>' +
                         '<div class="lsim-sys-row"><span>GEAR</span><b id="lsimGearVal">DOWN</b></div>' +
                         '<div class="lsim-sys-row"><span>BRAKES</span><b id="lsimBrakeVal">OFF</b></div>' +
-                        '<div class="lsim-sys-row lsim-susp-row"><span>SUSP M</span><div class="lsim-bar is-susp"><i id="lsimMainBar"></i></div><b id="lsimMainSusp">0%</b></div>' +
-                        '<div class="lsim-sys-row lsim-susp-row"><span>SUSP N</span><div class="lsim-bar is-susp"><i id="lsimNoseBar"></i></div><b id="lsimNoseSusp">0%</b></div>' +
+                        '<div class="lsim-sys-row lsim-susp-row"><span>MAIN GEAR</span><div class="lsim-bar is-susp"><i id="lsimMainBar"></i></div><b id="lsimMainSusp">0%</b></div>' +
+                        '<div class="lsim-sys-row lsim-susp-row"><span>NOSE GEAR</span><div class="lsim-bar is-susp"><i id="lsimNoseBar"></i></div><b id="lsimNoseSusp">0%</b></div>' +
                         '<div class="lsim-papi-line" id="lsimPapiText">ON GLIDESLOPE</div>' +
                     '</div>' +
                     '<div class="lsim-hint">W/S or ↑/↓ pitch · A/D or ←/→ throttle · Space brake · F flaps · G gear · R restart</div>' +

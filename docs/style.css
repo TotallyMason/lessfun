@@ -10963,3 +10963,6 @@ body.in-game .radio-dock { display: none; }
     body.in-game .lsim-brand { display: none; }
     body.in-game .lsim-top { right: 112px; }
 }
+.lsim-bar.is-susp { height: 9px; }
+.lsim-sys-row.lsim-susp-row > span { flex: 0 0 62px; }
+.lsim-sys-row.lsim-susp-row b { font-size: 9px; color: #ffe2a0; }
