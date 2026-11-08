@@ -4850,10 +4850,10 @@
                 var src = renderer.domElement;
                 if (!src || !src.width || !src.height) return null;
                 var canvas = document.createElement('canvas');
-                canvas.width = 160; canvas.height = 90;
+                canvas.width = 320; canvas.height = 180;
                 var ctx2 = canvas.getContext('2d');
                 if (!ctx2) return null;
-                try { ctx2.drawImage(src, 0, 0, 160, 90); return canvas.toDataURL('image/jpeg', 0.42); } catch (e) { return null; }
+                try { ctx2.drawImage(src, 0, 0, 320, 180); return canvas.toDataURL('image/jpeg', 0.68); } catch (e) { return null; }
             },
             isCinematic: function () { return crashActive; },
             toggleShadowHelper: function (on) {

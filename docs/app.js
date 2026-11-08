@@ -2042,7 +2042,7 @@ function racerMpConnect(code, name, publicInfo) {
     });
 
     if (racerMp.timer) clearInterval(racerMp.timer);
-    racerMp.timer = setInterval(racerMpTick, 140);
+    racerMp.timer = setInterval(racerMpTick, 66);
     racerMpApplyToGame();
     racerMpUpdateUi();
 }
@@ -2228,22 +2228,19 @@ function racerMpTick() {
     // Live camera thumbnails: capture the player's own rendered view and
     // broadcast a tiny JPEG. No extra scene cameras are rendered locally.
     if (racerMp.connected && racerMp.players.length < 6 && list.length) {
-        if (!racerMp.camRequested && now - racerMp.camLastSend > 380) {
-            if (window.Games3D && window.Games3D.requestFrameCapture) {
-                window.Games3D.requestFrameCapture();
-                racerMp.camRequested = true;
+        if (now - racerMp.camLastSend >= 66) {
+            if (window.Games3D && window.Games3D.getCapturedFrame) {
+                var frame = window.Games3D.getCapturedFrame();
+                if (frame) {
+                    var sentCam = racerMp.channel.send({
+                        type: 'broadcast', event: 'cam-frame',
+                        payload: { id: racerMp.id, name: racerMp.name, image: frame }
+                    });
+                    if (sentCam && sentCam.catch) sentCam.catch(function () {});
+                    racerMp.camLastSend = now;
+                }
             }
-        } else if (racerMp.camRequested && window.Games3D && window.Games3D.getCapturedFrame) {
-            var frame = window.Games3D.getCapturedFrame();
-            if (frame) {
-                var sentCam = racerMp.channel.send({
-                    type: 'broadcast', event: 'cam-frame',
-                    payload: { id: racerMp.id, name: racerMp.name, image: frame }
-                });
-                if (sentCam && sentCam.catch) sentCam.catch(function () {});
-                racerMp.camLastSend = now;
-                racerMp.camRequested = false;
-            }
+            if (window.Games3D && window.Games3D.requestFrameCapture) window.Games3D.requestFrameCapture();
         }
     } else {
         racerMp.camRequested = false;
@@ -7865,8 +7862,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.48";
-const UPDATE_NOTES = "Player levels, XP and achievement badges are live. Star Dodger now has waves, bosses, weapon evolution, accuracy scoring and daily seeds. Radio adds Class 95 and CNA 938, and private messages are rebuilt in a WhatsApp-style chat with avatars, bubbles, ticks and emoji";
+const APP_VERSION = "LessFun Public Beta 1.32.49";
+const UPDATE_NOTES = "Multiplayer remote-camera streams are now higher quality 320x180 JPEG running at 15 FPS. Also includes levels, achievements, Star Dodger waves and bosses, Class 95 and CNA 938, and WhatsApp-style messages";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
