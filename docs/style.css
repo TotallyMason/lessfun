@@ -10067,3 +10067,200 @@ body.film-grain-on .g3d-grain { display: block; }
     padding-right: 6px;
 }
 .updates-list.is-long li { margin-bottom: 4px; }
+
+/* Profile level + badges */
+.profile-level {
+    width: min(360px, 100%);
+    margin: 10px auto 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.profile-level-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.profile-level-head strong { color: #ffe2a0; font-size: 14px; }
+.profile-level-head span { color: rgba(220, 245, 255, 0.45); font-size: 9px; }
+.profile-xp-track { height: 7px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,0.1); }
+.profile-xp-track i { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, #5fe0ff, #9bffd0); }
+.profile-badges { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
+.profile-badge {
+    padding: 3px 7px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 209, 102, 0.3);
+    background: rgba(255, 209, 102, 0.08);
+    color: #ffe2a0;
+    font-size: 8px;
+    font-weight: 700;
+}
+.profile-badge-empty { color: rgba(220, 245, 255, 0.4); font-size: 9px; }
+
+/* WhatsApp-style private messages */
+.game3d-dm {
+    background:
+        radial-gradient(circle at 18% 22%, rgba(0, 168, 132, 0.07), transparent 42%),
+        radial-gradient(circle at 82% 74%, rgba(0, 168, 132, 0.05), transparent 45%),
+        #0b141a;
+    border-left: 1px solid #1f2c33;
+}
+.game3d-dm-head {
+    padding-bottom: 9px;
+    border-bottom: 1px solid #1f2c33;
+    background: #202c33;
+    margin: -14px -14px 0;
+    padding: 14px;
+}
+.game3d-dm-head h3 { font-size: 14px; color: #e9edef; }
+.game3d-dm-secure { color: #00a884; }
+.game3d-dm-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 190px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0;
+    border-bottom: 1px solid #1f2c33;
+    padding-bottom: 8px;
+}
+.game3d-dm-contact {
+    width: 100%;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 8px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: #e9edef;
+    text-align: left;
+}
+.game3d-dm-contact:hover { background: #202c33; }
+.game3d-dm-contact.is-active { background: #2a3942; border-color: transparent; }
+.game3d-dm-avatar {
+    width: 40px;
+    height: 40px;
+    flex: none;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(145deg, #2a3942, #111b21);
+    border: 1px solid #2a3942;
+    color: #aebac1;
+    font-size: 15px;
+    font-weight: 700;
+}
+.game3d-dm-avatar.is-group { background: linear-gradient(145deg, #005c4b, #003b31); color: #d1f4ea; }
+.game3d-dm-contact-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.game3d-dm-contact-name { color: #e9edef; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.game3d-dm-contact-main small { color: #8696a0; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.game3d-dm-contact-count {
+    flex: none;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #00a884;
+    color: #0b141a;
+    font-size: 9px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.game3d-dm-contact-dot { width: 7px; height: 7px; background: #00a884; box-shadow: 0 0 6px rgba(0,168,132,0.7); }
+.game3d-dm-chat-head {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px;
+    border-radius: 9px;
+    background: #202c33;
+    margin-bottom: 6px;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+.game3d-dm-chat-title { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.game3d-dm-chat-title strong { color: #e9edef; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.game3d-dm-chat-title span { color: #8696a0; font-size: 9px; }
+.game3d-dm-thread {
+    background-image:
+        radial-gradient(circle at 20% 20%, rgba(255,255,255,0.018) 0 1px, transparent 1.5px),
+        radial-gradient(circle at 70% 60%, rgba(255,255,255,0.014) 0 1px, transparent 1.5px);
+    background-size: 26px 26px, 38px 38px;
+}
+.game3d-dm-msg {
+    max-width: 82%;
+    padding: 6px 9px 5px;
+    border-radius: 8px 8px 8px 2px;
+    background: #202c33;
+    color: #e9edef;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.18);
+    font-size: 12.5px;
+}
+.game3d-dm-msg.is-mine {
+    border-radius: 8px 8px 2px 8px;
+    background: #005c4b;
+    color: #e9edef;
+}
+.game3d-dm-msg-time { color: #8696a0; font-size: 8px; margin-top: 2px; }
+.game3d-dm-msg.is-mine .game3d-dm-msg-time { color: rgba(233,237,239,0.6); }
+.game3d-dm-tick { color: #53bdeb; font-weight: 700; letter-spacing: -1px; }
+.game3d-dm-msg-from { color: #00a884; font-size: 9px; font-weight: 700; display: block; margin-bottom: 2px; }
+.game3d-dm-compose {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px;
+    border-radius: 999px;
+    background: #202c33;
+}
+.game3d-dm-compose .game3d-mp-input,
+.game3d-dm-compose #g3dDmInput {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: #2a3942;
+    border-radius: 999px;
+    color: #e9edef;
+    padding: 9px 13px;
+    font-size: 12px;
+}
+.game3d-dm-emoji-btn {
+    width: 34px; height: 34px; flex: none;
+    border: 0; border-radius: 50%; background: transparent;
+    font-size: 17px; cursor: pointer;
+}
+.game3d-dm-send {
+    width: 36px; height: 36px; flex: none;
+    border: 0; border-radius: 50%;
+    background: #00a884; color: #0b141a;
+    font-size: 15px; font-weight: 900; cursor: pointer;
+}
+.game3d-dm-emoji-row {
+    display: flex;
+    gap: 5px;
+    padding: 5px 7px;
+    background: #202c33;
+    border-radius: 999px;
+    align-self: flex-start;
+}
+.game3d-dm-emoji-row button { border: 0; background: transparent; font-size: 17px; cursor: pointer; padding: 2px; }
+.game3d-dm-group-footer {
+    border-top: 1px solid #1f2c33;
+    padding-top: 9px;
+    color: #8696a0;
+}
+.game3d-dm-group-footer .game3d-dm-group-leave {
+    border-color: rgba(0,168,132,0.4);
+    background: rgba(0,168,132,0.1);
+    color: #7dffd4;
+}
+.game3d-dm-group-buttons .game3d-dm-group-delete {
+    border-color: rgba(255,100,100,0.3);
+    background: rgba(255,100,100,0.08);
+    color: #ff9a9a;
+}
+.game3d-dm-body { gap: 0; }
+.game3d-dm-thread-wrap { padding-top: 6px; gap: 6px; }

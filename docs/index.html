@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261231">
+    <link rel="stylesheet" href="style.css?v=20261232">
 </head>
 <body>
     <div id="updateShutdown" class="update-shutdown" style="display:none;">
@@ -913,7 +913,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Public Beta 1.32.47</p>
+                            <p>LessFun Public Beta 1.32.48</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -963,6 +963,7 @@
                             <li><strong>1.32.45</strong> — Added the database migration for 20,000-character community posts.</li>
                             <li><strong>1.32.46</strong> — Full 1.32 update history added to the site.</li>
                             <li><strong>1.32.47</strong> — Dead Coast reverse added; Star Dodger expanded with stations, wormholes, asteroid belts, comets, mines, new pickups and enemy types.</li>
+                            <li><strong>1.32.48</strong> — Player levels, XP and achievement badges; Star Dodger waves, bosses, weapon evolution, accuracy scoring and daily seed runs; Class 95 and CNA 938 added to radio; WhatsApp-style private messages with avatars, bubbles, ticks, emoji and circular send.</li>
                         </ul>
                     </div>
                     <div class="info-card">
@@ -1094,6 +1095,11 @@
                     <h3 id="profileUsername" style="font-size:24px;margin-bottom:4px;"></h3>
                     <p id="profileJoined" style="color:rgba(255,255,255,0.6);font-size:13px;"></p>
                     <p id="profileStats" class="profile-stats"></p>
+                    <div class="profile-level" id="profileLevel">
+                        <div class="profile-level-head"><strong id="profileLevelLabel">Level 1</strong><span id="profileXpLabel">0 / 1,000 XP</span></div>
+                        <div class="profile-xp-track"><i id="profileXpFill"></i></div>
+                        <div class="profile-badges" id="profileBadges"></div>
+                    </div>
                     <p id="profileCoins" class="profile-shells" style="display:none;"></p>
                     <button id="profileLogoutBtn" class="game-btn-3d" style="display:none;margin:16px auto 0;padding:8px 24px;">Log Out</button>
                     <button id="profileBanBtn" class="profile-ban-btn" style="display:none;" onclick="banProfileUser()">Ban user</button>
@@ -1189,9 +1195,18 @@
             <div class="game3d-dm-list" id="g3dDmList"></div>
             <div class="game3d-dm-thread-wrap">
                 <div class="game3d-dm-thread" id="g3dDmThread"><p class="game3d-dm-empty">Search for a person above to start an encrypted chat.</p></div>
+                <div class="game3d-dm-emoji-row" id="g3dDmEmoji" style="display:none;">
+                    <button type="button" onclick="dmInsertEmoji('👍')">👍</button>
+                    <button type="button" onclick="dmInsertEmoji('❤️')">❤️</button>
+                    <button type="button" onclick="dmInsertEmoji('😂')">😂</button>
+                    <button type="button" onclick="dmInsertEmoji('🔥')">🔥</button>
+                    <button type="button" onclick="dmInsertEmoji('😮')">😮</button>
+                    <button type="button" onclick="dmInsertEmoji('🎮')">🎮</button>
+                </div>
                 <div class="game3d-dm-compose">
-                    <input class="game3d-mp-input" id="g3dDmInput" type="text" maxlength="500" placeholder="Write a message…" onkeydown="if(event.key==='Enter'){event.preventDefault();dmSend();}">
-                    <button type="button" class="game3d-dm-send" onclick="dmSend()">Send</button>
+                    <button type="button" class="game3d-dm-emoji-btn" onclick="dmToggleEmoji()" aria-label="Emoji">😊</button>
+                    <input class="game3d-mp-input" id="g3dDmInput" type="text" maxlength="500" placeholder="Message" onkeydown="if(event.key==='Enter'){event.preventDefault();dmSend();}">
+                    <button type="button" class="game3d-dm-send" onclick="dmSend()" aria-label="Send">➤</button>
                 </div>
             </div>
         </div>
@@ -1245,7 +1260,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
-    <script src="games3d.js?v=20261231"></script>
-    <script src="app.js?v=20261231"></script>
+    <script src="games3d.js?v=20261232"></script>
+    <script src="app.js?v=20261232"></script>
 </body>
 </html>

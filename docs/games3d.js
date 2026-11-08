@@ -5218,6 +5218,11 @@
         scene.add(ship);
 
         var obstacles = [], orbs = [], pickups = [], lasers = [], enemies = [], blasts = [];
+        var dailySeed = Number(new Date().toISOString().slice(0, 10).replace(/-/g, '')) || 20260101;
+        function skyRand() {
+            dailySeed = (dailySeed * 1664525 + 1013904223) >>> 0;
+            return dailySeed / 4294967296;
+        }
         var rockMat = new THREE.MeshStandardMaterial({ color: 0x6b5b8a, metalness: 0.2, roughness: 0.9, emissive: 0x2a1f3d, emissiveIntensity: 0.6 });
         var orbMat = neon(0xffd166, 1.8);
         var shieldMat = new THREE.MeshBasicMaterial({ color: 0x5fe0ff, transparent: true, opacity: 0.2, side: THREE.DoubleSide, depthWrite: false });
@@ -5234,14 +5239,14 @@
         ship.add(thruster);
 
         function spawnRock(kind) {
-            var roll = Math.random();
+            var roll = skyRand();
             var type = kind || (roll < 0.12 ? 'big' : roll < 0.26 ? 'comet' : roll < 0.38 ? 'mine' : 'rock');
-            var r = type === 'big' ? 1.5 + Math.random() * 1.1 : type === 'mine' ? 0.6 : 0.65 + Math.random() * 1.0;
+            var r = type === 'big' ? 1.5 + skyRand() * 1.1 : type === 'mine' ? 0.6 : 0.65 + skyRand() * 1.0;
             var mat = type === 'mine' ? neon(0xff3b5c, 1.8) : rockMat;
             var m = new THREE.Mesh(type === 'mine' ? new THREE.DodecahedronGeometry(r, 0) : new THREE.IcosahedronGeometry(r, 0), mat);
-            m.position.set((Math.random() - 0.5) * 16, (Math.random() - 0.5) * 10, -110 - Math.random() * 40);
+            m.position.set((skyRand() - 0.5) * 16, (skyRand() - 0.5) * 10, -110 - skyRand() * 40);
             m.userData.r = r;
-            m.userData.spin = (Math.random() - 0.5) * (type === 'big' ? 1.1 : 2.4);
+            m.userData.spin = (skyRand() - 0.5) * (type === 'big' ? 1.1 : 2.4);
             m.userData.extraSpeed = type === 'comet' ? 24 : 0;
             if (type === 'mine') {
                 for (var mi = 0; mi < 6; mi++) {
@@ -5262,7 +5267,7 @@
         }
         function spawnOrb() {
             var m = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.14, 8, 20), orbMat);
-            m.position.set((Math.random() - 0.5) * 14, (Math.random() - 0.5) * 8, -90 - Math.random() * 60);
+            m.position.set((skyRand() - 0.5) * 14, (skyRand() - 0.5) * 8, -90 - skyRand() * 60);
             scene.add(m); orbs.push(m);
         }
         var PICKUP_COLORS = { shield: 0x5fe0ff, weapon: 0x54ff9f, rapid: 0xffd166, triple: 0xff70a6, magnet: 0x9b5cff, slow: 0x7fdbff, bomb: 0xff7a45 };
@@ -5273,14 +5278,14 @@
             g.add(core);
             var ring = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.06, 8, 24), neon(color, 1.2));
             ring.rotation.x = Math.PI / 2; g.add(ring);
-            g.position.set((Math.random() - 0.5) * 14, (Math.random() - 0.5) * 8, -95 - Math.random() * 60);
+            g.position.set((skyRand() - 0.5) * 14, (skyRand() - 0.5) * 8, -95 - skyRand() * 60);
             g.userData.kind = kind;
             g.userData.core = core;
             g.userData.ring = ring;
             scene.add(g); pickups.push(g);
         }
         function spawnEnemy(kind) {
-            var type = kind || (Math.random() < 0.24 ? 'hunter' : Math.random() < 0.12 ? 'brute' : 'scout');
+            var type = kind || (skyRand() < 0.24 ? 'hunter' : skyRand() < 0.12 ? 'brute' : 'scout');
             var g = new THREE.Group();
             var col = type === 'hunter' ? 0xff9f1c : type === 'brute' ? 0x9b5cff : 0xff3b5c;
             var eMat = neon(col, 1.6);
@@ -5294,15 +5299,46 @@
                 var spike = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.9, 5), eMat);
                 spike.position.z = -0.9; spike.rotation.x = -Math.PI / 2; g.add(spike);
             }
-            g.position.set((Math.random() - 0.5) * 12, (Math.random() - 0.5) * 8, -150);
-            g.userData.phase = Math.random() * Math.PI * 2;
+            g.position.set((skyRand() - 0.5) * 12, (skyRand() - 0.5) * 8, -150);
+            g.userData.phase = skyRand() * Math.PI * 2;
             g.userData.baseX = g.position.x;
             g.userData.type = type;
+            g.userData.id = 'e' + (Math.random() * 1e9).toFixed(0);
             g.userData.r = type === 'brute' ? 2.2 : type === 'hunter' ? 1.6 : 1.4;
             g.userData.extraSpeed = type === 'hunter' ? 26 : 0;
             g.userData.hp = type === 'brute' ? 2 : 1;
             scene.add(g); enemies.push(g);
         }
+        function spawnBoss() {
+            var g = new THREE.Group();
+            var bMat = neon(0xff2fd0, 2.0);
+            var body = new THREE.Mesh(new THREE.OctahedronGeometry(2.4, 0), bMat);
+            g.add(body);
+            var ring = new THREE.Mesh(new THREE.TorusGeometry(3.4, 0.16, 8, 32), neon(0xffd166, 1.8));
+            ring.rotation.x = Math.PI / 2.3; g.add(ring);
+            var eye = new THREE.Mesh(new THREE.SphereGeometry(0.55, 12, 10), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+            eye.position.z = -2.0; g.add(eye);
+            for (var ba = 0; ba < 6; ba++) {
+                var spike = new THREE.Mesh(new THREE.ConeGeometry(0.22, 1.6, 5), bMat);
+                var ang = ba / 6 * Math.PI * 2;
+                spike.position.set(Math.cos(ang) * 2.2, Math.sin(ang) * 2.2, 0);
+                spike.rotation.z = ang - Math.PI / 2;
+                g.add(spike);
+            }
+            g.position.set((skyRand() - 0.5) * 8, (skyRand() - 0.5) * 4, -170);
+            g.userData.type = 'boss';
+            g.userData.id = 'boss' + (Math.random() * 1e9).toFixed(0);
+            g.userData.r = 3.2;
+            g.userData.hp = 14;
+            g.userData.extraSpeed = -4;
+            g.userData.phase = skyRand() * Math.PI * 2;
+            g.userData.baseX = g.position.x;
+            g.userData.boss = true;
+            scene.add(g); enemies.push(g);
+            tone(90, 0.6, 'sawtooth', 0.1, 45);
+            tone(180, 0.45, 'square', 0.06, 90);
+        }
+
         function blastAt(x, y, z, color) {
             var mesh = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 8), new THREE.MeshBasicMaterial({
                 color: color, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false
@@ -5312,14 +5348,15 @@
             blasts.push({ mesh: mesh, life: 0.34, max: 0.34 });
         }
         function fireLaser() {
-            var offsets = tripleT > 0 ? [-0.75, 0, 0.75] : [0];
+            var offsets = weaponLevel >= 1 ? [-0.8, 0, 0.8] : [0];
             for (var lf = 0; lf < offsets.length; lf++) {
-                var mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.55, 6), laserMat);
+                var mesh = new THREE.Mesh(new THREE.CylinderGeometry(weaponLevel >= 1 ? 0.06 : 0.05, 0.05, weaponLevel >= 3 ? 0.85 : 0.55, 6), laserMat);
                 mesh.rotation.x = Math.PI / 2;
-                mesh.position.set(ship.position.x + offsets[lf], ship.position.y + (tripleT > 0 ? (lf - 1) * 0.18 : 0), ship.position.z - 1.3);
+                mesh.position.set(ship.position.x + offsets[lf], ship.position.y + (weaponLevel >= 1 ? (lf - 1) * 0.18 : 0), ship.position.z - 1.3);
                 scene.add(mesh);
-                lasers.push({ mesh: mesh, life: 1.5 });
+                lasers.push({ mesh: mesh, life: 1.5, pierce: weaponLevel >= 2 ? 2 : 0, homing: weaponLevel >= 3, hitIds: [] });
             }
+            shotsFired++;
             tone(1320, 0.05, 'square', 0.028, 900);
         }
         function removeFrom(list, index) {
@@ -5330,6 +5367,15 @@
             combo = Math.min(5, combo + 0.5);
             comboT = 3.6;
         }
+        function accuracyMultiplier() {
+            var acc = shotsFired > 0 ? shotsHit / shotsFired : 0;
+            return 1 + Math.max(0, Math.min(1, acc)) * 0.6 + wave * 0.04;
+        }
+
+        function toastSky(text) {
+            var el = document.getElementById('g3dExtra');
+            if (el) setPillText('g3dExtra', text);
+        }
 
         for (var a = 0; a < (isMobileDevice ? 4 : 5); a++) spawnRock();
         for (var b = 0; b < (isMobileDevice ? 2 : 3); b++) spawnOrb();
@@ -5337,6 +5383,7 @@
         var elapsed = 0, speed = 26, spawnT = 0, orbT = 0, pickupT = 7, enemyT = 12;
         var score = 0, weaponT = 0, shieldHits = 0, invulnT = 0, comboT = 0, combo = 1, laserCd = 0;
         var rapidT = 0, tripleT = 0, magnetT = 0, slowT = 0, meteorT = 22;
+        var wave = 1, waveT = 24, bossKills = 0, weaponLevel = 0, shotsFired = 0, shotsHit = 0;
 
         function update(dt) {
             elapsed += dt;
@@ -5365,7 +5412,14 @@
             laserCd = Math.max(0, laserCd - dt);
             if (input.tapQueued) {
                 input.tapQueued = false;
-                if (weaponT > 0 && laserCd <= 0) { fireLaser(); laserCd = rapidT > 0 ? 0.085 : 0.17; }
+                if (laserCd <= 0) { fireLaser(); laserCd = rapidT > 0 ? 0.075 : 0.16; }
+            }
+            waveT -= dt;
+            if (waveT <= 0) {
+                wave++;
+                waveT = 24;
+                if (wave % 3 === 0) spawnBoss();
+                tone(520, 0.18, 'square', 0.05, 880);
             }
 
             spawnT += dt;
@@ -5433,7 +5487,7 @@
                 var oz = ob.position.z - ship.position.z;
                 if (ox * ox + oy * oy + oz * oz < 2.2) {
                     scene.remove(ob); disposeObject(ob); orbs.splice(k, 1);
-                    score += 50 * combo; addCombo(); blastAt(ob.position.x, ob.position.y, ob.position.z, 0xffd166);
+                    score += 50 * combo * accuracyMultiplier(); addCombo(); blastAt(ob.position.x, ob.position.y, ob.position.z, 0xffd166);
                 }
             }
             for (var p = pickups.length - 1; p >= 0; p--) {
@@ -5445,7 +5499,10 @@
                 if (pu.position.distanceTo(ship.position) < 2.4) {
                     var pk = pu.userData.kind;
                     if (pk === 'shield') shieldHits = Math.min(3, shieldHits + 1);
-                    else if (pk === 'weapon') weaponT = Math.max(weaponT, 11);
+                    else if (pk === 'weapon') {
+                        if (weaponLevel < 3) { weaponLevel++; toastSky('WEAPON LVL ' + (weaponLevel + 1)); }
+                        else shieldHits = Math.min(3, shieldHits + 1);
+                    }
                     else if (pk === 'rapid') rapidT = Math.max(rapidT, 10);
                     else if (pk === 'triple') tripleT = Math.max(tripleT, 10);
                     else if (pk === 'magnet') magnetT = Math.max(magnetT, 10);
@@ -5491,6 +5548,18 @@
             for (var l = lasers.length - 1; l >= 0; l--) {
                 var la = lasers[l];
                 la.life -= dt;
+                if (la.homing) {
+                    var target = null, targetDist = 1e9;
+                    for (var he = 0; he < enemies.length; he++) {
+                        if (enemies[he].position.z >= la.mesh.position.z) continue;
+                        var hd = enemies[he].position.distanceTo(la.mesh.position);
+                        if (hd < targetDist) { targetDist = hd; target = enemies[he]; }
+                    }
+                    if (target) {
+                        la.mesh.position.x += (target.position.x - la.mesh.position.x) * Math.min(1, dt * 4.5);
+                        la.mesh.position.y += (target.position.y - la.mesh.position.y) * Math.min(1, dt * 4.5);
+                    }
+                }
                 la.mesh.position.z -= 110 * dt;
                 if (la.life <= 0 || la.mesh.position.z < -170) { removeFrom(lasers, l); continue; }
                 var hit = false;
@@ -5499,7 +5568,7 @@
                     if (Math.abs(rock.position.z - la.mesh.position.z) < rock.userData.r + 0.8 &&
                         Math.abs(rock.position.x - la.mesh.position.x) < rock.userData.r + 0.5 &&
                         Math.abs(rock.position.y - la.mesh.position.y) < rock.userData.r + 0.5) {
-                        score += 25 * combo; addCombo();
+                        score += 25 * combo; addCombo(); shotsHit++;
                         blastAt(rock.position.x, rock.position.y, rock.position.z, 0xff7a45);
                         removeFrom(obstacles, ri);
                         hit = true; break;
@@ -5508,12 +5577,18 @@
                 if (!hit) {
                     for (var ei = enemies.length - 1; ei >= 0; ei--) {
                         var enemy = enemies[ei];
+                        if (la.hitIds.indexOf(enemy.id) >= 0) continue;
                         if (enemy.position.distanceTo(la.mesh.position) < (enemy.userData.r || 1.4) + 0.7) {
+                            la.hitIds.push(enemy.id);
+                            shotsHit++;
                             if (enemy.userData.hp > 1) {
                                 enemy.userData.hp--;
                                 blastAt(enemy.position.x, enemy.position.y, enemy.position.z, 0xffd166);
+                                if (enemy.userData.boss) toastSky('BOSS · ' + enemy.userData.hp + ' HP');
                             } else {
-                                score += (enemy.userData.type === 'brute' ? 300 : enemy.userData.type === 'hunter' ? 220 : 150) * combo; addCombo();
+                                var eScore = enemy.userData.boss ? 1200 : enemy.userData.type === 'brute' ? 300 : enemy.userData.type === 'hunter' ? 220 : 150;
+                                score += eScore * combo * accuracyMultiplier(); addCombo();
+                                if (enemy.userData.boss) { bossKills++; toastSky('BOSS DOWN'); }
                                 blastAt(enemy.position.x, enemy.position.y, enemy.position.z, 0xff3b5c);
                                 removeFrom(enemies, ei);
                             }
@@ -5521,7 +5596,10 @@
                         }
                     }
                 }
-                if (hit) removeFrom(lasers, l);
+                if (hit) {
+                    if (la.pierce > 0) la.pierce--;
+                    else removeFrom(lasers, l);
+                }
             }
             for (var bl = blasts.length - 1; bl >= 0; bl--) {
                 var blast = blasts[bl];
@@ -5537,17 +5615,24 @@
             camera.position.x += Math.sin(elapsed * 31) * 0.012;
             camera.lookAt(ship.position.x * 0.4, ship.position.y * 0.4, -14);
             var status = [];
+            status.push('WAVE ' + wave);
+            status.push('WPN ' + (weaponLevel + 1));
             if (shieldHits > 0) status.push('SHIELD ' + shieldHits);
-            if (weaponT > 0) status.push('LASER ' + Math.ceil(weaponT));
             if (rapidT > 0) status.push('RAPID ' + Math.ceil(rapidT));
             if (tripleT > 0) status.push('TRIPLE ' + Math.ceil(tripleT));
             if (magnetT > 0) status.push('MAGNET ' + Math.ceil(magnetT));
             if (slowT > 0) status.push('SLOW ' + Math.ceil(slowT));
-            status.push('x' + combo.toFixed(1));
+            status.push('ACC ' + Math.round((shotsFired > 0 ? shotsHit / shotsFired : 0) * 100) + '%');
+            status.push('x' + (combo * accuracyMultiplier()).toFixed(1));
             setHud(Math.round(score), Math.round(score) + ' PTS · ' + status.join(' · '));
         }
 
-        return { over: false, update: update, getScore: function () { return score; } };
+        return {
+            over: false,
+            update: update,
+            getScore: function () { return score; },
+            getState: function () { return { wave: wave, bossKills: bossKills, weaponLevel: weaponLevel, accuracy: shotsFired > 0 ? shotsHit / shotsFired : 0, score: score }; }
+        };
     }
 
     /* ---------------- Dead Coast (zombie FPS) ---------------- */
@@ -8793,6 +8878,9 @@
     function getCurrentScore() {
         return active && active.getScore ? active.getScore() : 0;
     }
+    function getSkyState() {
+        return active && active.getState ? active.getState() : null;
+    }
     function teleportRacer(distance, x) {
         if (active && active.teleport) active.teleport(distance, x);
     }
@@ -8850,6 +8938,7 @@
         toggleFsd: toggleFsd,
         toggleShadowHelper: toggleShadowHelper,
         getCurrentScore: getCurrentScore,
+        getSkyState: getSkyState,
         getRacerState: getRacerState,
         getRacerInfo: getRacerInfo
     };

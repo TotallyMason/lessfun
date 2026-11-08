@@ -2837,9 +2837,11 @@ function dmRenderList() {
         html += '<p class="game3d-dm-label">Groups</p>';
         html += groups.map(function (group) {
             const count = Math.max(0, (group.members || []).length);
+            var gInitial = String(group.name || 'G').trim().charAt(0).toUpperCase();
             return '<button type="button" class="game3d-dm-contact is-group' + (group.id === dmState.groupId ? ' is-active' : '') + '" onclick="dmOpenGroup(\'' + debugArg(group.id) + '\')">' +
-                '<span class="game3d-dm-contact-icon">#</span>' +
-                '<span class="game3d-dm-contact-name">' + escapeHtml(group.name || 'Group') + '</span>' +
+                '<span class="game3d-dm-avatar is-group">' + escapeHtml(gInitial) + '</span>' +
+                '<span class="game3d-dm-contact-main"><span class="game3d-dm-contact-name">' + escapeHtml(group.name || 'Group') + '</span>' +
+                '<small>' + count + ' members · encrypted</small></span>' +
                 '<span class="game3d-dm-contact-count">' + count + '</span>' +
             '</button>';
         }).join('');
@@ -2847,8 +2849,11 @@ function dmRenderList() {
     if (partners.length) {
         html += '<p class="game3d-dm-label">Direct</p>';
         html += partners.map(function (name) {
+            var dInitial = String(name || '?').trim().charAt(0).toUpperCase();
             return '<button type="button" class="game3d-dm-contact' + (!dmState.groupId && name === dmState.contact ? ' is-active' : '') + '" onclick="dmOpenConversation(\'' + debugArg(name) + '\')">' +
-                '<span class="game3d-dm-contact-dot"></span>' + escapeHtml(name) +
+                '<span class="game3d-dm-avatar">' + escapeHtml(dInitial) + '</span>' +
+                '<span class="game3d-dm-contact-main"><span class="game3d-dm-contact-name">' + escapeHtml(name) + '</span><small>Encrypted chat</small></span>' +
+                '<span class="game3d-dm-contact-dot"></span>' +
             '</button>';
         }).join('');
     }
@@ -2868,8 +2873,9 @@ function dmRenderThread() {
         const rows = dmState.groupThread || [];
         const meName = currentUser ? currentUser.username : '';
         const canDelete = !group.creator || group.creator === meName;
-        let html = '<div class="game3d-dm-group-head">' +
-            '<div class="game3d-dm-group-title"><strong># ' + escapeHtml(group.name || 'Group') + '</strong>' +
+        let html = '<div class="game3d-dm-chat-head">' +
+            '<span class="game3d-dm-avatar is-group">' + escapeHtml(String(group.name || 'G').charAt(0).toUpperCase()) + '</span>' +
+            '<div class="game3d-dm-chat-title"><strong>' + escapeHtml(group.name || 'Group') + '</strong>' +
             '<span>' + Math.max(0, (group.members || []).length) + ' members · end-to-end encrypted</span></div>' +
             '<div class="game3d-dm-group-buttons">' +
                 (canDelete ? '<button type="button" class="game3d-dm-group-delete" onclick="dmDeleteGroup(\'' + debugArg(group.id) + '\')">Delete</button>' : '') +
@@ -2883,7 +2889,7 @@ function dmRenderThread() {
                 return '<div class="game3d-dm-msg' + (mine ? ' is-mine' : '') + '">' +
                     (!mine ? '<span class="game3d-dm-msg-from">' + escapeHtml(row.sender) + '</span>' : '') +
                     '<span class="game3d-dm-msg-text">' + escapeHtml(row.text) + '</span>' +
-                    '<span class="game3d-dm-msg-time">' + escapeHtml(new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) + '</span>' +
+                    '<span class="game3d-dm-msg-time">' + escapeHtml(new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) + (mine ? ' <b class="game3d-dm-tick">✓✓</b>' : '') + '</span>' +
                 '</div>';
             }).join('');
         }
@@ -2899,17 +2905,23 @@ function dmRenderThread() {
         return;
     }
     const rows = dmState.thread || [];
+    const dmName = dmState.contact;
+    let dHtml = '<div class="game3d-dm-chat-head">' +
+        '<span class="game3d-dm-avatar">' + escapeHtml(String(dmName).charAt(0).toUpperCase()) + '</span>' +
+        '<div class="game3d-dm-chat-title"><strong>' + escapeHtml(dmName) + '</strong><span>end-to-end encrypted</span></div>' +
+    '</div>';
     if (!rows.length) {
-        thread.innerHTML = '<p class="game3d-dm-empty">No messages with ' + escapeHtml(dmState.contact) + ' yet.</p>';
-        return;
+        dHtml += '<p class="game3d-dm-empty">No messages with ' + escapeHtml(dmName) + ' yet.</p>';
+    } else {
+        dHtml += rows.map(function (row) {
+            const mine = row.sender === me;
+            return '<div class="game3d-dm-msg' + (mine ? ' is-mine' : '') + '">' +
+                '<span class="game3d-dm-msg-text">' + escapeHtml(row.text) + '</span>' +
+                '<span class="game3d-dm-msg-time">' + escapeHtml(new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) + (mine ? ' <b class="game3d-dm-tick">✓✓</b>' : '') + '</span>' +
+            '</div>';
+        }).join('');
     }
-    thread.innerHTML = rows.map(function (row) {
-        const mine = row.sender === me;
-        return '<div class="game3d-dm-msg' + (mine ? ' is-mine' : '') + '">' +
-            '<span class="game3d-dm-msg-text">' + escapeHtml(row.text) + '</span>' +
-            '<span class="game3d-dm-msg-time">' + escapeHtml(new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) + '</span>' +
-        '</div>';
-    }).join('');
+    thread.innerHTML = dHtml;
 }
 
 async function dmLoadInbox() {
@@ -3290,6 +3302,19 @@ async function dmLeaveGroup(id) {
     dmRenderList();
     dmRenderThread();
     dmSetStatus('You left the group.', false);
+}
+
+function dmToggleEmoji() {
+    const row = document.getElementById('g3dDmEmoji');
+    if (!row) return;
+    row.style.display = row.style.display === 'none' ? 'flex' : 'none';
+}
+
+function dmInsertEmoji(emoji) {
+    const input = document.getElementById('g3dDmInput');
+    if (!input) return;
+    input.value = (input.value || '') + emoji;
+    input.focus();
 }
 
 function dmStartConversation() {
@@ -6264,6 +6289,9 @@ function normalizeWallet(raw, username) {
         equipped: equipped,
         cars: ownedCars,
         equippedCar: equippedCar,
+        xp: Number.isFinite(w.xp) ? Math.max(0, Math.floor(w.xp)) : 0,
+        achievements: Array.isArray(w.achievements) ? w.achievements.filter(function (id) { return typeof id === 'string'; }) : [],
+        stats: (w.stats && typeof w.stats === 'object') ? w.stats : {},
         streak: Number.isFinite(w.streak) ? Math.max(0, Math.floor(w.streak)) : 0,
         lastPlayDay: typeof w.lastPlayDay === 'string' ? w.lastPlayDay : (typeof w.last_play_day === 'string' ? w.last_play_day : null),
         streakRewards: Array.isArray(w.streakRewards) ? w.streakRewards : (Array.isArray(w.streak_rewards) ? w.streak_rewards : []),
@@ -6307,6 +6335,20 @@ async function loadWallet() {
             }
             local.cars = mergedCars;
             if (!local.equippedCar && remote.equippedCar) local.equippedCar = remote.equippedCar;
+            remote.xp = Math.max(remote.xp || 0, local.xp || 0);
+            local.xp = remote.xp;
+            var mergedAch = (remote.achievements || []).slice();
+            (local.achievements || []).forEach(function (id) { if (mergedAch.indexOf(id) < 0) mergedAch.push(id); });
+            remote.achievements = mergedAch;
+            local.achievements = mergedAch;
+            var mergedStats = Object.assign({}, remote.stats || {});
+            Object.keys(local.stats || {}).forEach(function (key) {
+                var a = Number(mergedStats[key]) || 0;
+                var b = Number(local.stats[key]) || 0;
+                mergedStats[key] = Math.max(a, b);
+            });
+            remote.stats = mergedStats;
+            local.stats = mergedStats;
             if (walletMutated || local.updatedAt > remote.updatedAt) {
                 // The player earned or bought something while the request was
                 // in flight. Keep the newer local copy and push it up.
@@ -6364,7 +6406,10 @@ async function saveWallet() {
         // wallets table without them still syncs cosmetics normally.
         await supabaseClient.from('wallets').update({
             cars: wallet.cars || [],
-            equipped_car: wallet.equippedCar || null
+            equipped_car: wallet.equippedCar || null,
+            xp: wallet.xp || 0,
+            achievements: wallet.achievements || [],
+            stats: wallet.stats || {}
         }).eq('username', wallet.username);
     } catch (e) {
         // Offline or table missing: localStorage remains the source of truth.
@@ -7023,12 +7068,126 @@ async function awardCoins(seconds) {
     return result;
 }
 
+const XP_PER_LEVEL = 1000;
+const ACHIEVEMENTS = [
+    { id: 'first_run', name: 'First Run', desc: 'Finish any game', icon: '🏁' },
+    { id: 'racer_speed', name: '200 Club', desc: 'Hit 200 km/h in Beach Racer', icon: '💨' },
+    { id: 'racer_race', name: 'Racer', desc: 'Finish a race', icon: '🏆' },
+    { id: 'zombie_10', name: 'Zombie Hunter', desc: 'Kill 10 zombies in one run', icon: '🧟' },
+    { id: 'zombie_100', name: 'Exterminator', desc: 'Kill 100 zombies total', icon: '☠️' },
+    { id: 'dc_10km', name: 'Long Haul', desc: 'Finish the 10 km Dead Coast run', icon: '🛣️' },
+    { id: 'star_wave5', name: 'Deep Space', desc: 'Reach Star Dodger wave 5', icon: '🌌' },
+    { id: 'star_boss', name: 'Boss Breaker', desc: 'Defeat a Star Dodger boss', icon: '👾' },
+    { id: 'coin_10k', name: 'Coin Collector', desc: 'Earn 10,000 Coins total', icon: '🪙' },
+    { id: 'social', name: 'Social', desc: 'Make a Community post', icon: '💬' }
+];
+
+function playerLevel() {
+    return 1 + Math.floor(((wallet && wallet.xp) || 0) / XP_PER_LEVEL);
+}
+
+function playerXpInLevel() {
+    return ((wallet && wallet.xp) || 0) % XP_PER_LEVEL;
+}
+
+function playerHasAchievement(id) {
+    return !!(wallet && Array.isArray(wallet.achievements) && wallet.achievements.indexOf(id) >= 0);
+}
+
+function unlockAchievement(id) {
+    if (!wallet || playerHasAchievement(id)) return false;
+    var def = ACHIEVEMENTS.find(function (a) { return a.id === id; });
+    if (!def) return false;
+    wallet.achievements = wallet.achievements || [];
+    wallet.achievements.push(id);
+    saveWallet();
+    showGameToast(def.icon + ' ACHIEVEMENT · ' + def.name);
+    renderProfileProgress();
+    return true;
+}
+
+function awardXp(amount) {
+    if (!wallet) return;
+    var gain = Math.max(0, Math.floor(Number(amount) || 0));
+    if (!gain) return;
+    var before = playerLevel();
+    wallet.xp = (wallet.xp || 0) + gain;
+    var after = playerLevel();
+    if (after > before) {
+        wallet.shells = (wallet.shells || 0) + 100;
+        wallet.totalEarned = (wallet.totalEarned || 0) + 100;
+        showGameToast('LEVEL ' + after + ' · +100 Coins');
+    }
+    saveWallet();
+    renderWalletUI();
+    renderProfileProgress();
+}
+
+function renderProfileProgress() {
+    var wrap = document.getElementById('profileLevel');
+    if (!wrap) return;
+    var level = playerLevel();
+    var xp = playerXpInLevel();
+    var label = document.getElementById('profileLevelLabel');
+    if (label) label.textContent = 'Level ' + level;
+    var xpLabel = document.getElementById('profileXpLabel');
+    if (xpLabel) xpLabel.textContent = xp.toLocaleString() + ' / ' + XP_PER_LEVEL.toLocaleString() + ' XP';
+    var fill = document.getElementById('profileXpFill');
+    if (fill) fill.style.width = Math.min(100, xp / XP_PER_LEVEL * 100) + '%';
+    var badges = document.getElementById('profileBadges');
+    if (badges) {
+        var owned = (wallet && wallet.achievements) || [];
+        if (!owned.length) {
+            badges.innerHTML = '<span class="profile-badge-empty">No badges yet — play a game to start earning XP.</span>';
+        } else {
+            badges.innerHTML = ACHIEVEMENTS.filter(function (a) { return owned.indexOf(a.id) >= 0; }).map(function (a) {
+                return '<span class="profile-badge" title="' + escapeAttr(a.desc) + '">' + a.icon + ' ' + escapeHtml(a.name) + '</span>';
+            }).join('');
+        }
+    }
+}
+
+function checkGameAchievements(score, seconds) {
+    if (!wallet) return;
+    unlockAchievement('first_run');
+    wallet.stats = wallet.stats || {};
+    wallet.stats.runs = (wallet.stats.runs || 0) + 1;
+    wallet.stats.bestScore = Math.max(wallet.stats.bestScore || 0, score || 0);
+    wallet.stats.playSeconds = (wallet.stats.playSeconds || 0) + (seconds || 0);
+    if ((wallet.totalEarned || 0) >= 10000) unlockAchievement('coin_10k');
+    if (currentGameId === 1) {
+        if (raceModeSetting) unlockAchievement('racer_race');
+        var rs = (window.Games3D && window.Games3D.getRacerState) ? window.Games3D.getRacerState() : null;
+        if (rs && Math.abs(rs.speed || 0) * 2.23694 >= 200) unlockAchievement('racer_speed');
+    } else if (currentGameId === 4) {
+        var ds = (window.Games3D && window.Games3D.getZombieState) ? window.Games3D.getZombieState() : null;
+        if (ds) {
+            wallet.stats.zombies = (wallet.stats.zombies || 0) + (ds.zombiesHit || 0);
+            wallet.stats.bestDistance = Math.max(wallet.stats.bestDistance || 0, ds.distance || 0);
+            if ((ds.zombiesHit || 0) >= 10) unlockAchievement('zombie_10');
+            if ((wallet.stats.zombies || 0) >= 100) unlockAchievement('zombie_100');
+            if ((ds.distance || 0) >= 10000) unlockAchievement('dc_10km');
+        }
+    } else if (currentGameId === 5) {
+        var ss = (window.Games3D && window.Games3D.getSkyState) ? window.Games3D.getSkyState() : null;
+        if (ss) {
+            wallet.stats.starWave = Math.max(wallet.stats.starWave || 0, ss.wave || 1);
+            if ((ss.wave || 1) >= 5) unlockAchievement('star_wave5');
+            if ((ss.bossKills || 0) >= 1) unlockAchievement('star_boss');
+        }
+    }
+    saveWallet();
+    renderProfileProgress();
+}
+
 function handleGameOver(score, seconds) {
     var over = document.getElementById('g3dOver');
     var fin = document.getElementById('g3dFinal');
     if (fin) fin.textContent = score;
     if (over) over.style.display = 'flex';
 
+    awardXp(Math.max(10, Math.round((Number(score) || 0) / 8) + Math.round((Number(seconds) || 0) / 2)));
+    checkGameAchievements(Number(score) || 0, Number(seconds) || 0);
     var trackCoins = lastRunCoins;
     awardCoins(seconds).then(function (result) {
         var el = document.getElementById('g3dEarned');
@@ -7259,6 +7418,7 @@ async function createPost() {
         pendingPostMedia = null;
         renderPostMediaPreview();
         renderCommunity();
+        unlockAchievement('social');
     } catch (e) {
         alert(e.message || 'Error');
     }
@@ -7705,8 +7865,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.47";
-const UPDATE_NOTES = "Dead Coast now has reverse: hold brake at a stop to back up. Star Dodger is expanded with a space station, wormhole gate, asteroid belt, comets, mines, big asteroids, new pickups (rapid, triple, magnet, slow, bomb), hunter and brute enemies, and meteor showers";
+const APP_VERSION = "LessFun Public Beta 1.32.48";
+const UPDATE_NOTES = "Player levels, XP and achievement badges are live. Star Dodger now has waves, bosses, weapon evolution, accuracy scoring and daily seeds. Radio adds Class 95 and CNA 938, and private messages are rebuilt in a WhatsApp-style chat with avatars, bubbles, ticks and emoji";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -7794,6 +7954,7 @@ document.addEventListener('visibilitychange', function () {
 function openProfile(username) {
     if (!username) { openAuthModal(); return; }
     document.getElementById('profileModal').style.display = 'flex';
+    renderProfileProgress();
     document.getElementById('profileTitle').textContent = username + "'s Profile";
     document.getElementById('profileUsername').textContent = username;
     const safe = safeAvatarValue(avatarForUser(username));
@@ -10032,6 +10193,8 @@ async function renderUsers() {
    LessFun Radio — real Singapore FM streams
    ============================================================ */
 const RADIO_STATIONS = [
+    { name: 'Class 95', freq: '95.0', lang: 'English', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/CLASS95AAC.aac' },
+    { name: 'CNA 938', freq: '93.8', lang: 'News', url: 'https://22893.live.streamtheworld.com/938NOW_SC' },
     { name: 'Kiss92', freq: '92.0', lang: 'English', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/KISS_92.mp3' },
     { name: 'One FM 91.3', freq: '91.3', lang: 'English', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/ONE_FM_913.mp3' },
     { name: '96.3 Hao FM', freq: '96.3', lang: 'Chinese', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/HAO_963.mp3' },
