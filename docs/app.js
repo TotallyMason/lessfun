@@ -2577,6 +2577,7 @@ let dmState = {
     open: false,
     contact: '',
     groupId: '',
+    showChat: false,
     groups: {},
     hiddenGroups: {},
     groupSelected: [],
@@ -2586,6 +2587,21 @@ let dmState = {
     keyCache: {},
     publicCache: {}
 };
+
+function dmShowChat(show) {
+    dmState.showChat = !!show;
+    var panel = document.getElementById('g3dDmSidebar');
+    if (panel) panel.classList.toggle('is-chat', !!show);
+}
+
+function dmPresenceLabel(name) {
+    try {
+        var p = friendData && friendData.presence ? friendData.presence[name] : null;
+        if (p && typeof isOnline === 'function' && isOnline(p.last_seen)) return 'online';
+        if (p && typeof formatLastSeen === 'function') return 'last seen ' + formatLastSeen(p.last_seen);
+    } catch (e) {}
+    return 'end-to-end encrypted';
+}
 
 function dmSetStatus(text, isError) {
     const el = document.getElementById('g3dDmStatus');
@@ -2871,6 +2887,7 @@ function dmRenderThread() {
         const meName = currentUser ? currentUser.username : '';
         const canDelete = !group.creator || group.creator === meName;
         let html = '<div class="game3d-dm-chat-head">' +
+            '<button type="button" class="game3d-dm-back" onclick="dmShowChat(false)" aria-label="Back to chats">‹</button>' +
             '<span class="game3d-dm-avatar is-group">' + escapeHtml(String(group.name || 'G').charAt(0).toUpperCase()) + '</span>' +
             '<div class="game3d-dm-chat-title"><strong>' + escapeHtml(group.name || 'Group') + '</strong>' +
             '<span>' + Math.max(0, (group.members || []).length) + ' members · end-to-end encrypted</span></div>' +
@@ -2881,6 +2898,7 @@ function dmRenderThread() {
         if (!rows.length) {
             html += '<p class="game3d-dm-empty">No group messages yet. Say hello.</p>';
         } else {
+            html += '<div class="game3d-dm-date">TODAY</div>';
             html += rows.map(function (row) {
                 const mine = row.sender === me;
                 return '<div class="game3d-dm-msg' + (mine ? ' is-mine' : '') + '">' +
@@ -2904,12 +2922,14 @@ function dmRenderThread() {
     const rows = dmState.thread || [];
     const dmName = dmState.contact;
     let dHtml = '<div class="game3d-dm-chat-head">' +
+        '<button type="button" class="game3d-dm-back" onclick="dmShowChat(false)" aria-label="Back to chats">‹</button>' +
         '<span class="game3d-dm-avatar">' + escapeHtml(String(dmName).charAt(0).toUpperCase()) + '</span>' +
-        '<div class="game3d-dm-chat-title"><strong>' + escapeHtml(dmName) + '</strong><span>end-to-end encrypted</span></div>' +
+        '<div class="game3d-dm-chat-title"><strong>' + escapeHtml(dmName) + '</strong><span>' + escapeHtml(dmPresenceLabel(dmName)) + '</span></div>' +
     '</div>';
     if (!rows.length) {
         dHtml += '<p class="game3d-dm-empty">No messages with ' + escapeHtml(dmName) + ' yet.</p>';
     } else {
+        dHtml += '<div class="game3d-dm-date">TODAY</div>';
         dHtml += rows.map(function (row) {
             const mine = row.sender === me;
             return '<div class="game3d-dm-msg' + (mine ? ' is-mine' : '') + '">' +
@@ -2947,6 +2967,7 @@ async function dmOpenConversation(username) {
     dmState.groupId = '';
     dmState.contact = name;
     localStorage.setItem('lessfun_dm_contact', name);
+    dmShowChat(true);
     dmRenderList();
     await dmRefreshThread();
     const input = document.getElementById('g3dDmInput');
@@ -2958,6 +2979,7 @@ async function dmOpenGroup(id) {
     if (!group) return;
     dmState.groupId = id;
     dmState.contact = '';
+    dmShowChat(true);
     dmRenderList();
     await dmRefreshGroup();
     const input = document.getElementById('g3dDmInput');
@@ -3275,6 +3297,7 @@ async function dmDeleteGroup(id) {
         dmState.groupThread = [];
     }
     dmSaveGroups();
+    dmShowChat(false);
     dmRenderList();
     dmRenderThread();
     dmSetStatus('Group deleted.', false);
@@ -3296,6 +3319,7 @@ async function dmLeaveGroup(id) {
         dmState.groupThread = [];
     }
     dmSaveGroups();
+    dmShowChat(false);
     dmRenderList();
     dmRenderThread();
     dmSetStatus('You left the group.', false);
@@ -3384,6 +3408,7 @@ function toggleDmSidebar(force) {
     if (panel) panel.style.display = wantOpen ? 'flex' : 'none';
     if (btn) btn.classList.toggle('is-open', wantOpen);
     if (wantOpen) {
+        dmShowChat(false);
         dmSetStatus('');
         dmLoadInbox();
         if (dmState.poll) clearInterval(dmState.poll);
@@ -3404,6 +3429,7 @@ function dmClose() {
     if (dmState.poll) { clearInterval(dmState.poll); dmState.poll = 0; }
     dmState.open = false;
     dmState.groupId = '';
+    dmShowChat(false);
     const panel = document.getElementById('g3dDmSidebar');
     const btn = document.getElementById('g3dMsgBtn');
     if (panel) panel.style.display = 'none';
@@ -7862,8 +7888,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.49";
-const UPDATE_NOTES = "Multiplayer remote-camera streams are now higher quality 320x180 JPEG running at 15 FPS. Also includes levels, achievements, Star Dodger waves and bosses, Class 95 and CNA 938, and WhatsApp-style messages";
+const APP_VERSION = "LessFun Public Beta 1.32.50";
+const UPDATE_NOTES = "Radio buffers faster with preconnects, preloading and automatic retry. Messages now switch between the chat list and a single chat like WhatsApp, with no contact list while chatting. The Close Messages button is gone, and a new Help panel makes every section and control easier to find";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -7947,6 +7973,29 @@ document.addEventListener('visibilitychange', function () {
         checkForServerUpdate();
     }
 });
+
+function openHelp() {
+    var modal = document.getElementById('helpModal');
+    if (!modal) return;
+    var v = document.getElementById('helpVersion');
+    if (v) v.textContent = APP_VERSION;
+    modal.style.display = 'flex';
+}
+
+function closeHelp() {
+    var modal = document.getElementById('helpModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function helpGo(view) {
+    closeHelp();
+    if (view === 'garage') {
+        showView('store');
+        if (typeof setStoreFilter === 'function') setStoreFilter('body');
+        return;
+    }
+    showView(view);
+}
 
 function openProfile(username) {
     if (!username) { openAuthModal(); return; }
@@ -10266,6 +10315,7 @@ function radioInit() {
     audio.addEventListener('playing', function () {
         radioHasSource = true;
         radioSetBuffering(false);
+        if (window.radioWatchdog) { clearTimeout(window.radioWatchdog); window.radioWatchdog = 0; }
         radioPresenceConnect();
         radioPresenceTrack();
         radioSetStatus('LIVE · ' + (RADIO_STATIONS[radioIndex] ? RADIO_STATIONS[radioIndex].name : ''));
@@ -10317,6 +10367,11 @@ function radioTogglePanel(force) {
     if (open) {
         if (dock) dock.classList.add('is-panel-open');
         panel.style.display = 'flex';
+        var audioEl = document.getElementById('lessfunRadioAudio');
+        if (audioEl && !radioHasSource) {
+            var prime = RADIO_STATIONS[radioIndex] || RADIO_STATIONS[0];
+            if (prime) { audioEl.src = prime.url; audioEl.load(); }
+        }
         // Let the browser paint the starting state before animating.
         requestAnimationFrame(function () {
             requestAnimationFrame(function () { panel.classList.add('is-open'); });
@@ -10347,6 +10402,18 @@ function radioTune(index, autoplay) {
     radioUpdateNow();
     radioSetBuffering(true);
     radioSetStatus('Tuning to ' + station.freq + ' FM…');
+    if (window.radioWatchdog) clearTimeout(window.radioWatchdog);
+    window.radioWatchdog = setTimeout(function () {
+        if (!radioHasSource || audio.paused) return;
+        if (audio.readyState < 2) {
+            try {
+                audio.load();
+                var retry = audio.play();
+                if (retry && retry.catch) retry.catch(function () {});
+                radioSetStatus('Retrying stream…');
+            } catch (e) {}
+        }
+    }, 4500);
     if (autoplay) {
         var attempt = audio.play();
         if (attempt && attempt.catch) {

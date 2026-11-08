@@ -3,11 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <link rel="preconnect" href="https://playerservices.streamtheworld.com">
+    <link rel="preconnect" href="https://22893.live.streamtheworld.com">
+    <link rel="dns-prefetch" href="https://playerservices.streamtheworld.com">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261233">
+    <link rel="stylesheet" href="style.css?v=20261234">
 </head>
 <body>
     <div id="updateShutdown" class="update-shutdown" style="display:none;">
@@ -92,6 +95,7 @@
                     </svg>
                     <span id="navProfileText">Sign In</span>
                 </button>
+                <button class="nav-btn" onclick="openHelp()" id="nav-help" title="Help and controls">? Help</button>
                 <button class="nav-btn" onclick="showView('settings')" id="nav-settings">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-right:6px;">
                         <circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/>
@@ -913,7 +917,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Public Beta 1.32.49</p>
+                            <p>LessFun Public Beta 1.32.50</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -965,6 +969,7 @@
                             <li><strong>1.32.47</strong> — Dead Coast reverse added; Star Dodger expanded with stations, wormholes, asteroid belts, comets, mines, new pickups and enemy types.</li>
                             <li><strong>1.32.48</strong> — Player levels, XP and achievement badges; Star Dodger waves, bosses, weapon evolution, accuracy scoring and daily seed runs; Class 95 and CNA 938 added to radio; WhatsApp-style private messages with avatars, bubbles, ticks, emoji and circular send.</li>
                             <li><strong>1.32.49</strong> — Multiplayer remote-camera streams upgraded to 320×180 JPEG at 15 FPS.</li>
+                            <li><strong>1.32.50</strong> — Faster radio buffering, WhatsApp list/chat view with back button, Close Messages button removed, and a new Help & quick start panel.</li>
                         </ul>
                     </div>
                     <div class="info-card">
@@ -1212,7 +1217,6 @@
             </div>
         </div>
         <p class="game3d-dm-status" id="g3dDmStatus"></p>
-        <button type="button" class="game3d-dm-close-btn" onclick="toggleDmSidebar(false)">Close Messages</button>
     </aside>
 
     <div class="radio-dock" id="radioDock">
@@ -1252,7 +1256,49 @@
             <p class="radio-note">Live Singapore streams · keeps playing across the whole site</p>
         </div>
     </div>
-    <audio id="lessfunRadioAudio" preload="none"></audio>
+    <audio id="lessfunRadioAudio" preload="auto"></audio>
+
+    <div id="helpModal" class="modal" style="display:none;">
+        <div class="modal-backdrop" onclick="closeHelp()"></div>
+        <div class="modal-content help-modal-content">
+            <div class="modal-header">
+                <h2>Help & quick start</h2>
+                <button class="modal-close" onclick="closeHelp()" aria-label="Close help">×</button>
+            </div>
+            <div class="modal-body help-modal-body">
+                <div class="help-quick">
+                    <button type="button" onclick="helpGo('games')"><strong>Games</strong><span>Play all arcade games</span></button>
+                    <button type="button" onclick="helpGo('community')"><strong>Community</strong><span>Post and chat</span></button>
+                    <button type="button" onclick="helpGo('users')"><strong>Friends</strong><span>Friends and Messages</span></button>
+                    <button type="button" onclick="helpGo('store')"><strong>Store</strong><span>Themes, frames, coins</span></button>
+                    <button type="button" onclick="helpGo('garage')"><strong>Garage</strong><span>Cars, parts, showroom</span></button>
+                    <button type="button" onclick="helpGo('settings')"><strong>Settings</strong><span>Graphics, sound, units</span></button>
+                </div>
+                <section class="help-section">
+                    <h3>Beach Racer</h3>
+                    <p><b>W / ↑</b> throttle · <b>S / ↓</b> brake · <b>A D / ← →</b> steer · <b>Shift / N</b> nitro · <b>C</b> camera · <b>Q/E</b> gears</p>
+                </section>
+                <section class="help-section">
+                    <h3>Dead Coast</h3>
+                    <p><b>W/S</b> drive · <b>A/D</b> steer · <b>C</b> camera · stop at a fuel station and press <b>E</b> to get out, shoot zombies and scavenge supplies.</p>
+                </section>
+                <section class="help-section">
+                    <h3>Star Dodger & arcade</h3>
+                    <p><b>WASD / arrows</b> move · drag or use the mouse · click / Space to fire or drop.</p>
+                </section>
+                <section class="help-section">
+                    <h3>Radio & messages</h3>
+                    <p>The <b>RADIO</b> button at the bottom plays Singapore stations across the whole site. Open <b>Messages</b> from any game or from Friends.</p>
+                </section>
+                <section class="help-section">
+                    <h3>Performance</h3>
+                    <p>If the 3D games feel slow, open <b>Settings</b> and lower graphics or turn off motion blur. Funtutu Test can recommend settings for your device.</p>
+                </section>
+                <p class="help-version" id="helpVersion"></p>
+                <button type="button" class="game-btn-3d help-start" onclick="helpGo('games')">Start playing</button>
+            </div>
+        </div>
+    </div>
 
     <div id="topNotifications" class="top-notifications"></div>
 
@@ -1261,7 +1307,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
-    <script src="games3d.js?v=20261233"></script>
-    <script src="app.js?v=20261233"></script>
+    <script src="games3d.js?v=20261234"></script>
+    <script src="app.js?v=20261234"></script>
 </body>
 </html>
