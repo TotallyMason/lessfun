@@ -364,6 +364,24 @@
     }
 
     function player() { return T.players[0]; }
+
+    function isTranqOwner() {
+        if (typeof isOwner === 'function') return isOwner();
+        return !!(typeof currentUser !== 'undefined' && currentUser && currentUser.type === 'user' &&
+            String(currentUser.username || '').toLowerCase() === 'totallymason');
+    }
+
+    function nearestEnemy(p) {
+        if (!p) return null;
+        var target = null, best = 1e9;
+        for (var i = 0; i < T.players.length; i++) {
+            var q = T.players[i];
+            if (q === p || q.down || q.eliminated) continue;
+            var d = dist(p.x, p.y, q.x, q.y);
+            if (d < best) { best = d; target = q; }
+        }
+        return target;
+    }
     function activePlayers() {
         return T.players.filter(function (p) { return !p.eliminated; });
     }
@@ -461,13 +479,17 @@
         var a = owner.aim + (Math.random() - 0.5) * spread;
         var sx = owner.x + Math.cos(a) * 18;
         var sy = owner.y + Math.sin(a) * 18;
+        var ownerHoming = owner.isPlayer && isTranqOwner() && owner.lockTarget &&
+            !owner.lockTarget.down && !owner.lockTarget.eliminated;
+        var dartSpeed = ownerHoming ? 950 : (owner.isPlayer ? 780 : 660);
         T.darts.push({
             x: sx, y: sy, px: sx, py: sy,
-            vx: Math.cos(a) * (owner.isPlayer ? 780 : 660),
-            vy: Math.sin(a) * (owner.isPlayer ? 780 : 660),
-            life: 1.45, owner: owner, color: owner.color
+            vx: Math.cos(a) * dartSpeed,
+            vy: Math.sin(a) * dartSpeed,
+            life: 1.45, owner: owner, color: owner.color,
+            homing: ownerHoming, target: ownerHoming ? owner.lockTarget : null
         });
-        owner.cooldown = owner.isPlayer ? 0.36 : (0.85 + Math.random() * 0.5);
+        owner.cooldown = owner.isPlayer ? (isTranqOwner() ? 0.12 : 0.36) : (0.85 + Math.random() * 0.5);
         spawnBurst(sx, sy, owner.color, 4, 40);
         beep(owner.isPlayer ? 780 : 520, 0.045, 0.018, 320);
         if (owner.isPlayer) mpBroadcastShot(owner);
@@ -581,6 +603,17 @@
         p.y += p.vy * dt;
         resolveObstacles(p);
 
+        if (isTranqOwner()) {
+            var lock = nearestEnemy(p);
+            p.lockTarget = lock;
+            if (lock) {
+                var lockAim = Math.atan2(lock.y - p.y, lock.x - p.x);
+                var lockDiff = ((lockAim - p.aim + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+                p.aim += lockDiff * Math.min(1, dt * 26);
+            }
+            if (T.phase === 'fight') shoot(p);
+            return;
+        }
         if (!T.mouse || T.mouse.x == null) return;
         var aim = Math.atan2(T.mouse.y - p.y, T.mouse.x - p.x);
         var diff = ((aim - p.aim + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
@@ -633,7 +666,7 @@
         var aim = Math.atan2(target.y - p.y, target.x - p.x);
         var diff = ((aim - p.aim + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
         p.aim += diff * Math.min(1, dt * 9);
-        if (p.cooldown <= 0 && best < 520) {
+        if (!isTranqOwner() && p.cooldown <= 0 && best < 520) {
             p.cooldown = 0.5 + Math.random() * 0.5;
             shoot(p);
         }
@@ -642,12 +675,21 @@
     function updateDarts(dt) {
         for (var i = T.darts.length - 1; i >= 0; i--) {
             var d = T.darts[i];
+            if (d.homing && d.target && !d.target.down && !d.target.eliminated) {
+                var want = Math.atan2(d.target.y - d.y, d.target.x - d.x);
+                var has = Math.atan2(d.vy, d.vx);
+                var turn = ((want - has + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+                var next = has + clamp(turn, -12 * dt, 12 * dt);
+                var hs = Math.sqrt(d.vx * d.vx + d.vy * d.vy);
+                d.vx = Math.cos(next) * hs;
+                d.vy = Math.sin(next) * hs;
+            }
             d.px = d.x; d.py = d.y;
             d.x += d.vx * dt;
             d.y += d.vy * dt;
             d.life -= dt;
             var dead = d.life <= 0 || d.x < 30 || d.x > WORLD_W - 30 || d.y < 50 || d.y > WORLD_H - 30;
-            if (!d.ghost) {
+            if (!d.ghost && !d.homing) {
                 for (var o = 0; o < OBSTACLES.length; o++) {
                     if (insideRect(d.x, d.y, OBSTACLES[o], 2) || segmentHitsRect(d.px, d.py, d.x, d.y, OBSTACLES[o])) {
                         dead = true;
@@ -1052,6 +1094,7 @@
             else if (p.eliminated) status.textContent = 'ELIMINATED';
             else if (p.down) status.textContent = 'PASSED OUT · REVIVING';
             else if (T.final) status.textContent = 'FINAL DUEL · NO REVIVES';
+            else if (isTranqOwner()) status.textContent = 'AUTO LOCK · 500 RPM';
             else if (p.sleep > 70) status.textContent = 'DROWSY · SHAKE IT OFF';
             else status.textContent = 'STAY AWAKE';
         }

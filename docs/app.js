@@ -8452,8 +8452,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.93";
-const UPDATE_NOTES = "Tranq Arena is live: a solo or public multiplayer tranquilizer showdown where rivals spend energy to revive and only the final two survive";
+const APP_VERSION = "LessFun Public Beta 1.32.94";
+const UPDATE_NOTES = "Tranq Arena is live with a solo arena and public multiplayer lobby, plus a TotallyMason-only auto-lock and 500 RPM assist";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
