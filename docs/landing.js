@@ -12,6 +12,7 @@
     var MAX_THRUST = 214000;
     var PITCH_INERTIA = 6.5e6;
     var GS_ANGLE = 3 * Math.PI / 180;
+    var PARTS = { tire: 0.2, oleo: 0.95, arm: 0.35 };
 
     var GEAR_MAIN = { offset: -9.5, attachY: -1.2, strut: 3.6, wheel: 0.55, max: 1.35 };
     var GEAR_NOSE = { offset: 12, attachY: -0.9, strut: 3.65, wheel: 0.5, max: 1.05 };
@@ -62,8 +63,15 @@
             touchPitch: 0,
             touchSpeed: 0,
             stopX: 0,
-            compMain: 0.42,
+            compMain: 0.39,
             compNose: 0,
+            tireComp: 0.06,
+            oleoComp: 0.3,
+            armComp: 0.03,
+            noseTire: 0,
+            noseOleo: 0,
+            noseArm: 0,
+            brakeHeat: 0,
             compVel: 0,
             pitchVel: 0,
             wheelAngle: 0,
@@ -262,7 +270,12 @@
         sim.touchX = sim.x;
         sim.onGround = true;
         sim.vy = 0;
-        sim.compMain = clamp(0.5 + Math.max(0, -sim.touchVy) * 0.05, 0.5, 0.72);
+        var impact = Math.max(0, -sim.touchVy);
+        sim.tireComp = clamp(0.06 + impact * 0.028, 0.06, PARTS.tire);
+        sim.oleoComp = clamp(0.3 + impact * 0.085, 0.3, PARTS.oleo * 0.82);
+        sim.armComp = 0.03;
+        sim.compMain = Math.min(GEAR_MAIN.max, sim.tireComp + sim.oleoComp + sim.armComp);
+        sim.brakeHeat = 0;
         sim.compVel = 0;
         sim.pitchVel = 0;
         sim.y = -GEAR_MAIN.offset * Math.sin(sim.pitch) - (MAIN_BOTTOM + sim.compMain) * Math.cos(sim.pitch);
@@ -294,17 +307,30 @@
         // aircraft's weight and never springs back during the rollout.
         var speedLoad = 1 - clamp(sim.vx / 80, 0, 1);
         var impactLoad = Math.min(0.26, Math.max(0, -sim.touchVy) * 0.04);
-        var targetComp = 0.5 + speedLoad * 0.5 + impactLoad + Math.abs(sim.pitch + 0.006) * 0.6;
-        targetComp = clamp(targetComp, 0.5, GEAR_MAIN.max * 0.94);
-        if (sim.compMain < targetComp) {
-            sim.compMain = Math.min(targetComp, sim.compMain + dt * 0.48);
-        }
+
+        // Four-stage gear: the tire squashes first, then the oleo piston
+        // travels, then the trailing arm rotates. Every stage only moves
+        // further down as the weight comes off the wing and onto the wheels.
+        var tireTarget = clamp(0.06 + impactLoad * 0.55 + speedLoad * 0.12, 0.06, PARTS.tire);
+        var oleoTarget = clamp(0.3 + impactLoad * 2.4 + speedLoad * 0.52, 0.3, PARTS.oleo * 0.94);
+        var armTarget = clamp(0.03 + speedLoad * 0.32 + impactLoad * 0.08, 0.03, PARTS.arm);
+        if (sim.tireComp < tireTarget) sim.tireComp = Math.min(tireTarget, sim.tireComp + dt * 1.6);
+        if (sim.oleoComp < oleoTarget) sim.oleoComp = Math.min(oleoTarget, sim.oleoComp + dt * 0.5);
+        if (sim.armComp < armTarget) sim.armComp = Math.min(armTarget, sim.armComp + dt * 0.27);
+        sim.compMain = Math.min(GEAR_MAIN.max, sim.tireComp + sim.oleoComp + sim.armComp);
+
         sim.y = -GEAR_MAIN.offset * Math.sin(sim.pitch) - (MAIN_BOTTOM + sim.compMain) * Math.cos(sim.pitch);
         var noseRaw = -NOSE_BOTTOM - (sim.y + GEAR_NOSE.offset * Math.sin(sim.pitch)) / Math.max(0.9, Math.cos(sim.pitch));
         var noseGeo = clamp(noseRaw, 0, GEAR_NOSE.max);
         if (noseGeo > sim.compNose) {
-            sim.compNose = Math.min(noseGeo, sim.compNose + dt * 0.7);
+            sim.compNose = Math.min(noseGeo, sim.compNose + dt * 0.62);
         }
+        sim.noseTire = sim.compNose * 0.14;
+        sim.noseOleo = sim.compNose * 0.66;
+        sim.noseArm = sim.compNose * 0.2;
+
+        if (sim.keys.brake && sim.vx > 1) sim.brakeHeat = Math.min(1, sim.brakeHeat + dt * 0.55);
+        else sim.brakeHeat = Math.max(0, sim.brakeHeat - dt * 0.16);
 
         sim.gearAnim = smooth(sim.gearAnim, 1, 1.4, dt);
         sim.flaps = smooth(sim.flaps, sim.flapsTarget, 1.6, dt);
@@ -423,7 +449,7 @@
     function updateCamera(dt) {
         var targetScale;
         if (sim.onGround) {
-            targetScale = clamp(W * 0.55 / 39, 7, 12);
+            targetScale = clamp(W * 0.7 / 39, 8.5, 17);
         } else if (sim.y < 28) {
             targetScale = clamp(4.2 + (28 - sim.y) * 0.22, 4.2, 8.1);
         } else {
@@ -451,12 +477,21 @@
         setText('lsimScore', (sim.score || 0).toLocaleString());
         setText('lsimMainSusp', Math.round(clamp(sim.compMain / GEAR_MAIN.max, 0, 1) * 100) + '%');
         setText('lsimNoseSusp', Math.round(clamp(sim.compNose / GEAR_NOSE.max, 0, 1) * 100) + '%');
+        setText('lsimTireVal', Math.round(clamp(sim.tireComp / PARTS.tire, 0, 1) * 100) + '%');
+        setText('lsimOleoVal', Math.round(clamp(sim.oleoComp / PARTS.oleo, 0, 1) * 100) + '%');
+        setText('lsimArmVal', Math.round(clamp(sim.armComp / PARTS.arm, 0, 1) * 100) + '%');
         var thr = document.getElementById('lsimThrBar');
         if (thr) thr.style.width = Math.round(sim.throttle * 100) + '%';
         var ms = document.getElementById('lsimMainBar');
         if (ms) ms.style.width = Math.round(clamp(sim.compMain / GEAR_MAIN.max, 0, 1) * 100) + '%';
         var ns = document.getElementById('lsimNoseBar');
         if (ns) ns.style.width = Math.round(clamp(sim.compNose / GEAR_NOSE.max, 0, 1) * 100) + '%';
+        var tb = document.getElementById('lsimTireBar');
+        if (tb) tb.style.width = Math.round(clamp(sim.tireComp / PARTS.tire, 0, 1) * 100) + '%';
+        var ob = document.getElementById('lsimOleoBar');
+        if (ob) ob.style.width = Math.round(clamp(sim.oleoComp / PARTS.oleo, 0, 1) * 100) + '%';
+        var ab = document.getElementById('lsimArmBar');
+        if (ab) ab.style.width = Math.round(clamp(sim.armComp / PARTS.arm, 0, 1) * 100) + '%';
         var gear = document.getElementById('lsimGearVal');
         if (gear) gear.classList.toggle('is-warn', !sim.gearTarget);
         var brake = document.getElementById('lsimBrakeVal');
@@ -800,43 +835,64 @@
     function drawSuspensionCallouts() {
         if (!sim.onGround) return;
         var gears = [
-            { x: sim.x + GEAR_MAIN.offset, comp: sim.compMain, max: GEAR_MAIN.max, label: 'MAIN' },
-            { x: sim.x + GEAR_NOSE.offset, comp: sim.compNose, max: GEAR_NOSE.max, label: 'NOSE' }
+            { x: sim.x + GEAR_MAIN.offset, comp: sim.compMain, max: GEAR_MAIN.max, label: 'MAIN', tire: sim.tireComp, oleo: sim.oleoComp, arm: sim.armComp, dx: -88 },
+            { x: sim.x + GEAR_NOSE.offset, comp: sim.compNose, max: GEAR_NOSE.max, label: 'NOSE', tire: sim.noseTire, oleo: sim.noseOleo, arm: sim.noseArm, dx: 88 }
         ];
         for (var i = 0; i < gears.length; i++) {
             var g = gears[i];
             var px = sx(g.x);
             if (px < -60 || px > W + 60) continue;
             var gy = groundY();
-            var boxW = 58, boxH = 54;
-            var bx = px - boxW / 2;
-            var by = gy - 92;
+            var boxW = 76, boxH = 78;
+            var cx = clamp(px + (g.dx || 0), boxW / 2 + 6, W - boxW / 2 - 6);
+            var bx = cx - boxW / 2;
+            var by = gy - 126;
             var pct = clamp(g.comp / g.max, 0, 1);
-            ctx.fillStyle = 'rgba(5, 14, 20, 0.82)';
-            ctx.strokeStyle = 'rgba(255, 209, 102, 0.5)';
+            ctx.strokeStyle = 'rgba(255, 209, 102, 0.32)';
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.roundRect ? ctx.roundRect(bx, by, boxW, boxH, 7) : ctx.rect(bx, by, boxW, boxH);
+            ctx.moveTo(cx, by + boxH);
+            ctx.lineTo(px, gy - 10);
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(5, 14, 20, 0.9)';
+            ctx.strokeStyle = 'rgba(255, 209, 102, 0.55)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect ? ctx.roundRect(bx, by, boxW, boxH, 8) : ctx.rect(bx, by, boxW, boxH);
             ctx.fill();
             ctx.stroke();
             ctx.fillStyle = 'rgba(255, 220, 160, 0.65)';
             ctx.font = '800 6px system-ui, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(g.label, px, by + 10);
+            ctx.fillText(g.label + ' GEAR', cx, by + 10);
             ctx.fillStyle = '#ffe2a0';
-            ctx.font = '900 12px system-ui, sans-serif';
-            ctx.fillText(Math.round(pct * 100) + '%', px, by + 25);
-            // Vertical travel gauge: fills downward as the oleo compresses.
-            var trackX = px - 4, trackY = by + 31, trackW = 8, trackH = 15;
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
-            ctx.fillRect(trackX, trackY, trackW, trackH);
-            ctx.fillStyle = '#ffb15e';
-            ctx.fillRect(trackX, trackY, trackW, Math.max(1, trackH * pct));
+            ctx.font = '900 13px system-ui, sans-serif';
+            ctx.fillText(Math.round(pct * 100) + '%', cx, by + 25);
+            var rows = [
+                ['TIRE', g.tire / PARTS.tire, '#5fe7ff'],
+                ['OLEO', g.oleo / PARTS.oleo, '#ffb15e'],
+                ['ARM', g.arm / PARTS.arm, '#c084fc']
+            ];
+            for (var ri = 0; ri < rows.length; ri++) {
+                var ry = by + 33 + ri * 13;
+                ctx.textAlign = 'left';
+                ctx.fillStyle = 'rgba(220, 240, 250, 0.55)';
+                ctx.font = '800 5px system-ui, sans-serif';
+                ctx.fillText(rows[ri][0], bx + 6, ry + 4);
+                var val = clamp(rows[ri][1], 0, 1);
+                ctx.fillStyle = 'rgba(255,255,255,0.1)';
+                ctx.fillRect(bx + 24, ry, 38, 5);
+                ctx.fillStyle = rows[ri][2];
+                ctx.fillRect(bx + 24, ry, Math.max(1, 38 * val), 5);
+                ctx.textAlign = 'right';
+                ctx.fillStyle = 'rgba(235, 250, 255, 0.8)';
+                ctx.fillText(Math.round(val * 100) + '%', bx + 70, ry + 4);
+            }
             ctx.fillStyle = 'rgba(255, 225, 170, 0.7)';
             ctx.beginPath();
-            ctx.moveTo(px - 3, by + 48);
-            ctx.lineTo(px + 3, by + 48);
-            ctx.lineTo(px, by + 52);
+            ctx.moveTo(cx - 3, by + 72);
+            ctx.lineTo(cx + 3, by + 72);
+            ctx.lineTo(cx, by + 76);
             ctx.closePath();
             ctx.fill();
         }
@@ -984,8 +1040,14 @@
             }
         }
 
-        drawGearLeg(GEAR_MAIN, sim.compMain, true);
-        drawGearLeg(GEAR_NOSE, sim.compNose, false);
+        drawGearLeg(GEAR_MAIN, {
+            tire: sim.tireComp, oleo: sim.oleoComp, arm: sim.armComp,
+            total: sim.compMain, heat: sim.brakeHeat
+        }, true);
+        drawGearLeg(GEAR_NOSE, {
+            tire: sim.noseTire, oleo: sim.noseOleo, arm: sim.noseArm,
+            total: sim.compNose, heat: sim.brakeHeat * 0.7
+        }, false);
     }
 
     function drawGearSpring(offX, topY, bottomY, radius, turns) {
@@ -1004,13 +1066,21 @@
         ctx.stroke();
     }
 
-    function drawGearLeg(gear, comp, isMain) {
+    function drawGearLeg(gear, parts, isMain) {
         if (sim.gearAnim < 0.08) return;
         var extend = sim.gearAnim;
         var strut = gear.strut * extend;
-        var axleY = gear.attachY - (strut - comp);
-        var wheelR = gear.wheel * (1.18 + 0.15 * extend);
+        var total = parts.total || 0;
         var offX = gear.offset;
+        var wheelR = gear.wheel * (1.18 + 0.15 * extend);
+        var axleY = gear.attachY - strut + total;
+        var visualR = wheelR * 1.42;
+        var tireRy = Math.max(0.22, visualR - (parts.tire || 0) * 1.25);
+        var tireRx = visualR + (parts.tire || 0) * 0.45;
+        var wheelCy = axleY - wheelR + tireRy;
+        var oleoBottom = gear.attachY - strut + (parts.oleo || 0);
+        var armPivotX = offX + (isMain ? 2.1 : 1.4);
+        var armPivotY = gear.attachY - 0.5;
 
         // Gear door when retracting.
         if (extend < 0.98) {
@@ -1018,51 +1088,141 @@
             ctx.fillRect(offX - 1.4, gear.attachY - 0.2, 2.8, 0.35);
         }
 
-        // Heavy oleo strut: wide housing, polished piston and a coil spring
-        // so the compression travel is obvious from the side.
-        ctx.fillStyle = '#79868f';
-        ctx.fillRect(offX - 0.34, gear.attachY - strut * 0.58, 0.68, strut * 0.62);
-        ctx.fillStyle = '#cfd8de';
-        ctx.fillRect(offX - 0.23, gear.attachY - strut, 0.46, strut * 0.6);
-        ctx.fillStyle = '#5f6a72';
-        ctx.fillRect(offX - 0.44, gear.attachY - strut * 0.6, 0.88, 0.3);
-        drawGearSpring(offX, gear.attachY - strut * 0.16, axleY + 0.3, 0.3, 5);
-
-        // Torque link.
-        ctx.strokeStyle = '#9aa7b0';
-        ctx.lineWidth = 0.09;
+        // Air/hydraulic canister on the fuselage.
+        ctx.fillStyle = '#39464f';
         ctx.beginPath();
-        ctx.moveTo(offX - 0.35, gear.attachY - strut * 0.4);
-        ctx.lineTo(offX + 0.2, axleY + 0.35);
+        ctx.roundRect ? ctx.roundRect(offX + 0.4, gear.attachY + 0.15, 1.7, 0.5, 0.16) : ctx.rect(offX + 0.4, gear.attachY + 0.15, 1.7, 0.5);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255, 209, 102, 0.75)';
+        ctx.fillRect(offX + 0.55, gear.attachY + 0.3, 1.4, 0.08);
+        // Hydraulic line from the canister to the strut.
+        ctx.strokeStyle = 'rgba(20, 30, 36, 0.9)';
+        ctx.lineWidth = 0.1;
+        ctx.beginPath();
+        ctx.moveTo(offX + 0.5, gear.attachY + 0.45);
+        ctx.quadraticCurveTo(offX - 0.5, gear.attachY - 0.1, offX - 0.2, gear.attachY - strut * 0.5);
         ctx.stroke();
 
-        // Wheel.
-        ctx.save();
-        ctx.translate(offX, axleY - wheelR);
-        ctx.rotate(-sim.wheelAngle);
-        ctx.fillStyle = '#11161a';
+        // Bump stop: rubber discs bunch up as the oleo reaches full travel.
+        var bump = clamp((parts.oleo || 0) / PARTS.oleo, 0, 1);
+        for (var b = 0; b < 4; b++) {
+            var gap = 0.17 * (1 - bump * 0.7);
+            ctx.fillStyle = b % 2 ? '#5a6670' : '#77838c';
+            ctx.fillRect(offX - 0.34, gear.attachY - 0.18 - b * gap, 0.68, 0.1);
+        }
+
+        // Main oleo housing and polished piston.
+        var housing = gear.attachY - strut * 0.55;
+        ctx.fillStyle = '#6f7d86';
+        ctx.fillRect(offX - 0.38, housing, 0.76, gear.attachY - strut * 0.12 - housing);
+        ctx.fillStyle = '#d9e2e7';
+        ctx.fillRect(offX - 0.24, oleoBottom, 0.48, housing - oleoBottom + 0.05);
+        ctx.fillStyle = '#59656d';
+        ctx.fillRect(offX - 0.46, housing - 0.16, 0.92, 0.32);
+        ctx.fillStyle = '#2f3a41';
+        ctx.fillRect(offX - 0.2, oleoBottom + 0.05, 0.4, 0.18);
+
+        // Coil spring around the exposed piston.
+        drawGearSpring(offX, housing - 0.02, oleoBottom + 0.2, 0.36, 6);
+
+        // Trailing arm: heavy forged link that swings down with travel.
+        ctx.strokeStyle = '#5d6b74';
+        ctx.lineWidth = 0.34;
+        ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.arc(0, 0, wheelR, 0, Math.PI * 2);
+        ctx.moveTo(armPivotX, armPivotY);
+        ctx.quadraticCurveTo(offX + 1.0, axleY + 0.7, offX, wheelCy);
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+        ctx.lineWidth = 0.1;
+        ctx.beginPath();
+        ctx.moveTo(armPivotX, armPivotY + 0.14);
+        ctx.quadraticCurveTo(offX + 1.0, axleY + 0.84, offX, wheelCy + 0.14);
+        ctx.stroke();
+        // Pivot boss and rotary damper.
+        ctx.fillStyle = '#303b42';
+        ctx.beginPath();
+        ctx.arc(armPivotX, armPivotY, 0.38, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#c98a3c';
+        ctx.beginPath();
+        ctx.arc(armPivotX, armPivotY, 0.18, 0, Math.PI * 2);
+        ctx.fill();
+        // Connecting link from the oleo piston to the arm.
+        ctx.strokeStyle = '#aab6bd';
+        ctx.lineWidth = 0.18;
+        ctx.beginPath();
+        ctx.moveTo(offX, oleoBottom + 0.1);
+        ctx.lineTo(offX + 0.55, axleY + 0.45);
+        ctx.stroke();
+
+        // Scissor torque links fold as the gear compresses.
+        var fold = clamp(total / GEAR_MAIN.max, 0, 1);
+        var linkTopX = offX - 0.42;
+        var linkTopY = gear.attachY - strut * 0.42;
+        var linkBotX = offX + 0.2;
+        var linkBotY = axleY + 0.35;
+        var elbowX = (linkTopX + linkBotX) / 2 - 0.28 - fold * 0.35;
+        var elbowY = (linkTopY + linkBotY) / 2;
+        ctx.strokeStyle = '#c7d1d7';
+        ctx.lineWidth = 0.14;
+        ctx.beginPath();
+        ctx.moveTo(linkTopX, linkTopY);
+        ctx.lineTo(elbowX, elbowY);
+        ctx.lineTo(linkBotX, linkBotY);
+        ctx.stroke();
+        ctx.fillStyle = '#7c8a93';
+        ctx.beginPath();
+        ctx.arc(elbowX, elbowY, 0.12, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Hydraulic brake disc and caliper.
+        var discR = visualR * 0.55;
+        ctx.fillStyle = '#8b969d';
+        ctx.beginPath();
+        ctx.arc(offX, wheelCy, discR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 120, 40, ' + (0.15 + (parts.heat || 0) * 0.8) + ')';
+        ctx.lineWidth = 0.08;
+        ctx.beginPath();
+        ctx.arc(offX, wheelCy, discR, 0, Math.PI * 2);
+        ctx.stroke();
+        if ((parts.heat || 0) > 0.05) {
+            ctx.fillStyle = 'rgba(255, 110, 30, ' + ((parts.heat || 0) * 0.35) + ')';
+            ctx.beginPath();
+            ctx.arc(offX, wheelCy, discR * 1.15, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.fillStyle = '#c33f2e';
+        ctx.fillRect(offX + discR * 0.55, wheelCy + discR * 0.35, 0.38, 0.5);
+
+        // Tire: squashed ellipse shows the sidewall deflection.
+        ctx.save();
+        ctx.translate(offX, wheelCy);
+        ctx.rotate(-sim.wheelAngle * 0.35);
+        ctx.fillStyle = '#0f1418';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, tireRx, tireRy, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = '#e3eaee';
         ctx.beginPath();
-        ctx.arc(0, 0, wheelR * 0.52, 0, Math.PI * 2);
+        ctx.ellipse(0, 0, tireRx * 0.52, tireRy * 0.52, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = '#7c8a93';
         ctx.beginPath();
-        ctx.arc(0, 0, wheelR * 0.2, 0, Math.PI * 2);
+        ctx.arc(0, 0, tireRx * 0.2, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = '#9aa7b0';
         ctx.lineWidth = 0.06;
         ctx.beginPath();
-        ctx.moveTo(-wheelR * 0.42, 0);
-        ctx.lineTo(wheelR * 0.42, 0);
-        ctx.moveTo(0, -wheelR * 0.42);
-        ctx.lineTo(0, wheelR * 0.42);
+        ctx.moveTo(-tireRx * 0.42, 0);
+        ctx.lineTo(tireRx * 0.42, 0);
+        ctx.moveTo(0, -tireRy * 0.42);
+        ctx.lineTo(0, tireRy * 0.42);
         ctx.stroke();
         ctx.restore();
 
-        // Nav light at the gear or wingtip.
+        // Nav light at the main gear.
         if (isMain) {
             ctx.fillStyle = 'rgba(80, 255, 160, 0.8)';
             ctx.beginPath();
@@ -1140,6 +1300,10 @@
                         '<div class="lsim-sys-row"><span>BRAKES</span><b id="lsimBrakeVal">OFF</b></div>' +
                         '<div class="lsim-sys-row lsim-susp-row"><span>MAIN GEAR</span><div class="lsim-bar is-susp"><i id="lsimMainBar"></i></div><b id="lsimMainSusp">0%</b></div>' +
                         '<div class="lsim-sys-row lsim-susp-row"><span>NOSE GEAR</span><div class="lsim-bar is-susp"><i id="lsimNoseBar"></i></div><b id="lsimNoseSusp">0%</b></div>' +
+                        '<div class="lsim-parts-head">SUSPENSION PARTS</div>' +
+                        '<div class="lsim-sys-row lsim-part-row"><span>TIRE</span><div class="lsim-bar is-tire"><i id="lsimTireBar"></i></div><b id="lsimTireVal">0%</b></div>' +
+                        '<div class="lsim-sys-row lsim-part-row"><span>OLEO</span><div class="lsim-bar is-oleo"><i id="lsimOleoBar"></i></div><b id="lsimOleoVal">0%</b></div>' +
+                        '<div class="lsim-sys-row lsim-part-row"><span>ARM</span><div class="lsim-bar is-arm"><i id="lsimArmBar"></i></div><b id="lsimArmVal">0%</b></div>' +
                         '<div class="lsim-papi-line" id="lsimPapiText">ON GLIDESLOPE</div>' +
                     '</div>' +
                     '<div class="lsim-hint">W/S or ↑/↓ pitch · A/D or ←/→ throttle · Space brake · F flaps · G gear · R restart</div>' +

@@ -8330,8 +8330,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.85";
-const UPDATE_NOTES = "Boeing Landing no longer has accidents: every touchdown is absorbed by the visible one-way suspension, and the view stays on the compressed gear after landing";
+const APP_VERSION = "LessFun Public Beta 1.32.86";
+const UPDATE_NOTES = "Boeing Landing has a proper multi-part suspension now: tire squash, oleo piston, trailing arm, torque links, coil springs, bump stops and glowing brakes, all with live travel readouts";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

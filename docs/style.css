@@ -10966,3 +10966,9 @@ body.in-game .radio-dock { display: none; }
 .lsim-bar.is-susp { height: 9px; }
 .lsim-sys-row.lsim-susp-row > span { flex: 0 0 62px; }
 .lsim-sys-row.lsim-susp-row b { font-size: 9px; color: #ffe2a0; }
+.lsim-parts-head { margin: 3px 0 1px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.07); color: rgba(150, 220, 245, 0.42); font-size: 6px; font-weight: 800; letter-spacing: 0.12em; }
+.lsim-sys-row.lsim-part-row > span { flex: 0 0 34px; }
+.lsim-sys-row.lsim-part-row b { font-size: 8px; color: #dff6ff; }
+.lsim-bar.is-tire i { background: linear-gradient(90deg, #5fe7ff, #2aa9d8); }
+.lsim-bar.is-oleo i { background: linear-gradient(90deg, #ffd166, #ff8a4d); }
+.lsim-bar.is-arm i { background: linear-gradient(90deg, #c084fc, #7c5cff); }
