@@ -10,7 +10,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261253">
+    <link rel="stylesheet" href="style.css?v=20261254">
 </head>
 <body>
     <div id="updateShutdown" class="update-shutdown" style="display:none;">
@@ -109,19 +109,6 @@
     <!-- Games View -->
     <div id="gamesView" class="view">
         <div class="container">
-            <div class="promo-banner" id="promoBanner">
-                <p id="promoText">LessFun Public Beta · new racing mode and city streets</p>
-                <button class="promo-close" onclick="closePromo()">
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                        <path d="M9 3L3 9M3 3L9 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                    </svg>
-                </button>
-            </div>
-            <header>
-                <h1>Games</h1>
-                <p class="subtitle">All your favorite mini games</p>
-            </header>
-            <div id="gameList" class="game-grid"></div>
             <section class="snow-event" id="snowEvent">
                 <div class="snow-event-copy">
                     <span>CHRISTMAS EVENT</span>
@@ -135,6 +122,19 @@
                     <div id="snowLeaderboardList"><p>Loading…</p></div>
                 </div>
             </section>
+            <div class="promo-banner" id="promoBanner">
+                <p id="promoText">LessFun Public Beta · new racing mode and city streets</p>
+                <button class="promo-close" onclick="closePromo()">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path d="M9 3L3 9M3 3L9 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <header>
+                <h1>Games</h1>
+                <p class="subtitle">All your favorite mini games</p>
+            </header>
+            <div id="gameList" class="game-grid"></div>
         </div>
     </div>
 
@@ -929,7 +929,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Public Beta 1.32.69</p>
+                            <p>LessFun Public Beta 1.32.70</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -1000,6 +1000,7 @@
                             <li><strong>1.32.67</strong> — Draw &amp; Guess shows a clear drawer banner and timer, and the host can choose who draws next.</li>
                             <li><strong>1.32.68</strong> — Draw &amp; Guess picks a random drawer each round and keeps only the latest 5 guesses on screen.</li>
                             <li><strong>1.32.69</strong> — Beach Racer garage expanded from 200 to 500 cars across 60+ real brands.</li>
+                            <li><strong>1.32.70</strong> — The Christmas Event Snow Rush banner moved to the top of the Games page.</li>
                         </ul>
                     </div>
                     <div class="info-card">
@@ -1304,7 +1305,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
-    <script src="games3d.js?v=20261253"></script>
-    <script src="app.js?v=20261253"></script>
+    <script src="games3d.js?v=20261254"></script>
+    <script src="app.js?v=20261254"></script>
 </body>
 </html>

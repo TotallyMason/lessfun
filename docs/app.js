@@ -8248,8 +8248,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.69";
-const UPDATE_NOTES = "The Beach Racer garage now has 500 cars from 60+ real brands, with performance, drivetrain, year and tier pricing in the car catalogue";
+const APP_VERSION = "LessFun Public Beta 1.32.70";
+const UPDATE_NOTES = "The Christmas Event Snow Rush banner now sits at the very top of the Games page, above the promo banner and game list";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
