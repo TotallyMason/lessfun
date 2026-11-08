@@ -1225,12 +1225,12 @@ function openGame(id) {
                         '</div>' +
                         '<div class="game3d-showroom-tools">' +
                             '<input type="search" class="game3d-mp-input" id="g3dShowroomSearch" placeholder="Search BMW, Tesla, Toyota…" oninput="updateShowroomSearch(this.value)">' +
-                            '<span id="g3dShowroomCount">200 cars</span>' +
+                            '<span id="g3dShowroomCount">500 cars</span>' +
                         '</div>' +
                         '<div class="game3d-showroom-grid" id="g3dShowroomGrid"></div>' +
                         '<div class="game3d-showroom-pager">' +
                             '<button type="button" class="game3d-mp-secondary" onclick="showroomPage(-1)">‹ Prev</button>' +
-                            '<span id="g3dShowroomPage">1 / 9</span>' +
+                            '<span id="g3dShowroomPage">1 / 21</span>' +
                             '<button type="button" class="game3d-mp-secondary" onclick="showroomPage(1)">Next ›</button>' +
                         '</div>' +
                         '<p class="game3d-mp-status" id="g3dShowroomStatus"></p>' +
@@ -5976,7 +5976,7 @@ const COSMETICS = [
     { id: 'trail_blood', type: 'trail', name: 'Blood Trail', cost: 860, color: '#b91c1c', threeColor: 0xb91c1c }
 ];
 
-// 200 real production cars from 45+ brands. Format:
+// 500 real production cars from 60+ brands. Format:
 // brand|model|year|top mph|0-60 s|horsepower|body style|paint|drivetrain
 const CAR_DATA = `BMW|M3 Competition|2024|180|3.4|503|muscle|1f2937|RWD
 BMW|M5 CS|2022|190|2.9|627|muscle|374151|AWD
@@ -6177,7 +6177,307 @@ Cadillac|CT5-V Blackwing|2024|200|3.6|668|muscle|111827|RWD
 Cadillac|Escalade-V|2024|124|4.4|682|suv|0f172a|AWD
 Cadillac|Celestiq|2024|130|3.8|655|limo|1e3a8a|AWD
 Shelby|Cobra 427|1966|165|3.9|485|roadster|1e3a8a|RWD
-Shelby|GT500 Super Snake|2022|200|3.3|825|muscle|111827|RWD`;
+Shelby|GT500 Super Snake|2022|200|3.3|825|muscle|111827|RWD
+BMW|M3 CS|2024|171|6.4|543|muscle|7f1d1d|RWD
+BMW|M4 GTS|2016|164|6.7|493|racer|111827|RWD
+BMW|M6 Gran Coupe|2018|179|6.1|600|gt|374151|RWD
+BMW|X3 M Competition|2024|144|6.7|503|suv|0ea5e9|AWD
+BMW|i5 M60|2024|178|6.2|593|classic|dc2626|AWD
+Tesla|Model S Long Range|2024|189|5.8|670|gt|16a34a|AWD
+Tesla|Model 3 Long Range|2024|151|7.2|394|classic|9333ea|AWD
+Tesla|Model X Long Range|2024|167|5.8|670|suv|f97316|AWD
+Tesla|Model Y Long Range|2024|127|7.3|384|suv|eab308|AWD
+Tesla|Roadster 2|2025|235|4.0|1000|super|64748b|AWD
+Toyota|Supra 2.0|2024|131|8.0|255|gt|16a34a|RWD
+Toyota|Celica GT-Four|1994|131|8.0|255|retro|9333ea|AWD
+Toyota|MR2 Turbo|1995|130|8.0|245|retro|f97316|RWD
+Toyota|Hilux GR Sport|2024|105|8.1|224|truck|eab308|4WD
+Toyota|bZ4X|2024|104|8.2|214|suv|64748b|AWD
+Porsche|911 Carrera S|2024|158|7.0|443|gt|f59e0b|RWD
+Porsche|911 GT2 RS|2019|193|5.6|700|racer|7f1d1d|RWD
+Porsche|718 Boxster GTS|2024|151|7.2|394|roadster|111827|RWD
+Porsche|Cayman S|2024|151|7.2|394|racer|374151|RWD
+Porsche|959|1987|158|7.0|444|retro|0ea5e9|AWD
+Ferrari|488 Pista|2019|195|5.6|710|super|16a34a|RWD
+Ferrari|599 GTO|2011|188|5.8|661|gt|9333ea|RWD
+Ferrari|360 Challenge|2003|153|7.1|410|racer|f97316|RWD
+Ferrari|California T|2015|173|6.4|552|roadster|eab308|RWD
+Ferrari|12Cilindri|2025|210|5.0|819|gt|64748b|RWD
+Lamborghini|Huracan Performante|2018|184|6.0|631|super|374151|AWD
+Lamborghini|Aventador SV|2016|199|5.4|740|super|0ea5e9|AWD
+Lamborghini|Diablo SV|1999|170|6.5|530|retro|dc2626|RWD
+Lamborghini|Urus S|2024|165|5.8|657|suv|16a34a|AWD
+Lamborghini|Sesto Elemento|2011|175|6.3|570|super|9333ea|AWD
+McLaren|570S|2017|174|6.3|562|super|64748b|RWD
+McLaren|600LT|2019|178|6.2|592|super|1f2937|RWD
+McLaren|675LT|2016|188|5.8|666|super|b91c1c|RWD
+McLaren|Speedtail|2020|240|3.9|1035|super|1e3a8a|RWD
+McLaren|Sabre|2021|210|5.0|824|super|065f46|RWD
+Audi|RS4 Avant|2024|158|7.0|444|wagon|f97316|AWD
+Audi|RS5 Sportback|2024|158|7.0|444|gt|eab308|AWD
+Audi|S8|2024|174|6.3|563|limo|64748b|AWD
+Audi|R8 GT|2023|180|6.1|602|super|1f2937|AWD
+Audi|RS e-tron GT|2024|184|5.9|637|gt|b91c1c|AWD
+Mercedes-AMG|A45 S|2024|154|7.1|416|classic|b91c1c|AWD
+Mercedes-AMG|CLA45 S|2024|154|7.1|416|classic|1e3a8a|AWD
+Mercedes-AMG|GT R|2021|176|6.3|577|gt|065f46|RWD
+Mercedes-AMG|S63|2024|206|5.1|791|limo|f59e0b|AWD
+Mercedes-AMG|GLC63|2024|167|5.8|671|suv|7f1d1d|AWD
+Mercedes-Benz|190E 2.5-16|1990|128|8.1|232|retro|374151|RWD
+Mercedes-Benz|560SEC|1990|137|7.7|295|retro|0ea5e9|RWD
+Mercedes-Benz|E500|1994|140|7.6|315|retro|dc2626|RWD
+Mercedes-Benz|SL55|2005|164|6.7|493|roadster|16a34a|RWD
+Mercedes-Benz|G500|2024|132|7.1|416|suv|9333ea|4WD
+Nissan|300ZX Twin Turbo|1996|138|7.7|300|retro|7f1d1d|RWD
+Nissan|Pulsar GTI-R|1992|128|8.1|227|retro|111827|AWD
+Nissan|Stagea 260RS|1998|134|7.8|276|wagon|374151|AWD
+Nissan|Titan Pro-4X|2024|130|7.2|400|truck|0ea5e9|4WD
+Nissan|Sakura|2024|116|8.5|147|classic|dc2626|FWD
+Honda|Civic Si|2024|124|8.2|200|classic|16a34a|FWD
+Honda|Prelude Type SH|2001|127|8.1|220|retro|9333ea|FWD
+Honda|Accord Type R|2002|127|8.1|220|retro|f97316|FWD
+Honda|Fit RS|2024|112|8.7|116|classic|eab308|FWD
+Honda|Passport TrailSport|2024|114|7.8|285|suv|64748b|AWD
+Ford|Mustang Mach 1|2022|161|6.8|470|muscle|7f1d1d|RWD
+Ford|Focus ST|2024|135|7.8|280|classic|111827|FWD
+Ford|Puma ST|2024|123|8.3|197|classic|374151|FWD
+Ford|Ranger Raptor|2024|130|7.2|405|truck|0ea5e9|4WD
+Ford|Capri RS|1973|117|8.5|150|retro|dc2626|RWD
+Chevrolet|Camaro 1LE|2024|159|6.9|455|muscle|16a34a|RWD
+Chevrolet|Corvette Grand Sport|2019|160|6.9|460|super|9333ea|RWD
+Chevrolet|C10 Restomod|1970|143|6.7|500|truck|f97316|RWD
+Chevrolet|Tahoe RST|2024|132|7.1|420|suv|eab308|4WD
+Chevrolet|Cruze Diesel|2019|115|8.6|137|classic|64748b|FWD
+Dodge|Challenger R/T|2023|148|7.3|375|muscle|065f46|RWD
+Dodge|Charger Scat Pack|2023|163|6.7|485|classic|f59e0b|RWD
+Dodge|Dart SRT4|2016|122|8.3|184|classic|7f1d1d|FWD
+Dodge|Neon SRT-4|2005|128|8.1|230|retro|111827|FWD
+Dodge|Magnum SRT8|2008|155|7.1|425|wagon|374151|RWD
+Subaru|Legacy GT|2024|132|7.9|260|classic|9333ea|AWD
+Subaru|Outback Wilderness|2024|110|7.9|260|suv|f97316|AWD
+Subaru|Crosstrek Wilderness|2024|99|8.3|182|suv|eab308|AWD
+Subaru|BRZ tS|2024|128|8.1|228|racer|64748b|RWD
+Subaru|SVX|1997|128|8.1|230|retro|1f2937|AWD
+Mitsubishi|Galant VR-4|1998|135|7.8|280|retro|374151|AWD
+Mitsubishi|Starion ESI-R|1989|122|8.3|188|retro|0ea5e9|RWD
+Mitsubishi|3000GT VR-4|1999|140|7.6|320|retro|dc2626|AWD
+Mitsubishi|Outlander PHEV|2024|108|8.0|248|suv|16a34a|AWD
+Mitsubishi|Mirage Ralliart|2024|107|8.9|78|classic|9333ea|FWD
+Mazda|MX-5 RF|2024|121|8.3|181|roadster|eab308|RWD
+Mazda|Mazdaspeed3|2013|133|7.9|263|classic|64748b|FWD
+Mazda|RX-3|1978|111|8.7|110|retro|1f2937|RWD
+Mazda|CX-60|2024|119|7.6|323|suv|b91c1c|AWD
+Mazda|Cosmo Sport|1967|111|8.7|110|retro|1e3a8a|RWD
+Hyundai|i20 N|2024|124|8.2|201|classic|1e3a8a|FWD
+Hyundai|Sonata N Line|2024|136|7.8|290|classic|065f46|FWD
+Hyundai|Tucson N Line|2024|100|8.3|187|suv|f59e0b|AWD
+Hyundai|Kona N|2023|112|7.8|276|suv|7f1d1d|FWD
+Hyundai|N Vision 74|2025|189|5.8|670|super|111827|RWD
+Kia|Forte GT|2024|124|8.2|201|classic|374151|FWD
+Kia|K5 GT|2024|136|7.8|290|classic|0ea5e9|FWD
+Kia|Sorento SX|2024|113|7.8|281|suv|dc2626|AWD
+Kia|EV9 GT|2025|144|6.7|501|suv|16a34a|AWD
+Kia|Cerato GT|2024|124|8.2|201|classic|9333ea|FWD
+Volkswagen|Golf R 20 Years|2024|142|7.6|328|classic|374151|AWD
+Volkswagen|Polo GTI|2024|124|8.2|204|classic|0ea5e9|FWD
+Volkswagen|Touareg R|2024|137|6.9|456|suv|dc2626|AWD
+Volkswagen|Jetta GLI|2024|128|8.1|228|classic|16a34a|FWD
+Volkswagen|ID. Buzz|2024|143|7.5|335|van|9333ea|RWD
+Volvo|V60 Polestar|2024|159|6.9|455|wagon|dc2626|AWD
+Volvo|C30 T5|2013|128|8.1|227|classic|16a34a|FWD
+Volvo|850 R|1997|129|8.0|240|wagon|9333ea|FWD
+Volvo|EX30|2024|133|7.1|422|suv|f97316|AWD
+Volvo|S90 Recharge|2024|159|6.9|455|limo|eab308|AWD
+Jaguar|XKR-S|2014|171|6.4|542|gt|1e3a8a|RWD
+Jaguar|F-Pace SVR|2024|149|6.4|542|suv|065f46|AWD
+Jaguar|E-Type|1969|133|7.9|265|retro|f59e0b|RWD
+Jaguar|XJ220S|1999|190|5.7|680|super|7f1d1d|RWD
+Jaguar|XE SV Project 8|2019|178|6.2|592|racer|111827|AWD
+Aston Martin|DB11|2023|184|6.0|630|gt|eab308|RWD
+Aston Martin|Virage|2012|164|6.7|490|gt|64748b|RWD
+Aston Martin|Rapide S|2016|173|6.4|552|limo|1f2937|RWD
+Aston Martin|One-77|2011|200|5.4|750|super|b91c1c|RWD
+Aston Martin|Valhalla|2025|235|4.0|998|super|1e3a8a|AWD
+Bentley|Continental GTC|2024|171|6.4|542|gt|065f46|AWD
+Bentley|Flying Spur|2024|183|6.0|626|limo|f59e0b|AWD
+Bentley|Mulsanne|2019|166|6.6|505|limo|7f1d1d|RWD
+Bentley|Bacalar|2021|186|5.9|650|roadster|111827|AWD
+Bentley|Batur|2024|199|5.4|740|gt|374151|AWD
+Rolls-Royce|Dawn|2023|174|6.3|563|roadster|065f46|RWD
+Rolls-Royce|Wraith|2021|183|6.0|624|gt|f59e0b|RWD
+Rolls-Royce|Ghost|2024|174|6.3|563|limo|7f1d1d|AWD
+Rolls-Royce|Spectre|2024|176|6.3|577|gt|111827|AWD
+Rolls-Royce|Silver Shadow|1976|122|8.3|189|retro|374151|RWD
+Lotus|Esprit V8|2004|145|7.5|350|retro|16a34a|RWD
+Lotus|Evora GT430|2018|156|7.0|430|gt|9333ea|RWD
+Lotus|Europa|1974|114|8.6|126|retro|f97316|RWD
+Lotus|Emira V6 First Edition|2024|152|7.2|400|gt|eab308|RWD
+Lotus|Eletre R|2024|200|4.5|905|suv|64748b|AWD
+Bugatti|Divo|2021|300|2.0|1479|super|1f2937|AWD
+Bugatti|Centodieci|2022|300|2.0|1578|super|b91c1c|AWD
+Bugatti|La Voiture Noire|2022|300|2.0|1479|super|1e3a8a|AWD
+Bugatti|EB110|1995|173|6.4|553|retro|065f46|AWD
+Bugatti|Tourbillon|2026|300|2.0|1775|super|f59e0b|AWD
+Koenigsegg|CC850|2024|288|2.0|1385|super|374151|RWD
+Koenigsegg|One:1|2015|282|2.2|1340|super|0ea5e9|RWD
+Koenigsegg|Jesko Attack|2024|300|2.0|1600|super|dc2626|RWD
+Koenigsegg|Gemera|2024|300|2.0|1700|gt|16a34a|AWD
+Koenigsegg|CC8S|2002|187|5.9|655|retro|9333ea|RWD
+Pagani|Zonda Cinque|2009|189|5.8|669|super|374151|RWD
+Pagani|Huayra Roadster|2018|202|5.3|764|roadster|0ea5e9|RWD
+Pagani|Utopia|2024|214|4.8|852|super|dc2626|RWD
+Pagani|Zonda F|2006|180|6.1|602|super|16a34a|RWD
+Pagani|Huayra R|2022|212|4.9|838|racer|9333ea|RWD
+Rimac|Nevera R|2024|300|2.0|2074|super|f97316|AWD
+Rimac|Concept S|2016|245|3.7|1073|super|eab308|AWD
+Rimac|Nevera Time Attack|2023|300|2.0|1914|super|64748b|AWD
+Rimac|Concept Two|2020|300|2.0|1914|super|1f2937|AWD
+Rimac|Nevera 15th|2024|300|2.0|1914|super|b91c1c|AWD
+Lucid|Air Pure|2024|156|7.0|430|classic|1e3a8a|RWD
+Lucid|Air Touring|2024|182|6.0|620|gt|065f46|AWD
+Lucid|Gravity GT|2025|189|4.9|828|suv|f59e0b|AWD
+Lucid|Air Dream Edition|2022|250|3.5|1111|gt|7f1d1d|AWD
+Lucid|Gravity Dream|2025|189|4.9|828|suv|111827|AWD
+Rivian|R1T Dual|2024|148|6.5|533|truck|1e3a8a|AWD
+Rivian|R1S Dual|2024|148|6.5|533|suv|065f46|AWD
+Rivian|R2|2026|136|6.9|450|suv|f59e0b|AWD
+Rivian|R3X|2026|136|6.9|450|suv|7f1d1d|AWD
+Rivian|R1T Tri|2024|192|4.8|850|truck|111827|AWD
+Jeep|Wrangler 4xe|2024|148|7.3|375|offroad|eab308|4WD
+Jeep|Compass Trailhawk|2024|102|8.2|200|suv|64748b|4WD
+Jeep|Renegade Trailhawk|2024|99|8.4|177|suv|1f2937|4WD
+Jeep|Wagoneer|2024|132|7.1|420|suv|b91c1c|4WD
+Jeep|Grand Cherokee Limited|2024|115|7.8|293|suv|1e3a8a|4WD
+Land Rover|Range Rover SV|2024|158|6.1|606|suv|9333ea|AWD
+Land Rover|Defender 130|2024|151|7.2|395|offroad|f97316|AWD
+Land Rover|Freelander|2014|107|8.0|240|suv|eab308|AWD
+Land Rover|Range Rover Evoque|2024|115|7.7|296|suv|64748b|AWD
+Land Rover|Series III|1985|106|8.9|70|offroad|1f2937|4WD
+Mini|Cooper S|2024|124|8.2|201|classic|374151|FWD
+Mini|Cooper SE|2024|126|8.2|218|classic|0ea5e9|FWD
+Mini|Clubman JCW|2024|138|7.7|301|wagon|dc2626|AWD
+Mini|Paceman JCW|2016|104|8.2|218|suv|16a34a|AWD
+Mini|Moke|2024|110|8.8|100|offroad|9333ea|FWD
+Peugeot|308 GTi|2019|133|7.9|268|classic|dc2626|FWD
+Peugeot|508 PSE|2024|145|7.4|355|classic|16a34a|AWD
+Peugeot|405 Mi16|1992|118|8.5|160|retro|9333ea|FWD
+Peugeot|3008 GT|2024|105|8.1|222|suv|f97316|FWD
+Peugeot|RCZ R|2015|134|7.9|270|racer|eab308|FWD
+Renault|Clio RS 182|2005|121|8.4|180|retro|9333ea|FWD
+Renault|Megane R.S. 300|2020|138|7.7|300|racer|f97316|FWD
+Renault|Alpine A110 R|2024|138|7.7|300|gt|eab308|RWD
+Renault|Twingo GT|2019|111|8.7|110|classic|64748b|FWD
+Renault|Zoe E-Tech|2024|115|8.6|135|classic|1f2937|FWD
+Alfa Romeo|Giulietta QV|2020|129|8.0|240|classic|065f46|FWD
+Alfa Romeo|Brera|2010|132|7.9|260|gt|f59e0b|AWD
+Alfa Romeo|159 GTA|2010|132|7.9|260|classic|7f1d1d|FWD
+Alfa Romeo|Tonale Veloce|2024|113|7.8|280|suv|111827|AWD
+Alfa Romeo|Giulia QV|2024|166|6.6|505|classic|374151|RWD
+Maserati|Quattroporte Trofeo|2024|177|6.2|580|limo|f97316|RWD
+Maserati|Levante Trofeo|2024|155|6.2|580|suv|eab308|AWD
+Maserati|GranTurismo Folgore|2024|200|5.3|751|gt|64748b|AWD
+Maserati|Bora|1975|139|7.7|310|retro|1f2937|RWD
+Maserati|Merak|1983|122|8.3|190|retro|b91c1c|RWD
+Lexus|LC500|2024|161|6.8|471|gt|f59e0b|RWD
+Lexus|GS F|2020|161|6.8|467|classic|7f1d1d|RWD
+Lexus|IS F|2014|154|7.1|416|classic|111827|RWD
+Lexus|UX F Sport|2024|99|8.3|181|suv|374151|AWD
+Lexus|LX600|2024|131|7.1|409|suv|0ea5e9|AWD
+Acura|TLX Type S|2024|145|7.4|355|classic|f97316|AWD
+Acura|MDX Type S|2024|123|7.4|355|suv|eab308|AWD
+Acura|RSX Type S|2006|125|8.2|210|retro|64748b|FWD
+Acura|RDX A-Spec|2024|112|7.9|272|suv|1f2937|AWD
+Acura|ZDX Type S|2024|143|6.7|500|suv|b91c1c|AWD
+Infiniti|QX80|2024|136|6.9|450|suv|b91c1c|AWD
+Infiniti|QX55|2024|111|7.9|268|suv|1e3a8a|AWD
+Infiniti|G37 IPL|2013|144|7.5|348|retro|065f46|RWD
+Infiniti|M56|2013|154|7.1|420|limo|f59e0b|RWD
+Infiniti|Q50 Eau Rouge|2014|174|6.4|560|classic|7f1d1d|AWD
+Cadillac|CT4-V Blackwing|2024|162|6.8|472|muscle|b91c1c|RWD
+Cadillac|XT6 Sport|2024|117|7.7|310|suv|1e3a8a|AWD
+Cadillac|Lyriq-V|2025|159|6.1|615|suv|065f46|AWD
+Cadillac|Eldorado|1976|122|8.3|190|retro|f59e0b|FWD
+Cadillac|CTS-V|2019|185|5.9|640|muscle|7f1d1d|RWD
+Shelby|GT350R|2020|169|6.5|526|muscle|1f2937|RWD
+Shelby|GT500KR|2022|221|4.6|900|muscle|b91c1c|RWD
+Shelby|Cobra Daytona|1965|150|7.2|390|retro|1e3a8a|RWD
+Shelby|Mustang Super Snake|2024|211|5.0|825|muscle|065f46|RWD
+Shelby|Series 1|2015|158|6.9|450|super|f59e0b|RWD
+Genesis|G80 3.5T|2024|148|7.3|375|classic|eab308|AWD
+Genesis|G90|2024|153|7.1|409|limo|64748b|AWD
+Genesis|GV70 3.5T|2024|126|7.3|375|suv|1f2937|AWD
+Genesis|GV80|2024|126|7.3|375|suv|b91c1c|AWD
+Genesis|G70 Shooting Brake|2024|131|8.0|252|wagon|1e3a8a|AWD
+Polestar|Polestar 3|2024|146|6.6|517|suv|1e3a8a|AWD
+Polestar|Polestar 4|2024|150|6.4|544|suv|065f46|AWD
+Polestar|Polestar 6|2026|217|4.7|874|roadster|f59e0b|AWD
+Polestar|Polestar 2 BST 270|2024|162|6.8|476|classic|7f1d1d|AWD
+Polestar|Polestar 5|2025|217|4.7|872|gt|111827|AWD
+BYD|Seal U|2024|148|6.5|530|suv|eab308|AWD
+BYD|Han DM-i|2024|167|6.6|510|classic|64748b|FWD
+BYD|Tang EV|2024|146|6.6|517|suv|1f2937|AWD
+BYD|Atto 3|2024|102|8.2|201|suv|b91c1c|FWD
+BYD|Yangwang U9|2025|275|2.5|1287|super|1e3a8a|AWD
+Nio|ET7|2024|185|5.9|644|limo|dc2626|AWD
+Nio|ET9|2025|193|5.6|697|limo|16a34a|AWD
+Nio|ES8|2024|163|5.9|644|suv|9333ea|AWD
+Nio|EP9|2019|282|2.2|1341|super|f97316|AWD
+Nio|EC6|2024|142|6.7|489|suv|eab308|AWD
+Xiaomi|SU7|2024|138|7.7|299|gt|1f2937|RWD
+Xiaomi|SU7 Pro|2024|152|7.2|400|gt|b91c1c|RWD
+Xiaomi|SU7 Max|2024|189|5.8|673|gt|1e3a8a|AWD
+Xiaomi|YU7|2025|169|5.7|681|suv|065f46|AWD
+Xiaomi|SU7 Ultra|2025|300|2.0|1548|super|f59e0b|AWD
+Pininfarina|Battista|2024|300|2.0|1900|super|16a34a|AWD
+Pininfarina|Battista Anniversario|2022|300|2.0|1900|super|9333ea|AWD
+Pininfarina|B95|2025|300|2.0|1900|roadster|f97316|AWD
+Pininfarina|Pura Vision|2025|213|4.0|1000|suv|eab308|AWD
+Pininfarina|Sergio|2015|173|6.4|557|roadster|64748b|RWD
+Hennessey|Venom F5|2024|300|2.0|1817|super|b91c1c|RWD
+Hennessey|Venom GT|2016|269|2.8|1244|super|1e3a8a|RWD
+Hennessey|Exorcist|2023|235|4.0|1000|muscle|065f46|RWD
+Hennessey|Mammoth 1000|2024|215|4.0|1012|truck|f59e0b|4WD
+Hennessey|VelociRaptor|2024|157|6.1|600|truck|7f1d1d|4WD
+SSC|Tuatara|2023|300|2.0|1750|super|0ea5e9|RWD
+SSC|Ultimate Aero|2009|275|2.5|1287|super|dc2626|RWD
+SSC|Tuatara Striker|2024|300|2.0|1750|super|16a34a|RWD
+SSC|Tuatara Aggressor|2024|300|2.0|1750|racer|9333ea|RWD
+SSC|Ultimate Aero TT|2007|260|3.1|1183|super|f97316|RWD
+Zenvo|TSR-S|2023|259|3.1|1177|super|7f1d1d|RWD
+Zenvo|ST1|2018|249|3.5|1104|super|111827|RWD
+Zenvo|Aurora|2025|300|2.0|1850|super|374151|AWD
+Zenvo|TSR|2020|259|3.1|1177|super|0ea5e9|RWD
+Zenvo|ST1 Powertrain|2019|249|3.5|1104|racer|dc2626|RWD
+Apollo|IE|2019|206|5.1|791|super|1f2937|RWD
+Apollo|Intensa Emozione|2020|206|5.1|791|super|b91c1c|RWD
+Apollo|Evo|2024|207|5.1|800|super|1e3a8a|RWD
+Apollo|Project Evo|2025|207|5.1|800|racer|065f46|RWD
+Apollo|Arrow|2025|235|4.0|1000|super|f59e0b|RWD
+Noble|M600|2018|186|5.9|650|super|b91c1c|RWD
+Noble|M500|2014|165|6.7|500|super|1e3a8a|RWD
+Noble|M12|2009|186|5.9|650|super|065f46|RWD
+Noble|M400|2012|152|7.2|400|racer|f59e0b|RWD
+Noble|M600 Speedster|2019|186|5.9|650|roadster|7f1d1d|RWD
+Caterham|Seven 620R|2024|139|7.7|310|racer|16a34a|RWD
+Caterham|Seven 420|2024|121|8.4|180|roadster|9333ea|RWD
+Caterham|Seven 170|2024|108|8.9|84|classic|f97316|RWD
+Caterham|Super Seven|2000|115|8.6|140|retro|eab308|RWD
+Caterham|Seven CSR|2010|132|7.9|260|racer|64748b|RWD
+Morgan|Plus Six|2024|143|7.5|335|roadster|f97316|RWD
+Morgan|Plus Four|2024|132|7.9|258|roadster|eab308|RWD
+Morgan|Aero 8|2018|147|7.4|367|roadster|64748b|RWD
+Morgan|3 Wheeler|2020|107|8.9|82|retro|1f2937|RWD
+Morgan|Super 3|2024|112|8.7|118|retro|b91c1c|RWD
+TVR|Griffith|2019|165|6.7|500|roadster|f97316|RWD
+TVR|Sagaris|2006|152|7.2|406|super|eab308|RWD
+TVR|Tuscan Speed Six|2005|145|7.5|350|roadster|64748b|RWD
+TVR|Cerbera Speed 12|2000|207|5.1|800|super|1f2937|RWD
+TVR|Chimaera|1996|143|7.5|340|retro|b91c1c|RWD
+De Tomaso|P72|2025|193|5.6|700|super|065f46|RWD
+De Tomaso|Pantera|1974|142|7.6|330|retro|f59e0b|RWD
+De Tomaso|Mangusta|1970|128|8.1|230|retro|7f1d1d|RWD
+De Tomaso|Guara|1993|135|7.8|280|retro|111827|RWD
+De Tomaso|Vallelunga|1966|117|8.5|150|retro|374151|RWD`;
 const CAR_CATALOG = CAR_DATA.trim().split('\n').map(function (line, index) {
     var p = line.split('|');
     var top = Number(p[3]), zero = Number(p[4]), hp = Number(p[5]);
@@ -7948,8 +8248,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.68";
-const UPDATE_NOTES = "Draw and Guess now lands on a random drawer each round, and the guess feed only keeps the latest 5 messages visible";
+const APP_VERSION = "LessFun Public Beta 1.32.69";
+const UPDATE_NOTES = "The Beach Racer garage now has 500 cars from 60+ real brands, with performance, drivetrain, year and tier pricing in the car catalogue";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
