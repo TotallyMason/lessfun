@@ -7948,8 +7948,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.65";
-const UPDATE_NOTES = "Draw and Guess is live: join the public lobby, take turns drawing a word, and race to guess other players drawings. Includes colors, sizes, eraser, timer, players and scores";
+const APP_VERSION = "LessFun Public Beta 1.32.66";
+const UPDATE_NOTES = "Draw and Guess now has 100 single-word prompts, from merlion and kopi to dragon, astronaut, pizza and snowman";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -10639,10 +10639,16 @@ function radioPresenceConnect() {
    Draw & Guess — live public drawing game
    ============================================================ */
 const DG_WORDS = [
-    'kopi', 'kaya toast', 'merlion', 'HDB block', 'MRT train', 'durian', 'chilli crab',
-    'ice kachang', 'satay', 'Singapore Flyer', 'hawker centre', 'laksa', 'chicken rice',
-    'otter', 'supertree', 'escalator', 'umbrella', 'slippers', 'laptop', 'sunflower',
-    'fishball', 'teh tarik', 'roti prata', 'mooncake', 'dragon', 'mermaid', 'pirate ship'
+    'merlion', 'hdb', 'mrt', 'durian', 'laksa', 'satay', 'kopi', 'kaya', 'otter', 'supertree',
+    'umbrella', 'slippers', 'laptop', 'sunflower', 'fishball', 'mooncake', 'dragon', 'mermaid', 'pirate', 'rocket',
+    'volcano', 'penguin', 'giraffe', 'octopus', 'dinosaur', 'robot', 'wizard', 'castle', 'rainbow', 'snowman',
+    'pumpkin', 'ghost', 'vampire', 'werewolf', 'zombie', 'skeleton', 'witch', 'cauldron', 'broom', 'potion',
+    'treasure', 'island', 'coconut', 'pineapple', 'watermelon', 'strawberry', 'banana', 'carrot', 'broccoli', 'pizza',
+    'burger', 'sushi', 'noodles', 'dumpling', 'teapot', 'monsoon', 'lightning', 'thunder', 'cloud', 'sun',
+    'moon', 'star', 'planet', 'astronaut', 'satellite', 'telescope', 'camera', 'guitar', 'piano', 'drum',
+    'headphones', 'microphone', 'bicycle', 'motorcycle', 'airplane', 'helicopter', 'submarine', 'sailboat', 'train', 'bus',
+    'taxi', 'signal', 'escalator', 'elevator', 'staircase', 'window', 'mirror', 'clock', 'candle', 'lamp',
+    'key', 'lock', 'door', 'bridge', 'fountain', 'garden', 'playground', 'swings', 'balloon', 'kite'
 ];
 const DG_COLORS = ['#ffffff', '#111111', '#ef476f', '#ffd166', '#06d6a0', '#118ab2', '#9b5de5', '#ff7b00'];
 let drawGame = {
