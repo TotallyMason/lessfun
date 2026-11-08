@@ -8452,8 +8452,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.95";
-const UPDATE_NOTES = "Boeing Landing touchdown FPM is now shown, takeoff is fixed, background site rendering pauses during games, and TotallyMason can toggle auto-lock with K";
+const APP_VERSION = "LessFun Public Beta 1.32.96";
+const UPDATE_NOTES = "Boeing Landing now shows touchdown FPM, a clear NOSE UP / NOSE DOWN attitude readout, working ground takeoff, and TotallyMason auto-lock toggled with K";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

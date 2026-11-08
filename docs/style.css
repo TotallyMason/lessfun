@@ -11572,3 +11572,4 @@ body.in-game .radio-dock {
     display: none !important;
 }
 body.in-game::before { animation: none !important; }
+.lsim-pitch-dir { flex: 0 0 100%; color: rgba(150, 230, 255, 0.62); font-size: 6px; font-style: normal; font-weight: 800; letter-spacing: 0.08em; }

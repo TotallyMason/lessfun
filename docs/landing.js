@@ -533,6 +533,7 @@
         setText('lsimAlt', alt);
         setText('lsimVs', (vs > 0 ? '+' : '') + vs);
         setText('lsimPitch', pitch);
+        setText('lsimPitchDir', sim.onGround ? 'ON GROUND' : (sim.pitch > 0.02 ? 'NOSE UP' : (sim.pitch < -0.02 ? 'NOSE DOWN' : 'LEVEL')));
         setText('lsimThrVal', Math.round(sim.throttle * 100) + '%');
         setText('lsimFlapVal', Math.round(sim.flaps) + '°');
         setText('lsimGearVal', sim.gearTarget ? 'DOWN' : 'UP');
@@ -1368,7 +1369,7 @@
                         '<div class="lsim-gauge"><small>AIRSPEED</small><strong id="lsimIas">0</strong><span>kt</span></div>' +
                         '<div class="lsim-gauge"><small>ALTITUDE</small><strong id="lsimAlt">0</strong><span>ft</span></div>' +
                         '<div class="lsim-gauge"><small>VERT SPEED</small><strong id="lsimVs">0</strong><span>fpm</span></div>' +
-                        '<div class="lsim-gauge"><small>PITCH</small><strong id="lsimPitch">0</strong><span>deg</span></div>' +
+                        '<div class="lsim-gauge"><small>PITCH</small><strong id="lsimPitch">0</strong><span>deg</span><em class="lsim-pitch-dir" id="lsimPitchDir">LEVEL</em></div>' +
                     '</div>' +
                     '<div class="lsim-panel lsim-systems">' +
                         '<div class="lsim-sys-row"><span>THROTTLE</span><div class="lsim-bar"><i id="lsimThrBar"></i></div><b id="lsimThrVal">38%</b></div>' +
