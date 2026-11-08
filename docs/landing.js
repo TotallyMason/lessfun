@@ -4,7 +4,6 @@
 (function () {
     'use strict';
 
-    var RUNWAY_END = 3000;
     var G = 9.81;
     var MASS = 64000;
     var WING_AREA = 124;
@@ -28,7 +27,6 @@
     var smokeTimer = 0;
     var toastTimer = 0;
     var hudTimer = 0;
-    var landedPending = 0;
 
     var sim = {};
 
@@ -56,6 +54,10 @@
             brakes: false,
             spoilers: 0,
             onGround: false,
+            takeoffArmed: true,
+            airGrace: 0,
+            groundTimer: 0,
+            lastResult: null,
             finished: false,
             crashed: false,
             touchX: 0,
@@ -88,7 +90,6 @@
         };
         particles = [];
         overlayShown = false;
-        landedPending = 0;
         var ov = document.getElementById('lsimOverlay');
         if (ov) ov.style.display = 'none';
         var st = document.getElementById('lsimState');
@@ -198,6 +199,16 @@
     }
 
     function stepAir(dt) {
+        // With no runway load, the gear extends again for the next landing.
+        sim.tireComp = Math.max(0, sim.tireComp - dt * 0.9);
+        sim.oleoComp = Math.max(0, sim.oleoComp - dt * 1.3);
+        sim.armComp = Math.max(0, sim.armComp - dt * 0.8);
+        sim.compMain = Math.min(GEAR_MAIN.max, sim.tireComp + sim.oleoComp + sim.armComp);
+        sim.noseTire = Math.max(0, sim.noseTire - dt * 0.9);
+        sim.noseOleo = Math.max(0, sim.noseOleo - dt * 1.3);
+        sim.noseArm = Math.max(0, sim.noseArm - dt * 0.8);
+        sim.compNose = Math.min(GEAR_NOSE.max, sim.noseTire + sim.noseOleo + sim.noseArm);
+
         var pitchInput = (sim.keys.up ? 1 : 0) - (sim.keys.down ? 1 : 0);
         var v0 = Math.sqrt(sim.vx * sim.vx + sim.vy * sim.vy);
         var gamma0 = Math.atan2(sim.vy, Math.max(0.01, sim.vx));
@@ -229,6 +240,7 @@
         var groundEffect = 1;
         var q = 0.5 * RHO * v * v;
         var lift = q * WING_AREA * cl * groundEffect;
+        if (sim.y < 10) lift *= 1 + 0.03 * (1 - Math.max(0, sim.y) / 10);
         var cd = 0.028 + (sim.gearAnim > 0.2 ? 0.016 : 0) + (sim.flaps / 40) * 0.024 + 0.048 * cl * cl;
         if (sim.spoilers > 0) cd += sim.spoilers * 0.04;
         var drag = q * WING_AREA * cd;
@@ -247,19 +259,15 @@
         var mainBottom = sim.y + GEAR_MAIN.offset * Math.sin(sim.pitch) + (MAIN_BOTTOM + sim.compMain) * Math.cos(sim.pitch);
         var noseBottom = sim.y + GEAR_NOSE.offset * Math.sin(sim.pitch) + (NOSE_BOTTOM + sim.compNose) * Math.cos(sim.pitch);
 
-        if (mainBottom <= 0 || noseBottom <= 0) {
+        if (sim.airGrace > 0) {
+            sim.airGrace = Math.max(0, sim.airGrace - dt);
+        } else if (mainBottom <= 0 || noseBottom <= 0) {
             touchdown();
             return;
         }
         if (sim.y < -1) {
             sim.y = 2;
             touchdown();
-        }
-        // If the approach drifts past the runway, settle it onto the grass
-        // rather than ending the run with an accident.
-        if (sim.x > RUNWAY_END + 50 && sim.y > 6) {
-            sim.y = 6;
-            sim.vy = -1.4;
         }
     }
 
@@ -270,6 +278,8 @@
         sim.touchX = sim.x;
         sim.onGround = true;
         sim.vy = 0;
+        sim.airGrace = 0;
+        sim.groundTimer = 0;
         var impact = Math.max(0, -sim.touchVy);
         sim.tireComp = clamp(0.06 + impact * 0.028, 0.06, PARTS.tire);
         sim.oleoComp = clamp(0.3 + impact * 0.085, 0.3, PARTS.oleo * 0.82);
@@ -281,6 +291,7 @@
         sim.y = -GEAR_MAIN.offset * Math.sin(sim.pitch) - (MAIN_BOTTOM + sim.compMain) * Math.cos(sim.pitch);
         sim.brakes = false;
         sim.spoilers = 1;
+        sim.takeoffArmed = false;
         // Suspension is the point of this sim: keep the gear down and absorb
         // every touchdown, no matter how hard or where it happens.
         sim.gearTarget = 1;
@@ -295,13 +306,17 @@
         if (st) st.textContent = 'TOUCHDOWN';
         beep(95, 0.32, 'sine', 0.12, 45);
         setTimeout(function () { beep(70, 0.14, 'triangle', 0.05); }, 120);
+        scoreLanding();
     }
 
     function stepGround(dt) {
         var restPitch = -0.006;
-        sim.pitchVel += ((restPitch - sim.pitch) * 26 - sim.pitchVel * 8.5) * dt;
+        var pitchInput = (sim.keys.up ? 1 : 0) - (sim.keys.down ? 1 : 0);
+        var targetPitch = restPitch;
+        if (pitchInput && sim.vx > 8) targetPitch = restPitch + pitchInput * 0.2;
+        sim.pitchVel += ((targetPitch - sim.pitch) * 18 - sim.pitchVel * 7) * dt;
         sim.pitch += sim.pitchVel * dt;
-        sim.pitch = clamp(sim.pitch, -0.12, 0.16);
+        sim.pitch = clamp(sim.pitch, -0.12, 0.2);
 
         // One-way oleo travel: the gear only compresses downward under the
         // aircraft's weight and never springs back during the rollout.
@@ -336,61 +351,78 @@
         sim.flaps = smooth(sim.flaps, sim.flapsTarget, 1.6, dt);
         sim.wheelAngle += (sim.vx / GEAR_MAIN.wheel) * dt;
 
-        var brake = sim.keys.brake ? 2.9 : 1.15;
-        if (sim.spoilers > 0) brake += 0.9;
-        brake += (sim.flaps / 40) * 0.12;
-        var thrust = sim.throttle * MAX_THRUST / MASS;
-        sim.vx = Math.max(0, sim.vx - brake * dt + thrust * dt);
+        var v = Math.max(0.5, sim.vx);
+        var flapLift = (sim.flaps / 40) * 0.86;
+        var cl = 0.32 + 3.8 * clamp(sim.pitch, -0.13, 0.2) + flapLift;
+        var q = 0.5 * RHO * v * v;
+        var lift = q * WING_AREA * cl;
+        var cd = 0.028 + sim.gearAnim * 0.016 + (sim.flaps / 40) * 0.024 + 0.048 * cl * cl + sim.spoilers * 0.04;
+        var drag = q * WING_AREA * cd;
+        var thrust = sim.throttle * MAX_THRUST;
+
+        var wheelBrake = sim.keys.brake ? 3.1 : (sim.throttle < 0.06 ? 0.5 : 0.08);
+        var rolling = 0.02 + (sim.vx > 1 ? 0.015 : 0);
+        var accel = (thrust - drag) / MASS - wheelBrake - rolling - sim.spoilers * 0.25;
+        sim.vx = Math.max(0, sim.vx + accel * dt);
         sim.x += sim.vx * dt;
 
-        if (sim.x > RUNWAY_END) {
-            // Roll out onto the grass with extra drag instead of crashing.
-            sim.vx = Math.max(0, sim.vx - dt * 3.2);
-        }
-        if (sim.vx <= 0.8) {
-            landedPending += dt;
-            if (landedPending > 0.7) finish(false, '');
+        if (sim.throttle > 0.4) sim.spoilers = Math.max(0, sim.spoilers - dt * 1.6);
+        sim.groundTimer += dt;
+        if (sim.vx < 22 || sim.groundTimer > 3.5) sim.takeoffArmed = true;
+
+        // Rotate and fly again once the aircraft has slowed after landing.
+        if (sim.takeoffArmed && sim.vx > 50 && lift > MASS * G * 0.995 && sim.pitch > 0.02) {
+            liftoff();
         }
         if (sim.brakes !== !!sim.keys.brake) sim.brakes = !!sim.keys.brake;
     }
 
+    function liftoff() {
+        sim.onGround = false;
+        sim.vy = 1.7;
+        sim.y += 1.1;
+        sim.airGrace = 1.1;
+        sim.pitchRate = 0.05;
+        sim.spoilers = 0;
+        sim.brakes = false;
+        sim.keys.brake = false;
+        sim.takeoffArmed = false;
+        toast('AIRBORNE · POSITIVE RATE');
+        var st = document.getElementById('lsimState');
+        if (st) st.textContent = 'CLIMB';
+        beep(520, 0.12, 'triangle', 0.05);
+        setTimeout(function () { beep(720, 0.16, 'triangle', 0.05); }, 120);
+    }
+
     function computeScore() {
-        var zone = 1 - Math.min(1, Math.abs(sim.touchX - 250) / 400);
+        var zone = sim.touchX < 1300 ? (1 - Math.min(1, Math.abs(sim.touchX - 250) / 400)) : 0.6;
         var sink = Math.abs(sim.touchVy);
         var smoothPts = clamp(1 - Math.max(0, sink - 0.5) / 5, 0, 1);
         var att = 1 - Math.min(1, Math.abs(sim.touchPitch - 0.06) / 0.16);
-        var stopPts = 1 - clamp((sim.x - 1200) / 1900, 0, 1);
-        var total = Math.round(350 * zone + 600 * smoothPts + 250 * att + 150 * stopPts + 150);
+        var total = Math.round(400 * zone + 600 * smoothPts + 300 * att + 100);
         var rating = 'Rough';
-        if (total >= 1280) rating = 'Butter';
-        else if (total >= 1100) rating = 'Smooth';
-        else if (total >= 830) rating = 'Firm';
-        else if (total >= 520) rating = 'Hard';
+        if (total >= 1250) rating = 'Butter';
+        else if (total >= 1050) rating = 'Smooth';
+        else if (total >= 800) rating = 'Firm';
+        else if (total >= 500) rating = 'Hard';
         return { total: total, rating: rating };
     }
 
-    function finish(crashed, reason) {
-        if (sim.finished) return;
-        sim.finished = true;
-        sim.crashed = false;
-        sim.reason = '';
-        running = false;
+    function scoreLanding() {
         var result = computeScore();
-        sim.score = result.total;
+        sim.lastResult = result;
+        sim.score += result.total;
         sim.rating = result.rating;
-        sim.coins = Math.max(5, Math.round(result.total / 40));
-        sim.stopX = sim.x;
+        sim.coins = Math.max(4, Math.round(result.total / 45));
         if (typeof saveScore === 'function') saveScore('Boeing Landing', result.total);
         if (typeof awardRunCoins === 'function') awardRunCoins(sim.coins);
-        beep(660, 0.12, 'triangle', 0.05);
-        setTimeout(function () { beep(880, 0.18, 'triangle', 0.05); }, 130);
         var sc = document.getElementById('lsimScore');
         if (sc) sc.textContent = sim.score.toLocaleString();
         var st = document.getElementById('lsimState');
         if (st) st.textContent = 'LANDED · ' + result.rating.toUpperCase();
-        var ov = document.getElementById('lsimOverlay');
-        if (ov) ov.style.display = 'none';
-        toast(result.rating + ' landing · ' + result.total.toLocaleString() + ' points · +' + sim.coins + ' Coins');
+        toast(result.rating + ' · +' + result.total.toLocaleString() + ' pts · +' + sim.coins + ' Coins · throttle to take off');
+        beep(660, 0.12, 'triangle', 0.05);
+        setTimeout(function () { beep(880, 0.18, 'triangle', 0.05); }, 130);
     }
 
     function showOverlay(result) {
@@ -449,11 +481,14 @@
     function updateCamera(dt) {
         var targetScale;
         if (sim.onGround) {
-            targetScale = clamp(W * 0.7 / 39, 8.5, 17);
+            if (sim.vx < 2.5) targetScale = clamp(W * 0.7 / 39, 8.5, 17);
+            else targetScale = clamp(W * 0.95 / (80 + sim.vx * 1.6), 4.2, 12);
         } else if (sim.y < 28) {
             targetScale = clamp(4.2 + (28 - sim.y) * 0.22, 4.2, 8.1);
-        } else {
+        } else if (sim.x < 0) {
             targetScale = clamp((W * 0.55) / Math.max(110, -sim.x), 1.0, 3.9);
+        } else {
+            targetScale = clamp(6.2 - sim.y * 0.02, 1.4, 5.5);
         }
         targetScale = Math.min(targetScale, (groundY() - H * 0.12) / Math.max(6, sim.y));
         sim.camScale = smooth(sim.camScale, targetScale, 2.4, dt);
@@ -499,10 +534,22 @@
         var state = document.getElementById('lsimState');
         if (state && !sim.finished) {
             var dist = Math.max(0, -sim.x);
-            if (sim.onGround) state.textContent = sim.vx > 2 ? 'BRAKING' : 'ROLLING OUT';
-            else if (dist < 120 || sim.y < 12) state.textContent = 'FLARE';
-            else if (dist < 700) state.textContent = 'FINAL';
-            else state.textContent = 'APPROACH';
+            if (sim.onGround) {
+                if (sim.vx < 0.8) state.textContent = sim.takeoffArmed ? 'STOPPED · ADD POWER' : 'ROLLING OUT';
+                else if (sim.keys.brake) state.textContent = 'BRAKING';
+                else if (sim.throttle > 0.5 && sim.takeoffArmed) state.textContent = 'TAKEOFF ROLL';
+                else state.textContent = 'ROLLING OUT';
+            } else if (sim.x < 0) {
+                if (dist < 120 || sim.y < 12) state.textContent = 'FLARE';
+                else if (dist < 700) state.textContent = 'FINAL';
+                else state.textContent = 'APPROACH';
+            } else if (sim.vy > 0.8) {
+                state.textContent = 'CLIMB';
+            } else if (sim.y < 15) {
+                state.textContent = 'FLARE';
+            } else {
+                state.textContent = 'DESCENT';
+            }
             state.classList.toggle('is-warn', !sim.onGround && !sim.gearTarget);
         }
         var papi = document.getElementById('lsimPapiText');
@@ -510,9 +557,12 @@
             var distToGo = Math.max(0, -sim.x);
             var ideal = distToGo * Math.tan(GS_ANGLE);
             var err = sim.y - ideal;
-            var label = sim.onGround ? 'ON RUNWAY' : (err > 9 ? 'GLIDESLOPE HIGH' : (err < -9 ? 'GLIDESLOPE LOW' : 'ON GLIDESLOPE'));
+            var label;
+            if (sim.onGround) label = sim.vx > 1 ? 'TAKEOFF ROLL' : 'ON RUNWAY';
+            else if (sim.x > 0) label = sim.vy > 0.5 ? 'POSITIVE RATE' : 'DESCENT';
+            else label = err > 9 ? 'GLIDESLOPE HIGH' : (err < -9 ? 'GLIDESLOPE LOW' : 'ON GLIDESLOPE');
             papi.textContent = label;
-            papi.classList.toggle('is-warn', !sim.onGround && Math.abs(err) > 9);
+            papi.classList.toggle('is-warn', !sim.onGround && sim.x < 0 && Math.abs(err) > 9);
         }
     }
 
@@ -664,9 +714,11 @@
 
     function drawRunway() {
         var gy = groundY();
-        var x0 = sx(-260);
-        var x1 = sx(RUNWAY_END + 260);
         var y = gy - 2;
+        var left = sim.x - (W * 0.38) / sim.camScale - 100;
+        var right = sim.x + (W * 0.62) / sim.camScale + 100;
+        var x0 = sx(left);
+        var x1 = sx(right);
         ctx.fillStyle = '#1a1d21';
         ctx.fillRect(x0, y, x1 - x0, 12);
         ctx.fillStyle = '#2b2f35';
@@ -678,12 +730,10 @@
         ctx.lineTo(x1, y + 0.5);
         ctx.stroke();
 
-        // Grass shoulders / edge lights.
-        var start = Math.floor(sim.camX - 260);
-        var end = Math.floor(sim.camX + 400);
-        for (var x = Math.max(-260, start); x <= Math.min(RUNWAY_END + 260, end); x += 60) {
-            if (x < 0 || x > RUNWAY_END) continue;
-            var px = sx(x);
+        // Infinite runway edge lights.
+        var e0 = Math.floor(left / 60) * 60;
+        for (var ex = e0; ex <= right; ex += 60) {
+            var px = sx(ex);
             ctx.fillStyle = 'rgba(255, 214, 120, 0.55)';
             ctx.beginPath();
             ctx.arc(px, y - 3, 1.1, 0, Math.PI * 2);
@@ -691,32 +741,38 @@
         }
 
         // Threshold piano keys.
-        for (var k = 0; k < 8; k++) {
-            var tx = sx(8 + k * 6.5);
-            ctx.fillStyle = k % 2 ? 'rgba(235, 240, 245, 0.65)' : 'rgba(235, 240, 245, 0.25)';
-            ctx.fillRect(tx, y - 4, Math.max(1, 3.4 * sim.camScale), 4);
+        if (left < 80 && right > -20) {
+            for (var k = 0; k < 8; k++) {
+                var tx = sx(8 + k * 6.5);
+                ctx.fillStyle = k % 2 ? 'rgba(235, 240, 245, 0.65)' : 'rgba(235, 240, 245, 0.25)';
+                ctx.fillRect(tx, y - 4, Math.max(1, 3.4 * sim.camScale), 4);
+            }
         }
 
-        // Aiming point and touchdown-zone bars.
-        drawRunwayBlock(300, 14, 7, 'rgba(235, 240, 245, 0.7)');
-        for (var d = 150; d <= 900; d += 150) {
-            drawRunwayBlock(d, 10, 4, 'rgba(235, 240, 245, 0.4)');
-            drawRunwayBlock(d + 35, 10, 4, 'rgba(235, 240, 245, 0.4)');
+        // Aiming point and touchdown-zone bars near the threshold.
+        if (left < 1000 && right > 100) {
+            drawRunwayBlock(300, 14, 7, 'rgba(235, 240, 245, 0.7)');
+            for (var d = 150; d <= 900; d += 150) {
+                drawRunwayBlock(d, 10, 4, 'rgba(235, 240, 245, 0.4)');
+                drawRunwayBlock(d + 35, 10, 4, 'rgba(235, 240, 245, 0.4)');
+            }
         }
-        // Centerline dashes.
-        for (var cx = 0; cx < RUNWAY_END; cx += 45) {
+
+        // Infinite centerline dashes.
+        var c0 = Math.floor(left / 45) * 45;
+        for (var cx = c0; cx <= right; cx += 45) {
             var px2 = sx(cx);
-            if (px2 < -20 || px2 > W + 20) continue;
             ctx.fillStyle = 'rgba(230, 235, 240, 0.35)';
             ctx.fillRect(px2, y + 8, Math.max(2, 24 * sim.camScale), 1.4);
         }
 
-        // Distance ticks.
+        // Distance ticks continue forever down the runway.
         ctx.font = '600 8px system-ui, sans-serif';
         ctx.fillStyle = 'rgba(210, 230, 240, 0.5)';
-        for (var m = 250; m < RUNWAY_END; m += 250) {
+        var m0 = Math.max(0, Math.floor(left / 250) * 250);
+        for (var m = m0; m <= right; m += 250) {
             var mx = sx(m);
-            if (mx < 0 || mx > W) continue;
+            if (mx < -20 || mx > W + 20) continue;
             ctx.fillRect(mx, y - 2, 1, 4);
             ctx.fillText(m + 'm', mx + 4, y - 4);
         }
@@ -743,7 +799,9 @@
     function drawApproach() {
         var gy = groundY();
         // Lead-in lights before the threshold.
-        for (var x = -1000; x <= -40; x += 50) {
+        var viewLeft = sim.x - (W * 0.38) / sim.camScale;
+        var viewRight = sim.x + (W * 0.62) / sim.camScale;
+        for (var x = Math.max(-1000, Math.floor(viewLeft / 50) * 50); x <= Math.min(-40, viewRight); x += 50) {
             var px = sx(x);
             if (px < -20 || px > W + 20) continue;
             var lit = ((x / 50) % 2 === 0);
@@ -775,16 +833,6 @@
             ctx.fillRect(papiX - 0.5, gy - 4, 1, 4);
         }
 
-        // Runway end lights.
-        var endX = sx(RUNWAY_END);
-        if (endX > -30 && endX < W + 30) {
-            for (var e = 0; e < 4; e++) {
-                ctx.fillStyle = 'rgba(255, 90, 90, 0.8)';
-                ctx.beginPath();
-                ctx.arc(endX + 1, gy - 6 - e * 3, 1.5, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
     }
 
     function drawGuide() {
@@ -1306,7 +1354,7 @@
                         '<div class="lsim-sys-row lsim-part-row"><span>ARM</span><div class="lsim-bar is-arm"><i id="lsimArmBar"></i></div><b id="lsimArmVal">0%</b></div>' +
                         '<div class="lsim-papi-line" id="lsimPapiText">ON GLIDESLOPE</div>' +
                     '</div>' +
-                    '<div class="lsim-hint">W/S or ↑/↓ pitch · A/D or ←/→ throttle · Space brake · F flaps · G gear · R restart</div>' +
+                    '<div class="lsim-hint">W/S pitch · A/D throttle · Space brake · F flaps · G gear · R restart · land then add power to take off</div>' +
                     '<div class="lsim-controls">' +
                         '<div class="lsim-control-group"><button type="button" class="lsim-btn" onpointerdown="event.preventDefault();landingHold(\'up\',true)" onpointerup="landingHold(\'up\',false)" onpointercancel="landingHold(\'up\',false)" onpointerleave="landingHold(\'up\',false)">▲ Pitch</button><button type="button" class="lsim-btn" onpointerdown="event.preventDefault();landingHold(\'down\',true)" onpointerup="landingHold(\'down\',false)" onpointercancel="landingHold(\'down\',false)" onpointerleave="landingHold(\'down\',false)">▼ Pitch</button></div>' +
                         '<div class="lsim-control-group"><button type="button" class="lsim-btn" onpointerdown="event.preventDefault();landingHold(\'slow\',true)" onpointerup="landingHold(\'slow\',false)" onpointercancel="landingHold(\'slow\',false)" onpointerleave="landingHold(\'slow\',false)">THR −</button><button type="button" class="lsim-btn" onpointerdown="event.preventDefault();landingHold(\'fast\',true)" onpointerup="landingHold(\'fast\',false)" onpointercancel="landingHold(\'fast\',false)" onpointerleave="landingHold(\'fast\',false)">THR +</button></div>' +

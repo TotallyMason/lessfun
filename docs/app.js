@@ -8330,8 +8330,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.86";
-const UPDATE_NOTES = "Boeing Landing has a proper multi-part suspension now: tire squash, oleo piston, trailing arm, torque links, coil springs, bump stops and glowing brakes, all with live travel readouts";
+const APP_VERSION = "LessFun Public Beta 1.32.87";
+const UPDATE_NOTES = "Boeing Landing now has better ground and flight physics, an infinite runway, and full circuits: land, roll out, add power and pitch up to take off again";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
