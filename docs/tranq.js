@@ -69,6 +69,7 @@
 
     function startMatch(mode) {
         T.multiplayer = mode === 'mp';
+        T.ownerAuto = isTranqOwner();
         if (T.multiplayer) {
             T.players = [makePlayer('YOU', SPAWNS[0].x, SPAWNS[0].y, true, '#5fe7ff')];
             T.players[0].energy = 2;
@@ -479,7 +480,7 @@
         var a = owner.aim + (Math.random() - 0.5) * spread;
         var sx = owner.x + Math.cos(a) * 18;
         var sy = owner.y + Math.sin(a) * 18;
-        var ownerHoming = owner.isPlayer && isTranqOwner() && owner.lockTarget &&
+        var ownerHoming = owner.isPlayer && isTranqOwner() && T.ownerAuto && owner.lockTarget &&
             !owner.lockTarget.down && !owner.lockTarget.eliminated;
         var dartSpeed = ownerHoming ? 950 : (owner.isPlayer ? 780 : 660);
         T.darts.push({
@@ -489,7 +490,7 @@
             life: 1.45, owner: owner, color: owner.color,
             homing: ownerHoming, target: ownerHoming ? owner.lockTarget : null
         });
-        owner.cooldown = owner.isPlayer ? (isTranqOwner() ? 0.12 : 0.36) : (0.85 + Math.random() * 0.5);
+        owner.cooldown = owner.isPlayer ? (isTranqOwner() && T.ownerAuto ? 0.12 : 0.36) : (0.85 + Math.random() * 0.5);
         spawnBurst(sx, sy, owner.color, 4, 40);
         beep(owner.isPlayer ? 780 : 520, 0.045, 0.018, 320);
         if (owner.isPlayer) mpBroadcastShot(owner);
@@ -603,7 +604,7 @@
         p.y += p.vy * dt;
         resolveObstacles(p);
 
-        if (isTranqOwner()) {
+        if (isTranqOwner() && T.ownerAuto) {
             var lock = nearestEnemy(p);
             p.lockTarget = lock;
             if (lock) {
@@ -1094,7 +1095,8 @@
             else if (p.eliminated) status.textContent = 'ELIMINATED';
             else if (p.down) status.textContent = 'PASSED OUT · REVIVING';
             else if (T.final) status.textContent = 'FINAL DUEL · NO REVIVES';
-            else if (isTranqOwner()) status.textContent = 'AUTO LOCK · 500 RPM';
+            else if (isTranqOwner() && T.ownerAuto) status.textContent = 'AUTO LOCK · 500 RPM · K OFF';
+            else if (isTranqOwner()) status.textContent = 'PRESS K · AUTO AIMBOT';
             else if (p.sleep > 70) status.textContent = 'DROWSY · SHAKE IT OFF';
             else status.textContent = 'STAY AWAKE';
         }
@@ -1125,6 +1127,11 @@
         if ([' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].indexOf(k) >= 0) e.preventDefault();
         keys[k] = true;
         if (k === 'r') restart();
+        if (k === 'k' && isTranqOwner()) {
+            T.ownerAuto = !T.ownerAuto;
+            toast(T.ownerAuto ? 'AUTO LOCK + 500 RPM ON' : 'AUTO LOCK OFF');
+            updateHud(true);
+        }
     }
     function keyUp(e) {
         if (!isGame()) return;

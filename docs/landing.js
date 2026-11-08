@@ -58,6 +58,7 @@
             airGrace: 0,
             groundTimer: 0,
             lastResult: null,
+            lastTouchFpm: 0,
             finished: false,
             crashed: false,
             touchX: 0,
@@ -305,6 +306,7 @@
         if (sim.x < 0) spawnDust(sim.x, 1.2);
         sim.shake = Math.min(1.1, 0.4 + Math.max(0, -sim.touchVy) * 0.08);
         var fpm = Math.round(-sim.touchVy * 196.85);
+        sim.lastTouchFpm = fpm;
         toast('TOUCHDOWN · ' + fpm + ' fpm');
         var st = document.getElementById('lsimState');
         if (st) st.textContent = 'TOUCHDOWN';
@@ -328,6 +330,15 @@
         var pitchInput = (sim.keys.up ? 1 : 0) - (sim.keys.down ? 1 : 0);
         var targetPitch = restPitch;
         if (pitchInput && sim.vx > 8) targetPitch = restPitch + pitchInput * 0.2;
+        var thrInput = (sim.keys.fast ? 1 : 0) - (sim.keys.slow ? 1 : 0);
+        if (thrInput) sim.throttleTarget = clamp(sim.throttleTarget + thrInput * 0.55 * dt, 0, 1);
+        sim.throttle = smooth(sim.throttle, sim.throttleTarget, 2.2, dt);
+
+        // Gentle auto-rotation once the aircraft is at takeoff speed and the
+        // throttles are open, so a takeoff only needs power.
+        if (!pitchInput && sim.takeoffArmed && sim.throttle > 0.7 && sim.vx > 55) {
+            targetPitch = restPitch + 0.09;
+        }
         sim.pitchVel += ((targetPitch - sim.pitch) * 18 - sim.pitchVel * 7) * dt;
         sim.pitch += sim.pitchVel * dt;
         sim.pitch = clamp(sim.pitch, -0.12, 0.2);
@@ -434,9 +445,10 @@
         if (typeof awardRunCoins === 'function') awardRunCoins(sim.coins);
         var sc = document.getElementById('lsimScore');
         if (sc) sc.textContent = sim.score.toLocaleString();
+        var fpmText = sim.lastTouchFpm ? (sim.lastTouchFpm + ' fpm') : '';
         var st = document.getElementById('lsimState');
-        if (st) st.textContent = 'LANDED · ' + result.rating.toUpperCase();
-        toast(result.rating + ' · +' + result.total.toLocaleString() + ' pts · +' + sim.coins + ' Coins · throttle to take off');
+        if (st) st.textContent = 'LANDED · ' + result.rating.toUpperCase() + (fpmText ? ' · ' + fpmText : '');
+        toast(result.rating + ' · ' + (fpmText ? fpmText + ' · ' : '') + '+' + result.total.toLocaleString() + ' pts · +' + sim.coins + ' Coins · throttle to take off');
         beep(660, 0.12, 'triangle', 0.05);
         setTimeout(function () { beep(880, 0.18, 'triangle', 0.05); }, 130);
     }
@@ -525,6 +537,7 @@
         setText('lsimFlapVal', Math.round(sim.flaps) + '°');
         setText('lsimGearVal', sim.gearTarget ? 'DOWN' : 'UP');
         setText('lsimBrakeVal', sim.keys.brake ? 'ON' : 'OFF');
+        setText('lsimTouchFpm', sim.lastTouchFpm ? (sim.lastTouchFpm + ' fpm') : '—');
         setText('lsimScore', (sim.score || 0).toLocaleString());
         setText('lsimMainSusp', Math.round(clamp(sim.compMain / GEAR_MAIN.max, 0, 1) * 100) + '%');
         setText('lsimNoseSusp', Math.round(clamp(sim.compNose / GEAR_NOSE.max, 0, 1) * 100) + '%');
@@ -1362,6 +1375,7 @@
                         '<div class="lsim-sys-row"><span>FLAPS</span><b id="lsimFlapVal">30°</b></div>' +
                         '<div class="lsim-sys-row"><span>GEAR</span><b id="lsimGearVal">DOWN</b></div>' +
                         '<div class="lsim-sys-row"><span>BRAKES</span><b id="lsimBrakeVal">OFF</b></div>' +
+                        '<div class="lsim-sys-row"><span>TOUCHDOWN</span><b id="lsimTouchFpm">—</b></div>' +
                         '<div class="lsim-sys-row lsim-susp-row"><span>MAIN GEAR</span><div class="lsim-bar is-susp"><i id="lsimMainBar"></i></div><b id="lsimMainSusp">0%</b></div>' +
                         '<div class="lsim-sys-row lsim-susp-row"><span>NOSE GEAR</span><div class="lsim-bar is-susp"><i id="lsimNoseBar"></i></div><b id="lsimNoseSusp">0%</b></div>' +
                         '<div class="lsim-parts-head">SUSPENSION PARTS</div>' +

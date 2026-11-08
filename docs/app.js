@@ -8452,8 +8452,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.94";
-const UPDATE_NOTES = "Tranq Arena is live with a solo arena and public multiplayer lobby, plus a TotallyMason-only auto-lock and 500 RPM assist";
+const APP_VERSION = "LessFun Public Beta 1.32.95";
+const UPDATE_NOTES = "Boeing Landing touchdown FPM is now shown, takeoff is fixed, background site rendering pauses during games, and TotallyMason can toggle auto-lock with K";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

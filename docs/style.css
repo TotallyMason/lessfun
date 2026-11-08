@@ -11564,3 +11564,11 @@ body {
     .tq-brand { display: none; }
     .tq-top { left: 8px; right: 92px; }
 }
+
+/* Stop the site behind the game from rendering during play */
+body.in-game .view,
+body.in-game .top-nav,
+body.in-game .radio-dock {
+    display: none !important;
+}
+body.in-game::before { animation: none !important; }
