@@ -1404,6 +1404,7 @@
             var body = makeBodyMesh(spec, bodyMat); g.add(body);
 
             var cabin = makeCabin(spec, glassMat, bodyMat); g.add(cabin);
+            if (spec.f1) cabin.visible = false;
 
             // Rocker panels and bumpers.
             var trimMat = standard(0x1f242b, { metalness: 0.4, roughness: 0.55 });
@@ -1450,6 +1451,14 @@
             }
             if (spec.f1) {
                 var aeroMat = standard(0x15191f, { metalness: 0.65, roughness: 0.3 });
+                var haloRing = new THREE.Mesh(new THREE.TorusGeometry(spec.width * 0.78, 0.04, 8, 36), new THREE.MeshBasicMaterial({ color: 0x5fe0ff, transparent: true, opacity: 0.72, blending: THREE.AdditiveBlending, depthWrite: false }));
+                haloRing.rotation.x = Math.PI / 2;
+                haloRing.position.y = 0.66;
+                g.add(haloRing);
+                var haloRing2 = new THREE.Mesh(new THREE.TorusGeometry(spec.width * 0.62, 0.025, 6, 30), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false }));
+                haloRing2.rotation.x = Math.PI / 2;
+                haloRing2.position.y = 0.7;
+                g.add(haloRing2);
                 var frontWing = boxMesh(spec.width + 1.05, 0.06, 0.55, bodyMat);
                 frontWing.position.set(0, 0.24, -spec.len / 2 - 0.12);
                 g.add(frontWing);
@@ -4313,15 +4322,14 @@
 
             // Drift is detected automatically from speed, steering, and braking.
             var steeringIntent = (input.left ? -1 : 0) + (input.right ? 1 : 0);
-            var autoDrift = !fsdActive && Math.abs(speed) > 34 && playerY < 0.25 && (
-                Math.abs(steerX) > maxX * 0.68 ||
-                (steeringIntent !== 0 && Math.abs(speed) > 70) ||
-                (input.brake && Math.abs(steerX) > maxX * 0.42)
+            var autoDrift = !fsdActive && Math.abs(speed) > 42 && playerY < 0.25 && (
+                Math.abs(steerX) > maxX * 0.8 ||
+                (input.brake && Math.abs(steerX) > maxX * 0.46)
             );
             var driftIntent = !fsdActive && (autoDrift || (!!input.drift && Math.abs(speed) > 18 &&
                 (input.left || input.right || Math.abs(steerX) > 2.2) && playerY < 0.3));
             if (driftIntent) {
-                speed -= Math.sign(speed) * Math.min(Math.abs(speed), 9 * dt);
+                speed -= Math.sign(speed) * Math.min(Math.abs(speed), 5 * dt);
                 driftScore += dt * 110;
             }
 
@@ -4345,13 +4353,13 @@
                 steerX += (pointerTarget - steerX) * Math.min(1, dt * 4.2 * speedSteerFactor);
                 steerX = Math.max(-maxX, Math.min(maxX, steerX));
             } else {
-                var highSpeedStability = 1 - 0.52 * Math.min(1, Math.abs(speed) / 130);
-                steerX += steerInput * dt * 4.4 * perf.grip * speedSteerFactor * highSpeedStability * (driftIntent ? 1.35 : 1);
+                var highSpeedStability = 1 - 0.4 * Math.min(1, Math.abs(speed) / 140);
+                steerX += steerInput * dt * 5.5 * perf.grip * speedSteerFactor * highSpeedStability * (driftIntent ? 1.25 : 1);
                 steerX = Math.max(-maxX, Math.min(maxX, steerX));
             }
 
             var beforeX = player.position.x;
-            player.position.x += (steerX - player.position.x) * Math.min(1, dt * (driftIntent ? 4.2 : 5.2));
+            player.position.x += (steerX - player.position.x) * Math.min(1, dt * (driftIntent ? 4.8 : 6.4));
             player.position.x = Math.max(-maxX, Math.min(maxX, player.position.x));
             var vx = (player.position.x - beforeX) / (dt || 0.016);
             currentVx = vx;
@@ -4359,8 +4367,8 @@
             if (driftAudioTarget > 0.2 && audioDriftLevel < 0.12) tone(480, 0.12, 'sawtooth', 0.032, 220);
             audioDriftLevel += (driftAudioTarget - audioDriftLevel) * Math.min(1, dt * 9);
 
-            var yawLimit = driftIntent ? 0.55 : 0.26;
-            var rollLimit = driftIntent ? 0.24 : 0.12;
+            var yawLimit = driftIntent ? 0.45 : 0.26;
+            var rollLimit = driftIntent ? 0.2 : 0.12;
             var yawTarget = vx * 0.045 * (driftIntent ? 2.0 : 1) * (0.35 + speedSteerFactor * 0.65) + steerAngle * 0.45;
             player.rotation.y = Math.max(-yawLimit, Math.min(yawLimit, -yawTarget)) - roadTangentAt(player.position.z);
             var steerPivots = player.userData.suspensionPivots || [];
@@ -7740,6 +7748,7 @@
 
         var onFoot = false;
         var footX = 0, footZ = 0, footYaw = 0, footShotCd = 0;
+        var footAmmo = 12, footReserve = 48, footMeleeCd = 0;
         var footZombies = [];
         var footLoot = [];
 
@@ -7756,13 +7765,22 @@
             var zEl = document.getElementById('dcZombies'); if (zEl) zEl.textContent = 'ZOMBIES ' + zombiesHit;
         }
 
+        var DC_PRICES = { fuel: 30, food: 20, water: 20, part: 150 };
         function dcFootLootPickup(type) {
-            if (type === 'fuel') { fuel = Math.min(100, fuel + 58); toast('FUEL +58'); }
-            else if (type === 'food') { food = Math.min(100, food + 44); toast('FOOD +44'); }
-            else if (type === 'water') { water = Math.min(100, water + 44); toast('WATER +44'); }
-            else if (type === 'part') { applyPart(); if (activeStation) activeStation.partLooted = true; }
+            var price = DC_PRICES[type] || 0;
+            var spend = (typeof window.LessFunSpendCoins === 'function') ? window.LessFunSpendCoins(price) : true;
+            if (!spend) {
+                toast(type.toUpperCase() + ' · NEED ' + price + ' COINS');
+                tone(120, 0.12, 'square', 0.05, 80);
+                return false;
+            }
+            if (type === 'fuel') { fuel = Math.min(100, fuel + 58); toast('FUEL +58 · -' + price); }
+            else if (type === 'food') { food = Math.min(100, food + 44); toast('FOOD +44 · -' + price); }
+            else if (type === 'water') { water = Math.min(100, water + 44); toast('WATER +44 · -' + price); }
+            else if (type === 'part') { applyPart(); if (activeStation) activeStation.partLooted = true; toast('CAR PART · -' + price); }
             tone(660, 0.1, 'square', 0.045, 990);
             dcFootHud();
+            return true;
         }
 
         function dcStartOnFoot(st) {
@@ -7824,6 +7842,41 @@
 
         function updateOnFoot(dt) {
             footShotCd = Math.max(0, footShotCd - dt);
+            footMeleeCd = Math.max(0, footMeleeCd - dt);
+            if (input.reload) {
+                input.reload = false;
+                if (footAmmo < 12 && footReserve > 0) {
+                    var need = 12 - footAmmo;
+                    var take = Math.min(need, footReserve);
+                    footAmmo += take;
+                    footReserve -= take;
+                    toast('RELOADED · ' + footAmmo + ' / ' + footReserve);
+                    tone(520, 0.1, 'square', 0.045, 760);
+                }
+            }
+            if (input.melee) {
+                input.melee = false;
+                if (footMeleeCd <= 0) {
+                    footMeleeCd = 0.42;
+                    var punched = false;
+                    for (var mz = 0; mz < footZombies.length; mz++) {
+                        var mzz = footZombies[mz];
+                        if (!mzz.alive) continue;
+                        var mdx = mzz.x - footX, mdz = mzz.z - footZ;
+                        if (mdx * mdx + mdz * mdz < 5.2) {
+                            mzz.alive = false;
+                            mzz.mesh.visible = false;
+                            zombiesHit++;
+                            spawnBlood(mzz.x, mzz.z);
+                            toast('PUNCH · ZOMBIE DOWN');
+                            tone(180, 0.12, 'sawtooth', 0.08, 70);
+                            punched = true;
+                            break;
+                        }
+                    }
+                    if (!punched) tone(90, 0.06, 'square', 0.03, 60);
+                }
+            }
             var turn = (input.left ? 1 : 0) - (input.right ? 1 : 0);
             if (input.pointerActive) footYaw = -input.pointerX * 1.45;
             else footYaw += turn * 2.2 * dt;
@@ -7846,7 +7899,7 @@
                     fzb.x += (zdx / zdist) * fzb.speed * dt;
                     fzb.z += (zdz / zdist) * fzb.speed * dt;
                 } else {
-                    health = Math.max(0, health - 7 * dt);
+                    health = Math.max(0, health - 10 * dt);
                 }
                 fzb.mesh.position.set(fzb.x, 0, fzb.z);
                 fzb.mesh.rotation.y = Math.atan2(footX - fzb.x, footZ - fzb.z);
@@ -7865,6 +7918,12 @@
                 input.tapQueued = false;
                 if (footShotCd <= 0) {
                     footShotCd = 0.24;
+                    if (footAmmo <= 0) {
+                        toast('EMPTY · PRESS R TO RELOAD');
+                        tone(90, 0.08, 'square', 0.035, 60);
+                    }
+                    if (footAmmo > 0) {
+                    footAmmo--;
                     var best = null, bestDist = 1e9;
                     for (var si3 = 0; si3 < footZombies.length; si3++) {
                         var tz = footZombies[si3];
@@ -7886,6 +7945,7 @@
                     } else {
                         tone(110, 0.06, 'square', 0.035, 70);
                     }
+                    }
                 }
             }
 
@@ -7896,10 +7956,11 @@
                 lootItem.mesh.position.y = 0.78 + Math.sin(elapsed * 3 + li3) * 0.08;
                 var ldx = footX - lootItem.x, ldz = footZ - lootItem.z;
                 if (ldx * ldx + ldz * ldz < 2.6) {
-                    lootItem.taken = true;
-                    lootItem.mesh.visible = false;
-                    scene.remove(lootItem.mesh);
-                    dcFootLootPickup(lootItem.type);
+                    if (dcFootLootPickup(lootItem.type)) {
+                        lootItem.taken = true;
+                        lootItem.mesh.visible = false;
+                        scene.remove(lootItem.mesh);
+                    }
                 }
             }
 
@@ -8310,6 +8371,215 @@
         };
     }
 
+    /* ---------------- Snow Rush (Christmas) ---------------- */
+    function createSnowRush(ctx) {
+        var scene = ctx.scene, camera = ctx.camera;
+        scene.background = new THREE.Color(0x0a1630);
+        scene.fog = new THREE.FogExp2(0x0d1d3a, 0.014);
+        camera.position.set(0, 3.2, 8);
+        camera.lookAt(0, 1, -12);
+
+        scene.add(new THREE.AmbientLight(0x9fc8ff, 1.1));
+        var moonLight = new THREE.DirectionalLight(0xcfe6ff, 1.4);
+        moonLight.position.set(-8, 16, 8);
+        scene.add(moonLight);
+        var redGlow = new THREE.PointLight(0xff3b5c, 2.2, 50);
+        redGlow.position.set(1, 3, 2);
+        scene.add(redGlow);
+
+        function neon(color, intensity) {
+            return new THREE.MeshStandardMaterial({ color: color, emissive: color, emissiveIntensity: intensity == null ? 1 : intensity, roughness: 0.4, metalness: 0.35 });
+        }
+        function box(w, h, d, mat) { return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); }
+
+        // Moon and stars.
+        var moon = new THREE.Mesh(new THREE.SphereGeometry(9, 20, 16), new THREE.MeshBasicMaterial({ color: 0xe8f2ff }));
+        moon.position.set(-30, 28, -160);
+        scene.add(moon);
+        var starPts = [];
+        for (var si = 0; si < 500; si++) starPts.push((Math.random() - 0.5) * 220, Math.random() * 90, -60 - Math.random() * 240);
+        var starGeo = new THREE.BufferGeometry();
+        starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPts, 3));
+        scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xbfe0ff, size: 0.55, transparent: true, opacity: 0.85 })));
+
+        // Falling snow.
+        var snowPos = [];
+        var SNOW_COUNT = isMobileDevice ? 420 : 800;
+        for (var sni = 0; sni < SNOW_COUNT; sni++) snowPos.push((Math.random() - 0.5) * 70, Math.random() * 40 - 6, -Math.random() * 130 + 8);
+        var snowGeo = new THREE.BufferGeometry();
+        snowGeo.setAttribute('position', new THREE.Float32BufferAttribute(snowPos, 3));
+        var snow = new THREE.Points(snowGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.22, transparent: true, opacity: 0.85, depthWrite: false }));
+        scene.add(snow);
+
+        // Snow banks.
+        var bankMat = new THREE.MeshStandardMaterial({ color: 0xdfeaff, roughness: 0.94, metalness: 0.02 });
+        [-1, 1].forEach(function (side) {
+            var bank = box(18, 6, 320, bankMat);
+            bank.position.set(side * 24, -3, -140);
+            scene.add(bank);
+        });
+
+        // Christmas trees along the banks.
+        var trees = [];
+        function makeTree() {
+            var g = new THREE.Group();
+            var trunk = box(0.4, 2, 0.4, new THREE.MeshStandardMaterial({ color: 0x4a2f1e }));
+            trunk.position.y = 1; g.add(trunk);
+            for (var t = 0; t < 3; t++) {
+                var cone = new THREE.Mesh(new THREE.ConeGeometry(2.4 - t * 0.55, 3.2 - t * 0.5, 7), new THREE.MeshStandardMaterial({ color: 0x1f6b3c, roughness: 0.9 }));
+                cone.position.y = 2.4 + t * 1.6; g.add(cone);
+            }
+            var star = new THREE.Mesh(new THREE.OctahedronGeometry(0.3, 0), neon(0xffd166, 1.6));
+            star.position.y = 7.2; g.add(star);
+            return g;
+        }
+        for (var ti = 0; ti < 14; ti++) {
+            var tree = makeTree();
+            var tx = (ti % 2 === 0 ? -1 : 1) * (14 + Math.random() * 6);
+            tree.position.set(tx, 0, -20 - ti * 18);
+            scene.add(tree);
+            trees.push({ mesh: tree, x: tx, dist: 20 + ti * 18 });
+        }
+
+        // Sleigh.
+        var sleigh = new THREE.Group();
+        var sleighMat = new THREE.MeshStandardMaterial({ color: 0xc0392b, metalness: 0.45, roughness: 0.3, emissive: 0x3a0505, emissiveIntensity: 0.2 });
+        var body = box(2.2, 0.8, 3.4, sleighMat); body.position.y = 0.8; sleigh.add(body);
+        var seat = box(1.9, 0.35, 1.1, new THREE.MeshStandardMaterial({ color: 0x5a1f1f })); seat.position.set(0, 1.3, 0.3); sleigh.add(seat);
+        var sack = new THREE.Mesh(new THREE.SphereGeometry(0.85, 12, 10), new THREE.MeshStandardMaterial({ color: 0x8b1e2d, roughness: 0.8 }));
+        sack.scale.set(1, 1.1, 0.9); sack.position.set(0, 1.5, 1.0); sleigh.add(sack);
+        var runnerMat = new THREE.MeshStandardMaterial({ color: 0xd9e2ec, metalness: 0.8, roughness: 0.25 });
+        [-1, 1].forEach(function (side) {
+            var runner = box(0.12, 0.12, 3.8, runnerMat);
+            runner.position.set(side * 1.05, 0.25, 0);
+            sleigh.add(runner);
+            var rail = box(0.1, 0.5, 0.1, runnerMat);
+            rail.position.set(side * 1.05, 0.5, -1.5);
+            sleigh.add(rail);
+        });
+        var glow = new THREE.PointLight(0xffd166, 2, 22);
+        glow.position.set(0, 1.5, 0);
+        sleigh.add(glow);
+        scene.add(sleigh);
+
+        var obstacles = [], gifts = [], sparks = [];
+        var iceMat = new THREE.MeshStandardMaterial({ color: 0x8fdcff, emissive: 0x2a6b8a, emissiveIntensity: 0.8, metalness: 0.45, roughness: 0.25, transparent: true, opacity: 0.9 });
+        var giftMats = [0xc0392b, 0x2e86c1, 0x27ae60, 0xf1c40f];
+
+        function spawnIce() {
+            var m = new THREE.Mesh(new THREE.OctahedronGeometry(0.7 + Math.random() * 1.1, 0), iceMat);
+            m.position.set((Math.random() - 0.5) * 16, (Math.random() - 0.5) * 7 + 2.5, -110 - Math.random() * 40);
+            m.userData.r = 1.1;
+            m.userData.spin = (Math.random() - 0.5) * 2;
+            scene.add(m); obstacles.push(m);
+        }
+        function spawnGift() {
+            var g = new THREE.Group();
+            var col = giftMats[Math.floor(Math.random() * giftMats.length)];
+            var b = box(0.8, 0.8, 0.8, new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.25, metalness: 0.3 }));
+            g.add(b);
+            var ribbon = box(0.18, 0.84, 0.84, neon(0xffd166, 0.9)); g.add(ribbon);
+            var ribbon2 = box(0.84, 0.84, 0.18, neon(0xffd166, 0.9)); g.add(ribbon2);
+            g.position.set((Math.random() - 0.5) * 15, (Math.random() - 0.5) * 7 + 2.5, -95 - Math.random() * 60);
+            scene.add(g); gifts.push(g);
+        }
+        function blastAt(x, y, z, color) {
+            var m = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 8), new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
+            m.position.set(x, y, z); scene.add(m);
+            sparks.push({ mesh: m, life: 0.35, max: 0.35 });
+        }
+        function removeFrom(list, i) { scene.remove(list[i]); list.splice(i, 1); }
+
+        for (var a = 0; a < 5; a++) spawnIce();
+        for (var b2 = 0; b2 < 4; b2++) spawnGift();
+
+        var elapsed = 0, speed = 24, iceT = 0, giftT = 0, score = 0, combo = 1, comboT = 0;
+
+        function update(dt) {
+            elapsed += dt;
+            speed = Math.min(70, 24 + elapsed * 1.0);
+            score += dt * 12 * combo;
+            if (comboT > 0) { comboT -= dt; if (comboT <= 0) combo = 1; }
+
+            var tx = sleigh.position.x, ty = sleigh.position.y;
+            if (input.left) tx -= dt * 30;
+            if (input.right) tx += dt * 30;
+            if (input.up) ty += dt * 26;
+            if (input.down) ty -= dt * 26;
+            if (input.pointerActive) { tx = input.pointerX * 9; ty = -input.pointerY * 5 + 2.5; }
+            if (tx < -9) tx = -9; if (tx > 9) tx = 9;
+            if (ty < -1) ty = -1; if (ty > 8) ty = 8;
+            sleigh.position.x += (tx - sleigh.position.x) * Math.min(1, dt * 14);
+            sleigh.position.y += (ty - sleigh.position.y) * Math.min(1, dt * 14);
+            sleigh.rotation.z = (tx - sleigh.position.x) * -0.25;
+            sleigh.rotation.x = (ty - sleigh.position.y) * 0.12;
+
+            // Snowfall.
+            var sp = snowGeo.attributes.position.array;
+            for (var s2 = 0; s2 < SNOW_COUNT; s2++) {
+                sp[s2 * 3 + 1] -= (4 + (s2 % 5)) * dt;
+                sp[s2 * 3 + 2] += speed * 0.55 * dt;
+                if (sp[s2 * 3 + 1] < -6) sp[s2 * 3 + 1] = 34;
+                if (sp[s2 * 3 + 2] > 10) { sp[s2 * 3 + 2] = -130; sp[s2 * 3] = (Math.random() - 0.5) * 70; }
+            }
+            snowGeo.attributes.position.needsUpdate = true;
+
+            // Trees recycle.
+            for (var tr = 0; tr < trees.length; tr++) {
+                var tree = trees[tr];
+                tree.mesh.position.z += speed * dt;
+                if (tree.mesh.position.z > 16) {
+                    tree.mesh.position.z = -190 - Math.random() * 30;
+                    tree.mesh.position.x = (Math.random() < 0.5 ? -1 : 1) * (14 + Math.random() * 6);
+                }
+            }
+
+            iceT += dt;
+            if (iceT > Math.max(0.5, 1.2 - elapsed * 0.01)) { iceT = 0; spawnIce(); }
+            giftT += dt;
+            if (giftT > 1.4) { giftT = 0; spawnGift(); }
+
+            for (var o = obstacles.length - 1; o >= 0; o--) {
+                var ob = obstacles[o];
+                ob.position.z += speed * dt;
+                ob.rotation.x += ob.userData.spin * dt;
+                ob.rotation.y += ob.userData.spin * dt * 0.7;
+                if (ob.position.z > 12) { removeFrom(obstacles, o); continue; }
+                if (ob.position.distanceTo(sleigh.position) < ob.userData.r + 1.0) {
+                    blastAt(ob.position.x, ob.position.y, ob.position.z, 0x8fdcff);
+                    endGame(Math.round(score));
+                    return;
+                }
+            }
+            for (var g2 = gifts.length - 1; g2 >= 0; g2--) {
+                var gift = gifts[g2];
+                gift.position.z += speed * dt;
+                gift.rotation.y += dt * 2.4;
+                if (gift.position.z > 12) { removeFrom(gifts, g2); continue; }
+                if (gift.position.distanceTo(sleigh.position) < 2.2) {
+                    score += 100 * combo; combo = Math.min(5, combo + 0.4); comboT = 3.5;
+                    blastAt(gift.position.x, gift.position.y, gift.position.z, 0xffd166);
+                    removeFrom(gifts, g2);
+                }
+            }
+            for (var s3 = sparks.length - 1; s3 >= 0; s3--) {
+                var sp2 = sparks[s3];
+                sp2.life -= dt;
+                var p = 1 - sp2.life / sp2.max;
+                sp2.mesh.scale.setScalar(1 + p * 5);
+                sp2.mesh.material.opacity = Math.max(0, 0.9 * (1 - p));
+                if (sp2.life <= 0) removeFrom(sparks, s3);
+            }
+
+            camera.position.x += (sleigh.position.x * 0.55 - camera.position.x) * Math.min(1, dt * 4);
+            camera.position.y += (sleigh.position.y * 0.4 + 3.4 - camera.position.y) * Math.min(1, dt * 4);
+            camera.lookAt(sleigh.position.x * 0.45, sleigh.position.y * 0.5 + 1.2, -14);
+            setHud(Math.round(score), 'SNOW RUSH · ' + Math.round(score) + ' PTS · x' + combo.toFixed(1));
+        }
+
+        return { over: false, update: update, getScore: function () { return score; } };
+    }
+
     function factoryFor(gameId, opts) {
         if (gameId === 1 && opts && opts.cityMode) return createCity;
         return factories[gameId];
@@ -8320,7 +8590,8 @@
         2: createTunnel,
         3: createStack,
         4: createDeadCoast,
-        5: createSky
+        5: createSky,
+        7: createSnowRush
     };
 
     function resetScene() {

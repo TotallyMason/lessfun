@@ -10346,3 +10346,45 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 
 .logo { cursor: pointer; }
 .logo:focus-visible { outline: 2px solid #5fe0ff; outline-offset: 4px; border-radius: 8px; }
+
+.dc-ammo {
+    color: rgba(255, 235, 205, 0.62);
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Radio corner placement */
+.radio-move {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 6px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.04);
+    align-self: flex-start;
+}
+.radio-move span { color: rgba(220,245,255,0.4); font-size: 7px; font-weight: 800; letter-spacing: 0.12em; margin-right: 2px; }
+.radio-move button {
+    width: 22px; height: 20px;
+    border-radius: 6px;
+    border: 1px solid rgba(95,224,255,0.2);
+    background: rgba(95,224,255,0.06);
+    color: #bdefff;
+    font-size: 10px;
+    cursor: pointer;
+}
+.radio-dock.radio-tl { left: 16px; right: auto; top: 76px; bottom: auto; transform: none; align-items: flex-start; }
+.radio-dock.radio-tr { left: auto; right: 16px; top: 76px; bottom: auto; transform: none; align-items: flex-end; }
+.radio-dock.radio-bl { left: 16px; right: auto; bottom: 16px; transform: none; align-items: flex-start; }
+.radio-dock.radio-br { left: auto; right: 16px; bottom: 16px; transform: none; align-items: flex-end; }
+.radio-dock.radio-tl .radio-panel,
+.radio-dock.radio-tr .radio-panel { max-height: 70vh; }
+@media (max-width: 640px) {
+    .radio-dock.radio-tl, .radio-dock.radio-tr { top: 64px; }
+    .radio-dock.radio-tl, .radio-dock.radio-bl { left: 8px; }
+    .radio-dock.radio-tr, .radio-dock.radio-br { right: 8px; }
+}

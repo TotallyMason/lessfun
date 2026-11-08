@@ -10,7 +10,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261236">
+    <link rel="stylesheet" href="style.css?v=20261237">
 </head>
 <body>
     <div id="updateShutdown" class="update-shutdown" style="display:none;">
@@ -916,7 +916,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Public Beta 1.32.52</p>
+                            <p>LessFun Public Beta 1.32.53</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -971,6 +971,7 @@
                             <li><strong>1.32.50</strong> — Faster radio buffering, WhatsApp list/chat view with back button, and Close Messages button removed.</li>
                             <li><strong>1.32.51</strong> — Help tab and tutorial removed. Logo now returns home, navigation scrolls to the top on every view change, and the top bar is cleaner.</li>
                             <li><strong>1.32.52</strong> — Class 95 removed from radio. Car customization removed: Garage now only buys and equips cars, the Showroom button is gone, and owned cars are kept.</li>
+                            <li><strong>1.32.53</strong> — Dead Coast on-foot ammo, reload, punches and paid station supplies; radio can move to any corner; shorter drifts and quicker dodging; F1 open cockpit with halo rings; new Christmas game Snow Rush.</li>
                         </ul>
                     </div>
                     <div class="info-card">
@@ -1226,6 +1227,14 @@
             <span>RADIO</span>
         </button>
         <div class="radio-panel" id="radioPanel" style="display:none;">
+            <div class="radio-move">
+                <span>MOVE</span>
+                <button type="button" onclick="radioSetCorner('tl')" title="Top left">↖</button>
+                <button type="button" onclick="radioSetCorner('tr')" title="Top right">↗</button>
+                <button type="button" onclick="radioSetCorner('bl')" title="Bottom left">↙</button>
+                <button type="button" onclick="radioSetCorner('br')" title="Bottom right">↘</button>
+                <button type="button" onclick="radioSetCorner('center')" title="Bottom center">•</button>
+            </div>
             <div class="radio-head">
                 <div>
                     <div class="radio-kicker-row">
@@ -1266,7 +1275,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
-    <script src="games3d.js?v=20261236"></script>
-    <script src="app.js?v=20261236"></script>
+    <script src="games3d.js?v=20261237"></script>
+    <script src="app.js?v=20261237"></script>
 </body>
 </html>

@@ -9,7 +9,8 @@ const games = [
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
     { id: 4, name: "Dead Coast", description: "Drive 10 km through the dead coast, scavenging food, water, fuel, and car parts", icon: "skull", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · A D / ← → steer · C camera · drag to steer on mobile · survive 10 km" },
     { id: 5, name: "Star Dodger", description: "Weave through an asteroid storm", icon: "rocket", controls: "WASD / arrow keys to fly · drag to steer · Space / click fires when armed" },
-    { id: 6, name: "Funtutu Test", description: "Benchmark your GPU and CPU, then get recommended graphics settings", icon: "bolt", controls: "Press Run Test · apply the recommended settings when it finishes" }
+    { id: 6, name: "Funtutu Test", description: "Benchmark your GPU and CPU, then get recommended graphics settings", icon: "bolt", controls: "Press Run Test · apply the recommended settings when it finishes" },
+    { id: 7, name: "Snow Rush", description: "Christmas sleigh run — collect gifts and dodge the ice", icon: "snow", controls: "WASD / arrows to fly · drag to steer · collect gifts · dodge ice" }
 ];
 
 let currentUser = null;
@@ -429,7 +430,8 @@ function getIcon(name) {
         "blocks": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><rect x="4" y="15" width="16" height="5" rx="1"/><rect x="6" y="9" width="13" height="5" rx="1"/><rect x="8" y="3" width="9" height="5" rx="1"/></svg>',
         "helix": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><path d="M7 3c0 3 10 3 10 6S7 12 7 15s10 3 10 6"/><circle cx="17" cy="9" r="1.6" fill="white" stroke="none"/></svg>',
         "rocket": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><path d="M12 3c3 2 5 5.5 5 9l-2.5 3h-5L7 12c0-3.5 2-7 5-9Z"/><circle cx="12" cy="9" r="1.6"/><path d="M9 15l-2 4 3-1M15 15l2 4-3-1"/></svg>',
-        "skull": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><path d="M6 13a6 6 0 0 1 12 0v3a2 2 0 0 1-2 2h-1v2h-2v-2h-2v2H9v-2H8a2 2 0 0 1-2-2v-3Z"/><circle cx="9.5" cy="12" r="1.2" fill="white"/><circle cx="14.5" cy="12" r="1.2" fill="white"/><path d="M11 16h2"/></svg>'
+        "skull": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><path d="M6 13a6 6 0 0 1 12 0v3a2 2 0 0 1-2 2h-1v2h-2v-2h-2v2H9v-2H8a2 2 0 0 1-2-2v-3Z"/><circle cx="9.5" cy="12" r="1.2" fill="white"/><circle cx="14.5" cy="12" r="1.2" fill="white"/><path d="M11 16h2"/></svg>',
+        "snow": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"><path d="M12 2v20M3.3 7l17.4 10M3.3 17L20.7 7M12 5l-2 2M12 5l2 2M12 19l-2-2M12 19l2-2M5.6 9.4l2.7-.7M5.6 9.4l.7 2.7M18.4 14.6l-2.7.7M18.4 14.6l-.7-2.7M5.6 14.6l2.7.7M5.6 14.6l.7-2.7M18.4 9.4l-2.7-.7M18.4 9.4l-.7 2.7"/></svg>'
     };
     return icons[name] || '';
 }
@@ -949,6 +951,7 @@ function openGame(id) {
                     '<div class="dc-health"><span>CAR</span><div class="dc-health-track"><i id="dcHealth"></i></div></div>' +
                     '<div class="dc-part" id="dcPart">Stock Parts</div>' +
                     '<div class="dc-zombies" id="dcZombies">ZOMBIES 0</div>' +
+                    '<div class="dc-ammo" id="dcAmmo">AMMO 12 / 48 · R reload · V punch</div>' +
                     '<div class="dc-toast" id="dcToast"></div>' +
                 '</div>' : '') +
             (game.id === 4 ?
@@ -6456,6 +6459,20 @@ function applyGlobalCosmetics() {
     root.style.setProperty('--frame-color', frameOn ? (frame.color || '#ffd166') : 'transparent');
 }
 
+window.LessFunGetCoins = function () {
+    return wallet ? (Number(wallet.shells) || 0) : 0;
+};
+
+window.LessFunSpendCoins = function (amount) {
+    var cost = Math.max(0, Math.floor(Number(amount) || 0));
+    if (!wallet || !cost) return true;
+    if ((Number(wallet.shells) || 0) < cost) return false;
+    wallet.shells -= cost;
+    saveWallet();
+    renderWalletUI();
+    return true;
+};
+
 function renderWalletUI() {
     var shells = wallet ? wallet.shells : SHELLS_START;
     ['navCoins', 'storeCoins', 'garageCoins', 'profileCoinsValue'].forEach(function (id) {
@@ -7887,8 +7904,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.52";
-const UPDATE_NOTES = "Car customisation is removed: the Garage now only buys and equips cars, the Showroom button is gone, and every owned car is kept. Class 95 was removed from the radio";
+const APP_VERSION = "LessFun Public Beta 1.32.53";
+const UPDATE_NOTES = "Dead Coast on-foot combat now has ammo, R reload, V punches, and paid station supplies. Radio can be moved to any corner, drifts are shorter and dodging quicker, F1 cars have an open cockpit with halo rings, and Snow Rush is a new Christmas sleigh game";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -10281,6 +10298,10 @@ function radioInit() {
     }
     var volume = document.getElementById('radioVolume');
     if (volume) volume.value = String(audio.volume);
+    try {
+        var savedCorner = localStorage.getItem('lessfun_radio_corner') || 'center';
+        radioApplyCorner(savedCorner);
+    } catch (e) {}
     radioRenderList();
     radioUpdateNow();
     var wasOff = false;
@@ -10331,6 +10352,21 @@ function radioInit() {
 }
 
 var radioPanelCloseTimer = 0;
+
+function radioApplyCorner(corner) {
+    var dock = document.getElementById('radioDock');
+    if (!dock) return;
+    dock.classList.remove('radio-tl', 'radio-tr', 'radio-bl', 'radio-br');
+    if (corner === 'tl') dock.classList.add('radio-tl');
+    else if (corner === 'tr') dock.classList.add('radio-tr');
+    else if (corner === 'bl') dock.classList.add('radio-bl');
+    else if (corner === 'br') dock.classList.add('radio-br');
+}
+
+function radioSetCorner(corner) {
+    radioApplyCorner(corner);
+    try { localStorage.setItem('lessfun_radio_corner', corner); } catch (e) {}
+}
 
 function radioTogglePanel(force) {
     var panel = document.getElementById('radioPanel');
