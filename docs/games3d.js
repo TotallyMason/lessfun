@@ -5001,8 +5001,18 @@
         scene.add(ship);
 
         var obstacles = [];
+        var tunnelOrbs = [];
         var SEG_N = 24, GAP_HALF = 0.9; // ~103 degree opening
         var obstacleMat = neon(0xff2fd0, 1.2);
+
+        function spawnTunnelOrb(kind) {
+            var color = kind === 'shield' ? 0x54ff9f : 0xffd166;
+            var mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(kind === 'shield' ? 0.38 : 0.28, 0), neon(color, 2.0));
+            var a = Math.random() * Math.PI * 2;
+            mesh.position.set(Math.cos(a) * orbitR, Math.sin(a) * orbitR, -78 - Math.random() * 30);
+            scene.add(mesh);
+            tunnelOrbs.push({ mesh: mesh, angle: a, kind: kind || 'orb' });
+        }
 
         function spawnObstacle() {
             var gapCenter = Math.random() * Math.PI * 2;
@@ -5025,13 +5035,15 @@
         // different gaps, so their blocks combined into a solid ring.
         spawnObstacle();
 
-        var angle = 0, elapsed = 0, speed = 20, spawnT = 0;
+        var angle = 0, elapsed = 0, speed = 20, spawnT = 0, orbT = 0, score = 0, combo = 1, shieldHits = 0, gatesPassed = 0;
 
         function update(dt) {
             elapsed += dt;
             speed = Math.min(20 + elapsed * 0.6, 52);
             spawnT += dt;
             if (spawnT > Math.max(1.4, 2.6 - elapsed * 0.02)) { spawnT = 0; spawnObstacle(); }
+            orbT += dt;
+            if (orbT > 1.35) { orbT = 0; spawnTunnelOrb(gatesPassed > 0 && gatesPassed % 8 === 0 ? 'shield' : 'orb'); }
 
             var steer = 0;
             if (input.left) steer -= 1;
@@ -5054,15 +5066,43 @@
                 if (!grp.userData.checked && grp.position.z > -3.8) {
                     grp.userData.checked = true;
                     var d = Math.atan2(Math.sin(angle - grp.userData.gapCenter), Math.cos(angle - grp.userData.gapCenter));
-                    // Generous safe window; only the solid blocks are fatal.
-                    if (Math.abs(d) > GAP_HALF - 0.08) { endGame(elapsed * 10); return; }
+                    if (Math.abs(d) > GAP_HALF - 0.08) {
+                        if (shieldHits > 0) {
+                            shieldHits--;
+                            scene.remove(grp); disposeObject(grp); obstacles.splice(o, 1);
+                            combo = 1;
+                            tone(480, 0.18, 'sine', 0.05, 200);
+                            continue;
+                        }
+                        endGame(Math.round(score + elapsed * 5));
+                        return;
+                    }
+                    // Clean gate pass.
+                    gatesPassed++;
+                    var nearMiss = Math.abs(Math.abs(d) - GAP_HALF) < 0.18;
+                    combo = Math.min(6, combo + (nearMiss ? 0.7 : 0.35));
+                    score += (nearMiss ? 180 : 100) * combo;
+                    if (nearMiss) tone(760, 0.06, 'square', 0.03, 980);
                 }
             }
 
-            setHud(elapsed * 10, speedText(speed));
+            for (var oi = tunnelOrbs.length - 1; oi >= 0; oi--) {
+                var orb = tunnelOrbs[oi];
+                orb.mesh.position.z += speed * dt;
+                orb.mesh.rotation.y += dt * 2;
+                orb.mesh.rotation.x += dt * 1.4;
+                if (orb.mesh.position.z > 10) { scene.remove(orb.mesh); disposeObject(orb.mesh); tunnelOrbs.splice(oi, 1); continue; }
+                var oa = Math.atan2(Math.sin(angle - orb.angle), Math.cos(angle - orb.angle));
+                if (Math.abs(oa) < 0.34 && orb.mesh.position.z > -4.5) {
+                    if (orb.kind === 'shield') { shieldHits = Math.min(2, shieldHits + 1); tone(660, 0.14, 'sine', 0.05, 990); }
+                    else { score += 120 * combo; combo = Math.min(6, combo + 0.15); tone(880, 0.07, 'square', 0.03, 1200); }
+                    scene.remove(orb.mesh); disposeObject(orb.mesh); tunnelOrbs.splice(oi, 1);
+                }
+            }
+            setHud(Math.round(score), 'TUNNEL · ' + speedText(speed) + ' · x' + combo.toFixed(1) + (shieldHits ? ' · SHIELD ' + shieldHits : ''));
         }
 
-        return { over: false, update: update, getScore: function () { return elapsed * 10; } };
+        return { over: false, update: update, getScore: function () { return Math.round(score + elapsed * 5); } };
     }
 
     /* ---------------- Cube Stack ---------------- */
@@ -5105,7 +5145,22 @@
         var moving = makeBox(SIZE, 0, towerY + H / 2, 0x2ff6ff, 0x2ff6ff);
         moving.material.emissiveIntensity = 1.1;
 
-        var t = 0, speed = 1.5;
+        var t = 0, speed = 1.5, score = 0, combo = 1, perfectCount = 0, stackParticles = [];
+
+        function stackBurst(x, y, color) {
+            for (var bi = 0; bi < 10; bi++) {
+                var p = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.12), new THREE.MeshBasicMaterial({ color: color }));
+                p.position.set(x, y, 0);
+                scene.add(p);
+                stackParticles.push({
+                    mesh: p,
+                    vx: (Math.random() - 0.5) * 5,
+                    vy: 2 + Math.random() * 4,
+                    vz: (Math.random() - 0.5) * 3,
+                    life: 0.6
+                });
+            }
+        }
 
         function update(dt) {
             t += dt;
@@ -5119,33 +5174,66 @@
                 var left = Math.max(prev.x - prev.w / 2, x - width / 2);
                 var right = Math.min(prev.x + prev.w / 2, x + width / 2);
                 var overlap = right - left;
-                if (overlap <= 0.08) { endGame(placed); return; }
+                if (overlap <= 0.08) { endGame(Math.round(score)); return; }
                 var nw = overlap, nx = (left + right) / 2;
+                var perfect = Math.abs(x - prev.x) < 0.1 && overlap > width - 0.2;
+                var golden = (placed + 1) % 5 === 0;
                 moving.geometry.dispose();
                 moving.geometry = new THREE.BoxGeometry(nw, H, SIZE);
                 moving.position.set(nx, towerY + H / 2, 0);
-                moving.material.color.set(0x9b5cff);
-                moving.material.emissive.set(0x9b5cff);
-                moving.material.emissiveIntensity = 0.6;
+                moving.material.color.set(perfect ? 0xffd166 : golden ? 0xffb020 : 0x9b5cff);
+                moving.material.emissive.set(perfect ? 0xffd166 : golden ? 0xffb020 : 0x9b5cff);
+                moving.material.emissiveIntensity = perfect ? 1.5 : 0.7;
+
+                if (perfect) {
+                    combo = Math.min(6, combo + 1);
+                    perfectCount++;
+                    score += 220 * combo;
+                    nw = Math.min(SIZE, nw + 0.18);
+                    width = nw;
+                    tone(1040, 0.1, 'square', 0.045, 1400);
+                } else {
+                    combo = 1;
+                    score += 90;
+                }
+                if (golden) {
+                    score += 260;
+                    nw = Math.min(SIZE, nw + 0.32);
+                    width = nw;
+                    tone(660, 0.16, 'triangle', 0.05, 990);
+                }
+                moving.geometry.dispose();
+                moving.geometry = new THREE.BoxGeometry(nw, H, SIZE);
+                stackBurst(nx, towerY + H / 2, perfect ? 0xffd166 : golden ? 0xffb020 : 0x9b5cff);
 
                 placed++;
                 towerY += H;
                 prev = { x: nx, w: nw };
-                width = nw;
 
-                if (nw < 0.34) { endGame(placed); return; }
+                if (nw < 0.32) { endGame(Math.round(score)); return; }
                 moving = makeBox(nw, 0, towerY + H / 2, 0x2ff6ff, 0x2ff6ff);
                 moving.material.emissiveIntensity = 1.1;
-                speed = Math.min(1.5 + placed * 0.09, 3.6);
+                if ((placed + 1) % 5 === 0) { moving.material.color.set(0xffb020); moving.material.emissive.set(0xffb020); }
+                speed = Math.min(1.5 + placed * 0.11, 4.2);
             }
 
+            for (var pi = stackParticles.length - 1; pi >= 0; pi--) {
+                var sp = stackParticles[pi];
+                sp.life -= dt;
+                sp.vy -= 9 * dt;
+                sp.mesh.position.x += sp.vx * dt;
+                sp.mesh.position.y += sp.vy * dt;
+                sp.mesh.position.z += sp.vz * dt;
+                sp.mesh.scale.setScalar(Math.max(0.05, sp.life / 0.6));
+                if (sp.life <= 0) { scene.remove(sp.mesh); disposeObject(sp.mesh); stackParticles.splice(pi, 1); }
+            }
             var camY = towerY + 6.5;
             camera.position.y += (camY - camera.position.y) * Math.min(1, dt * 3);
-            camera.lookAt(0, towerY + 0.3, 0);
-            setHud(placed, 'Height ' + placed);
+            camera.lookAt(Math.sin(t * 0.7) * 0.12, towerY + 0.3, 0);
+            setHud(Math.round(score), 'HEIGHT ' + placed + ' · PERFECT ' + perfectCount + ' · x' + combo);
         }
 
-        return { over: false, update: update, getScore: function () { return placed; } };
+        return { over: false, update: update, getScore: function () { return Math.round(score); } };
     }
 
     /* ---------------- Dead Coast (zombie FPS) ---------------- */

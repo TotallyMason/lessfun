@@ -7893,8 +7893,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.55";
-const UPDATE_NOTES = "Star Dodger has been removed. The arcade now has Beach Racer, Tunnel Rush, Cube Stack, Dead Coast, Funtutu Test, and the Christmas Snow Rush game";
+const APP_VERSION = "LessFun Public Beta 1.32.56";
+const UPDATE_NOTES = "Tunnel Rush is more fun with collectible energy orbs, shields, combo multipliers and near-miss bonuses. Cube Stack now rewards perfect placements with combos, gold bonus blocks, particle bursts and a score HUD";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
