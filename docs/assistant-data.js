@@ -1,4 +1,4 @@
-/* LessFun Assistant knowledge base — 100 topics expanded to 10,000 answer patterns. */
+/* LessFun Assistant knowledge base — 100+ topics expanded to 10,000+ answer patterns. */
 window.LESSFUN_AI_SEEDS = [
   {
     "t": "LessFun",
@@ -58,7 +58,7 @@ window.LESSFUN_AI_SEEDS = [
   {
     "t": "Daily Gifts",
     "k": "daily gift claim",
-    "a": "The Daily Gift banner on the Games page gives one claim per day."
+    "a": "The Daily Gift banner on the Games page gives one claim per day. During the Christmas event it also adds 3 Cookies."
   },
   {
     "t": "gift streaks",
@@ -68,7 +68,7 @@ window.LESSFUN_AI_SEEDS = [
   {
     "t": "daily gift rewards",
     "k": "daily gift amounts",
-    "a": "The seven rewards are 50, 75, 100, 150, 200, 300 and 500 Coins."
+    "a": "The seven rewards are 50, 75, 100, 150, 200, 300 and 500 Coins, plus 3 Cookies during the Christmas event."
   },
   {
     "t": "spending Coins",
@@ -223,7 +223,7 @@ window.LESSFUN_AI_SEEDS = [
   {
     "t": "support",
     "k": "contact help bug",
-    "a": "Report bugs through the Community or to the owner with game, device and browser details."
+    "a": "Report bugs in the Community or email masonwyj@gmail.com. Include the game, what you did, your device and browser, and any error message."
   },
   {
     "t": "what the assistant knows",
@@ -283,7 +283,7 @@ window.LESSFUN_AI_SEEDS = [
   {
     "t": "who I am",
     "k": "who are you assistant ai",
-    "a": "I am the LessFun assistant, running on a local 10,000-pattern knowledge base."
+    "a": "I am the LessFun assistant, running on a local 10,000+ pattern knowledge base."
   },
   {
     "t": "greetings",
@@ -499,5 +499,45 @@ window.LESSFUN_AI_SEEDS = [
     "t": "Tranq Arena owner assist",
     "k": "tranq arena aimbot 500 rpm k",
     "a": "TotallyMason can press K to toggle auto-lock, homing darts and 500 RPM auto-fire."
+  },
+  {
+    "t": "Cookies",
+    "k": "cookies christmas currency holiday",
+    "a": "Cookies are the Christmas currency. Earn them from game runs during the holiday event, Daily Gifts and Advent doors. They are spent only in the Store."
+  },
+  {
+    "t": "using Cookies in the Store",
+    "k": "cookies store exchange spend coin arcade cash mystery cosmetic",
+    "a": "In the Store, 10 Cookies become 250 Coins, 25 become 750, 50 become 2,000, 15 become 1,000 Arcade Cash, and 25 buy a random unowned cosmetic."
+  },
+  {
+    "t": "the Advent Calendar",
+    "k": "advent calendar christmas december doors cookies",
+    "a": "The Advent Calendar runs in December with one door per day through December 24. Every door gives Cookies only: Day 1 gives 25 and Day 24 gives 250."
+  },
+  {
+    "t": "deleting an account",
+    "k": "delete account remove close account data",
+    "a": "There is no self-serve delete button. Email the owner at masonwyj@gmail.com with your username and ask for account deletion. The owner removes the account, posts and wallet from the Owner Console."
+  },
+  {
+    "t": "contacting the owner",
+    "k": "contact owner mason email support talk",
+    "a": "The owner is Mason Wong (TotallyMason). Email masonwyj@gmail.com, or post in the Community. For a bug, include the game, device and browser."
+  },
+  {
+    "t": "reporting a bug",
+    "k": "report bug issue broken problem",
+    "a": "Report a bug in the Community or email masonwyj@gmail.com. Include the game, what you did, your device and browser, and any error message."
+  },
+  {
+    "t": "choosing a car",
+    "k": "best car fastest car which car showroom garage",
+    "a": "There is no single best car. Every Beach Racer car has unique handling, so test favourites in the Garage and use the Showroom filters. Engine, aero and tyre parts usually matter more than the body."
+  },
+  {
+    "t": "the Christmas event",
+    "k": "christmas event holiday cookies advent gifts",
+    "a": "During the Christmas event, games award Cookies, the Advent Calendar gives daily Cookies, Daily Gifts add 3 Cookies, and Snow Rush plus Christmas cosmetics are available in the Store."
   }
 ];

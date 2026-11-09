@@ -1,5 +1,5 @@
 /* ============================================================
-   LessFun Assistant — local 10,000-pattern knowledge base
+   LessFun Assistant — local 10,000+ pattern knowledge base
    ============================================================ */
 (function () {
     'use strict';
@@ -268,15 +268,51 @@
         var text = String(input || '').trim();
         if (!text) return 'Ask me about a game, Coins, gifts, controls, accounts, the Store, Garage, friends or settings.';
         var lower = text.toLowerCase().replace(/\bwhats\b/g, 'what is').replace(/\bur\b/g, 'your').replace(/\bu\b/g, 'you').replace(/\br\b/g, 'are');
-        if (/^(hi|hello|hey|yo|sup|hiya)\b/.test(lower)) return 'Hi. Ask me about a game, Coins, Daily Gifts, controls, accounts, the Store, Garage, friends, radio or settings.';
-        if (/your name|who are you|what are you called|what is your name/.test(lower)) return 'I am the LessFun Assistant. I run locally in the page and answer from a 10,000-pattern knowledge base about the arcade.';
-        if (/^(can (you )?tell( me)?( something| anything)?|what can you (do|tell me)|what do you do|help me|what can you help with)\??$/.test(lower)) return 'I can tell you about every LessFun game, controls, Coins, Daily Gifts, accounts, cloud sync, the Store, Garage, Showroom, friends, radio, settings, multiplayer or troubleshooting.';
+        if (/^(hi|hello|hey|yo|sup|hiya)\b/.test(lower)) return 'Hi. Ask me about a game, Coins, Cookies, Daily Gifts, controls, accounts, the Store, Garage, friends, radio or settings.';
+        if (/your name|who are you|what are you called|what is your name/.test(lower)) return 'I am the LessFun Assistant. I run locally in the page and answer from a 10,000+ pattern knowledge base about the arcade.';
+        if (/^(can (you )?tell( me)?( something| anything)?|what can you (do|tell me)|what do you do|help me|what can you help with)\??$/.test(lower)) return 'I can tell you about every LessFun game, controls, Coins, Cookies, Daily Gifts, accounts, cloud sync, the Store, Garage, Showroom, friends, radio, settings, multiplayer or troubleshooting.';
         if (/are you (a )?(real|human|ai|robot)|are you real/.test(lower)) return 'I am a local assistant, not a person. I match your question against the built-in LessFun knowledge base.';
         if (/how are you/.test(lower)) return 'I am awake and ready. Ask me anything about LessFun.';
+        if (/^(oh+|o+|ok(ay)?|k|kk|got it|i know( that)?|i see|right|alright|cool|nice|sure|yeah|yep|yes|no|nope|hmm+|ah+|lol|haha|interesting)[\s.!?]*$/.test(lower)) {
+            if (lastGame) return 'Got it. Ask me anything else about ' + lastGame + ', or say "help" for the full topic list.';
+            return 'Got it. Ask me anything else about LessFun — games, Coins, Cookies, Daily Gifts, accounts, the Store or settings.';
+        }
+        if (/(delete|remove|close|wipe|erase).*(account|profile)|(account|profile).*(delete|removed|closed|erased|gone)/.test(lower)) {
+            lastTopic = 'deleting an account';
+            return 'There is no self-serve delete button. Email the owner at masonwyj@gmail.com with your username and ask for account deletion. The owner removes the account, posts and wallet from the Owner Console.';
+        }
+        if (/(talk|speak|contact|reach|message|email|complain|ask).*(owner|mason|totallymason|developer|support)|(owner|mason|totallymason).*(contact|email|talk|reach|ask)|who (is|are) (the )?(owner|mason|totallymason)|who (owns|made|runs|created)/.test(lower)) {
+            lastTopic = 'contacting the owner';
+            return 'The owner is Mason Wong (TotallyMason). Email masonwyj@gmail.com or post in the Community. For a bug, include the game, your device and browser.';
+        }
+        if (/(report|reporting).*(bug|problem|issue|glitch|error)|(found|there is|there\'s) a (bug|problem|issue)|something (is|seems) broken/.test(lower)) {
+            lastTopic = 'reporting a bug';
+            return 'Report a bug in the Community or email masonwyj@gmail.com. Include the game, what you did, your device and browser, and any error message.';
+        }
+        if (/\badvent\b|christmas calendar/.test(lower)) {
+            lastTopic = 'the Advent Calendar';
+            return 'The Advent Calendar runs in December with one door per day through December 24. Every door gives Cookies only: Day 1 gives 25 and Day 24 gives 250.';
+        }
+        if (/\bcookies?\b|christmas currency/.test(lower)) {
+            lastTopic = 'Cookies';
+            return 'Cookies are the Christmas currency. Earn them from game runs during the holiday event, Daily Gifts and Advent doors. Spend them only in the Store: 10 Cookies gives 250 Coins, 15 gives 1,000 Arcade Cash, 25 gives 750 Coins or a mystery cosmetic, and 50 gives 2,000 Coins.';
+        }
+        if (/best car|fastest car|which car|what car/.test(lower)) {
+            lastTopic = 'choosing a car';
+            return 'There is no single best car. Every Beach Racer car has unique handling, so test favourites in the Garage and use the Showroom filters. Engine, aero and tyre parts usually matter more than the body.';
+        }
+        if (/christmas event|holiday event|christmas update/.test(lower)) {
+            lastTopic = 'the Christmas event';
+            return 'During the Christmas event, games award Cookies, the Advent Calendar gives daily Cookies, Daily Gifts add 3 Cookies, and Snow Rush plus Christmas cosmetics are available in the Store.';
+        }
+        if (/daily gift|daily reward/.test(lower)) {
+            lastTopic = 'Daily Gifts';
+            return 'The Daily Gift banner on the Games page gives one claim per day. The seven-day cycle pays 50, 75, 100, 150, 200, 300 and 500 Coins, plus 3 Cookies during the Christmas event.';
+        }
         if (/^(thanks|thank you|ty|cheers)\b/.test(lower)) return 'You are welcome. Ask another LessFun question any time.';
         if (/^(bye|goodbye|see you)\b/.test(lower)) return 'See you. Come back for another run soon.';
         if (/^(help|what can i ask|what do you know)\b/.test(lower)) {
-            return 'Ask about any of the ten games, controls, Coins, Daily Gifts, accounts, cloud sync, Store, Garage, Showroom, friends, messages, radio, graphics, Reduce Motion or multiplayer.';
+            return 'Ask about any of the ten games, controls, Coins, Cookies, Advent, Daily Gifts, accounts, cloud sync, Store, Garage, Showroom, friends, messages, radio, graphics, Reduce Motion or multiplayer.';
         }
         if (/what are gifts|what is a gift|tell me about gifts/.test(lower)) {
             return 'Daily Gifts are free Coin rewards claimed once a day from the Games page. The seven-day cycle pays 50, 75, 100, 150, 200, 300 and 500 Coins.';
@@ -334,7 +370,9 @@
 
         if (!result.best || result.score < 2.0) {
             var hint = queryGame ? ' Try asking about its controls, release, tips, multiplayer or common problems.' : '';
-            return 'I am not sure about that one.' + hint + ' I can help with Coins, Daily Gifts, accounts, Store, Garage, friends, radio, settings, Boeing Landing or Tranq Arena.';
+            var focus = queryGame || lastGame;
+            var focusHint = focus ? ' You were asking about ' + focus + '.' : '';
+            return 'I am not sure about that one.' + focusHint + hint + ' Try asking about games, controls, Coins, Cookies, Daily Gifts, accounts, Store, Garage, friends, radio or settings.';
         }
         if (result.best.game) lastGame = result.best.game;
         lastTopic = result.best.t;
@@ -438,7 +476,7 @@
         panel.style.display = 'flex';
         if (!greeted) {
             greeted = true;
-            addMessage('bot', 'Hi, I am the LessFun assistant. I know 10,000 answer patterns about the games, Coins, Daily Gifts, accounts, Store, Garage, friends, radio and settings. What do you want to know?');
+            addMessage('bot', 'Hi, I am the LessFun assistant. I know 10,000+ answer patterns about the games, Coins, Cookies, Daily Gifts, accounts, Store, Garage, friends, radio and settings. What do you want to know?');
         }
         var input = document.getElementById('aiInput');
         if (input) setTimeout(function () { input.focus(); }, 80);
@@ -488,7 +526,7 @@
             '<section class="ai-panel" id="aiPanel" role="dialog" aria-label="LessFun assistant">' +
                 '<header class="ai-head">' +
                     '<div class="ai-avatar">✦</div>' +
-                    '<div class="ai-head-copy"><strong>LessFun Assistant</strong><small>10,000-fact knowledge base</small></div>' +
+                    '<div class="ai-head-copy"><strong>LessFun Assistant</strong><small>10,000+ fact knowledge base</small></div>' +
                     '<button type="button" class="ai-reset" onclick="LessFunAI.reset()" title="New chat">Reset</button>' +
                     '<button type="button" class="ai-close" onclick="LessFunAI.close()" aria-label="Close assistant">×</button>' +
                 '</header>' +
@@ -497,7 +535,7 @@
                     '<button type="button" onclick="LessFunAI.ask(\'How do I earn Coins?\')">Earn Coins</button>' +
                     '<button type="button" onclick="LessFunAI.ask(\'Boeing Landing controls\')">Plane controls</button>' +
                     '<button type="button" onclick="LessFunAI.ask(\'How does Tranq Arena revive work?\')">Tranq revive</button>' +
-                    '<button type="button" onclick="LessFunAI.ask(\'What are Daily Gifts?\')">Daily Gifts</button>' +
+                    '<button type="button" onclick="LessFunAI.ask(\'What are Cookies?\')">Cookies</button>' +
                 '</div>' +
                 '<form class="ai-form" onsubmit="LessFunAI.submit(event)">' +
                     '<input id="aiInput" type="text" maxlength="240" autocomplete="off" placeholder="Ask about LessFun…" aria-label="Ask a question">' +
