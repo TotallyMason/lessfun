@@ -219,6 +219,8 @@
         var windGain = null, nitroGain = null, driftGain = null, driftFilter = null;
         var windSrc = null, nitroSrc = null, driftSrc = null;
         var windLowEl = null, windHighEl = null;
+        var engineLowEl = null, engineHighEl = null;
+        var revLevel = 0;
         var engineOscStarted = false, audioNoiseStarted = false;
         var lastAudioGear = 0;
         var audioDriftLevel = 0;
@@ -240,6 +242,8 @@
                     audioMuteHandler = null;
                     try { if (windLowEl) windLowEl.pause(); } catch (e) {}
                     try { if (windHighEl) windHighEl.pause(); } catch (e) {}
+                    try { if (engineLowEl) engineLowEl.pause(); } catch (e) {}
+                    try { if (engineHighEl) engineHighEl.pause(); } catch (e) {}
                     try { audioCtx.close(); } catch (e) {}
                     audioCtx = null;
                 };
@@ -328,6 +332,23 @@
                         windLowEl = null;
                         windHighEl = null;
                     }
+                    try {
+                        engineLowEl = new global.Audio('audio/engine-low.mp3');
+                        engineLowEl.loop = true;
+                        engineLowEl.preload = 'auto';
+                        engineLowEl.volume = 0;
+                        var engineLowPlay = engineLowEl.play();
+                        if (engineLowPlay && engineLowPlay.catch) engineLowPlay.catch(function () {});
+                        engineHighEl = new global.Audio('audio/engine-high.mp3');
+                        engineHighEl.loop = true;
+                        engineHighEl.preload = 'auto';
+                        engineHighEl.volume = 0;
+                        var engineHighPlay = engineHighEl.play();
+                        if (engineHighPlay && engineHighPlay.catch) engineHighPlay.catch(function () {});
+                    } catch (engineErr) {
+                        engineLowEl = null;
+                        engineHighEl = null;
+                    }
                 }
             } catch (e) {
                 audioCtx = null;
@@ -375,20 +396,23 @@
                     try { driftSrc.start(); } catch (e) {}
                     audioNoiseStarted = true;
                 }
+                var freeRev = engineOn && (gearMode === 'N' || gearMode === 'P');
                 var frac = Math.min(1, absSpeed / perf.topSpeed);
                 var audioGear = 0;
                 while (audioGear < GEAR_FRACTIONS.length && frac >= GEAR_FRACTIONS[audioGear]) audioGear++;
                 var lowerF = audioGear === 0 ? 0 : GEAR_FRACTIONS[audioGear - 1];
                 var upperF = audioGear < GEAR_FRACTIONS.length ? GEAR_FRACTIONS[audioGear] : 1;
                 var within = Math.max(0, Math.min(1, (frac - lowerF) / Math.max(0.01, upperF - lowerF)));
-                var liveRpm = 48 + within * 108 + audioGear * 9 + (nitroActive ? 28 : 0);
+                var synthRpm = freeRev ? 52 + revLevel * 156 : 48 + within * 108 + audioGear * 9 + (nitroActive ? 28 : 0);
                 if (engineOn && audioGear + 1 !== lastAudioGear) {
                     if (lastAudioGear) tone(130, 0.05, 'square', 0.028, 90);
                     lastAudioGear = audioGear + 1;
                 }
-                engineGain.gain.setTargetAtTime(running ? 0.045 + Math.min(0.038, absSpeed / 3000) : 0, now, 0.08);
-                engineOsc.frequency.setTargetAtTime(liveRpm, now, 0.055);
-                engineOsc2.frequency.setTargetAtTime(liveRpm * 1.5 + 7, now, 0.06);
+                var hasEngineSamples = !!(engineLowEl && engineHighEl);
+                var synthLevel = hasEngineSamples ? 0.007 : (0.045 + Math.min(0.038, absSpeed / 3000));
+                engineGain.gain.setTargetAtTime(running ? synthLevel : 0, now, 0.08);
+                engineOsc.frequency.setTargetAtTime(synthRpm, now, 0.055);
+                engineOsc2.frequency.setTargetAtTime(synthRpm * 1.5 + 7, now, 0.06);
                 engineFilter.frequency.setTargetAtTime(430 + absSpeed * 10 + (nitroActive ? 320 : 0), now, 0.1);
                 var hasWindSamples = !!(windLowEl && windHighEl);
                 windGain.gain.setTargetAtTime(!hasWindSamples && running ? Math.min(0.075, absSpeed / 1700) : 0, now, 0.15);
@@ -400,6 +424,16 @@
                     windHighEl.volume = Math.max(0, Math.min(0.25, highVol));
                     windLowEl.playbackRate = 0.82 + windFrac * 0.62;
                     windHighEl.playbackRate = 0.9 + windFrac * 0.75;
+                }
+                if (hasEngineSamples && running) {
+                    var revFrac = freeRev ? revLevel : (0.15 + Math.min(1, absSpeed / 140) * 0.85);
+                    engineLowEl.volume = soundEnabled ? Math.max(0, Math.min(0.22, 0.075 + revFrac * 0.1)) : 0;
+                    engineHighEl.volume = soundEnabled ? Math.max(0, Math.min(0.2, Math.max(0, revFrac - 0.42) / 0.58 * 0.16)) : 0;
+                    engineLowEl.playbackRate = 0.78 + revFrac * 0.9;
+                    engineHighEl.playbackRate = 0.88 + revFrac * 1.15;
+                } else if (hasEngineSamples) {
+                    engineLowEl.volume = 0;
+                    engineHighEl.volume = 0;
                 }
                 nitroGain.gain.setTargetAtTime(running && nitroActive ? 0.05 : 0, now, 0.1);
                 driftGain.gain.setTargetAtTime(running ? Math.min(0.1, audioDriftLevel * 0.1) : 0, now, 0.08);
@@ -4571,6 +4605,9 @@
             throttleDisplay += (throttleTarget - throttleDisplay) * Math.min(1, dt * 14);
             brakeDisplay += (brakeTarget - brakeDisplay) * Math.min(1, dt * 14);
             throttleSmooth += (throttleTarget - throttleSmooth) * Math.min(1, dt * 7);
+            var freeRevNow = engineOn && (gearMode === 'N' || gearMode === 'P');
+            var revTarget = freeRevNow ? (input.up ? 1 : 0) : 0;
+            revLevel += (revTarget - revLevel) * Math.min(1, dt * (revTarget > revLevel ? 7 : 3.2));
             brakeSmooth += (brakeTarget - brakeSmooth) * Math.min(1, dt * 9);
 
             honkCooldown = Math.max(0, honkCooldown - dt);
@@ -4606,7 +4643,7 @@
             }
 
             if (!engineOn) {
-                if (input.up && gearMode === 'D') {
+                if (input.up && (gearMode === 'D' || gearMode === 'N' || gearMode === 'P')) {
                     ignition = Math.min(1, ignition + dt / 0.9);
                     if (ignition >= 1) {
                         engineOn = true;
@@ -5047,7 +5084,7 @@
             var accelNow = (Math.abs(speed) - prevSpeedAbs) / Math.max(0.001, dt);
             prevSpeedAbs = Math.abs(speed);
             var powerLoad = (engineOn ? 1 : 0) * throttleSmooth;
-            var powerShake = powerLoad * (0.012 + Math.min(0.034, Math.max(0, accelNow) * 0.0011));
+            var powerShake = powerLoad * (0.026 + Math.min(0.075, Math.max(0, accelNow) * 0.0022)) + revLevel * 0.018;
             var fovTarget = 68 + Math.min(46, Math.abs(speed) * 0.34);
             camera.fov += (fovTarget - camera.fov) * Math.min(1, dt * 2.6);
             camera.updateProjectionMatrix();
@@ -5127,6 +5164,7 @@
                 (!engineOn ? ' · HOLD W TO START' : '') +
                 (nitroActive ? (nitroShiftT > 0 ? ' · NITRO SHIFT' : ' · NOS') : '') +
                 (driftIntent ? ' · DRIFT' : '') +
+                (freeRevNow && revLevel > 0.12 ? ' · REV' : '') +
                 (playerY > 0.4 && !(isSleigh && flyTime > 0) ? ' · JUMP' : '') +
                 (isSleigh ? (flyTime > 0 ? ' · FLYING ' + flyTime.toFixed(1) + 's' : (flyCooldown > 0 ? ' · FLY CD ' + Math.ceil(flyCooldown) + 's' : ' · FLY READY [SPACE]')) : '') +
                 (exitHintText ? ' · ' + exitHintText : '');
@@ -5138,7 +5176,9 @@
                 var gaugeLower = gaugeGearIndex === 0 ? 0 : GEAR_FRACTIONS[gaugeGearIndex - 1];
                 var gaugeUpper = gaugeGearIndex < GEAR_FRACTIONS.length ? GEAR_FRACTIONS[gaugeGearIndex] : 1;
                 var gaugeWithin = Math.min(1, Math.max(0, (Math.min(1, Math.abs(speed) / perf.topSpeed) - gaugeLower) / Math.max(0.01, gaugeUpper - gaugeLower)));
-                var gaugeRpm = engineOn ? 800 + gaugeWithin * 6300 + gaugeGearIndex * 180 : 0;
+                var gaugeRpm = engineOn
+                    ? ((gearMode === 'N' || gearMode === 'P') ? 900 + revLevel * 6800 : 800 + gaugeWithin * 6300 + gaugeGearIndex * 180)
+                    : 0;
                 updateRacerGauge(gaugeRpm, speed, gearText, status, hudValue, coinsCollected);
             }
             if (racerBannerT > 0) {

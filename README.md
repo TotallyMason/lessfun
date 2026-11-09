@@ -63,9 +63,13 @@ Beach Racer crossfades two wind loops as speed rises:
 
 - `docs/audio/wind-low.mp3` — Mixkit “Windy sea loop”
 - `docs/audio/wind-high.mp3` — Mixkit “Wind in the top of the mountain”
+- `docs/audio/engine-low.mp3` — Mixkit “ATV engine motor hum”
+- `docs/audio/engine-high.mp3` — Mixkit “Sports bike engine”
 
-Both are used under the [Mixkit License](https://mixkit.co/license/). No
-attribution is required, but the source is credited here.
+The wind loops crossfade with speed. The engine loops crossfade with RPM, and
+shift into neutral then hold W to rev without moving. All are used under the
+[Mixkit License](https://mixkit.co/license/). No attribution is required, but
+the source is credited here.
 
 ## Run locally
 
