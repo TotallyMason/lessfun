@@ -1,7 +1,7 @@
 /* LessFun offline shell — single-player games stay available offline. */
 'use strict';
 
-var CACHE_NAME = 'lessfun-static-1.33.47';
+var CACHE_NAME = 'lessfun-static-1.33.48';
 var CORE_ASSETS = [
     './',
     'index.html',
@@ -51,10 +51,21 @@ self.addEventListener('install', function (event) {
 self.addEventListener('activate', function (event) {
     event.waitUntil(
         caches.keys().then(function (keys) {
+            var hadOldCaches = keys.some(function (key) { return key !== CACHE_NAME; });
             return Promise.all(keys.map(function (key) {
                 if (key !== CACHE_NAME) return caches.delete(key);
-            }));
-        }).then(function () { return self.clients.claim(); })
+            })).then(function () {
+                return self.clients.claim();
+            }).then(function () {
+                // A previous build was cached: reload open tabs so they pick up the new files.
+                if (!hadOldCaches) return;
+                return self.clients.matchAll({ type: 'window' }).then(function (clients) {
+                    return Promise.all(clients.map(function (client) {
+                        return client.navigate(client.url).catch(function () {});
+                    }));
+                });
+            });
+        })
     );
 });
 
@@ -85,15 +96,17 @@ self.addEventListener('fetch', function (event) {
         return;
     }
 
+    // Network-first so a new deploy always replaces cached code. The cache is the offline fallback.
     event.respondWith(
-        caches.match(request, { ignoreSearch: true }).then(function (cached) {
-            if (cached) return cached;
-            return fetch(request).then(function (response) {
-                if (response && response.ok) {
-                    var copy = response.clone();
-                    caches.open(CACHE_NAME).then(function (cache) { cache.put(request, copy); });
-                }
-                return response;
+        fetch(request).then(function (response) {
+            if (response && response.ok) {
+                var copy = response.clone();
+                caches.open(CACHE_NAME).then(function (cache) { cache.put(request, copy); });
+            }
+            return response;
+        }).catch(function () {
+            return caches.match(request, { ignoreSearch: true }).then(function (cached) {
+                return cached || caches.match(request);
             });
         })
     );
