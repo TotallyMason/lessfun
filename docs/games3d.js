@@ -2875,6 +2875,19 @@
         var crashRealT = 0;
         var crashStartMs = 0;
         var crashScore = 0;
+        var crashClipSaved = false;
+        var crashReplayPaused = false;
+        var crashPauseStartMs = 0;
+        var crashCamEl = document.getElementById('g3dCrashCam');
+        var crashCamPlay = document.getElementById('g3dCrashPlay');
+        var crashCamSave = document.getElementById('g3dCrashSave');
+        var crashCamProgress = document.getElementById('g3dCrashProgress');
+        var crashCamTime = document.getElementById('g3dCrashTime');
+        var crashCamSpeed = document.getElementById('g3dCrashSpeed');
+        var crashCamGear = document.getElementById('g3dCrashGear');
+        var crashCamDist = document.getElementById('g3dCrashDist');
+        var crashCamStamp = document.getElementById('g3dCrashStamp');
+        var crashCamGauge = document.getElementById('g3dGauges');
         var crashVx = 0, crashSpinX = 0, crashSpinY = 0, crashSpinZ = 0;
         var warningT = 0;
         var honkCooldown = 0;
@@ -3396,6 +3409,70 @@
             }
         }
 
+        function crashTimeText(seconds) {
+            var total = Math.max(0, Math.round(seconds));
+            return '0:' + (total < 10 ? '0' : '') + total;
+        }
+
+        function playCrashSaveChime() {
+            if (!soundEnabled || !audioCtx) return;
+            tone(988, 0.1, 'sine', 0.055);
+            setTimeout(function () {
+                tone(1319, 0.18, 'sine', 0.05);
+            }, 105);
+        }
+
+        function updateCrashCam(time, duration) {
+            if (!crashCamEl) return;
+            var progress = Math.max(0, Math.min(1, time / Math.max(0.01, duration)));
+            if (crashCamProgress) crashCamProgress.style.width = (progress * 100).toFixed(2) + '%';
+            if (crashCamTime) crashCamTime.textContent = crashTimeText(time) + ' / ' + crashTimeText(duration);
+            if (crashCamSpeed) crashCamSpeed.textContent = String(Math.round(Math.abs(speed) * (unitSystem === 'kmh' ? 1.2 : 2.23694)));
+            if (crashCamGear) crashCamGear.textContent = gearMode === 'P' || gearMode === 'R' || gearMode === 'N' ? gearMode : (speed < 0.15 ? '1' : String(gearFor(Math.abs(speed))));
+            if (crashCamDist) crashCamDist.textContent = Math.round(distance) + ' m';
+            if (crashCamStamp) {
+                var secs = Math.floor(time);
+                crashCamStamp.textContent = '00:00:' + (secs < 10 ? '0' : '') + secs;
+            }
+        }
+
+        function setCrashCamVisible(on) {
+            if (!crashCamEl) return;
+            crashCamEl.classList.toggle('is-active', !!on);
+            if (crashCamGauge) crashCamGauge.classList.toggle('is-replay', !!on);
+        }
+
+        function saveCrashClip(auto) {
+            if (crashClipSaved) return;
+            crashClipSaved = true;
+            if (crashCamSave) {
+                crashCamSave.textContent = 'SAVED ✓';
+                crashCamSave.classList.add('is-saved');
+            }
+            playCrashSaveChime();
+        }
+
+        function toggleCrashPlayback() {
+            if (!crashActive) return;
+            if (!crashReplayPaused) {
+                crashReplayPaused = true;
+                crashPauseStartMs = Date.now();
+                paused = true;
+                if (audioMuteHandler) audioMuteHandler(false);
+                if (crashCamPlay) crashCamPlay.textContent = '▶';
+            } else {
+                crashReplayPaused = false;
+                if (crashPauseStartMs) crashStartMs += Date.now() - crashPauseStartMs;
+                crashPauseStartMs = 0;
+                paused = false;
+                if (audioMuteHandler) audioMuteHandler(soundEnabled);
+                if (crashCamPlay) crashCamPlay.textContent = 'II';
+            }
+        }
+
+        if (crashCamPlay) crashCamPlay.addEventListener('click', toggleCrashPlayback);
+        if (crashCamSave) crashCamSave.addEventListener('click', function () { saveCrashClip(false); });
+
         function triggerCrash(car, halfWidth) {
             if (crashActive) return;
             fsdActive = false;
@@ -3415,6 +3492,15 @@
             crashSprings = [];
             crashStartMs = (global.performance && global.performance.now) ? global.performance.now() : Date.now();
             crashScore = distance + checkpointsPassed * CHECKPOINT_BONUS + driftScore;
+            crashClipSaved = false;
+            crashReplayPaused = false;
+            crashPauseStartMs = 0;
+            if (crashCamPlay) crashCamPlay.textContent = 'II';
+            if (crashCamSave) {
+                crashCamSave.textContent = 'SAVE CLIP';
+                crashCamSave.classList.remove('is-saved');
+            }
+            setCrashCamVisible(true);
             var spec = car.userData && car.userData.spec ? car.userData.spec : {};
             var mass = Math.max(0.8, Math.min(2.2, ((spec.width || 1.8) * (spec.len || 3.2)) / 8));
             var dir = player.position.x >= car.position.x ? 1 : -1;
@@ -3426,6 +3512,7 @@
             var absorb = zone === 'front' ? 0.6 : zone === 'rear' ? 0.52 : 0.44;
             var severity = Math.min(0.44, 0.07 + impactSpeed * 0.0055);
             crashFatal = !!(spec.bus && impactSpeed * 3.6 > 55);
+            updateCrashCam(0, crashFatal ? 3.2 : 5.5);
             var impulse = Math.max(0, impactSpeed * mass * 0.32) * (1 - absorb * 0.55);
             crashVx = dir * (3 + impulse);
             crashSpinX = (Math.random() - 0.5) * 1.0 * (1 - absorb * 0.4);
@@ -3524,6 +3611,7 @@
         function updateCrash(dt) {
             var nowMs = (global.performance && global.performance.now) ? global.performance.now() : Date.now();
             crashRealT = (nowMs - crashStartMs) / 1000;
+            updateCrashCam(crashRealT, crashFatal ? 3.2 : 5.5);
             if (crashWorld && crashPlayerBody && crashOtherBody) {
                 crashWorld.step(1 / 60, dt, 4);
                 for (var sp = 0; sp < crashSprings.length; sp++) {
@@ -3629,6 +3717,7 @@
             updateAudio();
 
             if (crashRealT > (crashFatal ? 3.2 : 5.5)) {
+                saveCrashClip(true);
                 var flash = document.getElementById('g3dCrashFlash');
                 if (flash) flash.classList.remove('is-active');
                 setCrashCinema(false);
@@ -3637,6 +3726,7 @@
                 clearSoftWreck();
                 crashActive = false;
                 endGame(crashScore);
+                setTimeout(function () { setCrashCamVisible(false); }, 1400);
             }
         }
 
