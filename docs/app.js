@@ -1140,7 +1140,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261330'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261331'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1149,7 +1149,7 @@ function ensure3DEngine() {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261330').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261331').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1157,7 +1157,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261330').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261331').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1165,8 +1165,8 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261330')
-            .then(function () { return loadScriptOnce('assistant.js?v=20261330'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261331')
+            .then(function () { return loadScriptOnce('assistant.js?v=20261331'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1194,7 +1194,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261330').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261331').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1202,7 +1202,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261330').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261331').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1210,7 +1210,7 @@ function ensureLucky() {
 function ensureTycoon() {
     if (window.Tycoon) return Promise.resolve();
     if (!tycoonPromise) {
-        tycoonPromise = loadScriptOnce('tycoon.js?v=20261330').catch(function (error) { tycoonPromise = null; throw error; });
+        tycoonPromise = loadScriptOnce('tycoon.js?v=20261331').catch(function (error) { tycoonPromise = null; throw error; });
     }
     return tycoonPromise;
 }
@@ -6278,12 +6278,12 @@ const DAILY_BONUS = 25;
 const STREAK_BONUSES = { 3: 150, 7: 400, 14: 1000 };
 const DAILY_GIFTS = [50, 75, 100, 150, 200, 300, 500];
 const ADVENT_REWARDS = [
-    { cookies: 5 }, { cookies: 6 }, { cookies: 7 }, { cookies: 8 },
-    { cookies: 9 }, { cookies: 10 }, { cookies: 12 }, { cookies: 8 },
-    { cookies: 9 }, { cookies: 10 }, { cookies: 12 }, { cookies: 14 },
-    { cookies: 18 }, { cookies: 12 }, { cookies: 13 }, { cookies: 14 },
-    { cookies: 15 }, { cookies: 16 }, { cookies: 18 }, { cookies: 20 },
-    { cookies: 22 }, { cookies: 25 }, { cookies: 30 }, { cookies: 50 }
+    { cookies: 25 }, { cookies: 30 }, { cookies: 35 }, { cookies: 40 },
+    { cookies: 45 }, { cookies: 50 }, { cookies: 60 }, { cookies: 40 },
+    { cookies: 45 }, { cookies: 50 }, { cookies: 60 }, { cookies: 70 },
+    { cookies: 90 }, { cookies: 60 }, { cookies: 65 }, { cookies: 70 },
+    { cookies: 75 }, { cookies: 80 }, { cookies: 90 }, { cookies: 100 },
+    { cookies: 110 }, { cookies: 125 }, { cookies: 150 }, { cookies: 250 }
 ];
 
 const COSMETICS = [
@@ -9174,8 +9174,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.46";
-const UPDATE_NOTES = "Engine heat is gone from Beach Racer: no temperature bar, no overheating and no engine blowouts. Crash damage still works";
+const APP_VERSION = "LessFun Public Beta 1.33.47";
+const UPDATE_NOTES = "Advent Calendar Cookie rewards are now 5× bigger: Day 1 gives 25 Cookies and Day 24 gives 250";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
