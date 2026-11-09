@@ -14,6 +14,14 @@
         lucky:  { name: 'Lucky Spin',    icon: 'dice',   cost: 1600, income: 68, rep: 13, color: '#ff3b6b' }
     };
     var CABINET_ORDER = ['beach', 'tunnel', 'stack', 'snow', 'tranq', 'boeing', 'lucky'];
+    var FACILITIES = {
+        snack: { name: 'Snack Bar', icon: '🍿', cost: 450, income: 12, rep: 1 },
+        prize: { name: 'Prize Counter', icon: '🎁', cost: 800, income: 20, rep: 3 }
+    };
+    var MARKETING_COST = 300;
+    var MARKETING_MS = 120000;
+    var DAILY_MS = 20 * 60 * 60 * 1000;
+    var TOURNAMENT_MS = 5 * 60 * 1000;
     var MAX_SLOTS = 12;
     var OFFLINE_CAP_MS = 8 * 60 * 60 * 1000;
     var LEVEL_MULT = 1.35;
@@ -47,10 +55,17 @@
         if (!wallet.arcade || typeof wallet.arcade !== 'object') {
             wallet.arcade = {
                 cash: 650, slots: 6, cabinets: [], reputation: 0,
-                totalEarned: 0, milestones: [], lastSeen: Date.now(), updatedAt: 0
+                totalEarned: 0, milestones: [], facilities: { snack: 0, prize: 0 },
+                boostUntil: 0, lastDaily: 0, tournamentReadyAt: 0,
+                lastSeen: Date.now(), updatedAt: 0
             };
         }
-        return wallet.arcade;
+        var a = wallet.arcade;
+        if (!a.facilities || typeof a.facilities !== 'object') a.facilities = { snack: 0, prize: 0 };
+        if (!Number.isFinite(Number(a.boostUntil))) a.boostUntil = 0;
+        if (!Number.isFinite(Number(a.lastDaily))) a.lastDaily = 0;
+        if (!Number.isFinite(Number(a.tournamentReadyAt))) a.tournamentReadyAt = 0;
+        return a;
     }
 
     function levelIncome(type, level) {
@@ -58,12 +73,22 @@
         return base ? base.income * Math.pow(LEVEL_MULT, Math.max(0, (level || 1) - 1)) : 0;
     }
 
-    function incomePerMinute(a) {
-        var total = 0;
+    function facilityIncome(a) {
+        return (a.facilities.snack || 0) * FACILITIES.snack.income +
+            (a.facilities.prize || 0) * FACILITIES.prize.income;
+    }
+
+    function baseIncomePerMinute(a) {
+        var total = facilityIncome(a);
         for (var i = 0; i < a.cabinets.length; i++) {
             total += levelIncome(a.cabinets[i].t, a.cabinets[i].l);
         }
         return total;
+    }
+
+    function incomePerMinute(a) {
+        var multiplier = (Number(a.boostUntil) || 0) > Date.now() ? 2 : 1;
+        return baseIncomePerMinute(a) * multiplier;
     }
 
     function reputationOf(a) {
@@ -72,6 +97,8 @@
             var base = CABINETS[a.cabinets[i].t];
             if (base) rep += base.rep * a.cabinets[i].l;
         }
+        rep += (a.facilities.snack || 0) * FACILITIES.snack.rep;
+        rep += (a.facilities.prize || 0) * FACILITIES.prize.rep;
         rep += Math.floor((a.totalEarned || 0) / 1000);
         return rep;
     }
@@ -85,6 +112,25 @@
         return Math.round(600 * Math.pow(1.5, Math.max(0, slots - 6)));
     }
 
+    function facilityCost(key, level) {
+        var f = FACILITIES[key];
+        return f ? Math.round(f.cost * Math.pow(1.6, Math.max(0, level))) : 0;
+    }
+
+    function timeLeft(ms) {
+        var total = Math.max(0, Math.ceil(ms / 1000));
+        var m = Math.floor(total / 60);
+        var s = total % 60;
+        return m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
+    function hoursLeft(ms) {
+        var total = Math.max(0, Math.ceil(ms / 60000));
+        var h = Math.floor(total / 60);
+        var m = total % 60;
+        return h + 'h ' + m + 'm';
+    }
+
     function toast(message) {
         if (typeof showGameToast === 'function') showGameToast(message);
     }
@@ -94,7 +140,7 @@
         if (!a) return 0;
         var now = Date.now();
         var elapsed = Math.max(0, Math.min(OFFLINE_CAP_MS, now - (Number(a.lastSeen) || now)));
-        var rate = incomePerMinute(a) / 60000;
+        var rate = baseIncomePerMinute(a) / 60000;
         var earned = rate * elapsed;
         a.cash += earned;
         a.totalEarned += earned;
@@ -210,6 +256,21 @@
             '</div>';
         }).join('');
 
+        var facilityHtml = Object.keys(FACILITIES).map(function (key) {
+            var f = FACILITIES[key];
+            var level = a.facilities[key] || 0;
+            var cost = facilityCost(key, level);
+            var maxed = level >= 5;
+            return '<div class="tycoon-shop-card" style="--cab:#ffd166">' +
+                '<div class="tycoon-shop-top"><div class="tycoon-cab-icon"><span class="tycoon-emoji">' + f.icon + '</span></div>' +
+                '<div><strong>' + f.name + '</strong><span>+' + f.income + '/min · ' + f.rep + ' rep</span></div></div>' +
+                '<div class="tycoon-fac-level">Level ' + level + ' / 5 · +' + (f.income * level) + '/min</div>' +
+                (maxed
+                    ? '<em class="tycoon-maxed">MAX LEVEL</em>'
+                    : '<button type="button" class="tycoon-buy' + (a.cash >= cost ? '' : ' is-disabled') + '" data-facility="' + key + '" data-cost="' + cost + '" onclick="tycoonFacility(\'' + key + '\')">Upgrade · ' + fmt(cost) + '</button>') +
+            '</div>';
+        }).join('');
+
         var milestoneHtml = MILESTONES.map(function (m) {
             var done = a.milestones.indexOf(m.id) >= 0;
             return '<div class="tycoon-milestone' + (done ? ' is-done' : '') + '">' +
@@ -247,10 +308,19 @@
                 '<div class="tycoon-slots">' + slotsHtml + '</div>' +
                 '<div class="tycoon-section-head"><div><h3>Build cabinets</h3><p>New cabinets go into the first empty bay.</p></div></div>' +
                 '<div class="tycoon-shop-grid">' + shopHtml + '</div>' +
+                '<div class="tycoon-section-head"><div><h3>Facilities</h3><p>Extra income that runs alongside the cabinets.</p></div></div>' +
+                '<div class="tycoon-shop-grid">' + facilityHtml + '</div>' +
+                '<div class="tycoon-section-head"><div><h3>Earn faster</h3><p>Active boosts and bonuses.</p></div></div>' +
+                '<div class="tycoon-actions">' +
+                    '<button type="button" class="tycoon-action" id="tyBoostBtn" onclick="tycoonMarketing()">Marketing Blitz · ' + MARKETING_COST + '</button>' +
+                    '<button type="button" class="tycoon-action" id="tyDailyBtn" onclick="tycoonDaily()">Collect daily bonus</button>' +
+                    '<button type="button" class="tycoon-action" id="tyTourneyBtn" onclick="tycoonTournament()">Host tournament</button>' +
+                '</div>' +
                 '<div class="tycoon-section-head"><div><h3>Milestones</h3><p>One-time Coin rewards for growing the arcade.</p></div></div>' +
                 '<div class="tycoon-milestones">' + milestoneHtml + '</div>' +
                 '<p class="tycoon-note">Arcade Cash is separate from your Coins. Milestones pay real LessFun Coins. Nothing here uses real money.</p>' +
             '</div>';
+        updateLive();
     }
 
     function updateLive() {
@@ -278,6 +348,105 @@
             var cost = Number(up.getAttribute('data-cost')) || 0;
             up.classList.toggle('is-disabled', a.cash < cost);
         }
+        var facilityButtons = document.querySelectorAll('.tycoon-buy[data-facility]');
+        for (var f = 0; f < facilityButtons.length; f++) {
+            var fb = facilityButtons[f];
+            var fcost = Number(fb.getAttribute('data-cost')) || 0;
+            fb.classList.toggle('is-disabled', a.cash < fcost);
+        }
+        var now = Date.now();
+        var boostBtn = document.getElementById('tyBoostBtn');
+        if (boostBtn) {
+            var boostActive = (Number(a.boostUntil) || 0) > now;
+            boostBtn.classList.toggle('is-active', boostActive);
+            boostBtn.classList.toggle('is-disabled', !boostActive && a.cash < MARKETING_COST);
+            boostBtn.textContent = boostActive
+                ? '2× income · ' + timeLeft(a.boostUntil - now)
+                : 'Marketing Blitz · ' + MARKETING_COST;
+        }
+        var dailyBtn = document.getElementById('tyDailyBtn');
+        if (dailyBtn) {
+            var dailyWait = DAILY_MS - (now - (Number(a.lastDaily) || 0));
+            dailyBtn.classList.toggle('is-ready', dailyWait <= 0);
+            dailyBtn.classList.toggle('is-disabled', dailyWait > 0);
+            dailyBtn.textContent = dailyWait > 0 ? 'Daily bonus in ' + hoursLeft(dailyWait) : 'Collect daily bonus';
+        }
+        var tourneyBtn = document.getElementById('tyTourneyBtn');
+        if (tourneyBtn) {
+            var tourneyWait = (Number(a.tournamentReadyAt) || 0) - now;
+            var canTourney = a.cabinets.length >= 3 && tourneyWait <= 0;
+            tourneyBtn.classList.toggle('is-ready', canTourney);
+            tourneyBtn.classList.toggle('is-disabled', !canTourney);
+            tourneyBtn.textContent = a.cabinets.length < 3
+                ? 'Need 3 cabinets'
+                : (tourneyWait > 0 ? 'Tournament in ' + timeLeft(tourneyWait) : 'Host tournament');
+        }
+    }
+
+    function buyFacility(key) {
+        var a = getArcade();
+        var f = FACILITIES[key];
+        if (!a || !f) return;
+        var level = a.facilities[key] || 0;
+        if (level >= 5) { toast(f.name + ' is already max level.'); return; }
+        var cost = facilityCost(key, level);
+        if (a.cash < cost) { toast('Need ' + fmtMissing(cost - a.cash) + ' more Arcade Cash for the ' + f.name + '.'); return; }
+        a.cash -= cost;
+        a.facilities[key] = level + 1;
+        a.updatedAt = Date.now();
+        checkMilestones();
+        saveNow();
+        render();
+        toast(f.name + ' upgraded to level ' + (level + 1) + '.');
+    }
+
+    function buyMarketing() {
+        var a = getArcade();
+        if (!a) return;
+        var now = Date.now();
+        if ((Number(a.boostUntil) || 0) > now) { toast('Marketing Blitz is already running.'); return; }
+        if (a.cash < MARKETING_COST) { toast('Need ' + fmtMissing(MARKETING_COST - a.cash) + ' more Arcade Cash for a Marketing Blitz.'); return; }
+        a.cash -= MARKETING_COST;
+        a.boostUntil = now + MARKETING_MS;
+        a.updatedAt = now;
+        saveNow();
+        render();
+        toast('Marketing Blitz started — 2× income for 2 minutes.');
+    }
+
+    function claimDaily() {
+        var a = getArcade();
+        if (!a) return;
+        var now = Date.now();
+        var wait = DAILY_MS - (now - (Number(a.lastDaily) || 0));
+        if (wait > 0) { toast('Daily bonus is ready in ' + hoursLeft(wait) + '.'); return; }
+        var reward = Math.max(250, Math.round(baseIncomePerMinute(a) * 10));
+        a.cash += reward;
+        a.totalEarned += reward;
+        a.lastDaily = now;
+        a.updatedAt = now;
+        checkMilestones();
+        saveNow();
+        render();
+        toast('Daily bonus collected · +' + fmt(reward) + ' Arcade Cash.');
+    }
+
+    function hostTournament() {
+        var a = getArcade();
+        if (!a) return;
+        if (a.cabinets.length < 3) { toast('Build at least 3 cabinets to host a tournament.'); return; }
+        var now = Date.now();
+        var wait = (Number(a.tournamentReadyAt) || 0) - now;
+        if (wait > 0) { toast('The next tournament is ready in ' + timeLeft(wait) + '.'); return; }
+        var reward = Math.max(300, Math.round(baseIncomePerMinute(a) * 5));
+        a.cash += reward;
+        a.totalEarned += reward;
+        a.tournamentReadyAt = now + TOURNAMENT_MS;
+        a.updatedAt = now;
+        checkMilestones();
+        saveNow();
+        render();
+        toast('Tournament night · +' + fmt(reward) + ' Arcade Cash.');
     }
 
     function tick() {
@@ -399,5 +568,9 @@
     window.tycoonBuy = buyCabinet;
     window.tycoonUpgrade = upgradeCabinet;
     window.tycoonExpand = expandArcade;
+    window.tycoonFacility = buyFacility;
+    window.tycoonMarketing = buyMarketing;
+    window.tycoonDaily = claimDaily;
+    window.tycoonTournament = hostTournament;
     window.openTycoonGame = openTycoonGame;
 })();

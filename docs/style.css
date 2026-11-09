@@ -12314,3 +12314,40 @@ body.in-game .xmas-snowman { display: none; }
     opacity: 0.42;
     cursor: default;
 }
+
+.tycoon-emoji { font-size: 20px; line-height: 1; }
+.tycoon-fac-level { color: rgba(220, 240, 250, 0.48); font-size: 8.5px; }
+.tycoon-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+.tycoon-action {
+    min-height: 72px;
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 209, 102, 0.22);
+    background: linear-gradient(155deg, rgba(255, 209, 102, 0.07), rgba(255, 255, 255, 0.015));
+    color: #ffe2a0;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease;
+}
+.tycoon-action:hover { background: rgba(255, 209, 102, 0.14); }
+.tycoon-action.is-ready {
+    border-color: rgba(138, 255, 208, 0.45);
+    background: linear-gradient(155deg, rgba(138, 255, 208, 0.12), rgba(255, 255, 255, 0.02));
+    color: #8affd0;
+}
+.tycoon-action.is-active {
+    border-color: rgba(95, 231, 255, 0.5);
+    background: linear-gradient(155deg, rgba(95, 231, 255, 0.16), rgba(255, 255, 255, 0.02));
+    color: #b9f5ff;
+}
+.tycoon-action.is-disabled { opacity: 0.45; cursor: default; }
+@media (max-width: 760px) {
+    .tycoon-actions { grid-template-columns: 1fr; }
+}

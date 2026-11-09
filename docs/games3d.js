@@ -4719,6 +4719,8 @@
             animateSuspension(player, dt, speed, distance, bodyRoll, bodyPitch, suspensionImpulse);
             suspensionImpulse *= Math.max(0, 1 - dt * 5);
             updateDriftPuffs(dt, driftIntent);
+            updateSparks(dt);
+            updateCrashDebris(dt);
 
             updateRemoteRacers(dt);
 
@@ -9161,8 +9163,10 @@
         unitSystem = unit === 'kmh' ? 'kmh' : 'mph';
     }
     function speedText(mps) {
+        // Physics stays in metres per second. The km/h readout uses a
+        // three-times-smaller display scale so the arcade speeds read naturally.
         return unitSystem === 'kmh'
-            ? Math.round(Math.abs(mps) * 3.6) + ' km/h'
+            ? Math.round(Math.abs(mps) * 3.6 / 3) + ' km/h'
             : Math.round(Math.abs(mps) * 2.23694) + ' mph';
     }
     function setPaused(on) {

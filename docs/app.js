@@ -479,7 +479,7 @@ function showViewLoader(label) {
 function hideViewLoader() {
     var el = document.getElementById('viewLoader');
     if (!el) return;
-    var wait = Math.max(0, 340 - (Date.now() - viewLoaderShownAt));
+    var wait = Math.max(0, 700 - (Date.now() - viewLoaderShownAt));
     clearTimeout(viewLoaderHideTimer);
     viewLoaderHideTimer = setTimeout(function () {
         el.classList.remove('is-visible');
@@ -1120,7 +1120,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261303'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261304'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1129,7 +1129,7 @@ function ensure3DEngine() {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261303').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261304').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1137,7 +1137,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261303').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261304').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1145,8 +1145,8 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261303')
-            .then(function () { return loadScriptOnce('assistant.js?v=20261303'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261304')
+            .then(function () { return loadScriptOnce('assistant.js?v=20261304'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1162,7 +1162,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261303').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261304').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1170,7 +1170,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261303').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261304').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1178,7 +1178,7 @@ function ensureLucky() {
 function ensureTycoon() {
     if (window.Tycoon) return Promise.resolve();
     if (!tycoonPromise) {
-        tycoonPromise = loadScriptOnce('tycoon.js?v=20261303').catch(function (error) { tycoonPromise = null; throw error; });
+        tycoonPromise = loadScriptOnce('tycoon.js?v=20261304').catch(function (error) { tycoonPromise = null; throw error; });
     }
     return tycoonPromise;
 }
@@ -7038,6 +7038,8 @@ function normalizeArcade(raw) {
         var n = Number(value);
         return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : fallback;
     }
+    var facilities = (a.facilities && typeof a.facilities === 'object') ? a.facilities : {};
+    function level(value) { return Math.max(0, Math.min(5, Math.floor(Number(value) || 0))); }
     return {
         cash: num(a.cash, 500),
         slots: slots,
@@ -7045,6 +7047,10 @@ function normalizeArcade(raw) {
         reputation: num(a.reputation, 0),
         totalEarned: num(a.totalEarned, 0),
         milestones: Array.isArray(a.milestones) ? a.milestones.filter(function (m) { return typeof m === 'string'; }).slice(0, 40) : [],
+        facilities: { snack: level(facilities.snack), prize: level(facilities.prize) },
+        boostUntil: Number.isFinite(Number(a.boostUntil)) ? Number(a.boostUntil) : 0,
+        lastDaily: Number.isFinite(Number(a.lastDaily)) ? Number(a.lastDaily) : 0,
+        tournamentReadyAt: Number.isFinite(Number(a.tournamentReadyAt)) ? Number(a.tournamentReadyAt) : 0,
         lastSeen: Number.isFinite(Number(a.lastSeen)) && Number(a.lastSeen) > 0 ? Number(a.lastSeen) : Date.now(),
         updatedAt: Number.isFinite(Number(a.updatedAt)) ? Number(a.updatedAt) : 0
     };
@@ -8920,8 +8926,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.19";
-const UPDATE_NOTES = "Arcade Tycoon now ticks cash every second and updates build buttons live. Beach Racer collisions under 30 km/h relative speed are minor bumps";
+const APP_VERSION = "LessFun Public Beta 1.33.20";
+const UPDATE_NOTES = "Arcade Tycoon now has snack bars, prize counters, marketing boosts, daily bonuses and tournaments. Loading screens hold their animation, minor-crash particles fade, and km/h reads lower";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

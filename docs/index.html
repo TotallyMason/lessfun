@@ -11,8 +11,8 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261303">
-    <link rel="preload" href="app.js?v=20261303" as="script">
+    <link rel="stylesheet" href="style.css?v=20261304">
+    <link rel="preload" href="app.js?v=20261304" as="script">
 </head>
 <body>
     <div id="siteLoader" class="site-loader" role="status" aria-live="polite" aria-label="Loading LessFun">
@@ -54,7 +54,7 @@
             if (hidden) return;
             hidden = true;
             var now = (window.performance && performance.now) ? performance.now() : Date.now();
-            var wait = Math.max(0, 500 - (now - started));
+            var wait = Math.max(0, 1600 - (now - started));
             setTimeout(function () {
                 loader.classList.add('is-hiding');
                 document.documentElement.classList.remove('is-loading');
@@ -1047,7 +1047,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Public Beta 1.33.19</p>
+                            <p>LessFun Public Beta 1.33.20</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -1168,6 +1168,7 @@
                             <li><strong>1.33.17</strong> — Gift Run mode in Beach Racer, 12 Christmas cosmetics, and a snowy holiday garage and showroom.</li>
                             <li><strong>1.33.18</strong> — Arcade Tycoon: build your own LessFun arcade, earn Arcade Cash while away, and unlock milestone Coins.</li>
                             <li><strong>1.33.19</strong> — Arcade Tycoon cash refreshes every second with live build buttons, and Beach Racer bumps under 30 km/h relative speed are now minor contact instead of a full crash.</li>
+                            <li><strong>1.33.20</strong> — Arcade Tycoon gets a snack bar, prize counter, marketing blitz, daily bonus and tournaments; loading screens play their full animation; minor-crash particles now fade; km/h readout is scaled down.</li>
                         </ul>
                     </div>
                     <div class="info-card">
@@ -1510,8 +1511,8 @@
     <div id="globalToast" class="global-toast"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=20261303"></script>
-    <script src="christmas.js?v=20261303"></script>
-    <script src="easter.js?v=20261303"></script>
+    <script src="app.js?v=20261304"></script>
+    <script src="christmas.js?v=20261304"></script>
+    <script src="easter.js?v=20261304"></script>
 </body>
 </html>

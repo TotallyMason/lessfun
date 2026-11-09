@@ -38,8 +38,10 @@ The **AI** button in the top bar opens a local assistant with a 10,000-pattern k
 
 **Arcade Tycoon** is a persistent management game. Buy cabinets based on the
 games in the arcade, upgrade them, expand the floor, and earn Arcade Cash while
-you are away (up to 8 hours). Arcade Cash is separate from Coins; milestones
-pay real LessFun Coins. Progress syncs through the wallet save.
+you are away (up to 8 hours). Extra income comes from snack bars, prize counters,
+Marketing Blitz boosts, daily bonuses and tournament nights. Arcade Cash is
+separate from Coins; milestones pay real LessFun Coins. Progress syncs through
+the wallet save.
 
 ## Christmas music
 
