@@ -672,7 +672,7 @@
         });
         var cloudLayers = [];
         var cloudTints = [0xffffff, 0xffe6d8, 0xdfefff, 0xfff1de, 0xe8ddff];
-        for (var cl = 0; cl < (lowPowerDevice ? 8 : 12); cl++) {
+        for (var cl = 0; cl < (lowPowerDevice ? 6 : 10); cl++) {
             var cluster = new THREE.Group();
             var puffs = 5 + Math.floor(Math.random() * 4);
             for (var cp = 0; cp < puffs; cp++) {
@@ -1207,7 +1207,7 @@
             return g;
         }
 
-        for (var sh = 0; sh < (isMobileDevice ? 7 : 16); sh++) {
+        for (var sh = 0; sh < (isMobileDevice ? 7 : (lowPowerDevice ? 10 : 16)); sh++) {
             var shop = makeShop(sh);
             shop.position.set(22 + (sh % 3) * 5.5, 0, 8 - sh * 36);
             shop.rotation.y = 0;
@@ -1281,7 +1281,7 @@
             });
             return g;
         }
-        for (var pc = 0; pc < (isMobileDevice ? 5 : 9); pc++) {
+        for (var pc = 0; pc < (isMobileDevice ? 5 : (lowPowerDevice ? 6 : 9)); pc++) {
             var parked = makeParkedCar(pc);
             parked.position.set(18.2, 0, -10 - pc * 62);
             addScroller(parked, 558, 1, 230);
@@ -4232,7 +4232,7 @@
             }
         }
 
-        for (var t = 0; t < (isMobileDevice ? 4 : 8); t++) spawnTraffic(-100 - t * 46);
+        for (var t = 0; t < (isMobileDevice ? 4 : (lowPowerDevice ? 6 : 8)); t++) spawnTraffic(-100 - t * 46);
         spawnTraffic(-150, true);
 
         function blink(car, side) {
@@ -4467,7 +4467,10 @@
             var laneX = [];
             for (var i = 0; i < LANES.length; i++) laneX.push(26 + i * laneSpacing);
             // Solid target-lane strip, slightly narrower than the lane itself.
-            var tx = laneX[fsdLane];
+            // It glides between lanes using the same eased path as the car.
+            var laneSpan = LANES[LANES.length - 1] - LANES[0];
+            var laneFloat = laneSpan ? (fsdSteerX - LANES[0]) / laneSpan : 0;
+            var tx = 26 + Math.max(0, Math.min(1, laneFloat)) * (w - 52);
             var bandW = Math.max(7, laneSpacing * 0.72);
             ctx.fillStyle = '#2fd4ff';
             ctx.fillRect(tx - bandW / 2, 4, bandW, h - 8);
@@ -4591,8 +4594,8 @@
             if (!fsdGroup) return;
             fsdGroup.visible = fsdActive;
             if (!fsdActive) return;
-            fsdGroup.position.set(LANES[fsdLane], 0, player.position.z);
-            if (elapsed - fsdPanelLast > 0.1) {
+            fsdGroup.position.set(fsdSteerX, 0, player.position.z);
+            if (elapsed - fsdPanelLast > (lowPowerDevice ? 0.18 : 0.12)) {
                 fsdPanelLast = elapsed;
                 drawFsdPanel();
             }
@@ -4914,7 +4917,9 @@
                             fsdChangeDur = 0.28 + laneDist * 0.09;
                             fsdSignalSide = globalBest > curLane ? 1 : -1;
                             fsdSignalT = Math.min(1.2, 0.55 + laneDist * 0.2);
-                            fsdCooldown = 0.18 + Math.random() * 0.32;
+                            // Normal lane changes are locked for 1 second after the
+                            // move finishes. Emergency swerves use their own cooldown.
+                            fsdCooldown = 1.0 + fsdChangeDur;
                         }
                     } else if (laneGapFor(fsdLane, 220) < 30) {
                         fsdLane = curLane;
@@ -5314,7 +5319,9 @@
             }
 
             spawnT += dt;
-            if (spawnT > Math.max(isMobileDevice ? 1.0 : 0.75, (isMobileDevice ? 1.9 : 1.5) - elapsed * 0.012)) { spawnT = 0; spawnTraffic(); }
+            var spawnFloor = isMobileDevice ? 1.0 : (lowPowerDevice ? 1.0 : 0.75);
+            var spawnBase = isMobileDevice ? 1.9 : (lowPowerDevice ? 1.8 : 1.5);
+            if (spawnT > Math.max(spawnFloor, spawnBase - elapsed * 0.012)) { spawnT = 0; spawnTraffic(); }
 
             for (var k = traffic.length - 1; k >= 0; k--) {
                 var c = traffic[k];
@@ -5583,19 +5590,21 @@
             } else {
                 gearText = (speed < 0.15 ? 1 : currentGear) + '/8';
             }
-            var status = (giftMode ? 'GIFT RUN · ' + giftsDelivered + '/' + GIFT_TARGET + ' · ' + Math.max(0, Math.ceil(giftTimer)) + 's · ' : '') +
-                (fsdActive ? 'FSD · ' : '') +
-                (!engineOn ? 'HOLD W TO START' : '') +
-                (nitroActive ? (nitroShiftT > 0 ? ' · NITRO SHIFT' : ' · NOS') : '') +
-                (driftIntent ? ' · DRIFT' : '') +
-                (freeRevNow && revLevel > 0.12 ? ' · REV' : '') +
-                (playerY > 0.4 && !(isSleigh && flyTime > 0) ? ' · JUMP' : '') +
-                (isSleigh ? (flyTime > 0 ? ' · FLYING ' + flyTime.toFixed(1) + 's' : (flyCooldown > 0 ? ' · FLY CD ' + Math.ceil(flyCooldown) + 's' : ' · FLY READY [SPACE]')) : '') +
-                (exitHintText ? ' · ' + exitHintText : '');
+            var statusParts = [];
+            if (giftMode) statusParts.push('GIFT RUN · ' + giftsDelivered + '/' + GIFT_TARGET + ' · ' + Math.max(0, Math.ceil(giftTimer)) + 's');
+            if (fsdActive) statusParts.push('FSD');
+            if (!engineOn) statusParts.push('HOLD W TO START');
+            if (nitroActive) statusParts.push(nitroShiftT > 0 ? 'NITRO SHIFT' : 'NOS');
+            if (driftIntent) statusParts.push('DRIFT');
+            if (freeRevNow && revLevel > 0.12) statusParts.push('REV');
+            if (playerY > 0.4 && !(isSleigh && flyTime > 0)) statusParts.push('JUMP');
+            if (isSleigh) statusParts.push(flyTime > 0 ? 'FLYING ' + flyTime.toFixed(1) + 's' : (flyCooldown > 0 ? 'FLY CD ' + Math.ceil(flyCooldown) + 's' : 'FLY READY [SPACE]'));
+            if (exitHintText) statusParts.push(exitHintText);
+            var status = statusParts.join(' · ');
             var hudValue = giftMode ? (giftScore + Math.round(distance * 0.2)) : (distance + checkpointsPassed * CHECKPOINT_BONUS + driftScore);
             gaugeT -= dt;
             if (gaugeT <= 0) {
-                gaugeT = 1 / 30;
+                gaugeT = lowPowerDevice ? 1 / 15 : 1 / 20;
                 var gaugeGearIndex = engineOn ? Math.max(0, currentGear - 1) : 0;
                 var gaugeLower = gaugeGearIndex === 0 ? 0 : GEAR_FRACTIONS[gaugeGearIndex - 1];
                 var gaugeUpper = gaugeGearIndex < GEAR_FRACTIONS.length ? GEAR_FRACTIONS[gaugeGearIndex] : 1;
@@ -9357,6 +9366,8 @@
 
     function loop() {
         raf = requestAnimationFrame(loop);
+        // Browsers throttle hidden tabs already; skip the work entirely too.
+        if (document.hidden) return;
         var frameNow = (global.performance && global.performance.now) ? global.performance.now() : Date.now();
         // Always target up to 60 FPS. Low-power devices still use adaptive
         // resolution, but are never capped at 30 FPS.
