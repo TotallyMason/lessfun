@@ -214,6 +214,24 @@
             }
         };
         var terrainWaveScale = 1;
+        var elevationName = (ctx.options && ctx.options.elevation) || 'flat';
+        if (elevationName !== 'hills' && elevationName !== 'mountains' && elevationName !== 'canyon') elevationName = 'flat';
+        var roadElev = 0;
+        function elevationAt(trackS) {
+            if (elevationName === 'hills') {
+                return Math.sin(trackS * 0.025) * 4.2 + Math.sin(trackS * 0.065 + 1.3) * 1.3;
+            }
+            if (elevationName === 'mountains') {
+                return Math.sin(trackS * 0.018) * 9.0 + Math.sin(trackS * 0.045 + 0.7) * 3.0;
+            }
+            if (elevationName === 'canyon') {
+                return Math.sin(trackS * 0.03) * 6.0 + Math.cos(trackS * 0.075) * 2.0;
+            }
+            return 0;
+        }
+        function worldElevation(worldZ) {
+            return elevationAt(distance - (worldZ - player.position.z));
+        }
         var GIFT_TARGET = 10, GIFT_TIME = 75;
         var giftTimer = giftMode ? GIFT_TIME : 0;
         var giftsDelivered = 0, giftScore = 0, giftRings = [];
@@ -851,7 +869,7 @@
         var ROAD_W = 20.8;
         var scrollers = [];
         function addScroller(obj, wrap, factor, lodRange) {
-            scrollers.push({ obj: obj, wrap: wrap, factor: factor == null ? 1 : factor, lodRange: lodRange || 0, baseX: obj.position.x, baseRotY: obj.rotation ? obj.rotation.y : 0 });
+            scrollers.push({ obj: obj, wrap: wrap, factor: factor == null ? 1 : factor, lodRange: lodRange || 0, baseX: obj.position.x, baseY: obj.position.y || 0, baseRotY: obj.rotation ? obj.rotation.y : 0 });
             scene.add(obj);
             return obj;
         }
@@ -879,7 +897,7 @@
             }
         }, 18, 48);
         var sand = new THREE.Mesh(
-            new THREE.PlaneGeometry(300, 720, 1, 1),
+            new THREE.PlaneGeometry(300, 720, 20, 60),
             standard(0xffffff, { map: sandTex, roughness: 0.98 })
         );
         sand.rotation.x = -Math.PI / 2;
@@ -906,8 +924,9 @@
         var laneLineMat = new THREE.MeshBasicMaterial({ color: 0xf8f8f4, transparent: true, opacity: 0.82 });
         var edgeLineMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
 
+        var flatGroundMeshes = [];
         var track = new THREE.Mesh(
-            new THREE.PlaneGeometry(ROAD_W, 500),
+            new THREE.PlaneGeometry(ROAD_W, 500, 6, 120),
             standard(0xffffff, { map: trackTex, roughness: 0.96, metalness: 0.03 })
         );
         track.rotation.x = -Math.PI / 2;
@@ -920,24 +939,28 @@
             shoulder.rotation.x = -Math.PI / 2;
             shoulder.position.set(side * (ROAD_W / 2 + 0.5), -0.02, -235);
             scene.add(shoulder);
+            flatGroundMeshes.push(shoulder);
 
             var edge = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 500), edgeLineMat);
             edge.rotation.x = -Math.PI / 2;
             edge.position.set(side * (ROAD_W / 2 - 0.42), 0.006, -235);
             scene.add(edge);
+            flatGroundMeshes.push(edge);
 
             var railX = side * (ROAD_W / 2 + 0.85);
             var rail = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.3, 500), railMat);
             rail.position.set(railX, 0.72, -235);
             scene.add(rail);
+            flatGroundMeshes.push(rail);
             var rail2 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.16, 500), railMat);
             rail2.position.set(railX, 0.42, -235);
             scene.add(rail2);
+            flatGroundMeshes.push(rail2);
         });
 
 
         var wetSand = new THREE.Mesh(
-            new THREE.PlaneGeometry(6.2, 500),
+            new THREE.PlaneGeometry(6.2, 500, 2, 80),
             standard(0xb9915f, { roughness: 0.62, metalness: 0.08 })
         );
         wetSand.rotation.x = -Math.PI / 2;
@@ -967,6 +990,33 @@
             foam.rotation.x = -Math.PI / 2;
             foam.position.set(-16.5 - Math.random() * 12, -0.02, -Math.random() * 340);
             addScroller(foam, 340, 0.6);
+        }
+
+        var elevationMeshT = 0;
+        function deformElevationPlane(mesh) {
+            var pos = mesh.geometry.attributes.position;
+            for (var pi = 0; pi < pos.count; pi++) {
+                var localY = pos.getY(pi);
+                var worldZ = mesh.position.z - localY;
+                var elev = elevationAt(distance - (worldZ - player.position.z));
+                pos.setZ(pi, elev);
+            }
+            pos.needsUpdate = true;
+        }
+        function updateElevationMeshes() {
+            if (!track || !sand || !wetSand) return;
+            deformElevationPlane(track);
+            deformElevationPlane(sand);
+            deformElevationPlane(wetSand);
+            track.geometry.computeVertexNormals();
+            sand.geometry.computeVertexNormals();
+            wetSand.geometry.computeVertexNormals();
+        }
+        function applyElevation(name) {
+            elevationName = (name === 'hills' || name === 'mountains' || name === 'canyon') ? name : 'flat';
+            var flat = elevationName === 'flat';
+            for (var fi = 0; fi < flatGroundMeshes.length; fi++) flatGroundMeshes[fi].visible = flat;
+            updateElevationMeshes();
         }
 
         function applyTerrain(name) {
@@ -2694,6 +2744,7 @@
                 var rel = gate.userData.distance - distance;
                 var gateZ = player.position.z - rel;
                 gate.position.z = gateZ;
+                gate.position.y = worldElevation(gateZ);
                 gate.position.x = roadCurveOffset(gateZ) - roadCurveOffset(player.position.z);
                 gate.rotation.y = -roadTangentAt(gateZ);
                 gate.visible = rel > -16 && rel < 620;
@@ -2821,6 +2872,7 @@
                 }
                 var featureZ = player.position.z - rel;
                 feature.group.position.z = featureZ;
+                feature.group.position.y = worldElevation(featureZ);
                 feature.group.position.x = roadCurveOffset(featureZ) - roadCurveOffset(player.position.z);
                 feature.group.rotation.y = -roadTangentAt(featureZ);
                 feature.group.visible = rel > -50 && rel < 520;
@@ -2872,7 +2924,7 @@
                 }
                 var rel = coin.userData.distance - distance;
                 var coinZ = player.position.z - rel;
-                coin.position.set(coin.userData.laneX + (roadCurveOffset(coinZ) - roadCurveOffset(player.position.z)), 1.15, coinZ);
+                coin.position.set(coin.userData.laneX + (roadCurveOffset(coinZ) - roadCurveOffset(player.position.z)), 1.15 + worldElevation(coinZ), coinZ);
                 coin.rotation.z += 0.055;
                 coin.visible = !coin.userData.collected && rel > -12 && rel < 340;
                 if (!coin.userData.collected &&
@@ -2940,7 +2992,7 @@
                 rampBody.linearDamping = 0.02;
                 rampBody.angularDamping = 0.25;
             }
-            rampBody.position.set(player.position.x, 0.35 + Math.max(0.3, playerY), player.position.z);
+            rampBody.position.set(player.position.x, 0.35 + roadElev + Math.max(0.3, playerY), player.position.z);
             rampBody.velocity.set(0, boost, 0);
             rampBody.angularVelocity.set(0, 0, 0);
             rampBody.quaternion.setFromEuler(0, 0, 0);
@@ -2963,7 +3015,7 @@
             var nextY = Math.max(0, rampBody.position.y - 0.35);
             var prevY = playerY;
             playerY = nextY;
-            player.position.y = playerY;
+            player.position.y = roadElev + playerY;
             var currentVy = rampBody.velocity.y;
             if (playerY <= 0.02 && currentVy <= 0.5) {
                 if (prevY > 0.12) {
@@ -2989,7 +3041,7 @@
                 }
                 var rel = ramp.userData.distance - distance;
                 var rampZ = player.position.z - rel;
-                ramp.position.set(ramp.userData.laneX + (roadCurveOffset(rampZ) - roadCurveOffset(player.position.z)), 0, rampZ);
+                ramp.position.set(ramp.userData.laneX + (roadCurveOffset(rampZ) - roadCurveOffset(player.position.z)), worldElevation(rampZ), rampZ);
                 ramp.rotation.y = -roadTangentAt(rampZ);
                 ramp.visible = rel > -45 && rel < 480;
                 if (playerY < 0.2 && Math.abs(speed) > 25 && Math.abs(ramp.userData.laneX - player.position.x) < 1.8 &&
@@ -3054,7 +3106,7 @@
                 var rel = ring.userData.distance - distance;
                 var ringZ = player.position.z - rel;
                 var ringX = LANES[ring.userData.lane] + (roadCurveOffset(ringZ) - roadCurveOffset(player.position.z));
-                ring.position.set(ringX, ring.userData.y, ringZ);
+                ring.position.set(ringX, ring.userData.y + worldElevation(ringZ), ringZ);
                 ring.userData.gift.rotation.y += dt * 1.15;
                 ring.visible = rel > -30 && rel < 700;
                 if (rel <= 0 && rel > -20) {
@@ -3869,7 +3921,7 @@
                         spawnCrashSmoke(player.position.x, player.position.z, 3);
                     } else vy = 0;
                 }
-                player.position.y = playerY;
+                player.position.y = roadElev + playerY;
                 player.rotation.x += crashSpinX * dt;
                 player.rotation.y += crashSpinY * dt;
                 player.rotation.z += crashSpinZ * dt;
@@ -3930,8 +3982,8 @@
 
             // Slow-motion crash camera (no shake).
             camera.position.x = player.position.x * 0.8;
-            camera.position.y = 4.1 + playerY * 0.7;
-            camera.lookAt(player.position.x, 0.8 + playerY * 0.9, player.position.z - 6);
+            camera.position.y = 4.1 + roadElev + playerY * 0.7;
+            camera.lookAt(player.position.x, 0.8 + roadElev + playerY * 0.9, player.position.z - 6);
             var fov = 56 + Math.min(10, crashRealT * 4);
             camera.fov = fov;
             camera.updateProjectionMatrix();
@@ -4335,6 +4387,7 @@
         }
 
         var distance = 0, speed = CREEP_SPEED, elapsed = 0, spawnT = 0;
+        applyElevation(elevationName);
         var gearMode = 'D';
         var playerY = 0, vy = 0, driftScore = 0;
         var suspensionImpulse = 0;
@@ -5196,6 +5249,7 @@
             var prevDistance = distance;
             distance += speed * dt;
             if (distance < 0) distance = 0;
+            roadElev = elevationAt(distance);
             if (raceMode) {
                 if (distance >= RACE_LOOP) {
                     distance -= RACE_LOOP;
@@ -5288,7 +5342,8 @@
             }
 
             player.rotation.z = Math.max(-rollLimit, Math.min(rollLimit, -vx * 0.022 * (driftIntent ? 1.7 : 1)));
-            player.rotation.x = (brakeCmd ? 0.035 : 0) + Math.max(-0.03, Math.min(0.03, -vx * 0.002));
+            var roadSlope = Math.atan2(elevationAt(distance + 10) - elevationAt(distance - 10), 20);
+            player.rotation.x = (brakeCmd ? 0.035 : 0) + Math.max(-0.03, Math.min(0.03, -vx * 0.002)) + roadSlope * 0.7;
             if (player.userData.brakeMat) player.userData.brakeMat.color.setHex((input.brake || (fsdActive && brakeCmd)) ? 0xff2438 : 0x5a1018);
 
             // Airborne physics from ramp cars, plus Santa's Sleigh flight.
@@ -5297,7 +5352,7 @@
             } else if (isSleigh && flyTime > 0) {
                 playerY += (FLY_HEIGHT - playerY) * Math.min(1, dt * 5);
                 vy = 0;
-                player.position.y = playerY;
+                player.position.y = roadElev + playerY;
                 flySparkT -= dt;
                 if (flySparkT <= 0) {
                     flySparkT = 0.09;
@@ -5311,8 +5366,9 @@
                     playerY = 0;
                     vy = 0;
                 }
-                player.position.y = playerY;
+                player.position.y = roadElev + playerY;
             }
+            if (!rampPhysicsActive && !(isSleigh && flyTime > 0)) player.position.y = roadElev + playerY;
             var bodyRoll = Math.max(-0.5, Math.min(0.5, vx * 0.03 + (driftIntent ? steerInput * 0.42 : 0)));
             var bodyPitch = 0;
             if (input.brake) bodyPitch += 0.14;
@@ -5367,6 +5423,12 @@
                 }
             }
 
+            elevationMeshT -= dt;
+            if (elevationName !== 'flat' && elevationMeshT <= 0) {
+                elevationMeshT = 1 / 20;
+                updateElevationMeshes();
+            }
+
             for (var si = 0; si < scrollers.length; si++) {
                 var sc = scrollers[si];
                 sc.obj.position.z += speed * dt * sc.factor;
@@ -5376,6 +5438,7 @@
                     sc.obj.position.x = sc.baseX + roadCurveOffset(sc.obj.position.z);
                     sc.obj.rotation.y = (sc.baseRotY || 0) - roadTangentAt(sc.obj.position.z);
                 }
+                sc.obj.position.y = sc.baseY + worldElevation(sc.obj.position.z);
             }
 
             // Gentle ocean swell, throttled to 30 Hz.
@@ -5386,7 +5449,9 @@
                 for (var vi = 0; vi < pos.count; vi++) {
                     var ox = oceanBase[vi * 3];
                     var oy = oceanBase[vi * 3 + 1];
-                    pos.array[vi * 3 + 2] = (Math.sin((ox * 0.11 + elapsed * 1.6)) * 0.16 + Math.sin((oy * 0.16 - elapsed * 1.1)) * 0.1) * terrainWaveScale;
+                    var oceanZ = ocean.position.z - oy;
+                    var oceanElev = elevationAt(distance - (oceanZ - player.position.z));
+                    pos.array[vi * 3 + 2] = oceanElev + (Math.sin((ox * 0.11 + elapsed * 1.6)) * 0.16 + Math.sin((oy * 0.16 - elapsed * 1.1)) * 0.1) * terrainWaveScale;
                 }
                 pos.needsUpdate = true;
             }
@@ -5535,6 +5600,7 @@
 
                 var prevZ = c.position.z;
                 c.position.z += (speed - u.cruiseSpeed) * dt;
+                c.position.y = worldElevation(c.position.z);
                 var tw = c.userData.wheels || [];
                 var wheelSpeed = Math.abs(speed - u.cruiseSpeed) + 8;
                 for (var twi = 0; twi < tw.length; twi++) tw[twi].rotation.x += wheelSpeed * dt * 1.2;
@@ -5623,21 +5689,21 @@
 
             var curveAhead = roadCurveOffset(-80) - roadCurveOffset(0);
             if (cameraMode === 1) {
-                camDesired.set(player.position.x, 1.16 + playerY * 0.8, player.position.z - 0.9);
+                camDesired.set(player.position.x, 1.16 + roadElev + playerY * 0.8, player.position.z - 0.9);
                 camera.position.lerpVectors(camera.position, camDesired, Math.min(1, dt * 20));
-                camera.lookAt(player.position.x + vx * 0.18, 0.95 + playerY * 0.9, player.position.z - 26);
+                camera.lookAt(player.position.x + vx * 0.18, 0.95 + roadElev + playerY * 0.9, player.position.z - 26);
             } else if (cameraMode === 2) {
-                camDesired.set(player.position.x + 1.18, 0.52 + playerY * 0.5, player.position.z + 0.9);
+                camDesired.set(player.position.x + 1.18, 0.52 + roadElev + playerY * 0.5, player.position.z + 0.9);
                 camera.position.lerpVectors(camera.position, camDesired, Math.min(1, dt * 18));
-                camera.lookAt(player.position.x, 0.72 + playerY * 0.6, player.position.z - 20);
+                camera.lookAt(player.position.x, 0.72 + roadElev + playerY * 0.6, player.position.z - 20);
                 camera.rotateZ(-bodyRoll * 0.2);
             } else if (cameraMode === 3) {
-                camDesired.set(player.position.x, 1.05 + playerY * 0.9, player.position.z + 0.1);
+                camDesired.set(player.position.x, 1.05 + roadElev + playerY * 0.9, player.position.z + 0.1);
                 camera.position.lerpVectors(camera.position, camDesired, Math.min(1, dt * 24));
                 var fpYaw = player.rotation.y;
                 camera.lookAt(
                     player.position.x - Math.sin(fpYaw) * 28,
-                    0.88 + playerY * 0.9,
+                    0.88 + roadElev + playerY * 0.9,
                     player.position.z - Math.cos(fpYaw) * 28
                 );
                 camera.rotateZ(bodyRoll * 0.55);
@@ -5645,14 +5711,14 @@
                 var cameraLag = Math.min(3.4, Math.max(0, accelNow) * 0.13) + powerLoad * 0.8;
                 camDesired.set(
                     player.position.x * 0.42,
-                    5.3 + playerY * 0.78 + (player.userData.bodyGroup ? player.userData.bodyGroup.position.y * 4.0 : 0) - suspensionImpulse * 0.3 + Math.sin(elapsed * 1.4) * 0.035,
+                    5.3 + roadElev + playerY * 0.78 + (player.userData.bodyGroup ? player.userData.bodyGroup.position.y * 4.0 : 0) - suspensionImpulse * 0.3 + Math.sin(elapsed * 1.4) * 0.035,
                     13 + cameraLag
                 );
                 camera.position.lerpVectors(camera.position, camDesired, Math.min(1, dt * 4.2));
-                camera.lookAt(player.position.x * 0.5 + vx * 0.22 + curveAhead * 0.22, 0.5 + playerY * 0.9, -12);
+                camera.lookAt(player.position.x * 0.5 + vx * 0.22 + curveAhead * 0.22, 0.5 + roadElev + playerY * 0.9, -12);
                 camera.rotateZ(-curveAhead * 0.0016 - bodyRoll * 0.1);
                 camera.rotateY(curveAhead * 0.0009 - steerAngle * 0.16);
-                camera.rotateX(bodyPitch * 0.05);
+                camera.rotateX(bodyPitch * 0.05 + roadSlope * 0.2);
             }
             if (powerShake > 0.0002) {
                 var shakeSpeed = 55 + revLevel * 22;
@@ -5785,6 +5851,7 @@
             },
             toggleFsd: function () { input.fsdToggle = true; },
             setTerrain: applyTerrain,
+            setElevation: applyElevation,
             setRemotes: setRemoteRacers,
             setLocalName: setLocalRacerName,
             getState: function () {
@@ -9944,6 +10011,9 @@
     function setTerrain(name) {
         if (active && active.setTerrain) active.setTerrain(name);
     }
+    function setElevation(name) {
+        if (active && active.setElevation) active.setElevation(name);
+    }
     function toggleShadowHelper(on) {
         if (active && active.toggleShadowHelper) active.toggleShadowHelper(on);
     }
@@ -9988,6 +10058,7 @@
         setGearMode: setGearMode,
         toggleFsd: toggleFsd,
         setTerrain: setTerrain,
+        setElevation: setElevation,
         toggleShadowHelper: toggleShadowHelper,
         getCurrentScore: getCurrentScore,
         lockPointer: lockPointer,
