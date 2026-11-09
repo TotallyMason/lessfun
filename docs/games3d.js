@@ -45,6 +45,7 @@
     var motionBlurScene = null;
     var motionBlurCamera = null;
     var motionBlurMaterial = null;
+    var motionBlurStrength = 0.34;
     var fpsTime = 0;
     var fpsFrames = 0;
     var lastFps = 0;
@@ -5516,6 +5517,7 @@
             // acceleration kick and a little speed rumble.
             var powerShake = powerLoad * (0.05 + Math.min(0.16, Math.max(0, accelNow) * 0.006)) + revLevel * 0.03;
             powerShake += powerLoad * Math.min(0.045, Math.abs(speed) * 0.0003);
+            motionBlurStrength = Math.min(0.58, 0.2 + Math.abs(speed) * 0.005);
             var fovTarget = 68 + Math.min(46, Math.abs(speed) * 0.34) + Math.min(5, Math.max(0, accelNow) * 0.18);
             camera.fov += (fovTarget - camera.fov) * Math.min(1, dt * 2.6);
             camera.updateProjectionMatrix();
@@ -9672,7 +9674,10 @@
 
     function renderFrame() {
         if (!renderer || !scene || !camera) return;
-        if (!motionBlurEnabled || motionBlurAutoOff || !ensureMotionBlurResources()) {
+        // Motion blur is a Beach Racer-only speed effect and stays on there,
+        // regardless of the graphics preset or automatic quality fallback.
+        var racerBlur = lastGameId === 1;
+        if (!racerBlur || !ensureMotionBlurResources()) {
             renderer.setRenderTarget(null);
             renderer.render(scene, camera);
             return;
@@ -9685,7 +9690,7 @@
         renderer.setRenderTarget(null);
         motionBlurMaterial.uniforms.currentTex.value = current.texture;
         motionBlurMaterial.uniforms.prevTex.value = previous.texture;
-        motionBlurMaterial.uniforms.amount.value = motionBlurHasPrev ? 0.34 : 0.0;
+        motionBlurMaterial.uniforms.amount.value = motionBlurHasPrev ? motionBlurStrength : 0.0;
         renderer.render(motionBlurScene, motionBlurCamera);
         motionBlurIndex = 1 - motionBlurIndex;
         motionBlurHasPrev = true;
