@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="preconnect" href="https://playerservices.streamtheworld.com">
     <link rel="preconnect" href="https://22893.live.streamtheworld.com">
     <link rel="dns-prefetch" href="https://playerservices.streamtheworld.com">
@@ -10,7 +11,8 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261287">
+    <link rel="stylesheet" href="style.css?v=20261288">
+    <link rel="preload" href="app.js?v=20261288" as="script">
 </head>
 <body>
     <div id="siteLoader" class="site-loader" role="status" aria-live="polite" aria-label="Loading LessFun">
@@ -37,7 +39,7 @@
             if (hidden) return;
             hidden = true;
             var now = (window.performance && performance.now) ? performance.now() : Date.now();
-            var wait = Math.max(0, 700 - (now - started));
+            var wait = Math.max(0, 500 - (now - started));
             setTimeout(function () {
                 loader.classList.add('is-hiding');
                 document.documentElement.classList.remove('is-loading');
@@ -119,7 +121,7 @@
                     </svg>
                     <span class="shells-amount" id="navCoins">100</span>
                 </button>
-                <button class="nav-btn nav-ai" onclick="window.LessFunAI&&LessFunAI.open()" id="nav-ai" title="Ask LessFun AI">
+                <button class="nav-btn nav-ai" onclick="openAssistant()" id="nav-ai" title="Ask LessFun AI">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;">
                         <path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3Z"/>
                         <path d="M19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8L19 14Z"/>
@@ -998,7 +1000,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Public Beta 1.33.03</p>
+                            <p>LessFun Public Beta 1.33.04</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -1103,6 +1105,7 @@
                             <li><strong>1.33.01</strong> — The assistant tolerates more typos, swapped letters and shorthand, and waits before it starts streaming an answer.</li>
                             <li><strong>1.33.02</strong> — The assistant knowledge base grows from 1,000 to 10,000 answer patterns.</li>
                             <li><strong>1.33.03</strong> — New site loading splash with the LessFun mark, aurora glow and progress shimmer. The assistant also got game-aware context and follow-up handling.</li>
+                            <li><strong>1.33.04</strong> — Much faster startup: the 3D engine, game scripts and assistant now load on demand instead of blocking the first page load.</li>
                         </ul>
                     </div>
                     <div class="info-card">
@@ -1424,13 +1427,6 @@
     <div id="globalToast" class="global-toast"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
-    <script src="games3d.js?v=20261287"></script>
-    <script src="landing.js?v=20261287"></script>
-    <script src="tranq.js?v=20261287"></script>
-    <script src="app.js?v=20261287"></script>
-    <script src="assistant-data.js?v=20261287"></script>
-    <script src="assistant.js?v=20261287"></script>
+    <script src="app.js?v=20261288"></script>
 </body>
 </html>

@@ -1013,7 +1013,96 @@ let startMenuSuppressed = false;
 let mpRewardSessionClaimed = false;
 let gameToastTimer = 0;
 
+const lazyScripts = {};
+function loadScriptOnce(src) {
+    if (lazyScripts[src]) return lazyScripts[src];
+    lazyScripts[src] = new Promise(function (resolve, reject) {
+        var script = document.createElement('script');
+        script.src = src;
+        script.async = true;
+        script.onload = function () { resolve(); };
+        script.onerror = function () { delete lazyScripts[src]; reject(new Error('Could not load ' + src)); };
+        document.body.appendChild(script);
+    });
+    return lazyScripts[src];
+}
+
+let enginePromise = null;
+let landingPromise = null;
+let tranqPromise = null;
+let assistantPromise = null;
+let gameOpenToken = 0;
+
+function ensure3DEngine() {
+    if (window.Games3D) return Promise.resolve();
+    if (!enginePromise) {
+        enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
+            .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261288'); })
+            .catch(function (error) { enginePromise = null; throw error; });
+    }
+    return enginePromise;
+}
+
+function ensureLanding() {
+    if (typeof openLandingSim === 'function') return Promise.resolve();
+    if (!landingPromise) {
+        landingPromise = loadScriptOnce('landing.js?v=20261288').catch(function (error) { landingPromise = null; throw error; });
+    }
+    return landingPromise;
+}
+
+function ensureTranq() {
+    if (typeof openTranqGame === 'function') return Promise.resolve();
+    if (!tranqPromise) {
+        tranqPromise = loadScriptOnce('tranq.js?v=20261288').catch(function (error) { tranqPromise = null; throw error; });
+    }
+    return tranqPromise;
+}
+
+function ensureAssistant() {
+    if (window.LessFunAI) return Promise.resolve();
+    if (!assistantPromise) {
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261288')
+            .then(function () { return loadScriptOnce('assistant.js?v=20261288'); })
+            .catch(function (error) { assistantPromise = null; throw error; });
+    }
+    return assistantPromise;
+}
+
+function openAssistant() {
+    if (window.LessFunAI) { LessFunAI.open(); return; }
+    ensureAssistant().then(function () { if (window.LessFunAI) LessFunAI.open(); }).catch(function () {
+        if (typeof showGameToast === 'function') showGameToast('Could not load the assistant.');
+    });
+}
+
 function openGame(id) {
+    const game = games.find(g => g.id === id);
+    if (!game) return;
+    const token = ++gameOpenToken;
+    if (id === 6 || id === 8 || id === 9) { openGameNow(id); return; }
+    if (id === 13) {
+        if (typeof showGameToast === 'function') showGameToast('Loading ' + game.name + '…');
+        ensureLanding().then(function () { if (token === gameOpenToken) openGameNow(id); }).catch(function () {
+            alert('Could not load ' + game.name + '. Check your connection and try again.');
+        });
+        return;
+    }
+    if (id === 14) {
+        if (typeof showGameToast === 'function') showGameToast('Loading ' + game.name + '…');
+        ensureTranq().then(function () { if (token === gameOpenToken) openGameNow(id); }).catch(function () {
+            alert('Could not load ' + game.name + '. Check your connection and try again.');
+        });
+        return;
+    }
+    if (typeof showGameToast === 'function') showGameToast('Loading 3D engine…');
+    ensure3DEngine().then(function () { if (token === gameOpenToken) openGameNow(id); }).catch(function () {
+        alert('Could not load the 3D engine. Check your connection and try again.');
+    });
+}
+
+function openGameNow(id) {
     const game = games.find(g => g.id === id);
     if (!game) return;
     document.body.classList.add('in-game');
@@ -8452,8 +8541,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.03";
-const UPDATE_NOTES = "A new LessFun loading splash warms up the arcade, with an aurora glow, glass mark and shimmer bar";
+const APP_VERSION = "LessFun Public Beta 1.33.04";
+const UPDATE_NOTES = "LessFun now starts faster: the 3D engine and game scripts load only when you open a game, so the arcade appears sooner";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -8544,6 +8633,10 @@ document.addEventListener('DOMContentLoaded', ()=>{
     applyUnitSetting();
     radioInit();
     initSnowEvent();
+});
+
+window.addEventListener('load', function () {
+    setTimeout(function () { ensureAssistant().catch(function () {}); }, 1800);
 });
 
 document.addEventListener('visibilitychange', function () {
