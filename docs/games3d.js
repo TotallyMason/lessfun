@@ -222,6 +222,7 @@
         var windLowLoop = null, windHighLoop = null;
         var engineLowLoop = null, engineHighLoop = null;
         var samplesLoading = false;
+        var saveClipBuffer = null;
         var audioResumeHandler = null;
         var revLevel = 0;
         var engineOscStarted = false, audioNoiseStarted = false, driftOscStarted = false;
@@ -259,13 +260,15 @@
                 decodeSample('audio/wind-low.mp3'),
                 decodeSample('audio/wind-high.mp3'),
                 decodeSample('audio/engine-low.mp3'),
-                decodeSample('audio/engine-high.mp3')
+                decodeSample('audio/engine-high.mp3'),
+                decodeSample('audio/save-clip.mp3')
             ]).then(function (buffers) {
                 if (!audioCtx || audioCtx.state === 'closed') return;
                 windLowLoop = makeSampleLoop(buffers[0]);
                 windHighLoop = makeSampleLoop(buffers[1]);
                 engineLowLoop = makeSampleLoop(buffers[2]);
                 engineHighLoop = makeSampleLoop(buffers[3]);
+                saveClipBuffer = buffers[4];
             }).catch(function () {
                 // If loading fails, the synthesized engine and wind stay available.
             }).then(function () {
@@ -2716,6 +2719,63 @@
             jumpRamps.push(jumpGroup);
         }
 
+        function startRampPhysics(boost) {
+            if (!rampWorld || !global.CANNON) {
+                vy = boost;
+                playerY = 0.3;
+                tone(160, 0.28, 'sawtooth', 0.07, 320);
+                return;
+            }
+            if (rampPhysicsActive) {
+                vy = Math.max(vy, boost);
+                return;
+            }
+            if (!rampBody) {
+                rampBody = new global.CANNON.Body({ mass: 1150 });
+                rampBody.addShape(new global.CANNON.Box(new global.CANNON.Vec3(0.9, 0.35, 1.6)));
+                rampBody.linearDamping = 0.02;
+                rampBody.angularDamping = 0.25;
+            }
+            rampBody.position.set(player.position.x, 0.35 + Math.max(0.3, playerY), player.position.z);
+            rampBody.velocity.set(0, boost, 0);
+            rampBody.angularVelocity.set(0, 0, 0);
+            rampBody.quaternion.setFromEuler(0, 0, 0);
+            if (rampWorld.bodies.indexOf(rampBody) < 0) rampWorld.addBody(rampBody);
+            rampPhysicsActive = true;
+            rampPrevVy = boost;
+            playerY = Math.max(0.3, playerY);
+            tone(160, 0.28, 'sawtooth', 0.07, 320);
+        }
+
+        function updateRampPhysics(dt) {
+            if (!rampPhysicsActive || !rampBody || !rampWorld) return false;
+            // Cannon handles the vertical arc and ground impact. X/Z stay with
+            // the arcade road so the camera and traffic keep their world space.
+            rampBody.position.x = player.position.x;
+            rampBody.position.z = player.position.z;
+            rampBody.velocity.x = 0;
+            rampBody.velocity.z = 0;
+            rampWorld.step(1 / 60, dt, 4);
+            var nextY = Math.max(0, rampBody.position.y - 0.35);
+            var prevY = playerY;
+            playerY = nextY;
+            player.position.y = playerY;
+            var currentVy = rampBody.velocity.y;
+            if (playerY <= 0.02 && currentVy <= 0.5) {
+                if (prevY > 0.12) {
+                    suspensionImpulse = Math.max(suspensionImpulse, Math.min(1, Math.abs(rampPrevVy) / 26));
+                    spawnSparks(player.position.x, 0.12, player.position.z, 10);
+                }
+                rampPhysicsActive = false;
+                rampBody.velocity.set(0, 0, 0);
+                rampWorld.removeBody(rampBody);
+                playerY = 0;
+                vy = 0;
+            }
+            rampPrevVy = currentVy;
+            return true;
+        }
+
         function updateJumpRamps(prevDistance) {
             for (var ji = 0; ji < jumpRamps.length; ji++) {
                 var ramp = jumpRamps[ji];
@@ -2730,9 +2790,7 @@
                 ramp.visible = rel > -45 && rel < 480;
                 if (playerY < 0.2 && Math.abs(speed) > 25 && Math.abs(ramp.userData.laneX - player.position.x) < 1.8 &&
                     ramp.userData.distance > prevDistance && ramp.userData.distance <= distance + 2) {
-                    vy = Math.min(34, 12 + Math.abs(speed) * 0.11);
-                    playerY = 0.3;
-                    tone(160, 0.28, 'sawtooth', 0.07, 320);
+                    startRampPhysics(Math.min(34, 12 + Math.abs(speed) * 0.11));
                 }
             }
         }
@@ -2862,6 +2920,10 @@
             crashWorld.defaultContactMaterial.friction = 0.015;
             crashWorld.defaultContactMaterial.restitution = 0.12;
         }
+        var rampWorld = makePhysicsWorld(-24);
+        var rampBody = null;
+        var rampPhysicsActive = false;
+        var rampPrevVy = 0;
         var crashWreckBodies = [];
         var crashWheels = [];
         var crashSprings = [];
@@ -3416,6 +3478,18 @@
 
         function playCrashSaveChime() {
             if (!soundEnabled || !audioCtx) return;
+            if (saveClipBuffer) {
+                try {
+                    var src = audioCtx.createBufferSource();
+                    src.buffer = saveClipBuffer;
+                    var gain = audioCtx.createGain();
+                    gain.gain.value = 0.32;
+                    src.connect(gain);
+                    gain.connect(audioMaster);
+                    src.start(0);
+                    return;
+                } catch (e) {}
+            }
             tone(988, 0.1, 'sine', 0.055);
             setTimeout(function () {
                 tone(1319, 0.18, 'sine', 0.05);
@@ -4922,7 +4996,9 @@
             if (player.userData.brakeMat) player.userData.brakeMat.color.setHex((input.brake || (fsdActive && brakeCmd)) ? 0xff2438 : 0x5a1018);
 
             // Airborne physics from ramp cars, plus Santa's Sleigh flight.
-            if (isSleigh && flyTime > 0) {
+            if (rampPhysicsActive) {
+                updateRampPhysics(dt);
+            } else if (isSleigh && flyTime > 0) {
                 playerY += (FLY_HEIGHT - playerY) * Math.min(1, dt * 5);
                 vy = 0;
                 player.position.y = playerY;
@@ -5172,8 +5248,7 @@
                     Math.abs(rampLogicalX - player.position.x) < 2.0) {
                     var rampGap = c.position.z - player.position.z;
                     if (rampGap > -5 && rampGap < 5) {
-                        vy = Math.min(30, 10 + Math.abs(speed) * 0.09);
-                        playerY = 0.4;
+                        startRampPhysics(Math.min(30, 10 + Math.abs(speed) * 0.09));
                         u.rampCooldown = elapsed + 1.6;
                     }
                 }
@@ -5429,6 +5504,7 @@
                     cameraZ: camera.position.z,
                     audioSamples: !!(windLowLoop && windHighLoop && engineLowLoop && engineHighLoop),
                     audioState: audioCtx ? audioCtx.state : 'none',
+                    rampPhysics: rampPhysicsActive,
                     crashing: crashActive
                 };
             },
