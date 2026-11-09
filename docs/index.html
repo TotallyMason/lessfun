@@ -11,8 +11,8 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261326">
-    <link rel="preload" href="app.js?v=20261326" as="script">
+    <link rel="stylesheet" href="style.css?v=20261327">
+    <link rel="preload" href="app.js?v=20261327" as="script">
 </head>
 <body>
     <div id="siteLoader" class="site-loader" role="status" aria-live="polite" aria-label="Loading LessFun">
@@ -849,7 +849,7 @@
             </div>
             <div class="settings-section">
                 <div class="settings-group">
-                    <h2>Appearance</h2>
+                    <h2>Visuals</h2>
                     <div class="settings-item">
                         <div>
                             <h3>Dark Mode</h3>
@@ -978,7 +978,7 @@
                     </div>
                 </div>
                 <div class="settings-group">
-                    <h2>Gameplay</h2>
+                    <h2>Audio</h2>
                     <div class="settings-item">
                         <div>
                             <h3>Sound Effects</h3>
@@ -999,6 +999,9 @@
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
+                </div>
+                <div class="settings-group">
+                    <h2>Gameplay</h2>
                     <div class="settings-item">
                         <div>
                             <h3>Speed Units</h3>
@@ -1031,7 +1034,9 @@
                     </div>
                 </div>
                 <div class="settings-group">
-                    <h2>Christmas Secrets</h2>
+                    <h2>Account</h2>
+                    <details class="settings-details">
+                        <summary>Christmas Secrets</summary>
                     <div class="secrets-card">
                         <p class="secrets-intro">Little surprises are hidden all over LessFun. Here is the full list.</p>
                         <ul class="secrets-list">
@@ -1047,13 +1052,11 @@
                         </ul>
                         <p class="secrets-note">Christmas touches also appear in the games: Santa’s Sleigh, red-and-green tunnel rings, holiday cube colours, Tranq trees, runway lights, Draw &amp; Guess words, Lucky Spin symbols and falling snow.</p>
                     </div>
-                </div>
-                <div class="settings-group">
-                    <h2>About LessFun</h2>
+                    </details>
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Public Beta 1.33.42</p>
+                            <p>LessFun Public Beta 1.33.43</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -1197,6 +1200,7 @@
                             <li><strong>1.33.40</strong> — The site loads faster with a shorter splash, and updates are checked every second.</li>
                             <li><strong>1.33.41</strong> — Fixed the post-load freeze by removing the AI startup prefetch, speeding up its index build, lazy-loading avatars and freeing view caches.</li>
                             <li><strong>1.33.42</strong> — Added an AI loading animation and releases its index when closed. Heavy 3D games are capped at 60 FPS, use fewer clouds, and drop quality automatically if they overheat.</li>
+                            <li><strong>1.33.43</strong> — Browser Back now closes the game, single-player games work offline through a service worker, and Settings is grouped into Visuals, Audio, Gameplay and Account. Daily Gift stays one tap.</li>
                         </ul>
                     </div>
                     <div class="info-card">
@@ -1539,8 +1543,8 @@
     <div id="globalToast" class="global-toast"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=20261326"></script>
-    <script src="christmas.js?v=20261326"></script>
-    <script src="easter.js?v=20261326"></script>
+    <script src="app.js?v=20261327"></script>
+    <script src="christmas.js?v=20261327"></script>
+    <script src="easter.js?v=20261327"></script>
 </body>
 </html>
