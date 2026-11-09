@@ -7,7 +7,7 @@
     var input = {
         left: false, right: false, up: false, down: false, brake: false,
         pointerActive: false, pointerX: 0, pointerY: 0, tapQueued: false, honk: false,
-        jump: false, reload: false, melee: false, interact: false, weapon: 0, bandage: false, fly: false,
+        jump: false, reload: false, melee: false, interact: false, weapon: 0, bandage: false, fly: false, rayTraceToggle: false,
         mobileX: 0, mobileY: 0
     };
 
@@ -46,6 +46,8 @@
     var motionBlurCamera = null;
     var motionBlurMaterial = null;
     var motionBlurStrength = 0.34;
+    var rayTraceEnabled = false;
+    var rtEnvTexture = null;
     var fpsTime = 0;
     var fpsFrames = 0;
     var lastFps = 0;
@@ -172,7 +174,7 @@
         var terrainName = 'coast';
         var TERRAIN_PALETTES = {
             coast: {
-                bg: 0x9bd7f2, fog: 0xffe0bd, fogDensity: 0.0055, skyTint: 0xffffff,
+                bg: 0x9bd7f2, fog: 0xbfe6f2, fogDensity: 0.0045, skyTint: 0xffffff,
                 sand: 0xffffff, wet: 0xb9915f, ocean: 0x1b87a8, oceanOpacity: 0.94,
                 glint: 0xffe6b0, glintOpacity: 0.13, foamOpacity: 0.68,
                 hemiSky: 0xaedcff, hemiGround: 0xffc58f, hemiIntensity: 0.46,
@@ -893,7 +895,7 @@
             standard(0xffffff, { map: sandTex, roughness: 0.98 })
         );
         sand.rotation.x = -Math.PI / 2;
-        sand.position.set(0, -0.33, -250); scene.add(sand);
+        sand.position.set(0, -0.55, -250); scene.add(sand);
 
         var trackTex = makeCanvasTexture(256, 512, function (g, w, h) {
             g.fillStyle = '#3a3e45'; g.fillRect(0, 0, w, h);
@@ -966,13 +968,13 @@
             metalness: 0.42, roughness: 0.17, transparent: true, opacity: 0.94
         }));
         ocean.rotation.x = -Math.PI / 2;
-        ocean.position.set(-96, -0.5, -245); scene.add(ocean);
+        ocean.position.set(-96, -0.28, -245); scene.add(ocean);
 
         var glintMat = new THREE.MeshBasicMaterial({ color: 0xffe6b0, transparent: true, opacity: 0.13, blending: THREE.AdditiveBlending, depthWrite: false });
         for (var gl = 0; gl < 9; gl++) {
             var glint = new THREE.Mesh(new THREE.PlaneGeometry(3 + Math.random() * 8, 34 + Math.random() * 80), glintMat);
             glint.rotation.x = -Math.PI / 2;
-            glint.position.set(-84 + Math.random() * 46, -0.42, -60 - Math.random() * 380);
+            glint.position.set(-84 + Math.random() * 46, -0.24, -60 - Math.random() * 380);
             addScroller(glint, 440, 0.35);
         }
 
@@ -980,7 +982,7 @@
         for (var fo = 0; fo < 36; fo++) {
             var foam = new THREE.Mesh(new THREE.PlaneGeometry(2.5 + Math.random() * 6, 0.32 + Math.random() * 0.35), foamMat);
             foam.rotation.x = -Math.PI / 2;
-            foam.position.set(-16.5 - Math.random() * 12, -0.4, -Math.random() * 340);
+            foam.position.set(-16.5 - Math.random() * 12, -0.25, -Math.random() * 340);
             addScroller(foam, 340, 0.6);
         }
 
@@ -1009,6 +1011,92 @@
             var flat = elevationName === 'flat';
             for (var fi = 0; fi < flatGroundMeshes.length; fi++) flatGroundMeshes[fi].visible = flat;
             updateElevationMeshes();
+        }
+
+        function setRayTrace(on) {
+            on = !!on;
+            if (on === rayTraceEnabled) return;
+            rayTraceEnabled = on;
+            if (on) {
+                if (!rtEnvTexture && typeof document !== 'undefined') {
+                    var envCanvas = document.createElement('canvas');
+                    envCanvas.width = 512; envCanvas.height = 256;
+                    var eg = envCanvas.getContext('2d');
+                    var grad = eg.createLinearGradient(0, 0, 0, 256);
+                    grad.addColorStop(0, '#2f6fa8');
+                    grad.addColorStop(0.44, '#9bd7f2');
+                    grad.addColorStop(0.56, '#ffd9a8');
+                    grad.addColorStop(0.62, '#f3c88f');
+                    grad.addColorStop(1, '#b98a55');
+                    eg.fillStyle = grad; eg.fillRect(0, 0, 512, 256);
+                    var sun = eg.createRadialGradient(360, 150, 4, 360, 150, 70);
+                    sun.addColorStop(0, 'rgba(255,250,220,1)');
+                    sun.addColorStop(1, 'rgba(255,220,150,0)');
+                    eg.fillStyle = sun; eg.beginPath(); eg.arc(360, 150, 70, 0, Math.PI * 2); eg.fill();
+                    rtEnvTexture = new THREE.CanvasTexture(envCanvas);
+                    rtEnvTexture.mapping = THREE.EquirectangularReflectionMapping;
+                    try { rtEnvTexture.colorSpace = THREE.SRGBColorSpace; } catch (e) {}
+                }
+                if (scene) scene.environment = rtEnvTexture || null;
+                if (ocean) {
+                    ocean.material.envMap = rtEnvTexture || null;
+                    ocean.material.envMapIntensity = 0.65;
+                    ocean.material.roughness = 0.14;
+                    ocean.material.metalness = 0.55;
+                    ocean.material.needsUpdate = true;
+                }
+                if (track) {
+                    track.material.envMap = rtEnvTexture || null;
+                    track.material.envMapIntensity = 0.35;
+                    track.material.metalness = 0.2;
+                    track.material.roughness = 0.5;
+                    track.material.needsUpdate = true;
+                }
+                if (player) {
+                    player.traverse(function (child) {
+                        if (!child.isMesh || !child.material) return;
+                        var mats = Array.isArray(child.material) ? child.material : [child.material];
+                        mats.forEach(function (mat) {
+                            if (mat && mat.isMeshStandardMaterial) {
+                                mat.envMap = rtEnvTexture || null;
+                                mat.envMapIntensity = 1.1;
+                                mat.needsUpdate = true;
+                            }
+                        });
+                    });
+                }
+                if (typeof showGameToast === 'function') showGameToast('Ray tracing ON · press R to toggle');
+            } else {
+                if (scene) scene.environment = null;
+                if (ocean) {
+                    ocean.material.envMap = null;
+                    ocean.material.envMapIntensity = 1;
+                    ocean.material.roughness = 0.17;
+                    ocean.material.metalness = 0.42;
+                    ocean.material.needsUpdate = true;
+                }
+                if (track) {
+                    track.material.envMap = null;
+                    track.material.envMapIntensity = 1;
+                    track.material.metalness = 0.03;
+                    track.material.roughness = 0.96;
+                    track.material.needsUpdate = true;
+                }
+                if (player) {
+                    player.traverse(function (child) {
+                        if (!child.isMesh || !child.material) return;
+                        var mats = Array.isArray(child.material) ? child.material : [child.material];
+                        mats.forEach(function (mat) {
+                            if (mat && mat.isMeshStandardMaterial) {
+                                mat.envMap = null;
+                                mat.envMapIntensity = 1;
+                                mat.needsUpdate = true;
+                            }
+                        });
+                    });
+                }
+                if (typeof showGameToast === 'function') showGameToast('Ray tracing OFF');
+            }
         }
 
         function applyTerrain(name) {
@@ -4389,6 +4477,7 @@
         var gearMode = 'D';
         var playerY = 0, vy = 0, driftScore = 0;
         var terrainAirborne = false, terrainVy = 0, terrainPrevRoadVy = 0, terrainAirCooldown = 0;
+        var rtPrevShadowSize = 1024, rtPrevShadowEnabled = false;
         var suspensionImpulse = 0;
         var ignition = 0, engineOn = false;
         if (raceMode || giftMode) { ignition = 1; engineOn = true; gearMode = 'D'; }
@@ -4965,6 +5054,10 @@
                 if (gearMode !== upFrom) playGearSound('select', gearMode);
             }
 
+            if (input.rayTraceToggle) {
+                input.rayTraceToggle = false;
+                setRayTrace(!rayTraceEnabled);
+            }
             if (input.fsdToggle) {
                 input.fsdToggle = false;
                 fsdActive = !fsdActive;
@@ -5490,7 +5583,7 @@
                     var oy = oceanBase[vi * 3 + 1];
                     var oceanZ = ocean.position.z - oy;
                     var oceanElev = elevationAt(distance - (oceanZ - player.position.z));
-                    pos.array[vi * 3 + 2] = oceanElev + (Math.sin((ox * 0.11 + elapsed * 1.6)) * 0.06 + Math.sin((oy * 0.16 - elapsed * 1.1)) * 0.04) * terrainWaveScale;
+                    pos.array[vi * 3 + 2] = oceanElev + (Math.sin((ox * 0.11 + elapsed * 1.6)) * 0.03 + Math.sin((oy * 0.16 - elapsed * 1.1)) * 0.02) * terrainWaveScale;
                 }
                 pos.needsUpdate = true;
             }
@@ -5803,6 +5896,7 @@
             if (freeRevNow && revLevel > 0.12) statusParts.push('REV');
             if (playerY > 0.4 && !(isSleigh && flyTime > 0)) statusParts.push('JUMP');
             if (terrainAirborne) statusParts.push('AIRBORNE');
+            if (rayTraceEnabled) statusParts.push('RT');
             if (isSleigh) statusParts.push(flyTime > 0 ? 'FLYING ' + flyTime.toFixed(1) + 's' : (flyCooldown > 0 ? 'FLY CD ' + Math.ceil(flyCooldown) + 's' : 'FLY READY [SPACE]'));
             if (exitHintText) statusParts.push(exitHintText);
             var status = statusParts.join(' · ');
@@ -5894,6 +5988,7 @@
                 }
             },
             toggleFsd: function () { input.fsdToggle = true; },
+            toggleRayTrace: function () { setRayTrace(!rayTraceEnabled); },
             setTerrain: applyTerrain,
             setElevation: applyElevation,
             setRemotes: setRemoteRacers,
@@ -9491,7 +9586,10 @@
             if (KEY_CAMERA.indexOf(e.key) >= 0) { if (!e.repeat) input.cameraCycle = true; e.preventDefault(); }
             if (KEY_FSD.indexOf(e.key) >= 0) { if (!e.repeat) input.fsdToggle = true; e.preventDefault(); }
             if (KEY_HONK.indexOf(e.key) >= 0) { if (!e.repeat) input.honk = true; e.preventDefault(); }
-            if (KEY_RELOAD.indexOf(e.key) >= 0) { if (!e.repeat) input.reload = true; }
+            if (KEY_RELOAD.indexOf(e.key) >= 0) {
+                if (lastGameId === 1) { if (!e.repeat) input.rayTraceToggle = true; }
+                else if (!e.repeat) input.reload = true;
+            }
             if (KEY_MELEE.indexOf(e.key) >= 0) { if (!e.repeat) input.melee = true; }
             if (KEY_INTERACT.indexOf(e.key) >= 0) { if (!e.repeat) input.interact = true; }
             if (KEY_BANDAGE.indexOf(e.key) >= 0) { if (!e.repeat) input.bandage = true; }
@@ -9529,6 +9627,7 @@
             input.drift = false;
             input.nitro = false;
             input.fsdToggle = false;
+            input.rayTraceToggle = false;
             input.fly = false;
             input.pointerActive = false; input.tapQueued = false; input.honk = false;
         }
@@ -9745,7 +9844,7 @@
         camera = new THREE.PerspectiveCamera(65, 1, 0.1, isMobileDevice ? 360 : 520);
         input.left = false; input.right = false; input.up = false; input.down = false;
         input.brake = false; input.gearDown = false; input.gearUp = false;
-        input.drift = false; input.nitro = false; input.fsdToggle = false;
+        input.drift = false; input.nitro = false; input.fsdToggle = false; input.rayTraceToggle = false;
         input.pointerActive = false; input.pointerX = 0; input.pointerY = 0; input.tapQueued = false;
         input.honk = false; input.jump = false; input.reload = false; input.melee = false; input.interact = false; input.weapon = 0; input.bandage = false;
         clock = new THREE.Clock();
