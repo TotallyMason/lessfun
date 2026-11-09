@@ -4240,6 +4240,7 @@
         if (raceMode || giftMode) { ignition = 1; engineOn = true; gearMode = 'D'; }
         if (giftMode) speed = 32;
         var nitro = 100, nitroActive = false;
+        var brakeLock = 0;
         var throttleDisplay = 0, brakeDisplay = 0;
         var throttleSmooth = 0, brakeSmooth = 0;
         var nitroWasActive = false, nitroShiftT = 0;
@@ -4965,6 +4966,8 @@
                 spawnRevSmoke(freeRevNow ? revLevel : 0.55);
             }
             brakeSmooth += (brakeTarget - brakeSmooth) * Math.min(1, dt * 9);
+            var lockTarget = (brakeCmd && gearMode === 'D' && Math.abs(speed) > 12 && !fsdActive) ? 1 : 0;
+            brakeLock += (lockTarget - brakeLock) * Math.min(1, dt * (lockTarget ? 12 : 4.5));
 
             honkCooldown = Math.max(0, honkCooldown - dt);
             if (input.honk) {
@@ -5037,6 +5040,7 @@
                 speed += (0 - speed) * Math.min(1, dt * 1.4);
             } else if (brakeCmd) {
                 var brakeDecel = (fsdActive && fsdEmergency) ? 165 : 58;
+                brakeDecel *= Math.max(0.58, 1 - brakeLock * 0.42);
                 speed = Math.max(0, speed - brakeDecel * Math.max(0.18, brakeSmooth) * dt);
             } else if (throttleCmd) {
                 var damageTop = Math.max(0.38, 1 - carDamage.engine * 0.5 - (carDamage.tires[0] + carDamage.tires[1] + carDamage.tires[2] + carDamage.tires[3]) * 0.03);
@@ -5087,7 +5091,8 @@
                 (input.brake && Math.abs(steerX) > maxX * 0.46)
             );
             var driftIntent = !fsdActive && (autoDrift || (!!input.drift && Math.abs(speed) > 18 &&
-                (input.left || input.right || Math.abs(steerX) > 2.2) && playerY < 0.3));
+                (input.left || input.right || Math.abs(steerX) > 2.2) && playerY < 0.3) ||
+                (brakeLock > 0.35 && Math.abs(speed) > 18));
             if (driftIntent) {
                 speed -= Math.sign(speed) * Math.min(Math.abs(speed), 5 * dt);
                 driftScore += dt * 110;
@@ -5116,17 +5121,18 @@
             } else {
                 var highSpeedStability = 1 - 0.26 * Math.min(1, Math.abs(speed) / 140);
                 var blownTires = carDamage.tires[0] + carDamage.tires[1] + carDamage.tires[2] + carDamage.tires[3];
-                var damageGrip = Math.max(0.42, 1 - carDamage.suspension * 0.28 - blownTires * 0.12);
+                var damageGrip = Math.max(0.42, 1 - carDamage.suspension * 0.28 - blownTires * 0.12) * (1 - brakeLock * 0.32);
                 steerX += steerInput * dt * 7.2 * perf.grip * damageGrip * speedSteerFactor * highSpeedStability * (driftIntent ? 1.25 : 1);
                 steerX = Math.max(-maxX, Math.min(maxX, steerX));
             }
 
             var beforeX = player.position.x;
-            player.position.x += (steerX - player.position.x) * Math.min(1, dt * (driftIntent ? 5.6 : 7.8));
+            player.position.x += (steerX - player.position.x) * Math.min(1, dt * (driftIntent ? 5.6 : 7.8) * (1 - brakeLock * 0.34));
             player.position.x = Math.max(-maxX, Math.min(maxX, player.position.x));
             var vx = (player.position.x - beforeX) / (dt || 0.016);
             currentVx = vx;
             var driftAudioTarget = driftIntent ? Math.min(1, Math.abs(vx) / 12) : 0;
+            if (brakeLock > 0.3) driftAudioTarget = Math.max(driftAudioTarget, brakeLock * 0.9);
             if (driftAudioTarget > 0.2 && audioDriftLevel < 0.12) tone(480, 0.12, 'sawtooth', 0.032, 220);
             audioDriftLevel += (driftAudioTarget - audioDriftLevel) * Math.min(1, dt * 9);
 
@@ -5187,7 +5193,7 @@
             // Wheel spin.
             var wheels = player.userData.wheels || [];
             for (var wi = 0; wi < wheels.length; wi++) {
-                wheels[wi].rotation.x += speed * dt * 1.4;
+                wheels[wi].rotation.x += speed * dt * 1.4 * (1 - brakeLock);
                 if (wheelRainbow && wheels[wi].userData.rimMaterial) {
                     wheels[wi].userData.rimMaterial.color.setHSL((elapsed * 0.22 + wi * 0.09) % 1, 1, 0.6);
                 }
@@ -5539,6 +5545,7 @@
                 (!engineOn ? ' · HOLD W TO START' : '') +
                 (nitroActive ? (nitroShiftT > 0 ? ' · NITRO SHIFT' : ' · NOS') : '') +
                 (driftIntent ? ' · DRIFT' : '') +
+                (brakeLock > 0.4 ? ' · BRAKE LOCK' : '') +
                 (freeRevNow && revLevel > 0.12 ? ' · REV' : '') +
                 ((function () { var d = Math.round(Math.max(carDamage.engine, carDamage.steering, carDamage.suspension) * 100); return d > 4 ? ' · DMG ' + d + '%' : ''; })()) +
                 (playerY > 0.4 && !(isSleigh && flyTime > 0) ? ' · JUMP' : '') +
@@ -5671,6 +5678,7 @@
                     audioState: audioCtx ? audioCtx.state : 'none',
                     rampPhysics: rampPhysicsActive,
                     revLevel: revLevel,
+                    brakeLock: brakeLock,
                     smokePuffs: driftPuffs.reduce(function (n, p) { return n + (p.life > 0 ? 1 : 0); }, 0),
                     crashing: crashActive
                 };
