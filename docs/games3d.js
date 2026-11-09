@@ -825,6 +825,7 @@
         sunGlow.position.copy(sunDisc.position); scene.add(sunGlow);
 
         var cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.78, fog: false });
+        var puffyClouds = [];
         for (var cl = 0; cl < 8; cl++) {
             var cloud = new THREE.Group();
             for (var cp = 0; cp < 4; cp++) {
@@ -835,6 +836,7 @@
             }
             cloud.position.set(-160 + Math.random() * 320, 34 + Math.random() * 18, -220 - Math.random() * 170);
             scene.add(cloud);
+            puffyClouds.push(cloud);
         }
 
         var hemiLight = new THREE.HemisphereLight(0xaedcff, 0xffc58f, 0.46);
@@ -972,13 +974,13 @@
             metalness: 0.42, roughness: 0.17, transparent: true, opacity: 0.94
         }));
         ocean.rotation.x = -Math.PI / 2;
-        ocean.position.set(-96, -0.28, -245); scene.add(ocean);
+        ocean.position.set(-96, -0.5, -245); scene.add(ocean);
 
         var glintMat = new THREE.MeshBasicMaterial({ color: 0xffe6b0, transparent: true, opacity: 0.13, blending: THREE.AdditiveBlending, depthWrite: false });
         for (var gl = 0; gl < 9; gl++) {
             var glint = new THREE.Mesh(new THREE.PlaneGeometry(3 + Math.random() * 8, 34 + Math.random() * 80), glintMat);
             glint.rotation.x = -Math.PI / 2;
-            glint.position.set(-84 + Math.random() * 46, 0.02, -60 - Math.random() * 380);
+            glint.position.set(-84 + Math.random() * 46, -0.42, -60 - Math.random() * 380);
             addScroller(glint, 440, 0.35);
         }
 
@@ -986,7 +988,7 @@
         for (var fo = 0; fo < 36; fo++) {
             var foam = new THREE.Mesh(new THREE.PlaneGeometry(2.5 + Math.random() * 6, 0.32 + Math.random() * 0.35), foamMat);
             foam.rotation.x = -Math.PI / 2;
-            foam.position.set(-16.5 - Math.random() * 12, -0.02, -Math.random() * 340);
+            foam.position.set(-16.5 - Math.random() * 12, -0.4, -Math.random() * 340);
             addScroller(foam, 340, 0.6);
         }
 
@@ -3042,7 +3044,7 @@
                 ramp.position.set(ramp.userData.laneX + (roadCurveOffset(rampZ) - roadCurveOffset(player.position.z)), worldElevation(rampZ), rampZ);
                 ramp.rotation.y = -roadTangentAt(rampZ);
                 ramp.visible = rel > -45 && rel < 480;
-                if (playerY < 0.2 && Math.abs(speed) > 25 && Math.abs(ramp.userData.laneX - player.position.x) < 1.8 &&
+                if (!terrainAirborne && playerY < 0.2 && Math.abs(speed) > 25 && Math.abs(ramp.userData.laneX - player.position.x) < 1.8 &&
                     ramp.userData.distance > prevDistance && ramp.userData.distance <= distance + 2) {
                     startRampPhysics(Math.min(34, 12 + Math.abs(speed) * 0.11));
                 }
@@ -4059,6 +4061,7 @@
                 if (mark.life <= 0) { mark.mesh.visible = false; continue; }
                 mark.mesh.position.z += speed * dt;
                 mark.mesh.position.y = 0.06 + worldElevation(mark.mesh.position.z);
+                mark.mesh.visible = Math.abs(mark.mesh.position.z - player.position.z) < 280;
                 mark.mesh.material.opacity = Math.max(0, mark.life / mark.maxLife) * 0.55;
             }
         }
@@ -4393,6 +4396,7 @@
         applyElevation(elevationName);
         var gearMode = 'D';
         var playerY = 0, vy = 0, driftScore = 0;
+        var terrainAirborne = false, terrainVy = 0, terrainPrevRoadVy = 0, terrainAirCooldown = 0;
         var suspensionImpulse = 0;
         var ignition = 0, engineOn = false;
         if (raceMode || giftMode) { ignition = 1; engineOn = true; gearMode = 'D'; }
@@ -4459,6 +4463,18 @@
                 cullSphere.center.copy(cloud.position);
                 cullSphere.radius = 210;
                 cloud.visible = cullFrustum.intersectsSphere(cullSphere);
+            }
+            for (var pci = 0; pci < puffyClouds.length; pci++) {
+                var puffCloud = puffyClouds[pci];
+                cullSphere.center.copy(puffCloud.position);
+                cullSphere.radius = 60;
+                puffCloud.visible = cullFrustum.intersectsSphere(cullSphere);
+            }
+            for (var sci = 0; sci < scrollers.length; sci++) {
+                var sc = scrollers[sci];
+                var scDist = Math.abs(sc.obj.position.z - player.position.z);
+                if (scDist > 620 || (sc.lodRange && scDist >= sc.lodRange)) sc.obj.visible = false;
+                else sc.obj.visible = true;
             }
             for (var ti = 0; ti < traffic.length; ti++) {
                 var car = traffic[ti];
@@ -5255,6 +5271,15 @@
             if (distance < 0) distance = 0;
             roadElev = elevationAt(distance);
             var roadSlope = Math.atan2(elevationAt(distance + 10) - elevationAt(distance - 10), 20);
+            var roadVy = roadSlope * speed;
+            terrainAirCooldown = Math.max(0, terrainAirCooldown - dt);
+            if (!terrainAirborne && !rampPhysicsActive && playerY < 0.2 && speed > 16 &&
+                terrainAirCooldown <= 0 && roadVy < -4) {
+                terrainAirborne = true;
+                terrainVy = Math.max(0, terrainPrevRoadVy);
+                tone(320, 0.18, 'triangle', 0.05, 520);
+            }
+            terrainPrevRoadVy = roadVy;
             if (!fsdActive && gearMode === 'D' && playerY < 0.25 && !rampPhysicsActive && Math.abs(speed) > 0.5) {
                 if (roadSlope > 0.002) speed = Math.max(0, speed - Math.sin(roadSlope) * 14 * dt);
                 else if (roadSlope < -0.002) speed = Math.min(perf.topSpeed * 1.2, speed + Math.sin(-roadSlope) * 12 * dt);
@@ -5289,7 +5314,7 @@
 
             // Drift is detected automatically from speed, steering, and braking.
             var steeringIntent = (input.left ? -1 : 0) + (input.right ? 1 : 0);
-            var autoDrift = !fsdActive && Math.abs(speed) > 42 && playerY < 0.25 && (
+            var autoDrift = !fsdActive && !terrainAirborne && Math.abs(speed) > 42 && playerY < 0.25 && (
                 Math.abs(steerX) > maxX * 0.8 ||
                 (input.brake && Math.abs(steerX) > maxX * 0.46)
             );
@@ -5376,7 +5401,21 @@
                 }
                 player.position.y = roadElev + playerY;
             }
-            if (!rampPhysicsActive && !(isSleigh && flyTime > 0)) player.position.y = roadElev + playerY;
+            if (terrainAirborne) {
+                terrainVy -= 12 * dt;
+                player.position.y += terrainVy * dt;
+                if (player.position.y <= roadElev) {
+                    player.position.y = roadElev;
+                    terrainAirborne = false;
+                    terrainVy = 0;
+                    terrainAirCooldown = 0.6;
+                    suspensionImpulse = Math.max(suspensionImpulse, 0.7);
+                    spawnSparks(player.position.x, 0.12 + roadElev, player.position.z, 14);
+                    tone(140, 0.14, 'sawtooth', 0.05, 90);
+                }
+            } else if (!rampPhysicsActive && !(isSleigh && flyTime > 0)) {
+                player.position.y = roadElev + playerY;
+            }
             var bodyRoll = Math.max(-0.5, Math.min(0.5, vx * 0.03 + (driftIntent ? steerInput * 0.42 : 0)));
             var bodyPitch = 0;
             if (input.brake) bodyPitch += 0.14;
@@ -5387,9 +5426,9 @@
             if (gearMode === 'R' && input.up) bodyPitch -= 0.06;
             animateSuspension(player, dt, speed, distance, bodyRoll, bodyPitch, suspensionImpulse);
             suspensionImpulse *= Math.max(0, 1 - dt * 5);
-            updateDriftPuffs(dt, driftIntent);
+            updateDriftPuffs(dt, driftIntent && !terrainAirborne);
             skidMarkT -= dt;
-            if ((brakeLock > 0.22 || driftIntent) && playerY < 0.3 && skidMarkT <= 0) {
+            if ((brakeLock > 0.22 || driftIntent) && playerY < 0.3 && !terrainAirborne && skidMarkT <= 0) {
                 skidMarkT = 0.055;
                 spawnSkidMark(player.position.x - 0.72, player.position.z + 1.25, brakeLock);
                 spawnSkidMark(player.position.x + 0.72, player.position.z + 1.25, brakeLock);
@@ -5459,7 +5498,7 @@
                     var oy = oceanBase[vi * 3 + 1];
                     var oceanZ = ocean.position.z - oy;
                     var oceanElev = elevationAt(distance - (oceanZ - player.position.z));
-                    pos.array[vi * 3 + 2] = oceanElev + (Math.sin((ox * 0.11 + elapsed * 1.6)) * 0.16 + Math.sin((oy * 0.16 - elapsed * 1.1)) * 0.1) * terrainWaveScale;
+                    pos.array[vi * 3 + 2] = oceanElev + (Math.sin((ox * 0.11 + elapsed * 1.6)) * 0.06 + Math.sin((oy * 0.16 - elapsed * 1.1)) * 0.04) * terrainWaveScale;
                 }
                 pos.needsUpdate = true;
             }
@@ -5623,7 +5662,7 @@
 
                 // A ramp truck launches the player when they line up with it.
                 var rampLogicalX = u.logicalX != null ? u.logicalX : c.position.x;
-                if (u.isRamp && playerY < 0.2 && Math.abs(speed) > 22 &&
+                if (u.isRamp && !terrainAirborne && playerY < 0.2 && Math.abs(speed) > 22 &&
                     Math.abs(rampLogicalX - player.position.x) < 2.0) {
                     var rampGap = c.position.z - player.position.z;
                     if (rampGap > -5 && rampGap < 5) {
@@ -5638,7 +5677,7 @@
                 var carHalfW = (spec.width || 1.8) / 2 + 0.72;
                 var carHalfL = (spec.len || 3.2) / 2 + 0.35;
                 var rampPass = u.isRamp && u.rampCooldown && elapsed < u.rampCooldown;
-                if (!rampPass && playerY < 1.1 && Math.abs((u.logicalX != null ? u.logicalX : c.position.x) - player.position.x) < carHalfW) {
+                if (!rampPass && !terrainAirborne && playerY < 1.1 && Math.abs((u.logicalX != null ? u.logicalX : c.position.x) - player.position.x) < carHalfW) {
                     var carBack = Math.min(prevZ, c.position.z) - carHalfL;
                     var carFront = Math.max(prevZ, c.position.z) + carHalfL;
                     if (carBack < player.position.z + 2.75 && carFront > player.position.z - 2.75) {
@@ -5698,22 +5737,24 @@
             }
 
             var curveAhead = roadCurveOffset(-80) - roadCurveOffset(0);
+            var camLift = playerY;
+            if (terrainAirborne) camLift = Math.max(camLift, player.position.y - roadElev);
             if (cameraMode === 1) {
-                camDesired.set(player.position.x, 1.16 + roadElev + playerY * 0.8, player.position.z - 0.9);
+                camDesired.set(player.position.x, 1.16 + roadElev + camLift * 0.8, player.position.z - 0.9);
                 camera.position.lerpVectors(camera.position, camDesired, Math.min(1, dt * 20));
-                camera.lookAt(player.position.x + vx * 0.18, 0.95 + roadElev + playerY * 0.9, player.position.z - 26);
+                camera.lookAt(player.position.x + vx * 0.18, 0.95 + roadElev + camLift * 0.9, player.position.z - 26);
             } else if (cameraMode === 2) {
-                camDesired.set(player.position.x + 1.18, 0.52 + roadElev + playerY * 0.5, player.position.z + 0.9);
+                camDesired.set(player.position.x + 1.18, 0.52 + roadElev + camLift * 0.5, player.position.z + 0.9);
                 camera.position.lerpVectors(camera.position, camDesired, Math.min(1, dt * 18));
-                camera.lookAt(player.position.x, 0.72 + roadElev + playerY * 0.6, player.position.z - 20);
+                camera.lookAt(player.position.x, 0.72 + roadElev + camLift * 0.6, player.position.z - 20);
                 camera.rotateZ(-bodyRoll * 0.2);
             } else if (cameraMode === 3) {
-                camDesired.set(player.position.x, 1.05 + roadElev + playerY * 0.9, player.position.z + 0.1);
+                camDesired.set(player.position.x, 1.05 + roadElev + camLift * 0.9, player.position.z + 0.1);
                 camera.position.lerpVectors(camera.position, camDesired, Math.min(1, dt * 24));
                 var fpYaw = player.rotation.y;
                 camera.lookAt(
                     player.position.x - Math.sin(fpYaw) * 28,
-                    0.88 + roadElev + playerY * 0.9,
+                    0.88 + roadElev + camLift * 0.9,
                     player.position.z - Math.cos(fpYaw) * 28
                 );
                 camera.rotateZ(bodyRoll * 0.55);
@@ -5721,11 +5762,11 @@
                 var cameraLag = Math.min(3.4, Math.max(0, accelNow) * 0.13) + powerLoad * 0.8;
                 camDesired.set(
                     player.position.x * 0.42,
-                    5.3 + roadElev + playerY * 0.78 + (player.userData.bodyGroup ? player.userData.bodyGroup.position.y * 4.0 : 0) - suspensionImpulse * 0.3 + Math.sin(elapsed * 1.4) * 0.035,
+                    5.3 + roadElev + camLift * 0.78 + (player.userData.bodyGroup ? player.userData.bodyGroup.position.y * 4.0 : 0) - suspensionImpulse * 0.3 + Math.sin(elapsed * 1.4) * 0.035,
                     13 + cameraLag
                 );
                 camera.position.lerpVectors(camera.position, camDesired, Math.min(1, dt * 4.2));
-                camera.lookAt(player.position.x * 0.5 + vx * 0.22 + curveAhead * 0.22, 0.5 + roadElev + playerY * 0.9, -12);
+                camera.lookAt(player.position.x * 0.5 + vx * 0.22 + curveAhead * 0.22, 0.5 + roadElev + camLift * 0.9, -12);
                 camera.rotateZ(-curveAhead * 0.0016 - bodyRoll * 0.1);
                 camera.rotateY(curveAhead * 0.0009 - steerAngle * 0.16);
                 camera.rotateX(bodyPitch * 0.05 + roadSlope * 0.2);
@@ -5740,7 +5781,7 @@
             }
             cullT -= dt;
             if (cullT <= 0) {
-                cullT = 1 / 30;
+                cullT = 1 / 20;
                 gpuCullPass();
             }
             if (fpWheel) {
@@ -5769,6 +5810,7 @@
             if (driftIntent) statusParts.push('DRIFT');
             if (freeRevNow && revLevel > 0.12) statusParts.push('REV');
             if (playerY > 0.4 && !(isSleigh && flyTime > 0)) statusParts.push('JUMP');
+            if (terrainAirborne) statusParts.push('AIRBORNE');
             if (isSleigh) statusParts.push(flyTime > 0 ? 'FLYING ' + flyTime.toFixed(1) + 's' : (flyCooldown > 0 ? 'FLY CD ' + Math.ceil(flyCooldown) + 's' : 'FLY READY [SPACE]'));
             if (exitHintText) statusParts.push(exitHintText);
             var status = statusParts.join(' · ');
