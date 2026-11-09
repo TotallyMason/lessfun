@@ -3,6 +3,7 @@
     'use strict';
 
     var isMobileDevice = (typeof global.matchMedia === 'function' && global.matchMedia('(pointer: coarse)').matches) || (global.innerWidth || 1000) < 820;
+    var HOLIDAY = document.documentElement.classList.contains('is-holiday');
     var input = {
         left: false, right: false, up: false, down: false, brake: false,
         pointerActive: false, pointerX: 0, pointerY: 0, tapQueued: false, honk: false,
@@ -190,7 +191,7 @@
         var aeroStyle = cosmetics.aeroStyle || '';
         var kitStyle = cosmetics.kitStyle || '';
         var isSleigh = cosmetics.carId === 'car_santa';
-        var FLY_DURATION = 2, FLY_COOLDOWN = 10, FLY_HEIGHT = 2.7;
+        var FLY_DURATION = 2, FLY_COOLDOWN = 10, FLY_HEIGHT = 5.5;
         var flyTime = 0, flyCooldown = 0, flySparkT = 0;
 
         // Real performance from the equipped body + engine. Multipliers are the
@@ -2001,8 +2002,22 @@
             bodyGroup.add(glow);
         }
 
+        function addHolidayWreath(car) {
+            var spec = car.userData.spec || {};
+            var group = car.userData.bodyGroup || car;
+            var green = new THREE.MeshStandardMaterial({ color: 0x1f7a3d, metalness: 0.3, roughness: 0.5 });
+            var red = new THREE.MeshStandardMaterial({ color: 0xc1121f, roughness: 0.5 });
+            var wreath = new THREE.Mesh(new THREE.TorusGeometry(0.23, 0.055, 8, 16), green);
+            wreath.position.set(0, (spec.ride || 0.6) + 0.28, -((spec.len || 3.6) * 0.5) - 0.06);
+            group.add(wreath);
+            var bow = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.05), red);
+            bow.position.set(0, (spec.ride || 0.6) + 0.05, -((spec.len || 3.6) * 0.5) - 0.1);
+            group.add(bow);
+        }
+
         var player = buildCar(paintColor, wheelColor, bodyStyle, engineStyle, engineColor, true);
         if (isSleigh) decorateSleigh(player);
+        else if (HOLIDAY) addHolidayWreath(player);
         player.position.set(LANES[2], 0, 5);
         scene.add(player);
 
@@ -4946,7 +4961,7 @@
                 (nitroActive ? (nitroShiftT > 0 ? ' · NITRO SHIFT' : ' · NOS') : '') +
                 (driftIntent ? ' · DRIFT' : '') +
                 (playerY > 0.4 && !(isSleigh && flyTime > 0) ? ' · JUMP' : '') +
-                (isSleigh ? (flyTime > 0 ? ' · FLYING ' + flyTime.toFixed(1) + 's' : (flyCooldown > 0 ? ' · FLY CD ' + Math.ceil(flyCooldown) + 's' : ' · FLY READY [X]')) : '') +
+                (isSleigh ? (flyTime > 0 ? ' · FLYING ' + flyTime.toFixed(1) + 's' : (flyCooldown > 0 ? ' · FLY CD ' + Math.ceil(flyCooldown) + 's' : ' · FLY READY [SPACE]')) : '') +
                 (exitHintText ? ' · ' + exitHintText : '');
             if (racerBannerT > 0) {
                 racerBannerT -= dt;
@@ -5179,10 +5194,13 @@
 
         var R = 3.0, orbitR = 1.9;
         var ringMat = neon(0x2ff6ff, 1.5);
+        var ringRed = neon(0xff3b4f, 1.5);
+        var ringGreen = neon(0x54ff9f, 1.5);
         var rings = [];
         var RING_COUNT = isMobileDevice ? 24 : 32, RING_SPACING = 5;
         for (var i = 0; i < RING_COUNT; i++) {
-            var ring = new THREE.Mesh(new THREE.TorusGeometry(R, 0.06, 6, 48), ringMat);
+            var useMat = HOLIDAY ? (i % 2 ? ringRed : ringGreen) : ringMat;
+            var ring = new THREE.Mesh(new THREE.TorusGeometry(R, 0.06, 6, 48), useMat);
             ring.position.z = -(i + 1) * RING_SPACING;
             scene.add(ring); rings.push(ring);
         }
@@ -5332,10 +5350,13 @@
         var towerY = 0, width = SIZE, placed = 0;
         var prev = { x: 0, w: SIZE };
 
+        var holidayBlocks = [0xc1121f, 0x2a9d8f, 0xffd166, 0xf1faee, 0x9b2226];
         function makeBox(w, x, y, color, emissive) {
             var geo = new THREE.BoxGeometry(w, H, SIZE);
             var hue = ((y * 0.07) % 1 + 1) % 1;
-            var col = color != null ? color : new THREE.Color().setHSL(hue, 0.72, 0.55).getHex();
+            var col = color != null ? color
+                : (HOLIDAY ? holidayBlocks[Math.abs(Math.floor(y * 2.7)) % holidayBlocks.length]
+                    : new THREE.Color().setHSL(hue, 0.72, 0.55).getHex());
             var em = emissive != null ? emissive : col;
             var mat = new THREE.MeshStandardMaterial({ color: col, metalness: 0.35, roughness: 0.32, emissive: em, emissiveIntensity: 0.55 });
             var m = new THREE.Mesh(geo, mat);
@@ -5346,7 +5367,7 @@
         towerY = H;
         prev = { x: 0, w: SIZE };
 
-        var moving = makeBox(SIZE, 0, towerY + H / 2, 0x2ff6ff, 0x2ff6ff);
+        var moving = makeBox(SIZE, 0, towerY + H / 2, HOLIDAY ? 0xffd166 : 0x2ff6ff, HOLIDAY ? 0xffd166 : 0x2ff6ff);
         moving.material.emissiveIntensity = 1.1;
 
         var t = 0, speed = 1.5, score = 0, combo = 1, perfectCount = 0, stackParticles = [];
@@ -8583,7 +8604,6 @@
         var KEY_MELEE = ['v', 'V'];
         var KEY_INTERACT = ['e', 'E'];
         var KEY_BANDAGE = ['b', 'B'];
-        var KEY_FLY = ['x', 'X'];
 
         function down(e) {
             if (isTypingTarget(e)) return;
@@ -8605,7 +8625,6 @@
             if (KEY_MELEE.indexOf(e.key) >= 0) { if (!e.repeat) input.melee = true; }
             if (KEY_INTERACT.indexOf(e.key) >= 0) { if (!e.repeat) input.interact = true; }
             if (KEY_BANDAGE.indexOf(e.key) >= 0) { if (!e.repeat) input.bandage = true; }
-            if (KEY_FLY.indexOf(e.key) >= 0) { if (!e.repeat) input.fly = true; e.preventDefault(); }
             if (e.key === '1') { if (!e.repeat) input.weapon = 1; }
             if (e.key === '2') { if (!e.repeat) input.weapon = 2; }
             if (e.key === '3') { if (!e.repeat) input.weapon = 3; }

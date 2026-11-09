@@ -6,6 +6,13 @@
 
     var WORLD_W = 1000;
     var WORLD_H = 620;
+    var HOLIDAY = document.documentElement.classList.contains('is-holiday');
+    var TQ_SNOW = [];
+    if (HOLIDAY) {
+        for (var hs = 0; hs < 26; hs++) {
+            TQ_SNOW.push({ x: 50 + Math.random() * (WORLD_W - 100), y: 72 + Math.random() * (WORLD_H - 130), r: 0.6 + Math.random() * 1.3, a: 0.08 + Math.random() * 0.12 });
+        }
+    }
     var canvas = null, ctx = null, stage = null, resizeObs = null;
     var raf = 0, running = false, lastFrame = 0;
     var W = 900, H = 600, DPR = 1, scale = 1, ox = 0, oy = 0;
@@ -852,6 +859,45 @@
         else ctx.rect(x, y, w, h);
     }
 
+    function drawHolidayTree(x, y, size) {
+        ctx.save();
+        ctx.globalAlpha = 0.55;
+        ctx.fillStyle = '#6b4a2b';
+        ctx.fillRect(x - size * 0.07, y - size * 0.16, size * 0.14, size * 0.2);
+        ctx.fillStyle = '#2a7a4a';
+        for (var i = 0; i < 3; i++) {
+            var w = size * (0.92 - i * 0.22);
+            var yy = y - size * (0.12 + i * 0.24);
+            ctx.beginPath();
+            ctx.moveTo(x, yy - size * 0.38);
+            ctx.lineTo(x - w / 2, yy);
+            ctx.lineTo(x + w / 2, yy);
+            ctx.closePath();
+            ctx.fill();
+        }
+        ctx.fillStyle = '#ffd166';
+        ctx.beginPath();
+        ctx.arc(x, y - size * 0.88, size * 0.08, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255, 90, 110, 0.85)';
+        ctx.beginPath(); ctx.arc(x - size * 0.16, y - size * 0.4, size * 0.045, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(120, 220, 255, 0.85)';
+        ctx.beginPath(); ctx.arc(x + size * 0.15, y - size * 0.6, size * 0.045, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    }
+
+    function drawHolidayGift(x, y, size) {
+        ctx.save();
+        ctx.fillStyle = '#c1121f';
+        ctx.fillRect(x - size / 2, y - size / 2, size, size);
+        ctx.fillStyle = '#ffd166';
+        ctx.fillRect(x - size * 0.07, y - size / 2, size * 0.14, size);
+        ctx.fillRect(x - size / 2, y - size * 0.07, size, size * 0.14);
+        ctx.fillStyle = 'rgba(255, 209, 102, 0.85)';
+        ctx.beginPath(); ctx.arc(x, y - size * 0.62, size * 0.12, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    }
+
     function draw() {
         if (!ctx) return;
         ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -886,6 +932,23 @@
         }
         for (var y = 100; y < WORLD_H - 40; y += 64) {
             ctx.beginPath(); ctx.moveTo(40, y); ctx.lineTo(WORLD_W - 40, y); ctx.stroke();
+        }
+
+        if (HOLIDAY) {
+            for (var sn = 0; sn < TQ_SNOW.length; sn++) {
+                var sf = TQ_SNOW[sn];
+                ctx.fillStyle = 'rgba(232, 246, 255, ' + sf.a + ')';
+                ctx.beginPath();
+                ctx.arc(sf.x, sf.y, sf.r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            drawHolidayTree(88, 196, 32);
+            drawHolidayTree(WORLD_W - 88, 196, 32);
+            drawHolidayTree(88, WORLD_H - 58, 26);
+            drawHolidayTree(WORLD_W - 88, WORLD_H - 58, 26);
+            drawHolidayGift(WORLD_W / 2 - 230, WORLD_H - 52, 15);
+            drawHolidayGift(WORLD_W / 2 + 230, WORLD_H - 52, 15);
+            drawHolidayGift(WORLD_W / 2, 82, 12);
         }
 
         // Glow ring.

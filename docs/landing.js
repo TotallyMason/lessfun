@@ -4,6 +4,7 @@
 (function () {
     'use strict';
 
+    var HOLIDAY = document.documentElement.classList.contains('is-holiday');
     var G = 9.81;
     var MASS = 64000;
     var WING_AREA = 124;
@@ -760,14 +761,26 @@
         ctx.lineTo(x1, y + 0.5);
         ctx.stroke();
 
-        // Infinite runway edge lights.
+        // Infinite runway edge lights, red and green for the holidays.
         var e0 = Math.floor(left / 60) * 60;
         for (var ex = e0; ex <= right; ex += 60) {
             var px = sx(ex);
-            ctx.fillStyle = 'rgba(255, 214, 120, 0.55)';
+            if (HOLIDAY) {
+                var festive = Math.round(ex / 60) % 2 === 0;
+                ctx.fillStyle = festive ? 'rgba(255, 78, 92, 0.8)' : 'rgba(90, 255, 160, 0.75)';
+            } else {
+                ctx.fillStyle = 'rgba(255, 214, 120, 0.55)';
+            }
             ctx.beginPath();
             ctx.arc(px, y - 3, 1.1, 0, Math.PI * 2);
             ctx.fill();
+        }
+
+        if (HOLIDAY) {
+            var h0 = Math.floor(left / 240) * 240;
+            for (var hx = h0; hx <= right; hx += 240) {
+                drawHolidayPine(sx(hx), y - 1, 10 + (Math.abs(hx) % 3) * 2);
+            }
         }
 
         // Threshold piano keys.
@@ -817,6 +830,30 @@
             ctx.fillText('09', -8, 0);
             ctx.restore();
         }
+    }
+
+    function drawHolidayPine(px, baseY, size) {
+        if (px < -30 || px > W + 30) return;
+        ctx.save();
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = '#4a3220';
+        ctx.fillRect(px - size * 0.05, baseY, Math.max(1, size * 0.1), size * 0.18);
+        ctx.fillStyle = '#2a7a4a';
+        for (var i = 0; i < 2; i++) {
+            var w = size * (0.8 - i * 0.2);
+            var yy = baseY - size * (0.1 + i * 0.22);
+            ctx.beginPath();
+            ctx.moveTo(px, yy - size * 0.32);
+            ctx.lineTo(px - w / 2, yy);
+            ctx.lineTo(px + w / 2, yy);
+            ctx.closePath();
+            ctx.fill();
+        }
+        ctx.fillStyle = 'rgba(255, 209, 102, 0.8)';
+        ctx.beginPath();
+        ctx.arc(px, baseY - size * 0.62, Math.max(0.8, size * 0.05), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
     }
 
     function drawRunwayBlock(x, width, height, color) {

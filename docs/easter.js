@@ -277,11 +277,48 @@
         }
     }
 
+    var gameLayerObserver = null;
+
+    function ensureGameLayer() {
+        var body = document.getElementById('modalGameBody');
+        if (!body) return;
+        if (body.querySelector('.game-holiday-layer')) return;
+        var layer = document.createElement('div');
+        layer.className = 'game-holiday-layer';
+        layer.setAttribute('aria-hidden', 'true');
+        var garland = document.createElement('div');
+        garland.className = 'game-holiday-garland';
+        layer.appendChild(garland);
+        var snow = document.createElement('div');
+        snow.className = 'game-holiday-snow';
+        for (var i = 0; i < 24; i++) {
+            var flake = document.createElement('i');
+            flake.textContent = '❄';
+            flake.style.left = (Math.random() * 100) + '%';
+            flake.style.animationDelay = (-Math.random() * 8) + 's';
+            flake.style.animationDuration = (6 + Math.random() * 7) + 's';
+            flake.style.fontSize = (7 + Math.random() * 10) + 'px';
+            flake.style.opacity = 0.18 + Math.random() * 0.32;
+            snow.appendChild(flake);
+        }
+        layer.appendChild(snow);
+        var corner = document.createElement('span');
+        corner.className = 'game-holiday-corner';
+        corner.textContent = '🎄';
+        layer.appendChild(corner);
+        body.appendChild(layer);
+        if (!gameLayerObserver && window.MutationObserver) {
+            gameLayerObserver = new MutationObserver(function () { ensureGameLayer(); });
+            gameLayerObserver.observe(body, { childList: true });
+        }
+    }
+
     function init() {
         addSnowman();
         addNavDeer();
         wireLogo();
         wireSnowRushTitle();
+        ensureGameLayer();
         document.addEventListener('keydown', onKey);
         scheduleAmbient();
     }

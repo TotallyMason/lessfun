@@ -3,7 +3,10 @@
    Lucky Spin — virtual-coin slot machine
    ============================================================ */
 const LUCKY_SYMBOLS = ['🍒', '🍒', '🍒', '🍋', '🍋', '🔔', '🔔', '⭐', '💎', '7️⃣'];
-const LUCKY_PAYOUTS = { '🍒': 4, '🍋': 6, '🔔': 10, '⭐': 16, '💎': 35, '7️⃣': 60 };
+const LUCKY_PAYOUTS = { '🍒': 4, '🍋': 6, '🔔': 10, '⭐': 16, '💎': 35, '7️⃣': 60, '🎁': 12, '🎄': 20 };
+if (document.documentElement.classList.contains('is-holiday')) {
+    LUCKY_SYMBOLS.push('🎁', '🎄');
+}
 let luckySpin = { spinning: false, bet: 50, timer: 0, tones: null };
 
 function luckyTone(freq, dur, type, vol) {

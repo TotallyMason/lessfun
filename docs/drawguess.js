@@ -14,6 +14,9 @@ const DG_WORDS = [
     'taxi', 'signal', 'escalator', 'elevator', 'staircase', 'window', 'mirror', 'clock', 'candle', 'lamp',
     'key', 'lock', 'door', 'bridge', 'fountain', 'garden', 'playground', 'swings', 'balloon', 'kite'
 ];
+if (document.documentElement.classList.contains('is-holiday')) {
+    DG_WORDS.push('santa', 'reindeer', 'sleigh', 'snowflake', 'wreath', 'gingerbread', 'stocking', 'ornament', 'nutcracker', 'candy cane');
+}
 const DG_COLORS = ['#ffffff', '#111111', '#ef476f', '#ffd166', '#06d6a0', '#118ab2', '#9b5de5', '#ff7b00'];
 let drawGame = {
     channel: null,
