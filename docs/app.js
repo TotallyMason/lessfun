@@ -1106,7 +1106,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261297'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261299'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1115,7 +1115,7 @@ function ensure3DEngine() {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261297').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261299').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1123,7 +1123,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261297').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261299').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1131,8 +1131,8 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261297')
-            .then(function () { return loadScriptOnce('assistant.js?v=20261297'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261299')
+            .then(function () { return loadScriptOnce('assistant.js?v=20261299'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1148,7 +1148,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261297').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261299').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1156,7 +1156,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261297').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261299').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -6792,6 +6792,25 @@ const CAR_CATALOG = CAR_DATA.trim().split('\n').map(function (line, index) {
     };
 });
 
+// Holiday freebie. Kept out of the generated list so existing car IDs and
+// saved garages stay stable.
+CAR_CATALOG.unshift({
+    id: 'car_santa',
+    brand: 'North Pole',
+    model: "Santa's Sleigh",
+    year: 2026,
+    topSpeed: 200,
+    zeroTo60: 2.8,
+    hp: 1200,
+    style: 'phantom',
+    color: '#b1121f',
+    threeColor: 0xb1121f,
+    drivetrain: 'AWD',
+    price: 0,
+    tier: 'Holiday',
+    free: true
+});
+
 // Bodies and engines are real performance parts. Values are multipliers applied
 // on top of the racer's 120 m/s stock top speed and 18 m/s² stock acceleration.
 const BODY_PERF = {
@@ -7939,9 +7958,9 @@ function renderShowroom() {
         var affordable = wallet.shells >= car.price;
         var action, cls, disabled = '';
         if (equipped) { action = 'Driving'; cls = 'equipped'; disabled = ' disabled'; }
-        else if (owned) { action = 'Drive'; cls = 'owned'; }
+        else if (owned || car.free) { action = 'Drive'; cls = 'owned'; }
         else { action = 'Buy · ' + car.price.toLocaleString(); cls = affordable ? 'buy' : 'locked'; }
-        var sellBtn = (owned && !equipped)
+        var sellBtn = (owned && !equipped && !car.free)
             ? '<button class="cosmetic-sell" onclick="sellCar(\'' + car.id + '\')">Sell · ' + Math.floor(car.price * 0.5).toLocaleString() + '</button>'
             : '';
         return '<div class="showroom-card' + (equipped ? ' is-equipped' : '') + '">' +
@@ -7958,7 +7977,7 @@ function renderShowroom() {
                     '<span><b>' + car.hp + '</b> hp</span>' +
                     '<span><b>' + escapeHtml(car.drivetrain) + '</b></span>' +
                 '</div>' +
-                '<div class="showroom-price">' + (owned ? (equipped ? 'In the garage' : 'Owned') : shellIcon(13) + ' ' + car.price.toLocaleString()) + '</div>' +
+                '<div class="showroom-price">' + (car.free ? (owned ? (equipped ? 'In the garage' : 'Free') : 'FREE') : (owned ? (equipped ? 'In the garage' : 'Owned') : shellIcon(13) + ' ' + car.price.toLocaleString())) + '</div>' +
                 '<button class="cosmetic-btn ' + cls + '"' + disabled + ' onclick="handleCar(\'' + car.id + '\')">' + action + '</button>' +
                 sellBtn +
             '</div>' +
@@ -7978,6 +7997,16 @@ async function handleCar(id) {
     if (!car || !wallet) return;
     var owned = (wallet.cars || []).indexOf(car.id) >= 0;
     if (!owned) {
+        if (car.free) {
+            wallet.cars = wallet.cars || [];
+            wallet.cars.push(car.id);
+            wallet.equippedCar = car.id;
+            await saveWallet();
+            renderShowroom();
+            renderWalletUI();
+            showroomStatus("Santa's Sleigh is free — it is now your ride.");
+            return;
+        }
         if (wallet.shells < car.price) {
             showroomStatus('Not enough Coins. You need ' + (car.price - wallet.shells).toLocaleString() + ' more.', true);
             return;
@@ -8789,8 +8818,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.13";
-const UPDATE_NOTES = "The Christmas jingle now starts automatically, and you can turn it off in Settings under the new Christmas Jingle toggle";
+const APP_VERSION = "LessFun Public Beta 1.33.15";
+const UPDATE_NOTES = "Santa's Sleigh is free in Beach Racer — press X to fly for 2 seconds, then wait 10 seconds for the cooldown";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

@@ -6,7 +6,7 @@
     var input = {
         left: false, right: false, up: false, down: false, brake: false,
         pointerActive: false, pointerX: 0, pointerY: 0, tapQueued: false, honk: false,
-        jump: false, reload: false, melee: false, interact: false, weapon: 0, bandage: false,
+        jump: false, reload: false, melee: false, interact: false, weapon: 0, bandage: false, fly: false,
         mobileX: 0, mobileY: 0
     };
 
@@ -189,6 +189,9 @@
         var engineColor = cosmetics.engineColor != null ? cosmetics.engineColor : null;
         var aeroStyle = cosmetics.aeroStyle || '';
         var kitStyle = cosmetics.kitStyle || '';
+        var isSleigh = cosmetics.carId === 'car_santa';
+        var FLY_DURATION = 2, FLY_COOLDOWN = 10, FLY_HEIGHT = 2.7;
+        var flyTime = 0, flyCooldown = 0, flySparkT = 0;
 
         // Real performance from the equipped body + engine. Multipliers are the
         // values shown in the shop. Higher base values make the coastal run
@@ -1952,7 +1955,54 @@
             return g;
         }
 
+        function decorateSleigh(car) {
+            var gold = new THREE.MeshStandardMaterial({ color: 0xffd166, metalness: 0.85, roughness: 0.25, emissive: 0x5a3a00, emissiveIntensity: 0.25 });
+            var red = new THREE.MeshStandardMaterial({ color: 0xb1121f, metalness: 0.4, roughness: 0.4, emissive: 0x3a0508, emissiveIntensity: 0.2 });
+            var green = new THREE.MeshStandardMaterial({ color: 0x1f7a3d, metalness: 0.3, roughness: 0.5 });
+            var white = new THREE.MeshStandardMaterial({ color: 0xf8f4e8, metalness: 0.1, roughness: 0.7 });
+            var brown = new THREE.MeshStandardMaterial({ color: 0x8a5a2b, roughness: 0.8 });
+            var wheels = car.userData.wheels || [];
+            for (var w = 0; w < wheels.length; w++) wheels[w].visible = false;
+            var bodyGroup = car.userData.bodyGroup || car;
+            [-1.0, 1.0].forEach(function (x) {
+                var rail = boxMesh(0.12, 0.1, 4.5, gold); rail.position.set(x, 0.13, 0); car.add(rail);
+                var frontCurl = boxMesh(0.12, 0.5, 0.12, gold); frontCurl.position.set(x, 0.36, -2.2); car.add(frontCurl);
+                var backCurl = boxMesh(0.12, 0.4, 0.12, gold); backCurl.position.set(x, 0.32, 2.2); car.add(backCurl);
+                var sidePanel = boxMesh(0.08, 0.42, 2.5, red); sidePanel.position.set(x * 0.99, 0.7, 0.05); bodyGroup.add(sidePanel);
+            });
+            var wreath = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.075, 8, 18), green);
+            wreath.position.set(0, 0.72, -2.1);
+            bodyGroup.add(wreath);
+            var bow = boxMesh(0.16, 0.16, 0.08, red);
+            bow.position.set(0, 0.42, -2.12);
+            bodyGroup.add(bow);
+            var roofY = car.userData.roofY || 1.5;
+            var hat = new THREE.Mesh(new THREE.ConeGeometry(0.27, 0.62, 10), red);
+            hat.position.set(0, roofY + 0.3, 0.1);
+            hat.rotation.z = 0.18;
+            bodyGroup.add(hat);
+            var brim = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.09, 12), white);
+            brim.position.set(0, roofY + 0.03, 0.1);
+            bodyGroup.add(brim);
+            var pom = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8), white);
+            pom.position.set(0.14, roofY + 0.62, 0.1);
+            bodyGroup.add(pom);
+            var sack = new THREE.Mesh(new THREE.SphereGeometry(0.4, 12, 10), brown);
+            sack.scale.set(1, 1.15, 0.9);
+            sack.position.set(0, 1.0, 1.5);
+            bodyGroup.add(sack);
+            for (var b = 0; b < 3; b++) {
+                var bell = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), gold);
+                bell.position.set(-0.5 + b * 0.5, 0.35, 2.25);
+                car.add(bell);
+            }
+            var glow = new THREE.PointLight(0xff5533, 0.9, 8);
+            glow.position.set(0, 1.4, 0);
+            bodyGroup.add(glow);
+        }
+
         var player = buildCar(paintColor, wheelColor, bodyStyle, engineStyle, engineColor, true);
+        if (isSleigh) decorateSleigh(player);
         player.position.set(LANES[2], 0, 5);
         scene.add(player);
 
@@ -4207,6 +4257,26 @@
                 fsdSignalSide = 0; fsdSignalT = 0;
             }
 
+            if (isSleigh) {
+                if (input.fly) {
+                    input.fly = false;
+                    if (engineOn && gearMode === 'D' && flyTime <= 0 && flyCooldown <= 0) {
+                        flyTime = FLY_DURATION;
+                        flySparkT = 0;
+                        racerBanner('SANTA FLY');
+                        tone(560, 0.18, 'triangle', 0.06, 1040);
+                    }
+                }
+                if (flyTime > 0) {
+                    flyTime = Math.max(0, flyTime - dt);
+                    if (flyTime <= 0) flyCooldown = FLY_COOLDOWN;
+                } else if (flyCooldown > 0) {
+                    flyCooldown = Math.max(0, flyCooldown - dt);
+                }
+            } else {
+                input.fly = false;
+            }
+
             var throttleCmd = input.up;
             var brakeCmd = input.brake;
             if (raceMode && raceStartDelay > 0) { throttleCmd = false; brakeCmd = true; speed = 0; }
@@ -4502,8 +4572,17 @@
             player.rotation.x = (brakeCmd ? 0.035 : 0) + Math.max(-0.03, Math.min(0.03, -vx * 0.002));
             if (player.userData.brakeMat) player.userData.brakeMat.color.setHex((input.brake || (fsdActive && brakeCmd)) ? 0xff2438 : 0x5a1018);
 
-            // Airborne physics from ramp cars.
-            if (playerY > 0 || vy !== 0) {
+            // Airborne physics from ramp cars, plus Santa's Sleigh flight.
+            if (isSleigh && flyTime > 0) {
+                playerY += (FLY_HEIGHT - playerY) * Math.min(1, dt * 5);
+                vy = 0;
+                player.position.y = playerY;
+                flySparkT -= dt;
+                if (flySparkT <= 0) {
+                    flySparkT = 0.09;
+                    spawnSparks(player.position.x, player.position.y + 0.45, player.position.z + 2.1, 3);
+                }
+            } else if (playerY > 0 || vy !== 0) {
                 playerY += vy * dt;
                 vy -= 28 * dt;
                 if (playerY <= 0) {
@@ -4518,6 +4597,7 @@
             if (input.brake) bodyPitch += 0.14;
             if (input.up && engineOn) bodyPitch -= 0.07;
             if (playerY > 0.4) bodyPitch -= 0.05;
+            if (isSleigh && flyTime > 0) bodyPitch -= 0.07;
             if (suspensionImpulse > 0.02) bodyPitch += 0.12;
             if (gearMode === 'R' && input.up) bodyPitch -= 0.06;
             animateSuspension(player, dt, speed, distance, bodyRoll, bodyPitch, suspensionImpulse);
@@ -4865,7 +4945,8 @@
                 (!engineOn ? ' · HOLD W TO START' : '') +
                 (nitroActive ? (nitroShiftT > 0 ? ' · NITRO SHIFT' : ' · NOS') : '') +
                 (driftIntent ? ' · DRIFT' : '') +
-                (playerY > 0.4 ? ' · JUMP' : '') +
+                (playerY > 0.4 && !(isSleigh && flyTime > 0) ? ' · JUMP' : '') +
+                (isSleigh ? (flyTime > 0 ? ' · FLYING ' + flyTime.toFixed(1) + 's' : (flyCooldown > 0 ? ' · FLY CD ' + Math.ceil(flyCooldown) + 's' : ' · FLY READY [X]')) : '') +
                 (exitHintText ? ' · ' + exitHintText : '');
             if (racerBannerT > 0) {
                 racerBannerT -= dt;
@@ -4952,6 +5033,9 @@
                     checkpoints: checkpointsPassed,
                     driftScore: Math.round(driftScore),
                     airborne: playerY > 0.2,
+                    playerY: playerY,
+                    flyTime: flyTime,
+                    flyCooldown: flyCooldown,
                     nitro: Math.round(nitro),
                     engineOn: engineOn,
                     coins: coinsCollected,
@@ -8499,6 +8583,7 @@
         var KEY_MELEE = ['v', 'V'];
         var KEY_INTERACT = ['e', 'E'];
         var KEY_BANDAGE = ['b', 'B'];
+        var KEY_FLY = ['x', 'X'];
 
         function down(e) {
             if (isTypingTarget(e)) return;
@@ -8520,10 +8605,11 @@
             if (KEY_MELEE.indexOf(e.key) >= 0) { if (!e.repeat) input.melee = true; }
             if (KEY_INTERACT.indexOf(e.key) >= 0) { if (!e.repeat) input.interact = true; }
             if (KEY_BANDAGE.indexOf(e.key) >= 0) { if (!e.repeat) input.bandage = true; }
+            if (KEY_FLY.indexOf(e.key) >= 0) { if (!e.repeat) input.fly = true; e.preventDefault(); }
             if (e.key === '1') { if (!e.repeat) input.weapon = 1; }
             if (e.key === '2') { if (!e.repeat) input.weapon = 2; }
             if (e.key === '3') { if (!e.repeat) input.weapon = 3; }
-            if (e.key === ' ') { input.jump = true; input.tapQueued = true; e.preventDefault(); }
+            if (e.key === ' ') { input.jump = true; input.tapQueued = true; if (!e.repeat) input.fly = true; e.preventDefault(); }
             else if (e.key === 'Enter') { input.tapQueued = true; e.preventDefault(); }
             if (KEY_LEFT.indexOf(e.key) >= 0 || KEY_RIGHT.indexOf(e.key) >= 0 || KEY_UP.indexOf(e.key) >= 0 || KEY_DOWN.indexOf(e.key) >= 0 || KEY_GEAR_DOWN.indexOf(e.key) >= 0 || KEY_GEAR_UP.indexOf(e.key) >= 0) e.preventDefault();
         }
@@ -8554,6 +8640,7 @@
             input.drift = false;
             input.nitro = false;
             input.fsdToggle = false;
+            input.fly = false;
             input.pointerActive = false; input.tapQueued = false; input.honk = false;
         }
         listen(global, 'keydown', down);

@@ -16,6 +16,10 @@
     var audio = null;
     var audioBroken = false;
     var retryQueued = false;
+    var BASE_VOLUME = 0.65;
+    var BOOST_VOLUME = 1;
+    var BOOST_SYNTH_GAIN = 0.34;
+    var boostTimer = 0;
 
     // ---- Synthesized fallback (public-domain Jingle Bells) ----
     var context = null;
@@ -227,7 +231,7 @@
         audio.src = TRACK_URL;
         audio.loop = true;
         audio.preload = 'none';
-        audio.volume = 0.65;
+        audio.volume = BASE_VOLUME;
         audio.setAttribute('playsinline', '');
         audio.addEventListener('error', function () {
             audioBroken = true;
@@ -241,7 +245,7 @@
         if (context.state === 'suspended') {
             try { context.resume(); } catch (e) {}
         }
-        if (master) master.gain.value = 0.2;
+        if (master) master.gain.value = boostTimer ? BOOST_SYNTH_GAIN : 0.2;
         if (timer) { clearTimeout(timer); timer = 0; }
         scheduleLoop();
     }
@@ -310,6 +314,30 @@
         updateButton();
     }
 
+    // Hidden reindeer easter egg: turn the music up for a few seconds.
+    function boost() {
+        if (!enabled) return false;
+        unlocked = true;
+        start();
+        if (boostTimer) clearTimeout(boostTimer);
+        var el = ensureAudio();
+        if (el && !audioBroken) {
+            el.volume = BOOST_VOLUME;
+            boostTimer = setTimeout(function () {
+                boostTimer = 0;
+                if (audio) audio.volume = BASE_VOLUME;
+                if (master) master.gain.value = 0.2;
+            }, 9000);
+        } else if (master) {
+            master.gain.value = BOOST_SYNTH_GAIN;
+            boostTimer = setTimeout(function () {
+                boostTimer = 0;
+                if (master) master.gain.value = 0.2;
+            }, 9000);
+        }
+        return true;
+    }
+
     function updateButton() {
         var btn = document.getElementById('jingleBtn');
         if (!btn) return;
@@ -363,11 +391,12 @@
             enabled: enabled,
             playing: playing,
             source: audioBroken ? 'synth' : 'mp3',
-            time: audio ? audio.currentTime : 0
+            time: audio ? audio.currentTime : 0,
+            volume: audio ? audio.volume : null
         };
     }
 
-    window.LessFunJingle = { toggle: toggle, start: start, stop: stop, setEnabled: setEnabled, status: status };
+    window.LessFunJingle = { toggle: toggle, start: start, stop: stop, setEnabled: setEnabled, boost: boost, status: status };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
     else init();
 })();

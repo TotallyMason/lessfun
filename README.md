@@ -7,7 +7,7 @@ A 3D arcade with a liquid-glass interface. Play it at
 
 | Game | What it is |
 | --- | --- |
-| Beach Racer | Outrun traffic on a six-lane coastal highway, or pick Racing for a closed-loop 3-lap race against four adaptive AI rivals. Hold W / ↑ for throttle, steer freely, and brake through the pack in a 6-speed automatic. Shift P/R/N/D with Q and E, take highway exits, and race 2–3 players online with a room code. |
+| Beach Racer | Outrun traffic on a six-lane coastal highway, or pick Racing for a closed-loop 3-lap race against four adaptive AI rivals. The free holiday **Santa's Sleigh** can fly for 2 seconds (press X or Space), then needs a 10-second cooldown. Hold W / ↑ for throttle, steer freely, and brake through the pack in a 6-speed automatic. Shift P/R/N/D with Q and E, take highway exits, and race 2–3 players online with a room code. |
 | Tunnel Rush | Thread an endless neon tunnel and rotate through the gaps. |
 | Cube Stack | Stack the tower as high as you can before the blocks drift away. |
 | Funtutu Test | GPU/CPU benchmark that shows its work, produces a score, and recommends graphics settings for this device. |
