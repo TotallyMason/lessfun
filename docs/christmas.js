@@ -266,9 +266,9 @@
         if (!isHoliday()) return;
         document.addEventListener('pointerdown', unlock, { once: true, passive: true });
         document.addEventListener('keydown', unlock, { once: true });
+        // Keep the jingle running when the tab is in the background.
         document.addEventListener('visibilitychange', function () {
-            if (document.hidden) { if (playing) stop(); }
-            else if (enabled && soundOn && unlocked) start();
+            if (!document.hidden && enabled && soundOn && unlocked && !playing) start();
         });
         if (typeof soundSetting !== 'undefined') soundOn = !!soundSetting;
     }
