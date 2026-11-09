@@ -234,6 +234,9 @@
         var crashBuffer = null;
         var fatalCrashBuffer = null;
         var audioResumeHandler = null;
+        var audioNoiseBuffer = null;
+        var warningLights = {};
+        var lastWarningBeepMs = 0;
         var revLevel = 0;
         var carDamage = { engine: 0, transmission: 0, steering: 0, suspension: 0, tires: [0, 0, 0, 0], fire: 0 };
         var damageSmokeT = 0;
@@ -313,6 +316,42 @@
             } catch (e) {}
         }
 
+        function playEngineBlowSound() {
+            if (!soundEnabled || !audioCtx) return;
+            tone(72, 0.6, 'sawtooth', 0.24, 26);
+            tone(150, 0.34, 'square', 0.14, 46);
+            tone(620, 0.13, 'square', 0.06, 180);
+            if (audioNoiseBuffer) {
+                try {
+                    var src = audioCtx.createBufferSource();
+                    src.buffer = audioNoiseBuffer;
+                    var filter = audioCtx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.value = 1100;
+                    var gain = audioCtx.createGain();
+                    gain.gain.setValueAtTime(0.24, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.55);
+                    src.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(audioMaster);
+                    src.start(0, 0, 0.55);
+                } catch (e) {}
+            }
+        }
+
+        function playWarningBeep(name) {
+            if (!soundEnabled || !audioCtx) return;
+            var now = Date.now();
+            if (now - lastWarningBeepMs < 360) return;
+            lastWarningBeepMs = now;
+            var critical = name === 'hot' || name === 'eng' || name === 'trans' || name === 'tire' || name === 'dmg';
+            var base = critical ? 760 : 1160;
+            tone(base, 0.08, 'square', critical ? 0.05 : 0.028);
+            setTimeout(function () {
+                tone(base * 0.72, 0.12, 'square', critical ? 0.04 : 0.022);
+            }, 105);
+        }
+
         function initAudio() {
             if (audioCtx) return;
             var AC = global.AudioContext || global.webkitAudioContext;
@@ -377,6 +416,7 @@
 
                 var length = Math.floor(audioCtx.sampleRate * 1.2);
                 var buffer = audioCtx.createBuffer(1, length, audioCtx.sampleRate);
+                audioNoiseBuffer = buffer;
                 var data = buffer.getChannelData(0);
                 for (var ai = 0; ai < length; ai++) data[ai] = Math.random() * 2 - 1;
 
@@ -575,8 +615,11 @@
             var maxDamage = Math.max(carDamage.engine, carDamage.transmission, carDamage.steering, carDamage.suspension);
             var blownTire = carDamage.tires.some(function (v) { return v > 0.5; });
             function warn(name, on) {
+                var active = !!on;
                 var light = document.querySelector('.g3d-warn[data-warn="' + name + '"]');
-                if (light) light.classList.toggle('is-on', !!on);
+                if (light) light.classList.toggle('is-on', active);
+                if (active && !warningLights[name]) playWarningBeep(name);
+                warningLights[name] = active;
             }
             warn('abs', absActive);
             warn('brake', brakeLock > 0.12);
@@ -5105,6 +5148,7 @@
             engineHeat = Math.max(0, Math.min(1.15, engineHeat + heatGain * dt));
             if (engineHeat > 0.92 && !engineBlown) {
                 engineBlown = true;
+                playEngineBlowSound();
                 carDamage.fire = 1;
                 carDamage.engine = Math.max(carDamage.engine, 0.86);
             }
