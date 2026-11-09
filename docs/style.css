@@ -12417,7 +12417,7 @@ body.in-game .xmas-snowman { display: none; }
     text-shadow: 0 0 14px rgba(255, 209, 102, 0.3);
 }
 .g3d-gauge-digital {
-    width: 196px;
+    width: 226px;
     padding: 11px 14px 10px;
     border-radius: 12px;
     border: 1px solid #333c45;
@@ -12441,9 +12441,49 @@ body.in-game .xmas-snowman { display: none; }
     letter-spacing: 0.14em;
     text-transform: uppercase;
 }
+.g3d-gauge-alt {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    margin-top: 1px;
+    color: #8fd8ff;
+    font-size: 9px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+.g3d-gauge-alt b { color: rgba(220, 240, 250, 0.38); font-size: 7px; letter-spacing: 0.1em; text-transform: uppercase; }
+.g3d-gauge-car {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin-top: 7px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+}
+.g3d-gauge-car b {
+    overflow: hidden;
+    color: #eafaff;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.g3d-gauge-car small {
+    overflow: hidden;
+    color: rgba(220, 240, 250, 0.4);
+    font-size: 6.5px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
 .g3d-gauge-row {
     display: flex;
     justify-content: space-between;
+    gap: 5px;
     margin-top: 7px;
     color: rgba(220, 240, 250, 0.4);
     font-size: 7px;
@@ -12451,6 +12491,59 @@ body.in-game .xmas-snowman { display: none; }
     letter-spacing: 0.1em;
 }
 .g3d-gauge-row b { color: #ffd166; font-size: 11px; letter-spacing: 0; }
+.g3d-gauge-nitro {
+    height: 4px;
+    margin-top: 5px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+}
+.g3d-gauge-nitro i {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #5fe7ff, #8b5cf6);
+    transition: width 0.12s linear;
+}
+.g3d-gauge-inputs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 5px;
+    color: rgba(220, 240, 250, 0.36);
+    font-size: 6px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+}
+.g3d-gauge-input {
+    flex: 1;
+    height: 3px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+}
+.g3d-gauge-input i {
+    display: block;
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: #8affd0;
+    transition: width 0.08s linear;
+}
+.g3d-gauge-input.is-brake i { background: #ff6b6b; }
+.g3d-gauge-stats {
+    display: flex;
+    justify-content: space-between;
+    gap: 3px;
+    margin-top: 5px;
+    color: rgba(220, 240, 250, 0.32);
+    font-size: 6px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+.g3d-gauge-stats b { color: #eafaff; font-size: 8px; letter-spacing: 0; }
 .g3d-gauge-status {
     max-width: 100%;
     margin-top: 6px;
@@ -12479,8 +12572,12 @@ body.in-game .xmas-snowman { display: none; }
     .g3d-tach { width: 124px; height: 124px; }
     .g3d-gauge-needle { height: 43px; }
     .g3d-tach-gear { font-size: 18px; transform: translate(-50%, 10px); }
-    .g3d-gauge-digital { width: 150px; padding: 8px 10px; }
+    .g3d-gauge-digital { width: 176px; padding: 8px 10px; }
     .g3d-gauge-speed strong { font-size: 30px; }
+    .g3d-gauge-alt { font-size: 8px; }
+    .g3d-gauge-car small { display: none; }
+    .g3d-gauge-stats { gap: 2px; font-size: 5.5px; }
+    .g3d-gauge-stats b { font-size: 7px; }
     .g3d-gauge-status { font-size: 6.5px; }
 }
 

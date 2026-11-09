@@ -218,6 +218,25 @@
             accel: 34 * (equippedPerf.accel || 1),
             grip: equippedPerf.grip || 1
         };
+
+        // Details for the gauge. Prefer the real showroom car, with a sane
+        // fallback for the free beater and Santa's Sleigh.
+        var gaugeCarName = 'Custom Build';
+        var gaugeCarSpec = Math.round(perf.topSpeed) + ' mph top · ' + perf.grip.toFixed(2) + ' grip';
+        if (isSleigh) {
+            gaugeCarName = "Santa's Sleigh";
+            gaugeCarSpec = 'FESTIVE · FLIGHT · MAGIC';
+        } else if (cosmetics.carId) {
+            try {
+                if (typeof CAR_CATALOG !== 'undefined') {
+                    var gaugeCar = CAR_CATALOG.find(function (car) { return car.id === cosmetics.carId; });
+                    if (gaugeCar) {
+                        gaugeCarName = gaugeCar.brand + ' ' + gaugeCar.model;
+                        gaugeCarSpec = gaugeCar.year + ' · ' + gaugeCar.tier + ' · ' + gaugeCar.drivetrain + ' · ' + gaugeCar.hp + ' HP';
+                    }
+                }
+            } catch (e) {}
+        }
         // 7 mph idle creep, in metres per second.
         var CREEP_SPEED = 7 / 2.2369362920544;
         var REVERSE_MAX = 16;
@@ -580,18 +599,36 @@
             }
             setText('g3dGaugeSpeed', speedNumber);
             setText('g3dGaugeUnit', unit);
+            var primaryKmh = unitSystem === 'kmh';
+            var primarySpeed = parseFloat(speedNumber) || 0;
+            setText('g3dGaugeAltSpeed', Math.round(primaryKmh ? primarySpeed / 1.609344 : primarySpeed * 1.609344));
+            setText('g3dGaugeAltUnit', primaryKmh ? 'mph' : 'km/h');
+            setText('g3dGaugeCarName', gaugeCarName);
+            setText('g3dGaugeCarSpec', gaugeCarSpec);
             setText('g3dGaugeRpm', Math.round(rpm));
             setText('g3dGaugeGear', gearLabel);
             setText('g3dGaugeGearBig', gearLabel);
+            setText('g3dGaugeNitro', Math.round(nitro) + '%');
             setText('g3dGaugeStatus', statusText);
             setText('g3dGaugeScore', Math.round(scoreValue));
             setText('g3dGaugeCoins', Math.round(coins));
+            setText('g3dGaugeDistance', distance >= 1000 ? (distance / 1000).toFixed(1) + 'km' : Math.round(distance) + 'm');
+            setText('g3dGaugeDrift', Math.round(driftScore));
+            setText('g3dGaugeSplitLabel', raceMode ? 'LAP' : 'CKPT');
+            setText('g3dGaugeSplit', raceMode ? Math.min(playerLap, RACE_LAPS) + '/' + RACE_LAPS : checkpointsPassed);
+            var maxDamage = Math.max(carDamage.engine, carDamage.transmission, carDamage.steering, carDamage.suspension);
+            setText('g3dGaugeDamage', Math.round(maxDamage * 100) + '%');
+            var nitroFill = document.getElementById('g3dGaugeNitroFill');
+            if (nitroFill) nitroFill.style.width = Math.max(0, Math.min(100, nitro)) + '%';
+            var throttleFill = document.getElementById('g3dGaugeThrottleFill');
+            if (throttleFill) throttleFill.style.width = Math.round(Math.max(0, Math.min(1, throttleSmooth)) * 100) + '%';
+            var brakeFill = document.getElementById('g3dGaugeBrakeFill');
+            if (brakeFill) brakeFill.style.width = Math.round(Math.max(0, Math.min(1, brakeSmooth)) * 100) + '%';
             var needle = document.getElementById('g3dNeedle');
             if (needle) {
                 var angle = -135 + Math.max(0, Math.min(1, rpm / 8000)) * 270;
                 needle.style.transform = 'translateX(-50%) rotate(' + angle.toFixed(2) + 'deg)';
             }
-            var maxDamage = Math.max(carDamage.engine, carDamage.transmission, carDamage.steering, carDamage.suspension);
             var blownTire = carDamage.tires.some(function (v) { return v > 0.5; });
             function warn(name, on) {
                 var active = !!on;
