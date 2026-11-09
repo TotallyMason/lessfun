@@ -585,8 +585,6 @@
             setText('g3dGaugeGearBig', gearLabel);
             setText('g3dGaugeNitro', Math.round(nitro) + '%');
             setText('g3dGaugeStatus', statusText);
-            setText('g3dGaugeScore', Math.round(scoreValue));
-            setText('g3dGaugeCoins', Math.round(coins));
             setText('g3dGaugeDistance', distance >= 1000 ? (distance / 1000).toFixed(1) + 'km' : Math.round(distance) + 'm');
             setText('g3dGaugeDrift', Math.round(driftScore));
             setText('g3dGaugeSplitLabel', raceMode ? 'LAP' : 'CKPT');
@@ -4326,10 +4324,10 @@
         var fsdSignalSide = 0;
         var fsdSignalT = 0;
         var playerBlinkT = 0;
-        // FSD targets 150 in whichever speed unit the player has selected.
-        var FSD_TARGET = 150;
+        // FSD max speed: 300 km/h.
+        var FSD_MAX_KMH = 300;
         function fsdMaxSpeed() {
-            return unitSystem === 'kmh' ? (FSD_TARGET * 3 / 3.6) : (FSD_TARGET / 2.2369362920544);
+            return FSD_MAX_KMH / 3.6;
         }
         var fsdChangeP = 1;
         var fsdChangeDur = 0.85;
@@ -4439,10 +4437,10 @@
                 var laneDist = Math.abs(lane - curLane);
                 var front = laneGapFor(lane, 700);
                 var rear = laneRearGapFor(lane, 120);
-                if (rear < 12) continue;
-                // Only take a lane that is meaningfully safer than the current one.
-                if (front < Math.max(gapAhead + 10, speed * 0.35 + 16)) continue;
-                var gain = front + Math.min(90, rear) * 0.3 - laneDist * 14;
+                if (rear < 8) continue;
+                // Take any lane with enough room to slot into.
+                if (front < Math.max(gapAhead + 4, speed * 0.2 + 10)) continue;
+                var gain = front + Math.min(90, rear) * 0.3 - laneDist * 8;
                 if (gain > bestGain) { bestGain = gain; bestLane = lane; }
             }
             return bestLane;
@@ -4904,7 +4902,8 @@
                 fsdCooldown -= dt;
                 var curLane = laneIndexOf(player.position.x);
                 if (fsdThink <= 0 && fsdChangeP >= 1) {
-                    fsdThink = 0.4;
+                    // Impatient overtaking: look for a better lane constantly.
+                    fsdThink = 0.16;
                     var curGap = laneGapFor(curLane, 900);
                     var curRear = laneRearGapFor(curLane, 140);
                     var globalBest = curLane;
@@ -4914,14 +4913,13 @@
                         var fg = laneGapFor(fl, 900);
                         var rg = laneRearGapFor(fl, 140);
                         var score = fg + Math.min(120, rg) * 0.45;
-                        if (laneHasSideCar(fl)) score -= 180;
-                        if (score > globalScore + 32) { globalScore = score; globalBest = fl; }
+                        if (laneHasSideCar(fl)) score -= 240;
+                        if (score > globalScore + 2) { globalScore = score; globalBest = fl; }
                     }
-                    // Ramps are targets, not traffic. Line up with a safe ramp
-                    // lane instead of braking behind it like a car.
+                    // Ramps are targets, not traffic.
                     var rampLane = rampTargetLane(300);
                     fsdRampLane = rampLane;
-                    if (rampLane >= 0 && rampLane !== curLane && !laneHasSideCar(rampLane) && laneGapFor(rampLane, 160) > 55) {
+                    if (rampLane >= 0 && rampLane !== curLane && !laneHasSideCar(rampLane) && laneGapFor(rampLane, 160) > 45) {
                         globalBest = rampLane;
                     }
                     if (globalBest !== curLane && fsdCooldown <= 0) {
@@ -4932,29 +4930,16 @@
                         for (var pathLane = Math.min(curLane, globalBest) + 1; pathLane < Math.max(curLane, globalBest); pathLane++) {
                             if (laneHasSideCar(pathLane)) { pathClear = false; break; }
                         }
-                        if (pathClear && !laneHasSideCar(globalBest) && targetRear > 16 && (targetGap > curGap + 6 || targetGap > 95)) {
+                        if (pathClear && !laneHasSideCar(globalBest) && targetRear > 12 && targetGap > 22) {
                             fsdLane = globalBest;
                             fsdFromX = player.position.x;
                             fsdChangeP = 0;
-                            fsdChangeDur = 0.3 + laneDist * 0.1;
+                            fsdChangeDur = 0.28 + laneDist * 0.09;
                             fsdSignalSide = globalBest > curLane ? 1 : -1;
-                            fsdSignalT = Math.min(1.6, 0.7 + laneDist * 0.25);
-                            fsdCooldown = (curGap < 130 ? 1.2 : 2.6) + Math.random() * 1.2;
+                            fsdSignalT = Math.min(1.2, 0.55 + laneDist * 0.2);
+                            fsdCooldown = 0.18 + Math.random() * 0.32;
                         }
-                    } else if (fsdCooldown <= 0 && curGap > 150 && Math.random() < 0.1) {
-                        var options = [];
-                        if (curLane > 0 && laneRearGapFor(curLane - 1, 90) > 26 && !laneHasSideCar(curLane - 1)) options.push(curLane - 1);
-                        if (curLane < LANES.length - 1 && laneRearGapFor(curLane + 1, 90) > 26 && !laneHasSideCar(curLane + 1)) options.push(curLane + 1);
-                        if (options.length) {
-                            fsdLane = options[Math.floor(Math.random() * options.length)];
-                            fsdFromX = player.position.x;
-                            fsdChangeP = 0;
-                            fsdChangeDur = 0.8;
-                            fsdSignalSide = fsdLane > curLane ? 1 : -1;
-                            fsdSignalT = 1.6;
-                            fsdCooldown = 5 + Math.random() * 3;
-                        }
-                    } else if (laneGapFor(fsdLane, 220) < 45) {
+                    } else if (laneGapFor(fsdLane, 220) < 30) {
                         fsdLane = curLane;
                     }
                 }
@@ -4968,51 +4953,48 @@
                     fsdSteerX = LANES[fsdLane];
                 }
                 var gapAhead = laneGapFor(fsdLane, 1200);
-                var closingSpeed = Math.max(0, speed * 0.45 - gapAhead * 0.25);
-                var safeGap = 16 + speed * 0.16;
-                var needEmergency = (gapAhead < safeGap && speed > 18) || (gapAhead < 48 && closingSpeed > 30);
+                var safeGap = 18 + speed * 0.12;
+                var needEmergency = gapAhead < safeGap && speed > 14;
+                var noEscape = false;
                 if (needEmergency) {
                     if (!fsdEmergency) {
                         tone(880, 0.12, 'square', 0.05, 640);
                         tone(640, 0.18, 'square', 0.045, 420);
                     }
                     fsdEmergency = true;
-                    fsdEmergencyT = 0.45;
+                    fsdEmergencyT = 0.35;
                     fsdSwerveT = Math.max(0, fsdSwerveT - dt);
                     fsdSwerveCooldown = Math.max(0, fsdSwerveCooldown - dt);
-                    // E-brake only for an imminent hit; otherwise swerve across
-                    // as many clear lanes as needed.
-                    var stopDist = (speed * speed) / (2 * 165);
-                    if (fsdChangeP >= 1 && fsdSwerveCooldown <= 0 && gapAhead < stopDist * 0.95 + 4) {
+                    // Prefer a multi-lane escape; brake only when every lane is blocked.
+                    if (fsdChangeP >= 1 && fsdSwerveCooldown <= 0) {
                         var escapeLane = findFsdEscapeLane(curLane, gapAhead, speed);
                         if (escapeLane >= 0 && escapeLane !== fsdLane) {
                             var escapeDist = Math.abs(escapeLane - curLane);
                             fsdLane = escapeLane;
                             fsdFromX = player.position.x;
                             fsdChangeP = 0;
-                            fsdChangeDur = 0.2 + escapeDist * 0.08;
-                            fsdSwerveT = 0.9;
-                            fsdSwerveCooldown = 0.8;
+                            fsdChangeDur = 0.18 + escapeDist * 0.075;
+                            fsdSwerveT = 0.85;
+                            fsdSwerveCooldown = 0.55;
                             fsdSwerveSide = escapeLane > curLane ? 1 : -1;
                             fsdSignalSide = fsdSwerveSide;
-                            fsdSignalT = 1.1;
+                            fsdSignalT = 1.0;
                             tone(1040, 0.08, 'square', 0.055, 700);
+                        } else {
+                            noEscape = true;
                         }
+                    } else {
+                        noEscape = true;
                     }
                 } else if (fsdEmergency) {
                     fsdEmergencyT -= dt;
-                    if (fsdEmergencyT <= 0 && (gapAhead > safeGap + 8 || speed < 3)) fsdEmergency = false;
+                    if (fsdEmergencyT <= 0 && (gapAhead > safeGap + 6 || speed < 3)) fsdEmergency = false;
                 }
-                // Follow closer and coast rather than braking early. FSD only
-                // brakes when it is meaningfully over the target speed.
-                var desiredSpeed = Math.min(fsdMaxSpeed(), Math.max(0, (gapAhead - 6) * 5.0));
-                if (fsdEmergency) desiredSpeed = 0;
-                fsdSpeed += (desiredSpeed - fsdSpeed) * Math.min(1, dt * (fsdEmergency ? 10 : 2.2));
-                if (fsdEmergency) { brakeCmd = true; throttleCmd = false; }
-                else if (gapAhead < safeGap * 0.82 && speed > fsdSpeed + 4) { brakeCmd = true; throttleCmd = false; }
-                else if (speed > fsdSpeed + 9) { brakeCmd = true; throttleCmd = false; }
-                else if (speed < fsdSpeed - 4) { brakeCmd = false; throttleCmd = true; }
-                else { brakeCmd = false; throttleCmd = false; }
+                // Hold maximum speed; only brake when there is no lane to escape into.
+                var desiredSpeed = fsdMaxSpeed();
+                fsdSpeed += (desiredSpeed - fsdSpeed) * Math.min(1, dt * 3.2);
+                if (noEscape && gapAhead < safeGap) { brakeCmd = true; throttleCmd = false; }
+                else { brakeCmd = false; throttleCmd = true; }
                 fsdSignalT = Math.max(0, fsdSignalT - dt);
                 if (fsdSignalT <= 0) fsdSignalSide = 0;
                 fsdSwerveT = Math.max(0, fsdSwerveT - dt);
@@ -5745,8 +5727,8 @@
                     signal: fsdSignalSide,
                     fsdChange: fsdChangeP < 1 ? fsdChangeP : 1,
                     fsdRampLane: fsdRampLane,
-                    fsdTarget: FSD_TARGET,
-                    fsdUnit: unitSystem,
+                    fsdTarget: FSD_MAX_KMH,
+                    fsdUnit: 'kmh',
                     suspension: player.userData.bodyGroup ? player.userData.bodyGroup.position.y : 0,
                     wheelTravel: (player.userData.suspensionPivots || []).reduce(function (maxTravel, pv) {
                         return Math.max(maxTravel, Math.abs(pv.userData.travel || 0));
