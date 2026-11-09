@@ -1120,7 +1120,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261317'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261318'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1129,7 +1129,7 @@ function ensure3DEngine() {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261317').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261318').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1137,7 +1137,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261317').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261318').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1145,8 +1145,8 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261317')
-            .then(function () { return loadScriptOnce('assistant.js?v=20261317'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261318')
+            .then(function () { return loadScriptOnce('assistant.js?v=20261318'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1162,7 +1162,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261317').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261318').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1170,7 +1170,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261317').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261318').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1178,7 +1178,7 @@ function ensureLucky() {
 function ensureTycoon() {
     if (window.Tycoon) return Promise.resolve();
     if (!tycoonPromise) {
-        tycoonPromise = loadScriptOnce('tycoon.js?v=20261317').catch(function (error) { tycoonPromise = null; throw error; });
+        tycoonPromise = loadScriptOnce('tycoon.js?v=20261318').catch(function (error) { tycoonPromise = null; throw error; });
     }
     return tycoonPromise;
 }
@@ -1564,8 +1564,33 @@ function openGameNow(id) {
                             '<button type="button" class="game3d-mp-x" onclick="closeShowroom()">×</button>' +
                         '</div>' +
                         '<div class="game3d-showroom-tools">' +
-                            '<input type="search" class="game3d-mp-input" id="g3dShowroomSearch" placeholder="Search BMW, Tesla, Toyota…" oninput="updateShowroomSearch(this.value)">' +
-                            '<span id="g3dShowroomCount">500 cars</span>' +
+                            '<input type="search" class="game3d-mp-input" id="g3dShowroomSearch" placeholder="Search brand, model, year…" oninput="updateShowroomSearch(this.value)">' +
+                            '<select class="game3d-showroom-select" id="g3dShowroomTier" onchange="updateShowroomFilter(\'tier\', this.value)" aria-label="Car class">' +
+                                '<option value="">All classes</option>' +
+                                '<option value="Hypercar">Hypercar</option>' +
+                                '<option value="Supercar">Supercar</option>' +
+                                '<option value="Performance">Performance</option>' +
+                                '<option value="Sport">Sport</option>' +
+                                '<option value="Holiday">Holiday</option>' +
+                            '</select>' +
+                            '<select class="game3d-showroom-select" id="g3dShowroomDrive" onchange="updateShowroomFilter(\'drive\', this.value)" aria-label="Drivetrain">' +
+                                '<option value="">All drivetrains</option>' +
+                                '<option value="AWD">AWD</option>' +
+                                '<option value="4WD">4WD</option>' +
+                                '<option value="RWD">RWD</option>' +
+                                '<option value="FWD">FWD</option>' +
+                            '</select>' +
+                            '<select class="game3d-showroom-select" id="g3dShowroomSort" onchange="updateShowroomSort(this.value)" aria-label="Sort cars">' +
+                                '<option value="featured">Featured</option>' +
+                                '<option value="price-asc">Price: low to high</option>' +
+                                '<option value="price-desc">Price: high to low</option>' +
+                                '<option value="speed-desc">Top speed</option>' +
+                                '<option value="accel-asc">0–60 quickest</option>' +
+                                '<option value="year-desc">Newest year</option>' +
+                                '<option value="name-asc">Name A–Z</option>' +
+                            '</select>' +
+                            '<label class="game3d-showroom-owned"><input type="checkbox" onchange="toggleShowroomOwned(this.checked)"> Owned</label>' +
+                            '<span id="g3dShowroomCount">1000 cars</span>' +
                         '</div>' +
                         '<div class="game3d-showroom-grid" id="g3dShowroomGrid"></div>' +
                         '<div class="game3d-showroom-pager">' +
@@ -6856,6 +6881,13 @@ De Tomaso|Pantera|1974|142|7.6|330|retro|f59e0b|RWD
 De Tomaso|Mangusta|1970|128|8.1|230|retro|7f1d1d|RWD
 De Tomaso|Guara|1993|135|7.8|280|retro|111827|RWD
 De Tomaso|Vallelunga|1966|117|8.5|150|retro|374151|RWD`;
+const STYLE_HANDLING = {
+    buggy: 1.16, offroad: 1.14, racer: 1.14, f1: 1.2, super: 1.1, gt: 1.13,
+    roadster: 1.08, cyber: 1.1, classic: 1.0, retro: 1.0, muscle: 0.94,
+    truck: 0.96, suv: 1.02, bus: 0.9, van: 0.94, limo: 0.92, taxi: 0.98,
+    monster: 1.12, beater: 0.86, phantom: 1.1
+};
+
 const CAR_CATALOG = CAR_DATA.trim().split('\n').map(function (line, index) {
     var p = line.split('|');
     var top = Number(p[3]), zero = Number(p[4]), hp = Number(p[5]);
@@ -6873,6 +6905,7 @@ const CAR_CATALOG = CAR_DATA.trim().split('\n').map(function (line, index) {
         color: '#' + p[7],
         threeColor: parseInt(p[7], 16),
         drivetrain: p[8],
+        handling: Number(((STYLE_HANDLING[p[6]] || 1) * (0.94 + ((index * 37) % 100) / 100 * 0.12)).toFixed(2)),
         price: price,
         tier: price >= 60000 ? 'Hypercar' : price >= 30000 ? 'Supercar' : price >= 15000 ? 'Performance' : 'Sport'
     };
@@ -6901,6 +6934,7 @@ for (var genIndex = 0; genIndex < 499; genIndex++) {
         color: baseCar.color,
         threeColor: baseCar.threeColor,
         drivetrain: baseCar.drivetrain,
+        handling: Number((0.9 + ((genIndex * 53) % 100) / 100 * 0.24).toFixed(2)),
         price: genPrice,
         tier: genPrice >= 60000 ? 'Hypercar' : genPrice >= 30000 ? 'Supercar' : genPrice >= 15000 ? 'Performance' : 'Sport',
         generated: true
@@ -7004,13 +7038,12 @@ const COSMETIC_CATEGORIES = [
     { type: 'kit', label: 'Body Kits', blurb: 'Widebody and track kits that change acceleration and grip.' },
     { type: 'board', label: 'Surfboards', blurb: 'Roof boards that ride along with you.' },
     { type: 'wheel', label: 'Wheels', blurb: 'Rims that pop against the sand.' },
-    { type: 'trail', label: 'Exhaust Trails', blurb: 'Glowing streaks behind the rear bumper.' },
     { type: 'umbrella', label: 'Beach Umbrellas', blurb: 'Dress the whole shoreline in one colour.' }
 ];
 
 const COSMETIC_TYPES = COSMETIC_CATEGORIES.map(function (category) { return category.type; });
 const GLOBAL_COSMETIC_TYPES = ['theme', 'frame'];
-const GARAGE_COSMETIC_TYPES = ['paint', 'body', 'engine', 'aero', 'kit', 'board', 'wheel', 'trail', 'umbrella'];
+const GARAGE_COSMETIC_TYPES = ['paint', 'body', 'engine', 'aero', 'kit', 'board', 'wheel', 'umbrella'];
 
 let wallet = null;
 let walletLoadToken = 0;
@@ -7668,7 +7701,6 @@ function getEquippedCosmetics() {
     var board = chosen('board');
     var glow = chosen('glow');
     var wheel = chosen('wheel');
-    var trail = chosen('trail');
     var umbrella = chosen('umbrella');
     var catalogCar = getEquippedCar();
     var bodyStyle = catalogCar ? catalogCar.style : (body ? body.style : 'beater');
@@ -7677,10 +7709,11 @@ function getEquippedCosmetics() {
         // The showroom car is the real base car: its published top speed and
         // 0-60 define its performance. Bolt-on engine/aero/kit parts multiply
         // on top, exactly like the stock beater.
+        var driveGrip = catalogCar.drivetrain === 'AWD' ? 1.1 : catalogCar.drivetrain === '4WD' ? 1.08 : catalogCar.drivetrain === 'FWD' ? 0.94 : 1.0;
         bodyPerf = {
             top: Math.max(0.52, Math.min(1.9, catalogCar.topSpeed / 170)),
             accel: Math.max(0.55, Math.min(2.4, 6.2 / catalogCar.zeroTo60)),
-            grip: bodyPerf.grip || 1.0
+            grip: (bodyPerf.grip || 1.0) * (catalogCar.handling || 1) * driveGrip
         };
     }
     // A showroom car is a complete car. The free junk parts must not drag it
@@ -7710,8 +7743,6 @@ function getEquippedCosmetics() {
         glowRainbow: !!(glow && glow.rainbow),
         wheel: wheel && !wheel.none ? wheel.threeColor : null,
         wheelRainbow: !!(wheel && wheel.rainbow),
-        trail: trail && !trail.none ? trail.threeColor : null,
-        trailRainbow: !!(trail && trail.rainbow),
         umbrella: umbrella && !umbrella.none ? umbrella.threeColor : null,
         performance: {
             topSpeed: bodyPerf.top * enginePerf.top * aeroPerf.top * kitPerf.top,
@@ -8047,15 +8078,30 @@ async function sellCosmetic(id) {
 
 
 let showroomQuery = '';
+let showroomTier = '';
+let showroomDrive = '';
+let showroomSort = 'featured';
+let showroomOwnedOnly = false;
 let showroomPageIndex = 0;
 const SHOWROOM_PER_PAGE = 24;
 
 function showroomResults() {
     var q = String(showroomQuery || '').trim().toLowerCase();
-    if (!q) return CAR_CATALOG;
-    return CAR_CATALOG.filter(function (car) {
-        return (car.brand + ' ' + car.model + ' ' + car.year + ' ' + car.tier + ' ' + car.drivetrain).toLowerCase().indexOf(q) >= 0;
+    var ownedCars = (wallet && wallet.cars) ? wallet.cars : [];
+    var list = CAR_CATALOG.filter(function (car) {
+        if (q && (car.brand + ' ' + car.model + ' ' + car.year + ' ' + car.tier + ' ' + car.drivetrain).toLowerCase().indexOf(q) < 0) return false;
+        if (showroomTier && car.tier !== showroomTier) return false;
+        if (showroomDrive && car.drivetrain !== showroomDrive) return false;
+        if (showroomOwnedOnly && !car.free && ownedCars.indexOf(car.id) < 0) return false;
+        return true;
     });
+    if (showroomSort === 'price-asc') list.sort(function (a, b) { return a.price - b.price; });
+    else if (showroomSort === 'price-desc') list.sort(function (a, b) { return b.price - a.price; });
+    else if (showroomSort === 'speed-desc') list.sort(function (a, b) { return b.topSpeed - a.topSpeed; });
+    else if (showroomSort === 'accel-asc') list.sort(function (a, b) { return a.zeroTo60 - b.zeroTo60; });
+    else if (showroomSort === 'year-desc') list.sort(function (a, b) { return b.year - a.year; });
+    else if (showroomSort === 'name-asc') list.sort(function (a, b) { return (a.brand + ' ' + a.model).localeCompare(b.brand + ' ' + b.model); });
+    return list;
 }
 
 function showroomStatus(message, isError) {
@@ -8083,6 +8129,25 @@ function closeShowroom() {
 
 function updateShowroomSearch(value) {
     showroomQuery = value;
+    showroomPageIndex = 0;
+    renderShowroom();
+}
+
+function updateShowroomFilter(key, value) {
+    if (key === 'tier') showroomTier = value || '';
+    else if (key === 'drive') showroomDrive = value || '';
+    showroomPageIndex = 0;
+    renderShowroom();
+}
+
+function updateShowroomSort(value) {
+    showroomSort = value || 'featured';
+    showroomPageIndex = 0;
+    renderShowroom();
+}
+
+function toggleShowroomOwned(checked) {
+    showroomOwnedOnly = !!checked;
     showroomPageIndex = 0;
     renderShowroom();
 }
@@ -8129,6 +8194,7 @@ function renderShowroom() {
                     '<span><b>' + car.zeroTo60.toFixed(1) + 's</b> 0-60</span>' +
                     '<span><b>' + car.hp + '</b> hp</span>' +
                     '<span><b>' + escapeHtml(car.drivetrain) + '</b></span>' +
+                    '<span><b>' + (car.handling || 1).toFixed(2) + '</b> grip</span>' +
                 '</div>' +
                 '<div class="showroom-price">' + (car.free ? (owned ? (equipped ? 'In the garage' : 'Free') : 'FREE') : (owned ? (equipped ? 'In the garage' : 'Owned') : shellIcon(13) + ' ' + car.price.toLocaleString())) + '</div>' +
                 '<button class="cosmetic-btn ' + cls + '"' + disabled + ' onclick="handleCar(\'' + car.id + '\')">' + action + '</button>' +
@@ -8971,8 +9037,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.33";
-const UPDATE_NOTES = "Automatic gear changes now take longer: the box shifts one gear at a time with a brief torque cut and a gear-select sound on every change";
+const APP_VERSION = "LessFun Public Beta 1.33.34";
+const UPDATE_NOTES = "The 1000-car showroom now has class, drivetrain, owned and sort filters, and every car has its own handling balance. Car exhaust trails are removed";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

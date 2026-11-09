@@ -196,8 +196,6 @@
         var glowRainbow = !!cosmetics.glowRainbow;
         var wheelColor = cosmetics.wheel != null ? cosmetics.wheel : null;
         var wheelRainbow = !!cosmetics.wheelRainbow;
-        var trailColor = cosmetics.trail != null ? cosmetics.trail : null;
-        var trailRainbow = !!cosmetics.trailRainbow;
         var umbrellaColor = cosmetics.umbrella != null ? cosmetics.umbrella : null;
         var bodyStyle = giftMode ? 'phantom' : (cosmetics.body || 'classic');
         var engineStyle = cosmetics.engine || 'stock';
@@ -2487,24 +2485,6 @@
             glowLight = new THREE.PointLight(glowColor, 1.6, 9, 2);
             glowLight.position.set(0, 0.45, 0);
             player.add(glowLight);
-        }
-
-        // Exhaust trail strips behind the bumper.
-        var trailBits = [];
-        if (trailColor != null) {
-            for (var tb = 0; tb < 11; tb++) {
-                var bit = new THREE.Mesh(
-                    new THREE.PlaneGeometry(0.2, 0.8),
-                    new THREE.MeshBasicMaterial({
-                        color: trailColor, transparent: true, opacity: 0.42,
-                        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
-                    })
-                );
-                bit.position.set(tb % 2 ? 0.46 : -0.46, 0.52 + tb * 0.008, 1.8 + tb * 0.5);
-                bit.rotation.x = -0.28;
-                player.add(bit);
-                trailBits.push(bit);
-            }
         }
 
         /* ---------------- Checkpoints ---------------- */
@@ -5215,16 +5195,6 @@
                 }
                 glowLight.intensity = 1.35 + Math.sin(elapsed * 6) * 0.28;
             }
-            if (trailBits.length) {
-                for (var tbi = 0; tbi < trailBits.length; tbi++) {
-                    var tbit = trailBits[tbi];
-                    var pulse = 0.24 + 0.22 * Math.sin(elapsed * 9 - tbi * 0.7);
-                    tbit.material.opacity = Math.max(0.08, pulse);
-                    tbit.scale.x = 0.82 + 0.35 * Math.sin(elapsed * 7 - tbi * 0.5);
-                    if (trailRainbow) tbit.material.color.setHSL((elapsed * 0.22 - tbi * 0.05) % 1, 1, 0.6);
-                }
-            }
-
             var engineGlow = player.userData.engineGlow || [];
             for (var eg = 0; eg < engineGlow.length; eg++) {
                 var part = engineGlow[eg];

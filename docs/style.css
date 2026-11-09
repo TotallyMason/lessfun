@@ -12515,3 +12515,36 @@ body.in-game .xmas-snowman { display: none; }
     .g3d-gauge-status { font-size: 6.5px; }
 }
 
+
+/* Showroom filters */
+.game3d-showroom-tools { flex-wrap: wrap; }
+.game3d-showroom-select {
+    height: 34px;
+    padding: 0 9px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(10, 18, 24, 0.85);
+    color: #dff6ff;
+    font: inherit;
+    font-size: 9px;
+    font-weight: 700;
+    outline: none;
+    cursor: pointer;
+}
+.game3d-showroom-select option { background: #0b1218; color: #dff6ff; }
+.game3d-showroom-owned {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: rgba(220, 245, 255, 0.62);
+    font-size: 9px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.game3d-showroom-owned input { accent-color: #5fe7ff; }
+@media (max-width: 720px) {
+    .game3d-showroom-tools { gap: 6px; }
+    .game3d-showroom-tools .game3d-mp-input { flex: 1 1 100%; }
+    .game3d-showroom-select { flex: 1 1 auto; font-size: 8px; }
+}
