@@ -545,6 +545,60 @@
         skyDome.position.set(0, 60, -160);
         scene.add(skyDome);
 
+        // Layered volumetric-style clouds: soft sprite puffs grouped into
+        // clusters, with a little parallax and drift so the sky feels deep.
+        var cloudTexture = makeCanvasTexture(256, 256, function (g, w, h) {
+            g.clearRect(0, 0, w, h);
+            for (var puff = 0; puff < 34; puff++) {
+                var cx = w * 0.5 + (Math.random() - 0.5) * w * 0.62;
+                var cy = h * 0.52 + (Math.random() - 0.5) * h * 0.38;
+                var radius = 18 + Math.random() * 34;
+                var grad = g.createRadialGradient(cx, cy, 0, cx, cy, radius);
+                var alpha = 0.05 + Math.random() * 0.09;
+                grad.addColorStop(0, 'rgba(255,255,255,' + alpha + ')');
+                grad.addColorStop(0.55, 'rgba(255,255,255,' + (alpha * 0.55) + ')');
+                grad.addColorStop(1, 'rgba(255,255,255,0)');
+                g.fillStyle = grad;
+                g.beginPath();
+                g.arc(cx, cy, radius, 0, Math.PI * 2);
+                g.fill();
+            }
+            g.globalCompositeOperation = 'destination-in';
+            var mask = g.createRadialGradient(w * 0.5, h * 0.5, w * 0.12, w * 0.5, h * 0.5, w * 0.5);
+            mask.addColorStop(0, 'rgba(0,0,0,1)');
+            mask.addColorStop(0.72, 'rgba(0,0,0,0.72)');
+            mask.addColorStop(1, 'rgba(0,0,0,0)');
+            g.fillStyle = mask;
+            g.fillRect(0, 0, w, h);
+        });
+        var cloudLayers = [];
+        var cloudTints = [0xffffff, 0xffe6d8, 0xdfefff, 0xfff1de, 0xe8ddff];
+        for (var cl = 0; cl < 18; cl++) {
+            var cluster = new THREE.Group();
+            var puffs = 6 + Math.floor(Math.random() * 5);
+            for (var cp = 0; cp < puffs; cp++) {
+                var cloudMat = new THREE.SpriteMaterial({
+                    map: cloudTexture,
+                    color: cloudTints[Math.floor(Math.random() * cloudTints.length)],
+                    transparent: true,
+                    opacity: 0.16 + Math.random() * 0.22,
+                    depthWrite: false,
+                    fog: false
+                });
+                var sprite = new THREE.Sprite(cloudMat);
+                sprite.position.set((Math.random() - 0.5) * 160, (Math.random() - 0.5) * 52, (Math.random() - 0.5) * 64);
+                var puffScale = 72 + Math.random() * 110;
+                sprite.scale.set(puffScale, puffScale * 0.52, 1);
+                cluster.add(sprite);
+            }
+            cluster.position.set(-270 + Math.random() * 540, 56 + Math.random() * 78, -95 - Math.random() * 205);
+            cluster.userData.baseY = cluster.position.y;
+            cluster.userData.drift = 1.2 + Math.random() * 3.2;
+            cluster.userData.bob = Math.random() * Math.PI * 2;
+            scene.add(cluster);
+            cloudLayers.push(cluster);
+        }
+
         // High-speed wind streaks for a stronger sense of speed.
         var speedStreakMat = new THREE.MeshBasicMaterial({
             color: 0xdff6ff, transparent: true, opacity: 0,
@@ -5095,6 +5149,13 @@
                     pos.array[vi * 3 + 2] = Math.sin((ox * 0.11 + elapsed * 1.6)) * 0.16 + Math.sin((oy * 0.16 - elapsed * 1.1)) * 0.1;
                 }
                 pos.needsUpdate = true;
+            }
+
+            for (var cli = 0; cli < cloudLayers.length; cli++) {
+                var cloudLayer = cloudLayers[cli];
+                cloudLayer.position.x += cloudLayer.userData.drift * dt;
+                if (cloudLayer.position.x > 260) cloudLayer.position.x = -260;
+                cloudLayer.position.y = cloudLayer.userData.baseY + Math.sin(elapsed * 0.11 + cloudLayer.userData.bob) * 1.3;
             }
 
             for (var bdi = 0; bdi < birds.length; bdi++) {
