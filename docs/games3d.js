@@ -241,7 +241,6 @@
         var damageSmokeT = 0;
         var damageFireSprites = [];
         var engineOscStarted = false, audioNoiseStarted = false, driftOscStarted = false;
-        var lastAudioGear = 0;
         var audioDriftLevel = 0;
         var currentVx = 0;
 
@@ -510,19 +509,11 @@
                 }
                 var freeRev = engineOn && (gearMode === 'N' || gearMode === 'P');
                 var frac = Math.min(1, absSpeed / perf.topSpeed);
-                var audioGear = 0;
-                while (audioGear < GEAR_FRACTIONS.length && frac >= GEAR_FRACTIONS[audioGear]) audioGear++;
+                var audioGear = Math.max(0, Math.min(GEAR_FRACTIONS.length, currentGear - 1));
                 var lowerF = audioGear === 0 ? 0 : GEAR_FRACTIONS[audioGear - 1];
                 var upperF = audioGear < GEAR_FRACTIONS.length ? GEAR_FRACTIONS[audioGear] : 1;
                 var within = Math.max(0, Math.min(1, (frac - lowerF) / Math.max(0.01, upperF - lowerF)));
                 var synthRpm = freeRev ? 52 + revLevel * 156 : 48 + within * 108 + audioGear * 9 + (nitroActive ? 28 : 0);
-                if (engineOn && audioGear + 1 !== lastAudioGear) {
-                    if (lastAudioGear) {
-                        tone(130, 0.05, 'square', 0.028, 90);
-                        playGearSound('select', audioGear + 1);
-                    }
-                    lastAudioGear = audioGear + 1;
-                }
                 var hasEngineSamples = !!(engineLowLoop && engineHighLoop);
                 var synthLevel = hasEngineSamples ? 0.007 : (0.045 + Math.min(0.038, absSpeed / 3000));
                 engineGain.gain.setTargetAtTime(running ? synthLevel : 0, now, 0.08);
@@ -3451,7 +3442,7 @@
             // A full cinematic crash needs a real speed difference. If both
             // cars are moving at a similar pace, it is just a minor bump.
             var relativeKmh = Math.abs(Math.abs(speed) - Math.abs(car.userData.cruiseSpeed || 0)) * 3.6;
-            if (relativeKmh >= 30) {
+            if (relativeKmh >= 50) {
                 triggerCrash(car, halfWidth);
                 return true;
             }
@@ -4241,6 +4232,9 @@
         if (giftMode) speed = 32;
         var nitro = 100, nitroActive = false;
         var brakeLock = 0;
+        var currentGear = 1;
+        var shiftHoldT = 0;
+        var shiftCutT = 0;
         var throttleDisplay = 0, brakeDisplay = 0;
         var throttleSmooth = 0, brakeSmooth = 0;
         var nitroWasActive = false, nitroShiftT = 0;
@@ -5046,13 +5040,28 @@
                 var damageTop = Math.max(0.38, 1 - carDamage.engine * 0.5 - (carDamage.tires[0] + carDamage.tires[1] + carDamage.tires[2] + carDamage.tires[3]) * 0.03);
                 var topSpeedNow = (fsdActive ? FSD_MAX_SPEED : perf.topSpeed) * (nitroActive ? 1.32 : 1) * damageTop;
                 var pull = perf.accel * (fsdActive ? 4.5 : 1) * (nitroActive ? 2.35 : 1) * (1 - 0.5 * Math.min(1, speed / topSpeedNow)) * Math.max(0.35, 1 - carDamage.engine * 0.45);
-                speed = Math.min(topSpeedNow, speed + pull * (0.35 + 0.65 * throttleSmooth) * dt);
+                speed = Math.min(topSpeedNow, speed + pull * (0.35 + 0.65 * throttleSmooth) * (shiftCutT > 0 ? 0.32 : 1) * dt);
             } else if (speed > CREEP_SPEED) {
                 // Coasting: keep momentum much longer when the throttle is off.
                 speed = Math.max(CREEP_SPEED, speed - 3.4 * dt);
             } else {
                 speed = Math.min(CREEP_SPEED, speed + 5 * dt);
             }
+            shiftHoldT = Math.max(0, shiftHoldT - dt);
+            shiftCutT = Math.max(0, shiftCutT - dt);
+            if (engineOn && gearMode === 'D') {
+                var targetGear = gearFor(Math.abs(speed));
+                if (targetGear !== currentGear && shiftHoldT <= 0) {
+                    currentGear += targetGear > currentGear ? 1 : -1;
+                    shiftHoldT = 1.35;
+                    shiftCutT = 0.32;
+                    playGearSound('select', currentGear);
+                }
+            } else if (gearMode !== 'D') {
+                currentGear = 1;
+                shiftHoldT = 0;
+            }
+
             var prevDistance = distance;
             distance += speed * dt;
             if (distance < 0) distance = 0;
@@ -5536,8 +5545,7 @@
             } else if (gearMode === 'P' || gearMode === 'R' || gearMode === 'N') {
                 gearText = gearMode;
             } else {
-                var g = gearFor(Math.abs(speed));
-                gearText = (speed < 0.15 ? 1 : g) + '/8';
+                gearText = (speed < 0.15 ? 1 : currentGear) + '/8';
             }
             var status = (giftMode ? 'GIFT RUN · ' + giftsDelivered + '/' + GIFT_TARGET + ' · ' + Math.max(0, Math.ceil(giftTimer)) + 's · ' : '') +
                 (fsdActive ? 'FSD · ' : (brakeCmd ? 'BRAKE · ' : (throttleCmd ? 'THROTTLE · ' : ''))) +
@@ -5555,7 +5563,7 @@
             gaugeT -= dt;
             if (gaugeT <= 0) {
                 gaugeT = 1 / 30;
-                var gaugeGearIndex = engineOn ? Math.max(0, gearFor(Math.abs(speed)) - 1) : 0;
+                var gaugeGearIndex = engineOn ? Math.max(0, currentGear - 1) : 0;
                 var gaugeLower = gaugeGearIndex === 0 ? 0 : GEAR_FRACTIONS[gaugeGearIndex - 1];
                 var gaugeUpper = gaugeGearIndex < GEAR_FRACTIONS.length ? GEAR_FRACTIONS[gaugeGearIndex] : 1;
                 var gaugeWithin = Math.min(1, Math.max(0, (Math.min(1, Math.abs(speed) / perf.topSpeed) - gaugeLower) / Math.max(0.01, gaugeUpper - gaugeLower)));
@@ -5646,7 +5654,7 @@
                     x: player.position.x,
                     distance: distance,
                     speed: speed,
-                    gear: gearMode === 'D' ? (speed < 0.15 ? 1 : gearFor(Math.abs(speed))) : gearMode,
+                    gear: gearMode === 'D' ? (speed < 0.15 ? 1 : currentGear) : gearMode,
                     checkpoints: checkpointsPassed,
                     driftScore: Math.round(driftScore),
                     airborne: playerY > 0.2,
