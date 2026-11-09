@@ -218,25 +218,6 @@
             accel: 34 * (equippedPerf.accel || 1),
             grip: equippedPerf.grip || 1
         };
-
-        // Details for the gauge. Prefer the real showroom car, with a sane
-        // fallback for the free beater and Santa's Sleigh.
-        var gaugeCarName = 'Custom Build';
-        var gaugeCarSpec = Math.round(perf.topSpeed) + ' mph top · ' + perf.grip.toFixed(2) + ' grip';
-        if (isSleigh) {
-            gaugeCarName = "Santa's Sleigh";
-            gaugeCarSpec = 'FESTIVE · FLIGHT · MAGIC';
-        } else if (cosmetics.carId) {
-            try {
-                if (typeof CAR_CATALOG !== 'undefined') {
-                    var gaugeCar = CAR_CATALOG.find(function (car) { return car.id === cosmetics.carId; });
-                    if (gaugeCar) {
-                        gaugeCarName = gaugeCar.brand + ' ' + gaugeCar.model;
-                        gaugeCarSpec = gaugeCar.year + ' · ' + gaugeCar.tier + ' · ' + gaugeCar.drivetrain + ' · ' + gaugeCar.hp + ' HP';
-                    }
-                }
-            } catch (e) {}
-        }
         // 7 mph idle creep, in metres per second.
         var CREEP_SPEED = 7 / 2.2369362920544;
         var REVERSE_MAX = 16;
@@ -599,12 +580,6 @@
             }
             setText('g3dGaugeSpeed', speedNumber);
             setText('g3dGaugeUnit', unit);
-            var primaryKmh = unitSystem === 'kmh';
-            var primarySpeed = parseFloat(speedNumber) || 0;
-            setText('g3dGaugeAltSpeed', Math.round(primaryKmh ? primarySpeed / 1.609344 : primarySpeed * 1.609344));
-            setText('g3dGaugeAltUnit', primaryKmh ? 'mph' : 'km/h');
-            setText('g3dGaugeCarName', gaugeCarName);
-            setText('g3dGaugeCarSpec', gaugeCarSpec);
             setText('g3dGaugeRpm', Math.round(rpm));
             setText('g3dGaugeGear', gearLabel);
             setText('g3dGaugeGearBig', gearLabel);
@@ -620,10 +595,6 @@
             setText('g3dGaugeDamage', Math.round(maxDamage * 100) + '%');
             var nitroFill = document.getElementById('g3dGaugeNitroFill');
             if (nitroFill) nitroFill.style.width = Math.max(0, Math.min(100, nitro)) + '%';
-            var throttleFill = document.getElementById('g3dGaugeThrottleFill');
-            if (throttleFill) throttleFill.style.width = Math.round(Math.max(0, Math.min(1, throttleSmooth)) * 100) + '%';
-            var brakeFill = document.getElementById('g3dGaugeBrakeFill');
-            if (brakeFill) brakeFill.style.width = Math.round(Math.max(0, Math.min(1, brakeSmooth)) * 100) + '%';
             var needle = document.getElementById('g3dNeedle');
             if (needle) {
                 var angle = -135 + Math.max(0, Math.min(1, rpm / 8000)) * 270;
@@ -4355,8 +4326,11 @@
         var fsdSignalSide = 0;
         var fsdSignalT = 0;
         var playerBlinkT = 0;
-        var FSD_MAX_KMH = 300;
-        var FSD_MAX_SPEED = FSD_MAX_KMH / 3.6;
+        // FSD targets 150 in whichever speed unit the player has selected.
+        var FSD_TARGET = 150;
+        function fsdMaxSpeed() {
+            return unitSystem === 'kmh' ? (FSD_TARGET * 3 / 3.6) : (FSD_TARGET / 2.2369362920544);
+        }
         var fsdChangeP = 1;
         var fsdChangeDur = 0.85;
         var fsdFromX = 0;
@@ -4459,16 +4433,16 @@
         function findFsdEscapeLane(curLane, gapAhead, speed) {
             var bestLane = -1;
             var bestGain = 0;
-            for (var side = -1; side <= 1; side += 2) {
-                var lane = curLane + side;
-                if (lane < 0 || lane >= LANES.length) continue;
+            for (var lane = 0; lane < LANES.length; lane++) {
+                if (lane === curLane) continue;
                 if (laneHasSideCar(lane)) continue;
-                var front = laneGapFor(lane, 500);
-                var rear = laneRearGapFor(lane, 110);
-                if (rear < 16) continue;
+                var laneDist = Math.abs(lane - curLane);
+                var front = laneGapFor(lane, 700);
+                var rear = laneRearGapFor(lane, 120);
+                if (rear < 12) continue;
                 // Only take a lane that is meaningfully safer than the current one.
-                if (front < Math.max(gapAhead + 18, speed * 0.55 + 22)) continue;
-                var gain = front + Math.min(90, rear) * 0.35;
+                if (front < Math.max(gapAhead + 10, speed * 0.35 + 16)) continue;
+                var gain = front + Math.min(90, rear) * 0.3 - laneDist * 14;
                 if (gain > bestGain) { bestGain = gain; bestLane = lane; }
             }
             return bestLane;
@@ -4951,17 +4925,21 @@
                         globalBest = rampLane;
                     }
                     if (globalBest !== curLane && fsdCooldown <= 0) {
-                        var step = globalBest > curLane ? curLane + 1 : curLane - 1;
-                        var stepGap = laneGapFor(step, 220);
-                        var stepRear = laneRearGapFor(step, 90);
-                        if (!laneHasSideCar(step) && stepRear > 22 && (stepGap > curGap + 10 || stepGap > 130)) {
-                            fsdLane = step;
+                        var laneDist = Math.abs(globalBest - curLane);
+                        var targetGap = laneGapFor(globalBest, 420);
+                        var targetRear = laneRearGapFor(globalBest, 110);
+                        var pathClear = true;
+                        for (var pathLane = Math.min(curLane, globalBest) + 1; pathLane < Math.max(curLane, globalBest); pathLane++) {
+                            if (laneHasSideCar(pathLane)) { pathClear = false; break; }
+                        }
+                        if (pathClear && !laneHasSideCar(globalBest) && targetRear > 16 && (targetGap > curGap + 6 || targetGap > 95)) {
+                            fsdLane = globalBest;
                             fsdFromX = player.position.x;
                             fsdChangeP = 0;
-                            fsdChangeDur = 0.85;
-                            fsdSignalSide = step > curLane ? 1 : -1;
-                            fsdSignalT = 1.7;
-                            fsdCooldown = (curGap < 120 ? 1.8 : 3.6) + Math.random() * 1.8;
+                            fsdChangeDur = 0.3 + laneDist * 0.1;
+                            fsdSignalSide = globalBest > curLane ? 1 : -1;
+                            fsdSignalT = Math.min(1.6, 0.7 + laneDist * 0.25);
+                            fsdCooldown = (curGap < 130 ? 1.2 : 2.6) + Math.random() * 1.2;
                         }
                     } else if (fsdCooldown <= 0 && curGap > 150 && Math.random() < 0.1) {
                         var options = [];
@@ -4990,47 +4968,49 @@
                     fsdSteerX = LANES[fsdLane];
                 }
                 var gapAhead = laneGapFor(fsdLane, 1200);
-                var closingSpeed = Math.max(0, speed * 0.65 - gapAhead * 0.2);
-                var safeGap = 30 + speed * 0.32;
-                var needEmergency = (gapAhead < safeGap && speed > 10) || (gapAhead < 80 && closingSpeed > 24);
+                var closingSpeed = Math.max(0, speed * 0.45 - gapAhead * 0.25);
+                var safeGap = 16 + speed * 0.16;
+                var needEmergency = (gapAhead < safeGap && speed > 18) || (gapAhead < 48 && closingSpeed > 30);
                 if (needEmergency) {
                     if (!fsdEmergency) {
                         tone(880, 0.12, 'square', 0.05, 640);
                         tone(640, 0.18, 'square', 0.045, 420);
                     }
                     fsdEmergency = true;
-                    fsdEmergencyT = 0.7;
+                    fsdEmergencyT = 0.45;
                     fsdSwerveT = Math.max(0, fsdSwerveT - dt);
                     fsdSwerveCooldown = Math.max(0, fsdSwerveCooldown - dt);
-                    // If the e-brake cannot stop before the obstacle, swerve
-                    // into an adjacent lane only when it has a safe front/rear gap.
+                    // E-brake only for an imminent hit; otherwise swerve across
+                    // as many clear lanes as needed.
                     var stopDist = (speed * speed) / (2 * 165);
-                    if (fsdChangeP >= 1 && fsdSwerveCooldown <= 0 && gapAhead < stopDist * 1.18 + 6) {
+                    if (fsdChangeP >= 1 && fsdSwerveCooldown <= 0 && gapAhead < stopDist * 0.95 + 4) {
                         var escapeLane = findFsdEscapeLane(curLane, gapAhead, speed);
                         if (escapeLane >= 0 && escapeLane !== fsdLane) {
+                            var escapeDist = Math.abs(escapeLane - curLane);
                             fsdLane = escapeLane;
                             fsdFromX = player.position.x;
                             fsdChangeP = 0;
-                            fsdChangeDur = 0.5;
-                            fsdSwerveT = 1.1;
-                            fsdSwerveCooldown = 1.4;
+                            fsdChangeDur = 0.2 + escapeDist * 0.08;
+                            fsdSwerveT = 0.9;
+                            fsdSwerveCooldown = 0.8;
                             fsdSwerveSide = escapeLane > curLane ? 1 : -1;
                             fsdSignalSide = fsdSwerveSide;
-                            fsdSignalT = 1.3;
+                            fsdSignalT = 1.1;
                             tone(1040, 0.08, 'square', 0.055, 700);
                         }
                     }
                 } else if (fsdEmergency) {
                     fsdEmergencyT -= dt;
-                    if (fsdEmergencyT <= 0 && (gapAhead > safeGap + 14 || speed < 3)) fsdEmergency = false;
+                    if (fsdEmergencyT <= 0 && (gapAhead > safeGap + 8 || speed < 3)) fsdEmergency = false;
                 }
-                // FSD can reach 1,800 km/h on a clear lane, but only when the
-                // look-ahead distance can support it.
-                var desiredSpeed = Math.min(FSD_MAX_SPEED, Math.max(0, (gapAhead - 45) * 2.4));
+                // Follow closer and coast rather than braking early. FSD only
+                // brakes when it is meaningfully over the target speed.
+                var desiredSpeed = Math.min(fsdMaxSpeed(), Math.max(0, (gapAhead - 6) * 5.0));
                 if (fsdEmergency) desiredSpeed = 0;
-                fsdSpeed += (desiredSpeed - fsdSpeed) * Math.min(1, dt * (fsdEmergency ? 8 : 1.25));
-                if (fsdEmergency || gapAhead < safeGap) { brakeCmd = true; throttleCmd = false; }
-                else if (speed > fsdSpeed + 6) { brakeCmd = true; throttleCmd = false; }
+                fsdSpeed += (desiredSpeed - fsdSpeed) * Math.min(1, dt * (fsdEmergency ? 10 : 2.2));
+                if (fsdEmergency) { brakeCmd = true; throttleCmd = false; }
+                else if (gapAhead < safeGap * 0.82 && speed > fsdSpeed + 4) { brakeCmd = true; throttleCmd = false; }
+                else if (speed > fsdSpeed + 9) { brakeCmd = true; throttleCmd = false; }
                 else if (speed < fsdSpeed - 4) { brakeCmd = false; throttleCmd = true; }
                 else { brakeCmd = false; throttleCmd = false; }
                 fsdSignalT = Math.max(0, fsdSignalT - dt);
@@ -5133,7 +5113,7 @@
                 speed = Math.max(0, speed - brakeDecel * Math.max(0.18, brakeSmooth) * dt);
             } else if (throttleCmd) {
                 var damageTop = Math.max(0.38, 1 - carDamage.engine * 0.5 - (carDamage.tires[0] + carDamage.tires[1] + carDamage.tires[2] + carDamage.tires[3]) * 0.03);
-                var topSpeedNow = (fsdActive ? FSD_MAX_SPEED : perf.topSpeed) * (nitroActive ? 1.32 : 1) * damageTop;
+                var topSpeedNow = (fsdActive ? fsdMaxSpeed() : perf.topSpeed) * (nitroActive ? 1.32 : 1) * damageTop;
                 var pull = perf.accel * (fsdActive ? 4.5 : 1) * (nitroActive ? 2.35 : 1) * (1 - 0.5 * Math.min(1, speed / topSpeedNow)) * Math.max(0.35, 1 - carDamage.engine * 0.45);
                 speed = Math.min(topSpeedNow, speed + pull * (0.35 + 0.65 * throttleSmooth) * (shiftCutT > 0 ? 0.32 : 1) * dt);
             } else if (speed > CREEP_SPEED) {
@@ -5211,14 +5191,14 @@
             if (input.left) steerInput -= 1;
             if (input.right) steerInput += 1;
             var steerTarget = 0;
-            if (fsdActive) steerTarget = (fsdSteerX - player.position.x) * 0.18;
+            if (fsdActive) steerTarget = (fsdSteerX - player.position.x) * 0.28;
             else if (input.pointerActive) steerTarget = ((input.pointerX * maxX) - player.position.x) / Math.max(1, maxX) * 0.84;
             else steerTarget = steerInput * 0.62;
             steerTarget += Math.sin(elapsed * 2.3) * carDamage.steering * 0.14;
             steerTarget = Math.max(-0.7, Math.min(0.7, steerTarget));
             steerAngle += (steerTarget - steerAngle) * Math.min(1, dt * 6.0);
             if (fsdActive) {
-                steerX += (fsdSteerX - steerX) * Math.min(1, dt * (2.0 + speedSteerFactor * 3.5));
+                steerX += (fsdSteerX - steerX) * Math.min(1, dt * (3.4 + speedSteerFactor * 5.5));
                 if (Math.abs(speed) < 1) steerX = player.position.x;
             } else if (Math.abs(speed) < 1) {
                 steerInput = 0;
@@ -5645,9 +5625,8 @@
                 gearText = (speed < 0.15 ? 1 : currentGear) + '/8';
             }
             var status = (giftMode ? 'GIFT RUN · ' + giftsDelivered + '/' + GIFT_TARGET + ' · ' + Math.max(0, Math.ceil(giftTimer)) + 's · ' : '') +
-                (fsdActive ? 'FSD · ' : (brakeCmd ? 'BRAKE · ' : (throttleCmd ? 'THROTTLE · ' : ''))) +
-                speedText(speed) +
-                (!engineOn ? ' · HOLD W TO START' : '') +
+                (fsdActive ? 'FSD · ' : '') +
+                (!engineOn ? 'HOLD W TO START' : '') +
                 (nitroActive ? (nitroShiftT > 0 ? ' · NITRO SHIFT' : ' · NOS') : '') +
                 (driftIntent ? ' · DRIFT' : '') +
                 (freeRevNow && revLevel > 0.12 ? ' · REV' : '') +
@@ -5766,7 +5745,8 @@
                     signal: fsdSignalSide,
                     fsdChange: fsdChangeP < 1 ? fsdChangeP : 1,
                     fsdRampLane: fsdRampLane,
-                    fsdMaxKmh: FSD_MAX_KMH,
+                    fsdTarget: FSD_TARGET,
+                    fsdUnit: unitSystem,
                     suspension: player.userData.bodyGroup ? player.userData.bodyGroup.position.y : 0,
                     wheelTravel: (player.userData.suspensionPivots || []).reduce(function (maxTravel, pv) {
                         return Math.max(maxTravel, Math.abs(pv.userData.travel || 0));
