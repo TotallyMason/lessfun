@@ -211,7 +211,7 @@
         // 7 mph idle creep, in metres per second.
         var CREEP_SPEED = 7 / 2.2369362920544;
         var REVERSE_MAX = 16;
-        var GEAR_FRACTIONS = [0.16, 0.31, 0.47, 0.64, 0.83];
+        var GEAR_FRACTIONS = [0.12, 0.24, 0.36, 0.48, 0.60, 0.72, 0.84];
 
         /* ---------------- Synthesized car audio ---------------- */
         var audioCtx = null, audioMaster = null;
@@ -222,6 +222,8 @@
         var windLowLoop = null, windHighLoop = null;
         var engineLowLoop = null, engineHighLoop = null;
         var samplesLoading = false;
+        var gearShiftBuffer = null;
+        var gearSelectBuffer = null;
         var audioResumeHandler = null;
         var revLevel = 0;
         var engineOscStarted = false, audioNoiseStarted = false, driftOscStarted = false;
@@ -259,18 +261,41 @@
                 decodeSample('audio/wind-low.mp3'),
                 decodeSample('audio/wind-high.mp3'),
                 decodeSample('audio/engine-low.mp3'),
-                decodeSample('audio/engine-high.mp3')
+                decodeSample('audio/engine-high.mp3'),
+                decodeSample('audio/gear-shift.mp3'),
+                decodeSample('audio/gear-select.mp3')
             ]).then(function (buffers) {
                 if (!audioCtx || audioCtx.state === 'closed') return;
                 windLowLoop = makeSampleLoop(buffers[0]);
                 windHighLoop = makeSampleLoop(buffers[1]);
                 engineLowLoop = makeSampleLoop(buffers[2]);
                 engineHighLoop = makeSampleLoop(buffers[3]);
+                gearShiftBuffer = buffers[4];
+                gearSelectBuffer = buffers[5];
             }).catch(function () {
                 // If loading fails, the synthesized engine and wind stay available.
             }).then(function () {
                 samplesLoading = false;
             });
+        }
+
+        function playGearSound(kind, gear) {
+            if (!soundEnabled || !audioCtx) return;
+            var buffer = kind === 'select' ? gearSelectBuffer : gearShiftBuffer;
+            if (!buffer) {
+                tone(kind === 'select' ? 190 : 260, 0.06, 'square', 0.03, kind === 'select' ? 140 : 190);
+                return;
+            }
+            try {
+                var src = audioCtx.createBufferSource();
+                src.buffer = buffer;
+                src.playbackRate.value = kind === 'select' ? 1 : Math.max(0.82, Math.min(1.24, 0.9 + (Number(gear) || 1) * 0.032));
+                var gain = audioCtx.createGain();
+                gain.gain.value = kind === 'select' ? 0.38 : 0.42;
+                src.connect(gain);
+                gain.connect(audioMaster);
+                src.start(0, 0, kind === 'select' ? 0.7 : 0.38);
+            } catch (e) {}
         }
 
         function initAudio() {
@@ -454,7 +479,10 @@
                 var within = Math.max(0, Math.min(1, (frac - lowerF) / Math.max(0.01, upperF - lowerF)));
                 var synthRpm = freeRev ? 52 + revLevel * 156 : 48 + within * 108 + audioGear * 9 + (nitroActive ? 28 : 0);
                 if (engineOn && audioGear + 1 !== lastAudioGear) {
-                    if (lastAudioGear) tone(130, 0.05, 'square', 0.028, 90);
+                    if (lastAudioGear) {
+                        tone(130, 0.05, 'square', 0.028, 90);
+                        playGearSound('shift', audioGear + 1);
+                    }
                     lastAudioGear = audioGear + 1;
                 }
                 var hasEngineSamples = !!(engineLowLoop && engineHighLoop);
@@ -499,7 +527,7 @@
             var speedParts = speedText(speedValue).split(' ');
             var speedNumber = speedParts[0] || '0';
             var unit = speedParts[1] || 'mph';
-            var gearLabel = gear === 'OFF' ? 'N' : String(gear).replace('/6', '');
+            var gearLabel = gear === 'OFF' ? 'N' : String(gear).replace('/8', '');
             function setText(id, value) {
                 var el = document.getElementById(id);
                 if (el && el.textContent !== String(value)) el.textContent = String(value);
@@ -4633,14 +4661,18 @@
             }
 
             // Gear selector: Q shifts down (D → N → R → P), E shifts up
-            // (P → R → N → D). D keeps the 6-speed automatic.
+            // (P → R → N → D). D keeps the 8-speed automatic.
             if (input.gearDown) {
                 input.gearDown = false;
+                var downFrom = gearMode;
                 gearMode = gearMode === 'D' ? 'N' : gearMode === 'N' ? 'R' : 'P';
+                if (gearMode !== downFrom) playGearSound('select', gearMode);
             }
             if (input.gearUp) {
                 input.gearUp = false;
+                var upFrom = gearMode;
                 gearMode = gearMode === 'P' ? 'R' : gearMode === 'R' ? 'N' : 'D';
+                if (gearMode !== upFrom) playGearSound('select', gearMode);
             }
 
             if (input.fsdToggle) {
@@ -5395,7 +5427,7 @@
                 gearText = gearMode;
             } else {
                 var g = gearFor(Math.abs(speed));
-                gearText = (speed < 0.15 ? 1 : g) + '/6';
+                gearText = (speed < 0.15 ? 1 : g) + '/8';
             }
             var status = (giftMode ? 'GIFT RUN · ' + giftsDelivered + '/' + GIFT_TARGET + ' · ' + Math.max(0, Math.ceil(giftTimer)) + 's · ' : '') +
                 (fsdActive ? 'FSD · ' : (brakeCmd ? 'BRAKE · ' : (throttleCmd ? 'THROTTLE · ' : ''))) +
@@ -5530,6 +5562,7 @@
                     fov: camera.fov,
                     cameraZ: camera.position.z,
                     audioSamples: !!(windLowLoop && windHighLoop && engineLowLoop && engineHighLoop),
+                    gearAudio: !!(gearShiftBuffer && gearSelectBuffer),
                     audioState: audioCtx ? audioCtx.state : 'none',
                     rampPhysics: rampPhysicsActive,
                     revLevel: revLevel,

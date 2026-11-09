@@ -65,6 +65,8 @@ Beach Racer crossfades two wind loops as speed rises:
 - `docs/audio/wind-high.mp3` — Mixkit “Wind in the top of the mountain”
 - `docs/audio/engine-low.mp3` — Mixkit “ATV engine motor hum”
 - `docs/audio/engine-high.mp3` — Mixkit “Sports bike engine”
+- `docs/audio/gear-shift.mp3` — Mixkit “Motorcycle changing gears”
+- `docs/audio/gear-select.mp3` — Mixkit “Metal tank gear shift”
 
 The wind loops crossfade with speed. The engine loops crossfade with RPM, and
 shift into neutral then hold W to rev without moving. All are used under the
