@@ -12548,3 +12548,28 @@ body.in-game .xmas-snowman { display: none; }
     .game3d-showroom-tools .game3d-mp-input { flex: 1 1 100%; }
     .game3d-showroom-select { flex: 1 1 auto; font-size: 8px; }
 }
+
+/* Dashboard warning lights */
+.g3d-warnings {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-top: 5px;
+}
+.g3d-warn {
+    padding: 2px 5px;
+    border-radius: 3px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    color: rgba(220, 240, 250, 0.2);
+    font-size: 6px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    line-height: 1.25;
+    transition: color 0.12s ease, background 0.12s ease;
+}
+.g3d-warn.is-on { color: #071014; background: #ffd166; border-color: #ffd166; box-shadow: 0 0 7px rgba(255, 209, 102, 0.35); }
+.g3d-warn[data-warn="abs"].is-on { background: #5fe7ff; border-color: #5fe7ff; box-shadow: 0 0 7px rgba(95, 231, 255, 0.4); }
+.g3d-warn[data-warn="brake"].is-on,
+.g3d-warn[data-warn="eng"].is-on,
+.g3d-warn[data-warn="dmg"].is-on { background: #ff4a5c; border-color: #ff4a5c; box-shadow: 0 0 7px rgba(255, 74, 92, 0.4); }
+.g3d-warn[data-warn="hot"].is-on { background: #ff9f1c; border-color: #ff9f1c; box-shadow: 0 0 7px rgba(255, 159, 28, 0.4); }

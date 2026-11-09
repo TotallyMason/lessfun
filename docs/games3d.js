@@ -235,7 +235,7 @@
         var fatalCrashBuffer = null;
         var audioResumeHandler = null;
         var revLevel = 0;
-        var carDamage = { engine: 0, steering: 0, suspension: 0, tires: [0, 0, 0, 0], fire: 0 };
+        var carDamage = { engine: 0, transmission: 0, steering: 0, suspension: 0, tires: [0, 0, 0, 0], fire: 0 };
         var damageSmokeT = 0;
         var damageFireSprites = [];
         var engineOscStarted = false, audioNoiseStarted = false, driftOscStarted = false;
@@ -572,6 +572,19 @@
                 var angle = -135 + Math.max(0, Math.min(1, rpm / 8000)) * 270;
                 needle.style.transform = 'translateX(-50%) rotate(' + angle.toFixed(2) + 'deg)';
             }
+            var maxDamage = Math.max(carDamage.engine, carDamage.transmission, carDamage.steering, carDamage.suspension);
+            var blownTire = carDamage.tires.some(function (v) { return v > 0.5; });
+            function warn(name, on) {
+                var light = document.querySelector('.g3d-warn[data-warn="' + name + '"]');
+                if (light) light.classList.toggle('is-on', !!on);
+            }
+            warn('abs', absActive);
+            warn('brake', brakeLock > 0.12);
+            warn('hot', engineHeat > 0.68 || engineBlown);
+            warn('eng', carDamage.engine > 0.35 || engineBlown);
+            warn('trans', carDamage.transmission > 0.45);
+            warn('tire', blownTire);
+            warn('dmg', maxDamage > 0.12);
         }
 
         scene.background = new THREE.Color(0x9bd7f2);
@@ -3579,6 +3592,7 @@
             var norm = Math.min(1, Math.max(0, impactSpeed / 52));
             carDamage.engine = Math.min(1, carDamage.engine + 0.1 + norm * 0.55);
             carDamage.steering = Math.min(1, carDamage.steering + norm * 0.45);
+            carDamage.transmission = Math.min(1, carDamage.transmission + norm * 0.4);
             carDamage.suspension = Math.min(1, carDamage.suspension + norm * 0.5);
             if (norm > 0.3 && Math.random() < 0.7) {
                 var tire = Math.floor(Math.random() * 4);
@@ -3802,6 +3816,7 @@
             updateRagdoll(dt);
             updateSparks(dt);
             updateDriftPuffs(dt, false);
+            updateSkidMarks(dt);
             updateDamageEffects(dt);
 
             if (crashWheel) {
@@ -3884,21 +3899,60 @@
         var driftPuffCursor = 0;
         var driftPuffTimer = 0;
 
+        var skidMarks = [];
+        var skidGeo = new THREE.PlaneGeometry(1, 1);
+        for (var smi = 0; smi < 80; smi++) {
+            var skidMat = new THREE.MeshBasicMaterial({ color: 0x151515, transparent: true, opacity: 0, depthWrite: false });
+            var skidMesh = new THREE.Mesh(skidGeo, skidMat);
+            skidMesh.rotation.x = -Math.PI / 2;
+            skidMesh.position.y = 0.06;
+            skidMesh.visible = false;
+            scene.add(skidMesh);
+            skidMarks.push({ mesh: skidMesh, life: 0, maxLife: 1 });
+        }
+        var skidCursor = 0;
+
+        function spawnSkidMark(x, z, strength) {
+            var mark = skidMarks[skidCursor % skidMarks.length];
+            skidCursor++;
+            mark.life = 3.4 + Math.random() * 1.6;
+            mark.maxLife = mark.life;
+            mark.mesh.position.set(x, 0.06, z);
+            mark.mesh.scale.set(0.26 + Math.random() * 0.06, 1.1 + Math.random() * 0.8, 1);
+            mark.mesh.material.opacity = 0.38 + strength * 0.3;
+            mark.mesh.visible = true;
+        }
+
+        function updateSkidMarks(dt) {
+            for (var mi = 0; mi < skidMarks.length; mi++) {
+                var mark = skidMarks[mi];
+                if (mark.life <= 0) continue;
+                mark.life -= dt;
+                if (mark.life <= 0) { mark.mesh.visible = false; continue; }
+                mark.mesh.position.z += speed * dt;
+                mark.mesh.material.opacity = Math.max(0, mark.life / mark.maxLife) * 0.55;
+            }
+        }
+
         function updateDriftPuffs(dt, drifting) {
             driftPuffTimer -= dt;
             if (drifting && driftPuffTimer <= 0) {
-                driftPuffTimer = 0.055;
-                var entry = driftPuffs[driftPuffCursor % driftPuffs.length];
-                driftPuffCursor++;
-                entry.life = 0.75;
-                entry.maxLife = 0.75;
-                entry.baseScale = 0.9 + Math.random() * 0.7;
-                entry.sprite.position.set(
-                    player.position.x + (Math.random() - 0.5) * 1.6,
-                    playerY + 0.35,
-                    player.position.z + 1.7 + Math.random() * 0.5
-                );
-                entry.sprite.scale.set(entry.baseScale, entry.baseScale, 1);
+                driftPuffTimer = 0.045;
+                for (var pn = 0; pn < 2; pn++) {
+                    var entry = driftPuffs[driftPuffCursor % driftPuffs.length];
+                    driftPuffCursor++;
+                    entry.life = 0.85;
+                    entry.maxLife = 0.85;
+                    entry.baseScale = 1.05 + Math.random() * 0.8;
+                    entry.maxOpacity = 0.55;
+                    entry.growth = 1.7;
+                    entry.sprite.position.set(
+                        player.position.x + (pn ? 0.7 : -0.7) + (Math.random() - 0.5) * 0.35,
+                        playerY + 0.35,
+                        player.position.z + 1.7 + Math.random() * 0.5
+                    );
+                    entry.sprite.scale.set(entry.baseScale, entry.baseScale, 1);
+                }
             }
             for (var pi = 0; pi < driftPuffs.length; pi++) {
                 var p = driftPuffs[pi];
@@ -4212,6 +4266,10 @@
         if (giftMode) speed = 32;
         var nitro = 100, nitroActive = false;
         var brakeLock = 0;
+        var absActive = false;
+        var engineHeat = 0;
+        var engineBlown = false;
+        var skidMarkT = 0;
         var currentGear = 1;
         var shiftHoldT = 0;
         var shiftCutT = 0;
@@ -4940,7 +4998,8 @@
                 spawnRevSmoke(freeRevNow ? revLevel : 0.55);
             }
             brakeSmooth += (brakeTarget - brakeSmooth) * Math.min(1, dt * 9);
-            var lockTarget = (brakeCmd && gearMode === 'D' && Math.abs(speed) > 12 && !fsdActive) ? 1 : 0;
+            absActive = !!(brakeCmd && gearMode === 'D' && Math.abs(speed) > 8 && !fsdActive);
+            var lockTarget = (brakeCmd && gearMode === 'D' && Math.abs(speed) > 12 && !fsdActive) ? (absActive ? 0.22 : 1) : 0;
             brakeLock += (lockTarget - brakeLock) * Math.min(1, dt * (lockTarget ? 12 : 4.5));
 
             honkCooldown = Math.max(0, honkCooldown - dt);
@@ -5014,10 +5073,11 @@
                 speed += (0 - speed) * Math.min(1, dt * 1.4);
             } else if (brakeCmd) {
                 var brakeDecel = (fsdActive && fsdEmergency) ? 165 : 58;
-                brakeDecel *= Math.max(0.58, 1 - brakeLock * 0.42);
+                brakeDecel *= Math.max(0.58, 1 - brakeLock * 0.42) * (absActive ? 0.92 + Math.sin(elapsed * 38) * 0.08 : 1);
                 speed = Math.max(0, speed - brakeDecel * Math.max(0.18, brakeSmooth) * dt);
             } else if (throttleCmd) {
-                var damageTop = Math.max(0.38, 1 - carDamage.engine * 0.5 - (carDamage.tires[0] + carDamage.tires[1] + carDamage.tires[2] + carDamage.tires[3]) * 0.03);
+                var heatPower = Math.max(0.22, 1 - Math.max(0, engineHeat - 0.55) * 1.35 - (engineBlown ? 0.42 : 0));
+                var damageTop = Math.max(0.38, (1 - carDamage.engine * 0.5 - (carDamage.tires[0] + carDamage.tires[1] + carDamage.tires[2] + carDamage.tires[3]) * 0.03) * heatPower);
                 var topSpeedNow = (fsdActive ? FSD_MAX_SPEED : perf.topSpeed) * (nitroActive ? 1.32 : 1) * damageTop;
                 var pull = perf.accel * (fsdActive ? 4.5 : 1) * (nitroActive ? 2.35 : 1) * (1 - 0.5 * Math.min(1, speed / topSpeedNow)) * Math.max(0.35, 1 - carDamage.engine * 0.45);
                 speed = Math.min(topSpeedNow, speed + pull * (0.35 + 0.65 * throttleSmooth) * (shiftCutT > 0 ? 0.32 : 1) * dt);
@@ -5027,13 +5087,20 @@
             } else {
                 speed = Math.min(CREEP_SPEED, speed + 5 * dt);
             }
+            var heatGain = engineOn ? (0.012 + throttleSmooth * 0.028 + revLevel * 0.06 + Math.abs(speed) / 7000) : -0.032;
+            engineHeat = Math.max(0, Math.min(1.15, engineHeat + heatGain * dt));
+            if (engineHeat > 0.92 && !engineBlown) {
+                engineBlown = true;
+                carDamage.fire = 1;
+                carDamage.engine = Math.max(carDamage.engine, 0.86);
+            }
             shiftHoldT = Math.max(0, shiftHoldT - dt);
             shiftCutT = Math.max(0, shiftCutT - dt);
             if (engineOn && gearMode === 'D') {
                 var targetGear = gearFor(Math.abs(speed));
                 if (targetGear !== currentGear && shiftHoldT <= 0) {
                     currentGear += targetGear > currentGear ? 1 : -1;
-                    shiftHoldT = 1.35;
+                    shiftHoldT = 1.35 * (1 + carDamage.transmission * 0.9);
                     shiftCutT = 0.32;
                     playGearSound('select', currentGear);
                 }
@@ -5081,7 +5148,7 @@
             );
             var driftIntent = !fsdActive && (autoDrift || (!!input.drift && Math.abs(speed) > 18 &&
                 (input.left || input.right || Math.abs(steerX) > 2.2) && playerY < 0.3) ||
-                (brakeLock > 0.35 && Math.abs(speed) > 18));
+                (brakeLock > 0.35 && Math.abs(speed) > 18) || (absActive && Math.abs(speed) > 18));
             if (driftIntent) {
                 speed -= Math.sign(speed) * Math.min(Math.abs(speed), 5 * dt);
                 driftScore += dt * 110;
@@ -5173,6 +5240,13 @@
             animateSuspension(player, dt, speed, distance, bodyRoll, bodyPitch, suspensionImpulse);
             suspensionImpulse *= Math.max(0, 1 - dt * 5);
             updateDriftPuffs(dt, driftIntent);
+            skidMarkT -= dt;
+            if ((brakeLock > 0.22 || driftIntent) && playerY < 0.3 && skidMarkT <= 0) {
+                skidMarkT = 0.055;
+                spawnSkidMark(player.position.x - 0.72, player.position.z + 1.25, brakeLock);
+                spawnSkidMark(player.position.x + 0.72, player.position.z + 1.25, brakeLock);
+            }
+            updateSkidMarks(dt);
             updateDamageEffects(dt);
             updateSparks(dt);
             updateCrashDebris(dt);
@@ -5523,9 +5597,7 @@
                 (!engineOn ? ' · HOLD W TO START' : '') +
                 (nitroActive ? (nitroShiftT > 0 ? ' · NITRO SHIFT' : ' · NOS') : '') +
                 (driftIntent ? ' · DRIFT' : '') +
-                (brakeLock > 0.4 ? ' · BRAKE LOCK' : '') +
                 (freeRevNow && revLevel > 0.12 ? ' · REV' : '') +
-                ((function () { var d = Math.round(Math.max(carDamage.engine, carDamage.steering, carDamage.suspension) * 100); return d > 4 ? ' · DMG ' + d + '%' : ''; })()) +
                 (playerY > 0.4 && !(isSleigh && flyTime > 0) ? ' · JUMP' : '') +
                 (isSleigh ? (flyTime > 0 ? ' · FLYING ' + flyTime.toFixed(1) + 's' : (flyCooldown > 0 ? ' · FLY CD ' + Math.ceil(flyCooldown) + 's' : ' · FLY READY [SPACE]')) : '') +
                 (exitHintText ? ' · ' + exitHintText : '');
@@ -5657,6 +5729,9 @@
                     rampPhysics: rampPhysicsActive,
                     revLevel: revLevel,
                     brakeLock: brakeLock,
+                    absActive: absActive,
+                    engineHeat: engineHeat,
+                    engineBlown: engineBlown,
                     smokePuffs: driftPuffs.reduce(function (n, p) { return n + (p.life > 0 ? 1 : 0); }, 0),
                     crashing: crashActive
                 };
