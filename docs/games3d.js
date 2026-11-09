@@ -2400,54 +2400,17 @@
         var ragdollVx = 0, ragdollVy = 0, ragdollVz = 0;
         var ragdollSpinX = 0, ragdollSpinY = 0, ragdollSpinZ = 0;
 
-        // FSD lane visualization.
-        var fsdLinesMat = new THREE.MeshBasicMaterial({
-            color: 0x2fd4ff, transparent: true, opacity: 0.6,
-            blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
-        });
-        var fsdFillMat = new THREE.MeshBasicMaterial({
-            color: 0x1b9be0, transparent: true, opacity: 0.05,
-            blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+        // FSD lane visualization: one solid, opaque strip slightly narrower
+        // than the lane. No arrows, no transparent corridor.
+        var fsdStripMat = new THREE.MeshBasicMaterial({
+            color: 0x2fd4ff, transparent: false, opacity: 1,
+            depthWrite: false, side: THREE.DoubleSide
         });
         var fsdGroup = new THREE.Group();
-        [-1.45, 1.45].forEach(function (side) {
-            var line = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 120), fsdLinesMat);
-            line.rotation.x = -Math.PI / 2;
-            line.position.set(side, 0.07, -55);
-            fsdGroup.add(line);
-        });
-        var fsdFill = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 120), fsdFillMat);
-        fsdFill.rotation.x = -Math.PI / 2;
-        fsdFill.position.set(0, 0.05, -55);
-        fsdGroup.add(fsdFill);
-
-        var fsdChevronTex = makeCanvasTexture(128, 256, function (g, w, h) {
-            g.clearRect(0, 0, w, h);
-            g.strokeStyle = '#5fe0ff';
-            g.lineWidth = 13;
-            g.lineCap = 'round';
-            g.lineJoin = 'round';
-            for (var i = 0; i < 4; i++) {
-                var cy = 26 + i * 64;
-                g.beginPath();
-                g.moveTo(22, cy + 26);
-                g.lineTo(64, cy);
-                g.lineTo(106, cy + 26);
-                g.stroke();
-            }
-        }, 1, 3);
-        fsdChevronTex.wrapS = THREE.RepeatWrapping;
-        fsdChevronTex.wrapT = THREE.RepeatWrapping;
-        fsdChevronTex.repeat.set(1, 3);
-        var fsdChevronMat = new THREE.MeshBasicMaterial({
-            map: fsdChevronTex, transparent: true, opacity: 0.55,
-            blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
-        });
-        var fsdChevrons = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 120), fsdChevronMat);
-        fsdChevrons.rotation.x = -Math.PI / 2;
-        fsdChevrons.position.set(0, 0.08, -55);
-        fsdGroup.add(fsdChevrons);
-
+        var fsdStrip = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 120), fsdStripMat);
+        fsdStrip.rotation.x = -Math.PI / 2;
+        fsdStrip.position.set(0, 0.07, -55);
+        fsdGroup.add(fsdStrip);
         fsdGroup.visible = false;
         scene.add(fsdGroup);
         var fsdPanelLast = 0;
@@ -4404,6 +4367,50 @@
             return gap;
         }
 
+        function predictedCarLane(car, horizon) {
+            var u = car.userData || {};
+            var nowLane = laneIndexOf(u.logicalX != null ? u.logicalX : car.position.x);
+            if (u.state === 'change' || u.state === 'merge') {
+                return u.targetLane != null ? u.targetLane : nowLane;
+            }
+            if (u.state === 'signal' && u.targetLane != null && u.signalT != null && u.signalT <= horizon) {
+                return u.targetLane;
+            }
+            return nowLane;
+        }
+
+        function predictedGapFor(laneIndex, horizon) {
+            var gap = 1200;
+            for (var i = 0; i < traffic.length; i++) {
+                var car = traffic[i];
+                if (!car || !car.userData || car.userData.isRamp) continue;
+                var u = car.userData;
+                var laneNow = laneIndexOf(u.logicalX != null ? u.logicalX : car.position.x);
+                var laneFuture = predictedCarLane(car, horizon);
+                if (laneNow !== laneIndex && laneFuture !== laneIndex) continue;
+                var futureZ = car.position.z + (speed - (u.cruiseSpeed || 0)) * horizon;
+                var dz = player.position.z - futureZ;
+                if (dz > 0 && dz < gap) gap = dz;
+            }
+            return gap;
+        }
+
+        function predictedRearGapFor(laneIndex, horizon) {
+            var gap = 200;
+            for (var i = 0; i < traffic.length; i++) {
+                var car = traffic[i];
+                if (!car || !car.userData || car.userData.isRamp) continue;
+                var u = car.userData;
+                var laneNow = laneIndexOf(u.logicalX != null ? u.logicalX : car.position.x);
+                var laneFuture = predictedCarLane(car, horizon);
+                if (laneNow !== laneIndex && laneFuture !== laneIndex) continue;
+                var futureZ = car.position.z + (speed - (u.cruiseSpeed || 0)) * horizon;
+                var dz = futureZ - player.position.z;
+                if (dz > 0 && dz < gap) gap = dz;
+            }
+            return gap;
+        }
+
         function laneHasSideCar(laneIndex) {
             var laneX = LANES[laneIndex];
             for (var i = 0; i < traffic.length; i++) {
@@ -4431,12 +4438,13 @@
         function findFsdEscapeLane(curLane, gapAhead, speed) {
             var bestLane = -1;
             var bestGain = 0;
+            var predictT = 0.7 + Math.min(1.2, speed * 0.012);
             for (var lane = 0; lane < LANES.length; lane++) {
                 if (lane === curLane) continue;
                 if (laneHasSideCar(lane)) continue;
                 var laneDist = Math.abs(lane - curLane);
-                var front = laneGapFor(lane, 700);
-                var rear = laneRearGapFor(lane, 120);
+                var front = Math.min(laneGapFor(lane, 700), predictedGapFor(lane, predictT));
+                var rear = Math.min(laneRearGapFor(lane, 120), predictedRearGapFor(lane, predictT));
                 if (rear < 8) continue;
                 // Take any lane with enough room to slot into.
                 if (front < Math.max(gapAhead + 4, speed * 0.2 + 10)) continue;
@@ -4455,19 +4463,14 @@
             ctx.fillStyle = '#04101a';
             ctx.fillRect(0, 0, w, h);
 
+            var laneSpacing = (w - 52) / (LANES.length - 1);
             var laneX = [];
-            for (var i = 0; i < LANES.length; i++) laneX.push(26 + i * ((w - 52) / (LANES.length - 1)));
-            // Target lane blue corridor.
+            for (var i = 0; i < LANES.length; i++) laneX.push(26 + i * laneSpacing);
+            // Solid target-lane strip, slightly narrower than the lane itself.
             var tx = laneX[fsdLane];
-            var grad = ctx.createLinearGradient(0, h, 0, 0);
-            grad.addColorStop(0, 'rgba(47, 212, 255, 0.24)');
-            grad.addColorStop(1, 'rgba(47, 212, 255, 0.02)');
-            ctx.fillStyle = grad;
-            ctx.fillRect(tx - 18, 4, 36, h - 8);
-            ctx.strokeStyle = 'rgba(95, 224, 255, 0.85)';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath(); ctx.moveTo(tx - 18, h - 10); ctx.lineTo(tx - 15, 8); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(tx + 18, h - 10); ctx.lineTo(tx + 15, 8); ctx.stroke();
+            var bandW = Math.max(7, laneSpacing * 0.72);
+            ctx.fillStyle = '#2fd4ff';
+            ctx.fillRect(tx - bandW / 2, 4, bandW, h - 8);
 
             // Ramp target lane (gold) when FSD has spotted a jump.
             if (fsdRampLane >= 0 && fsdRampLane < laneX.length) {
@@ -4481,25 +4484,16 @@
                 ctx.setLineDash([]);
             }
 
-            // Lane dividers.
+            // Lane dividers belong between lanes, not through their centres.
             ctx.strokeStyle = 'rgba(150, 200, 220, 0.22)';
             ctx.lineWidth = 1;
-            for (var l = 0; l < laneX.length; l++) {
+            var firstEdge = laneX[0] - laneSpacing / 2;
+            for (var l = 0; l <= LANES.length; l++) {
+                var bx = firstEdge + l * laneSpacing;
+                if (bx < 2 || bx > w - 2) continue;
                 ctx.beginPath();
-                ctx.moveTo(laneX[l], h - 8);
-                ctx.lineTo(laneX[l] + (laneX[l] - w / 2) * 0.18, 6);
-                ctx.stroke();
-            }
-
-            // Chevrons on the planned path.
-            ctx.strokeStyle = 'rgba(95, 224, 255, 0.55)';
-            ctx.lineWidth = 2.5;
-            for (var c = 0; c < 4; c++) {
-                var cy = h - 30 - c * 26;
-                ctx.beginPath();
-                ctx.moveTo(tx - 8, cy);
-                ctx.lineTo(tx, cy - 7);
-                ctx.lineTo(tx + 8, cy);
+                ctx.moveTo(bx, h - 8);
+                ctx.lineTo(bx + (bx - w / 2) * 0.18, 6);
                 ctx.stroke();
             }
 
@@ -4553,24 +4547,10 @@
             ctx.roundRect ? ctx.roundRect(tx - 10, h - 30, 20, 24, 5) : ctx.rect(tx - 10, h - 30, 20, 24);
             ctx.fill();
 
-            // Planned lane-change / turn signal.
-            var egoLane = laneIndexOf(player.position.x);
-            var pendingSide = fsdLane > egoLane ? 1 : (fsdLane < egoLane ? -1 : 0);
-            if (!pendingSide) pendingSide = fsdSignalT > 0 ? fsdSignalSide : 0;
-            if (pendingSide && blinkOn) {
-                ctx.fillStyle = '#ffb020';
-                var ax = tx + (pendingSide > 0 ? 15 : -15);
-                ctx.beginPath();
-                if (pendingSide > 0) { ctx.moveTo(ax - 3, h - 27); ctx.lineTo(ax + 3, h - 21); ctx.lineTo(ax - 3, h - 15); }
-                else { ctx.moveTo(ax + 3, h - 27); ctx.lineTo(ax - 3, h - 21); ctx.lineTo(ax + 3, h - 15); }
-                ctx.closePath();
-                ctx.fill();
-            }
-
             ctx.fillStyle = '#8fe8ff';
             ctx.font = 'bold 9px Arial, sans-serif';
             ctx.textAlign = 'right';
-            ctx.fillText(Math.round(Math.abs(speed) * 2.23694) + ' mph', w - 7, 13);
+            ctx.fillText(speedText(speed), w - 7, 13);
 
             if (fsdEmergency) {
                 ctx.fillStyle = 'rgba(255, 46, 46, 0.18)';
@@ -4612,11 +4592,6 @@
             fsdGroup.visible = fsdActive;
             if (!fsdActive) return;
             fsdGroup.position.set(LANES[fsdLane], 0, player.position.z);
-            var pulse = 0.45 + Math.sin(elapsed * 6) * 0.18;
-            fsdLinesMat.opacity = pulse;
-            fsdFillMat.opacity = 0.05 + Math.sin(elapsed * 6) * 0.02;
-            fsdChevronTex.offset.y = -(elapsed * 0.5) % 1;
-            fsdChevronMat.opacity = 0.35 + Math.sin(elapsed * 7) * 0.15;
             if (elapsed - fsdPanelLast > 0.1) {
                 fsdPanelLast = elapsed;
                 drawFsdPanel();
@@ -4902,16 +4877,18 @@
                 fsdCooldown -= dt;
                 var curLane = laneIndexOf(player.position.x);
                 if (fsdThink <= 0 && fsdChangeP >= 1) {
-                    // Impatient overtaking: look for a better lane constantly.
+                    // Predict both the player's path and nearby traffic before
+                    // choosing a lane. The horizon grows with speed.
                     fsdThink = 0.16;
-                    var curGap = laneGapFor(curLane, 900);
-                    var curRear = laneRearGapFor(curLane, 140);
+                    var predictT = 0.7 + Math.min(1.2, Math.abs(speed) * 0.012);
+                    var curGap = Math.min(laneGapFor(curLane, 900), predictedGapFor(curLane, predictT));
+                    var curRear = Math.min(laneRearGapFor(curLane, 140), predictedRearGapFor(curLane, predictT));
                     var globalBest = curLane;
                     var globalScore = curGap + Math.min(120, curRear) * 0.45;
                     for (var fl = 0; fl < LANES.length; fl++) {
                         if (fl === curLane) continue;
-                        var fg = laneGapFor(fl, 900);
-                        var rg = laneRearGapFor(fl, 140);
+                        var fg = Math.min(laneGapFor(fl, 900), predictedGapFor(fl, predictT));
+                        var rg = Math.min(laneRearGapFor(fl, 140), predictedRearGapFor(fl, predictT));
                         var score = fg + Math.min(120, rg) * 0.45;
                         if (laneHasSideCar(fl)) score -= 240;
                         if (score > globalScore + 2) { globalScore = score; globalBest = fl; }
@@ -4924,8 +4901,8 @@
                     }
                     if (globalBest !== curLane && fsdCooldown <= 0) {
                         var laneDist = Math.abs(globalBest - curLane);
-                        var targetGap = laneGapFor(globalBest, 420);
-                        var targetRear = laneRearGapFor(globalBest, 110);
+                        var targetGap = Math.min(laneGapFor(globalBest, 420), predictedGapFor(globalBest, predictT));
+                        var targetRear = Math.min(laneRearGapFor(globalBest, 110), predictedRearGapFor(globalBest, predictT));
                         var pathClear = true;
                         for (var pathLane = Math.min(curLane, globalBest) + 1; pathLane < Math.max(curLane, globalBest); pathLane++) {
                             if (laneHasSideCar(pathLane)) { pathClear = false; break; }
@@ -4952,7 +4929,7 @@
                 } else {
                     fsdSteerX = LANES[fsdLane];
                 }
-                var gapAhead = laneGapFor(fsdLane, 1200);
+                var gapAhead = Math.min(laneGapFor(fsdLane, 1200), predictedGapFor(fsdLane, 0.85));
                 var safeGap = 18 + speed * 0.12;
                 var needEmergency = gapAhead < safeGap && speed > 14;
                 var noEscape = false;
@@ -9767,10 +9744,9 @@
         unitSystem = unit === 'kmh' ? 'kmh' : 'mph';
     }
     function speedText(mps) {
-        // Physics stays in metres per second. The km/h readout uses a
-        // three-times-smaller display scale so the arcade speeds read naturally.
+        // Physics stays in metres per second; this is the real unit conversion.
         return unitSystem === 'kmh'
-            ? Math.round(Math.abs(mps) * 3.6 / 3) + ' km/h'
+            ? Math.round(Math.abs(mps) * 3.6) + ' km/h'
             : Math.round(Math.abs(mps) * 2.23694) + ' mph';
     }
     function setPaused(on) {
