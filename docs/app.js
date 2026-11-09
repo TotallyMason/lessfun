@@ -472,15 +472,22 @@ function getIcon(name) {
 let viewLoaderShownAt = 0;
 let viewLoaderHideTimer = 0;
 
-function showViewLoader(label) {
+function showViewLoader(label, detail) {
     var el = document.getElementById('viewLoader');
     var title = document.getElementById('viewLoaderTitle');
+    var detailEl = document.getElementById('viewLoaderDetail');
     if (!el) return;
     if (title) title.textContent = label || 'Loading…';
+    if (detailEl) detailEl.textContent = detail || 'Working on it…';
     clearTimeout(viewLoaderHideTimer);
     viewLoaderShownAt = Date.now();
     el.style.display = 'flex';
     requestAnimationFrame(function () { el.classList.add('is-visible'); });
+}
+
+function setViewLoaderDetail(text) {
+    var detailEl = document.getElementById('viewLoaderDetail');
+    if (detailEl) detailEl.textContent = text;
 }
 
 function hideViewLoader() {
@@ -1133,7 +1140,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261328'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261329'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1142,7 +1149,7 @@ function ensure3DEngine() {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261328').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261329').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1150,7 +1157,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261328').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261329').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1158,15 +1165,15 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261328')
-            .then(function () { return loadScriptOnce('assistant.js?v=20261328'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261329')
+            .then(function () { return loadScriptOnce('assistant.js?v=20261329'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
 }
 
 function openAssistant() {
-    showViewLoader('Waking up LessFun AI…');
+    showViewLoader('Waking up LessFun AI…', 'Loading the local assistant…');
     if (window.LessFunAI) {
         setTimeout(function () {
             if (window.LessFunAI) window.LessFunAI.open();
@@ -1175,6 +1182,7 @@ function openAssistant() {
         return;
     }
     ensureAssistant().then(function () {
+        setViewLoaderDetail('Building the local knowledge index…');
         if (window.LessFunAI) window.LessFunAI.open();
         hideViewLoader();
     }).catch(function () {
@@ -1186,7 +1194,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261328').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261329').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1194,7 +1202,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261328').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261329').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1202,7 +1210,7 @@ function ensureLucky() {
 function ensureTycoon() {
     if (window.Tycoon) return Promise.resolve();
     if (!tycoonPromise) {
-        tycoonPromise = loadScriptOnce('tycoon.js?v=20261328').catch(function (error) { tycoonPromise = null; throw error; });
+        tycoonPromise = loadScriptOnce('tycoon.js?v=20261329').catch(function (error) { tycoonPromise = null; throw error; });
     }
     return tycoonPromise;
 }
@@ -1250,48 +1258,48 @@ function openGame(id) {
     const token = ++gameOpenToken;
     if (id === 6) { openGameNow(id); return; }
     if (id === 8) {
-        showViewLoader('Loading ' + game.name + '…');
-        ensureDrawGuess().then(function () { if (token === gameOpenToken) { openGameNow(id); hideViewLoader(); } }).catch(function () {
+        showViewLoader('Loading ' + game.name + '…', 'Fetching game files…');
+        ensureDrawGuess().then(function () { if (token === gameOpenToken) { setViewLoaderDetail('Building ' + game.name + '…'); openGameNow(id); hideViewLoader(); } }).catch(function () {
             hideViewLoader();
             alert('Could not load ' + game.name + '. Check your connection and try again.');
         });
         return;
     }
     if (id === 9) {
-        showViewLoader('Loading ' + game.name + '…');
-        ensureLucky().then(function () { if (token === gameOpenToken) { openGameNow(id); hideViewLoader(); } }).catch(function () {
+        showViewLoader('Loading ' + game.name + '…', 'Fetching game files…');
+        ensureLucky().then(function () { if (token === gameOpenToken) { setViewLoaderDetail('Building ' + game.name + '…'); openGameNow(id); hideViewLoader(); } }).catch(function () {
             hideViewLoader();
             alert('Could not load ' + game.name + '. Check your connection and try again.');
         });
         return;
     }
     if (id === 13) {
-        showViewLoader('Loading ' + game.name + '…');
-        ensureLanding().then(function () { if (token === gameOpenToken) { openGameNow(id); hideViewLoader(); } }).catch(function () {
+        showViewLoader('Loading ' + game.name + '…', 'Fetching game files…');
+        ensureLanding().then(function () { if (token === gameOpenToken) { setViewLoaderDetail('Building ' + game.name + '…'); openGameNow(id); hideViewLoader(); } }).catch(function () {
             hideViewLoader();
             alert('Could not load ' + game.name + '. Check your connection and try again.');
         });
         return;
     }
     if (id === 14) {
-        showViewLoader('Loading ' + game.name + '…');
-        ensureTranq().then(function () { if (token === gameOpenToken) { openGameNow(id); hideViewLoader(); } }).catch(function () {
+        showViewLoader('Loading ' + game.name + '…', 'Fetching game files…');
+        ensureTranq().then(function () { if (token === gameOpenToken) { setViewLoaderDetail('Building ' + game.name + '…'); openGameNow(id); hideViewLoader(); } }).catch(function () {
             hideViewLoader();
             alert('Could not load ' + game.name + '. Check your connection and try again.');
         });
         return;
     }
     if (id === 15) {
-        showViewLoader('Loading ' + game.name + '…');
-        ensureTycoon().then(function () { if (token === gameOpenToken) { openGameNow(id); hideViewLoader(); } }).catch(function () {
+        showViewLoader('Loading ' + game.name + '…', 'Fetching game files…');
+        ensureTycoon().then(function () { if (token === gameOpenToken) { setViewLoaderDetail('Building ' + game.name + '…'); openGameNow(id); hideViewLoader(); } }).catch(function () {
             hideViewLoader();
             alert('Could not load ' + game.name + '. Check your connection and try again.');
         });
         return;
     }
-    showViewLoader('Loading ' + game.name + '…');
+    showViewLoader('Loading ' + game.name + '…', 'Downloading the 3D engine…');
     ensure3DEngine().then(function () {
-        if (token === gameOpenToken) { openGameNow(id); hideViewLoader(); }
+        if (token === gameOpenToken) { setViewLoaderDetail('Building the game world…'); openGameNow(id); hideViewLoader(); }
     }).catch(function () {
         hideViewLoader();
         alert('Could not load the 3D engine. Check your connection and try again.');
@@ -4014,6 +4022,48 @@ function exchangeCookies(cost, coins) {
     showGameToast('🍪 ' + cost + ' Cookies → +' + coins.toLocaleString() + ' Coins');
 }
 
+function exchangeCookiesForArcade(cost, cash) {
+    if (!wallet) return;
+    cost = Math.max(1, Math.floor(Number(cost) || 0));
+    cash = Math.max(1, Math.floor(Number(cash) || 0));
+    if ((Number(wallet.cookies) || 0) < cost) {
+        showGameToast('Need ' + (cost - (Number(wallet.cookies) || 0)) + ' more Cookies.');
+        return;
+    }
+    wallet.cookies -= cost;
+    wallet.arcade = normalizeArcade(wallet.arcade || {});
+    wallet.arcade.cash += cash;
+    wallet.arcade.updatedAt = Date.now();
+    saveWallet();
+    renderWalletUI();
+    showGameToast('🍪 ' + cost + ' Cookies → +' + cash.toLocaleString() + ' Arcade Cash');
+}
+
+function buyCookieBox(cost) {
+    if (!wallet) return;
+    cost = Math.max(1, Math.floor(Number(cost) || 0));
+    if ((Number(wallet.cookies) || 0) < cost) {
+        showGameToast('Need ' + (cost - (Number(wallet.cookies) || 0)) + ' more Cookies.');
+        return;
+    }
+    var pool = COSMETICS.filter(function (item) {
+        return item.cost > 0 && !item.none && wallet.inventory.indexOf(item.id) < 0;
+    });
+    wallet.cookies -= cost;
+    if (pool.length) {
+        var item = pool[Math.floor(Math.random() * pool.length)];
+        wallet.inventory.push(item.id);
+        showGameToast('🍪 Cookie box · unlocked ' + item.name);
+    } else {
+        wallet.shells = Math.max(0, (Number(wallet.shells) || 0) + 500);
+        wallet.totalEarned = Math.max(0, (Number(wallet.totalEarned) || 0) + 500);
+        showGameToast('🍪 Cookie box · everything owned, +500 Coins');
+    }
+    saveWallet();
+    renderWalletUI();
+    if (currentView === 'store') renderStore();
+}
+
 function updateUserSection() {
     const txt=document.getElementById('navProfileText');
     if(txt){
@@ -6230,12 +6280,12 @@ const DAILY_BONUS = 25;
 const STREAK_BONUSES = { 3: 150, 7: 400, 14: 1000 };
 const DAILY_GIFTS = [50, 75, 100, 150, 200, 300, 500];
 const ADVENT_REWARDS = [
-    { coins: 50 }, { coins: 75 }, { coins: 100 }, { coins: 125 },
-    { coins: 150 }, { coins: 200 }, { coins: 300, item: 'paint_candy' },
-    { coins: 100 }, { coins: 125 }, { coins: 150 }, { coins: 175 }, { coins: 200 },
-    { coins: 250 }, { coins: 350, item: 'board_candy' }, { coins: 225 }, { coins: 250 },
-    { coins: 275 }, { coins: 300 }, { coins: 325 }, { coins: 350 }, { coins: 375 },
-    { coins: 400 }, { coins: 450 }, { coins: 1000 }
+    { cookies: 5 }, { cookies: 6 }, { cookies: 7 }, { cookies: 8 },
+    { cookies: 9 }, { cookies: 10 }, { cookies: 12 }, { cookies: 8 },
+    { cookies: 9 }, { cookies: 10 }, { cookies: 12 }, { cookies: 14 },
+    { cookies: 18 }, { cookies: 12 }, { cookies: 13 }, { cookies: 14 },
+    { cookies: 15 }, { cookies: 16 }, { cookies: 18 }, { cookies: 20 },
+    { cookies: 22 }, { cookies: 25 }, { cookies: 30 }, { cookies: 50 }
 ];
 
 const COSMETICS = [
@@ -7670,7 +7720,7 @@ function renderAdventModal() {
     var claim = document.getElementById('adventClaim');
     if (status) {
         status.textContent = st.active
-            ? (st.canClaim ? 'Day ' + st.day + ' is ready — ' + st.reward.coins.toLocaleString() + ' Coins' + (st.reward.item ? ' + a cosmetic' : '') : (st.day > 24 ? 'The calendar is complete. Merry Christmas!' : 'Door ' + st.day + ' already opened.'))
+            ? (st.canClaim ? 'Day ' + st.day + ' is ready — ' + st.reward.cookies.toLocaleString() + ' Cookies' : (st.day > 24 ? 'The calendar is complete. Merry Christmas!' : 'Door ' + st.day + ' already opened.'))
             : 'The Advent Calendar opens on December 1.';
     }
     if (today) today.textContent = st.active ? 'December ' + st.day : 'December';
@@ -7683,13 +7733,13 @@ function renderAdventModal() {
         var cls = 'advent-door' + (claimed ? ' is-claimed' : '') + (isToday ? ' is-today' : '') + (locked ? ' is-locked' : '') + (missed ? ' is-missed' : '');
         return '<div class="' + cls + '">' +
             '<span>DAY ' + d + '</span>' +
-            '<strong>' + reward.coins.toLocaleString() + '</strong>' +
-            '<small>Coins</small>' +
+            '<strong>' + reward.cookies.toLocaleString() + '</strong>' +
+            '<small>Cookies</small>' +
             '<i>' + (claimed ? '✓' : (isToday ? '🎁' : (locked ? '🔒' : '•'))) + '</i>' +
         '</div>';
     }).join('');
     var balance = document.getElementById('adventBalance');
-    if (balance) balance.innerHTML = shellIcon(13) + ' ' + (wallet ? wallet.shells.toLocaleString() : '—') + ' Coins';
+    if (balance) balance.innerHTML = '🍪 ' + (wallet ? (Number(wallet.cookies) || 0).toLocaleString() : '—') + ' Cookies';
     if (claim) {
         claim.disabled = !st.canClaim;
         claim.textContent = st.canClaim ? 'Open Door ' + st.day : (st.active ? (st.day > 24 ? 'Calendar complete' : 'Come back tomorrow') : 'Opens December 1');
@@ -7715,14 +7765,11 @@ async function claimAdvent() {
     var reward = st.reward;
     wallet.advent = wallet.advent && wallet.advent.year === st.year ? wallet.advent : { year: st.year, days: [] };
     if (wallet.advent.days.indexOf(st.day) < 0) wallet.advent.days.push(st.day);
-    wallet.shells = Math.max(0, (Number(wallet.shells) || 0) + reward.coins);
-    wallet.totalEarned = Math.max(0, (Number(wallet.totalEarned) || 0) + reward.coins);
-    wallet.cookies = Math.max(0, (Number(wallet.cookies) || 0) + 2);
-    if (reward.item && wallet.inventory.indexOf(reward.item) < 0) wallet.inventory.push(reward.item);
+    wallet.cookies = Math.max(0, (Number(wallet.cookies) || 0) + reward.cookies);
     await saveWallet();
     renderWalletUI();
     renderAdventModal();
-    showGameToast('Advent door ' + st.day + ' · +' + reward.coins.toLocaleString() + ' Coins · +2 Cookies');
+    showGameToast('Advent door ' + st.day + ' · +' + reward.cookies.toLocaleString() + ' Cookies');
 }
 
 window.LessFunGetCoins = function () {
@@ -7746,7 +7793,7 @@ function renderWalletUI() {
         if (el) el.textContent = shells.toLocaleString();
     });
     var cookies = wallet ? (Number(wallet.cookies) || 0) : 0;
-    ['navCookies', 'cookieBalance'].forEach(function (id) {
+    ['cookieBalance'].forEach(function (id) {
         var el = document.getElementById(id);
         if (el) el.textContent = cookies.toLocaleString();
     });
@@ -9129,8 +9176,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.44";
-const UPDATE_NOTES = "Cookies are here: earn them from games, Daily Gifts and Advent doors, then exchange them for Coins in the Store. Stopped cars now show first gear correctly";
+const APP_VERSION = "LessFun Public Beta 1.33.45";
+const UPDATE_NOTES = "Loading screens now show the real loading stage. Advent gives only Cookies, Cookies live in the Store, and they can buy Coins, Arcade Cash or a mystery cosmetic";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

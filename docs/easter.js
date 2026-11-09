@@ -172,23 +172,6 @@
         document.body.appendChild(btn);
     }
 
-    function addNavDeer() {
-        var host = document.querySelector('.nav-right') || document.querySelector('.nav-container');
-        if (!host) return;
-        var deer = document.createElement('button');
-        deer.type = 'button';
-        deer.className = 'xmas-nav-deer';
-        deer.setAttribute('aria-label', 'A tiny reindeer');
-        deer.title = 'Rudolph says hi';
-        deer.textContent = '🦌';
-        deer.addEventListener('click', function (event) {
-            event.stopPropagation();
-            var rect = deer.getBoundingClientRect();
-            jingleBoost(rect.left + rect.width / 2, rect.top + rect.height / 2);
-        });
-        host.appendChild(deer);
-    }
-
     function wireLogo() {
         var logo = document.querySelector('.logo');
         if (!logo) return;
@@ -315,7 +298,6 @@
 
     function init() {
         addSnowman();
-        addNavDeer();
         wireLogo();
         wireSnowRushTitle();
         ensureGameLayer();
