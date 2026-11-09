@@ -11,7 +11,6 @@
     var TRACK_URL = 'audio/tunetank-christmas.mp3';
     var enabled = true;
     try { enabled = localStorage.getItem('lessfun_jingle') !== '0'; } catch (e) {}
-    var soundOn = true;
     var unlocked = false;
     var playing = false;
     var audio = null;
@@ -283,14 +282,14 @@
             retryQueued = false;
             document.removeEventListener('pointerdown', retry);
             document.removeEventListener('keydown', retry);
-            if (enabled && soundOn && isHoliday() && !playing) start();
+            if (enabled && isHoliday() && !playing) start();
         };
         document.addEventListener('pointerdown', retry, { passive: true });
         document.addEventListener('keydown', retry);
     }
 
     function start() {
-        if (!enabled || !soundOn || !isHoliday() || playing) return;
+        if (!enabled || !isHoliday() || playing) return;
         if (!unlocked) return;
         if (audioBroken) {
             startSynth();
@@ -318,9 +317,15 @@
         btn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
     }
 
-    function toggle() {
-        enabled = !enabled;
+    function syncToggle() {
+        var box = document.getElementById('jingleToggle');
+        if (box) box.checked = enabled;
+    }
+
+    function setEnabled(on) {
+        enabled = !!on;
         try { localStorage.setItem('lessfun_jingle', enabled ? '1' : '0'); } catch (e) {}
+        syncToggle();
         if (enabled) {
             unlocked = true;
             start();
@@ -330,26 +335,18 @@
         updateButton();
     }
 
-    function unlock() {
-        unlocked = true;
-        if (enabled && soundOn) start();
+    function toggle() {
+        setEnabled(!enabled);
     }
 
-    function setSoundEnabled(on) {
-        soundOn = !!on;
-        if (!soundOn) {
-            stop();
-        } else if (unlocked) {
-            start();
-        }
+    function unlock() {
+        unlocked = true;
+        if (enabled) start();
     }
 
     function init() {
-        var btn = document.getElementById('jingleBtn');
-        if (btn) {
-            btn.style.display = isHoliday() ? 'inline-flex' : 'none';
-            updateButton();
-        }
+        syncToggle();
+        updateButton();
         if (!isHoliday()) return;
         // Browsers only allow audible autoplay after a gesture.
         document.addEventListener('pointerdown', unlock, { once: true, passive: true });
@@ -357,22 +354,20 @@
         // The MP3 keeps playing while the tab is hidden; restart if the
         // browser suspended it for any reason when we return.
         document.addEventListener('visibilitychange', function () {
-            if (!document.hidden && enabled && soundOn && unlocked && !playing) start();
+            if (!document.hidden && enabled && unlocked && !playing) start();
         });
-        if (typeof soundSetting !== 'undefined') soundOn = !!soundSetting;
     }
 
     function status() {
         return {
             enabled: enabled,
-            soundOn: soundOn,
             playing: playing,
             source: audioBroken ? 'synth' : 'mp3',
             time: audio ? audio.currentTime : 0
         };
     }
 
-    window.LessFunJingle = { toggle: toggle, start: start, stop: stop, setSoundEnabled: setSoundEnabled, status: status };
+    window.LessFunJingle = { toggle: toggle, start: start, stop: stop, setEnabled: setEnabled, status: status };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
     else init();
 })();

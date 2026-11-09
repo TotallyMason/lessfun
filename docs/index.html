@@ -11,8 +11,8 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261296">
-    <link rel="preload" href="app.js?v=20261296" as="script">
+    <link rel="stylesheet" href="style.css?v=20261297">
+    <link rel="preload" href="app.js?v=20261297" as="script">
 </head>
 <body>
     <div id="siteLoader" class="site-loader" role="status" aria-live="polite" aria-label="Loading LessFun">
@@ -181,7 +181,6 @@
                         <button type="button" class="game-btn-3d" onclick="openGame(7)">Play Snow Rush</button>
                         <button type="button" class="game-btn-3d is-secondary" onclick="startSnowStorm()">Snowstorm Mode</button>
                         <button type="button" class="game-btn-3d is-secondary" onclick="openAdvent()">Advent Calendar</button>
-                        <button type="button" class="game-btn-3d is-secondary" id="jingleBtn" onclick="LessFunJingle.toggle()" style="display:none;">Jingle: Ready</button>
                     </div>
                     <p class="christmas-credit">Music: “Christmas” by Tunetank via Pixabay — Pixabay Content License</p>
                 </div>
@@ -987,6 +986,16 @@
                     </div>
                     <div class="settings-item">
                         <div>
+                            <h3>Christmas Jingle</h3>
+                            <p>Play the holiday music in the background after your first click</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" id="jingleToggle" checked onchange="setJingleSetting(this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-item">
+                        <div>
                             <h3>Speed Units</h3>
                             <p>Show Beach Racer and arcade speeds in mph or km/h</p>
                         </div>
@@ -1021,7 +1030,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Public Beta 1.33.12</p>
+                            <p>LessFun Public Beta 1.33.13</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -1135,6 +1144,7 @@
                             <li><strong>1.33.10</strong> — The jingle is now an upbeat Jingle Bells arrangement with brass, bass, sleigh bells, kick and snare, mixed louder.</li>
                             <li><strong>1.33.11</strong> — The jingle keeps playing in the background when the tab is hidden, with no ads.</li>
                             <li><strong>1.33.12</strong> — The jingle is now “Christmas” by Tunetank from Pixabay, played as a no-ads background loop.</li>
+                            <li><strong>1.33.13</strong> — The jingle starts automatically and its on/off toggle moved into Settings.</li>
                         </ul>
                     </div>
                     <div class="info-card">
@@ -1477,7 +1487,7 @@
     <div id="globalToast" class="global-toast"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=20261296"></script>
-    <script src="christmas.js?v=20261296"></script>
+    <script src="app.js?v=20261297"></script>
+    <script src="christmas.js?v=20261297"></script>
 </body>
 </html>

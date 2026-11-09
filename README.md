@@ -43,9 +43,10 @@ the [Pixabay Content License](https://pixabay.com/service/license-summary/):
 - Source: https://pixabay.com/music/christmas-christmas-347469/
 - Local file: `docs/audio/tunetank-christmas.mp3`
 
-The **Jingle** button in the Snow Rush banner turns it off or on, and the site
-Sound setting also silences it. If the MP3 cannot load, an original synthesized
-Jingle Bells arrangement plays instead.
+The jingle starts automatically after the visitor's first click and keeps
+playing in the background. Turn it off or on with the **Christmas Jingle**
+toggle in **Settings → Gameplay**. If the MP3 cannot load, an original
+synthesized Jingle Bells arrangement plays instead.
 
 ## Run locally
 
