@@ -232,6 +232,44 @@
 
     var lastTopic = '';
     var lastGame = '';
+    var lastAnswer = '';
+    var GAME_BY_ID = { 1: 'Beach Racer', 2: 'Tunnel Rush', 3: 'Cube Stack', 4: 'Dead Coast', 6: 'Funtutu Test', 7: 'Snow Rush', 8: 'Draw & Guess', 9: 'Lucky Spin', 13: 'Boeing Landing', 14: 'Tranq Arena', 15: 'Arcade Tycoon' };
+
+    function currentGameName() {
+        try {
+            if (typeof currentGameId !== 'undefined' && currentGameId != null && GAME_BY_ID[currentGameId]) return GAME_BY_ID[currentGameId];
+        } catch (e) {}
+        return '';
+    }
+
+    function isAcknowledgement(text) {
+        var words = String(text || '').toLowerCase().replace(/[^a-z\s]/g, ' ').replace(/\s+/g, ' ').trim().split(' ');
+        if (!words.length || !words[0] || words.length > 5) return false;
+        var allowed = {
+            oh: 1, o: 1, ok: 1, okay: 1, k: 1, kk: 1, got: 1, it: 1, i: 1, know: 1, see: 1,
+            right: 1, alright: 1, cool: 1, nice: 1, sure: 1, yeah: 1, yep: 1, yes: 1, no: 1,
+            nope: 1, hmm: 1, ah: 1, lol: 1, haha: 1, interesting: 1, true: 1, then: 1, so: 1,
+            thanks: 1, that: 1, fair: 1, enough: 1
+        };
+        for (var i = 0; i < words.length; i++) {
+            if (!allowed[words[i]]) return false;
+        }
+        return true;
+    }
+
+    function navigateTo(view, label) {
+        if (typeof window.showView === 'function') {
+            setTimeout(function () {
+                if (open) closePanel();
+                if (document.body && document.body.classList.contains('in-game') && typeof window.closeGame === 'function') {
+                    window.closeGame(true);
+                }
+                window.showView(view);
+            }, 700);
+            return 'Opening the ' + label + '…';
+        }
+        return 'Use the ' + label + ' button in the top navigation.';
+    }
 
     function findBest(pool, unique, lower) {
         var best = null, bestScore = 0, second = null, secondScore = 0;
@@ -270,13 +308,49 @@
         var lower = text.toLowerCase().replace(/\bwhats\b/g, 'what is').replace(/\bur\b/g, 'your').replace(/\bu\b/g, 'you').replace(/\br\b/g, 'are');
         if (/^(hi|hello|hey|yo|sup|hiya)\b/.test(lower)) return 'Hi. Ask me about a game, Coins, Cookies, Daily Gifts, controls, accounts, the Store, Garage, friends, radio or settings.';
         if (/your name|who are you|what are you called|what is your name/.test(lower)) return 'I am the LessFun Assistant. I run locally in the page and answer from a 10,000+ pattern knowledge base about the arcade.';
-        if (/^(can (you )?tell( me)?( something| anything)?|what can you (do|tell me)|what do you do|help me|what can you help with)\??$/.test(lower)) return 'I can tell you about every LessFun game, controls, Coins, Cookies, Daily Gifts, accounts, cloud sync, the Store, Garage, Showroom, friends, radio, settings, multiplayer or troubleshooting.';
+        if (/^(can (you )?tell( me)?( something| anything)?|what can you (do|tell me)|what can i (do|ask)|what do you do|what do you know|help me|what can you help with)\??$/.test(lower)) return 'I can tell you about every LessFun game, controls, Coins, Cookies, Daily Gifts, accounts, cloud sync, the Store, Garage, Showroom, friends, radio, settings, multiplayer or troubleshooting.';
         if (/are you (a )?(real|human|ai|robot)|are you real/.test(lower)) return 'I am a local assistant, not a person. I match your question against the built-in LessFun knowledge base.';
         if (/how are you/.test(lower)) return 'I am awake and ready. Ask me anything about LessFun.';
-        if (/^(oh+|o+|ok(ay)?|k|kk|got it|i know( that)?|i see|right|alright|cool|nice|sure|yeah|yep|yes|no|nope|hmm+|ah+|lol|haha|interesting)[\s.!?]*$/.test(lower)) {
+        if (/^(what|what\?|huh|what do you mean|i do not understand|i don't understand|i dont understand|meaning|explain)\??$/.test(lower)) {
+            if (lastAnswer) return 'I mean: ' + lastAnswer + ' Ask about a specific part if you want it simpler.';
+            return 'I may have missed that. Ask me about a game, Coins, Cookies, Daily Gifts, accounts, the Store or settings.';
+        }
+        if (isAcknowledgement(lower)) {
             if (lastGame) return 'Got it. Ask me anything else about ' + lastGame + ', or say "help" for the full topic list.';
             return 'Got it. Ask me anything else about LessFun — games, Coins, Cookies, Daily Gifts, accounts, the Store or settings.';
         }
+        if (/(turn off|disable|stop|close|hide|remove).*(ai|assistant)|(ai|assistant).*(turn off|disable|off|close|hide)/.test(lower)) {
+            return 'Close the assistant with the × button or press Escape. It stops and releases its index when closed, so it does not run in the background.';
+        }
+        if (/(open|show|start|turn on|enable).*(ai|assistant)|(ai|assistant).*(open|show|start|enable)/.test(lower)) {
+            return 'Click the AI button in the top navigation to open the assistant.';
+        }
+        if (/\b(this|current) game\b|in this game|the game i am playing/.test(lower)) {
+            var playing = currentGameName();
+            if (playing) {
+                lastGame = playing;
+                return 'You are playing ' + playing + '. Ask me about its controls, tips, scoring or multiplayer.';
+            }
+            return 'Which game are you playing? ' + GAME_NAMES.join(', ') + '.';
+        }
+        if (/(what happens|what will happen|what is removed|what gets removed|what about).*(account|data)|(account|data).*(deleted|removed|closed)/.test(lower) && /(delet|remov|clos)/.test(lower)) {
+            lastTopic = 'deleting an account';
+            return 'Deleting an account permanently removes the account, its Community posts and its Coins wallet. It cannot be undone. Only the owner can delete an account, from the Owner Console.';
+        }
+        if (/discontinued|removed game|unavailable game|game removed|games removed/.test(lower)) {
+            lastTopic = 'discontinued games';
+            return 'No games have been discontinued. The owner can temporarily disable a game; a disabled game shows "Temporarily unavailable" on the Games page. The current lineup is ' + GAME_NAMES.join(', ') + '.';
+        }
+        if (/(what('s| is)? (inside|in)|what does|what is in|tell me about).*settings|settings.*(contain|include|inside)/.test(lower)) {
+            lastTopic = 'settings';
+            return 'Settings has four groups: Visuals (animations, 3D effects, graphics preset, render resolution, motion blur, FPS, Reduce Motion, shadows, crash slow-mo, film grain), Audio (sound effects and Christmas jingle), Gameplay (speed units, auto-save scores, hints) and Account (version, games available, latest updates and Christmas Secrets).';
+        }
+        if (/^(take me to|open|go to|show me|bring me to)\b.*\bgarage\b/.test(lower)) return navigateTo('garage', 'Garage');
+        if (/^(take me to|open|go to|show me|bring me to)\b.*\bstore\b/.test(lower)) return navigateTo('store', 'Store');
+        if (/^(take me to|open|go to|show me|bring me to)\b.*\bsettings\b/.test(lower)) return navigateTo('settings', 'Settings');
+        if (/^(take me to|open|go to|show me|bring me to)\b.*\bcommunity\b/.test(lower)) return navigateTo('community', 'Community');
+        if (/^(take me to|open|go to|show me|bring me to)\b.*\b(friends|users)\b/.test(lower)) return navigateTo('users', 'Friends');
+        if (/^(take me to|open|go to|show me|bring me to)\b.*\b(games|arcade|home)\b/.test(lower)) return navigateTo('games', 'Games');
         if (/(delete|remove|close|wipe|erase).*(account|profile)|(account|profile).*(delete|removed|closed|erased|gone)/.test(lower)) {
             lastTopic = 'deleting an account';
             return 'There is no self-serve delete button. Email the owner at masonwyj@gmail.com with your username and ask for account deletion. The owner removes the account, posts and wallet from the Owner Console.';
@@ -462,7 +536,9 @@
         var delay = instant ? 0 : 950 + Math.min(850, value.length * 5);
         typingTimer = setTimeout(function () {
             hideTyping();
-            streamMessage(answerFor(value));
+            var reply = answerFor(value);
+            lastAnswer = reply;
+            streamMessage(reply);
         }, delay);
     }
 

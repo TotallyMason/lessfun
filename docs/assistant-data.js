@@ -168,7 +168,7 @@ window.LESSFUN_AI_SEEDS = [
   {
     "t": "settings",
     "k": "settings preferences",
-    "a": "Settings controls graphics, sound, units and Reduce Motion."
+    "a": "Settings has four groups: Visuals for graphics and motion, Audio for sound, Gameplay for units and hints, and Account for version, updates and Christmas Secrets."
   },
   {
     "t": "graphics settings",
@@ -539,5 +539,10 @@ window.LESSFUN_AI_SEEDS = [
     "t": "the Christmas event",
     "k": "christmas event holiday cookies advent gifts",
     "a": "During the Christmas event, games award Cookies, the Advent Calendar gives daily Cookies, Daily Gifts add 3 Cookies, and Snow Rush plus Christmas cosmetics are available in the Store."
+  },
+  {
+    "t": "discontinued games",
+    "k": "discontinued games removed unavailable disabled",
+    "a": "No games have been discontinued. The owner can temporarily disable a game, which makes its card show Temporarily unavailable on the Games page."
   }
 ];
