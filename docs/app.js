@@ -518,6 +518,7 @@ function showView(view) {
     else if (view === 'community') {
         document.getElementById('communityView').style.display = 'block';
         document.getElementById('nav-community').classList.add('active');
+        communityVisibleCount = COMMUNITY_PAGE_SIZE;
         renderViewDeferred('Opening Community…', function () { return renderCommunity(); });
     }
     else if (view === 'users') {
@@ -1095,6 +1096,8 @@ let enginePromise = null;
 let landingPromise = null;
 let tranqPromise = null;
 let assistantPromise = null;
+let drawGuessPromise = null;
+let luckyPromise = null;
 let gameOpenToken = 0;
 
 function ensure3DEngine() {
@@ -1102,7 +1105,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261289'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261290'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1111,7 +1114,7 @@ function ensure3DEngine() {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261289').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261290').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1119,7 +1122,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261289').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261290').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1127,8 +1130,8 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261289')
-            .then(function () { return loadScriptOnce('assistant.js?v=20261289'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261290')
+            .then(function () { return loadScriptOnce('assistant.js?v=20261290'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1141,10 +1144,28 @@ function openAssistant() {
     });
 }
 
+function ensureDrawGuess() {
+    if (typeof openDrawGuessGame === 'function') return Promise.resolve();
+    if (!drawGuessPromise) {
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261290').catch(function (error) { drawGuessPromise = null; throw error; });
+    }
+    return drawGuessPromise;
+}
+
+function ensureLucky() {
+    if (typeof openLuckySpinGame === 'function') return Promise.resolve();
+    if (!luckyPromise) {
+        luckyPromise = loadScriptOnce('lucky.js?v=20261290').catch(function (error) { luckyPromise = null; throw error; });
+    }
+    return luckyPromise;
+}
+
 function preloadGame(id) {
     if (id === 13) { ensureLanding().catch(function () {}); return; }
     if (id === 14) { ensureTranq().catch(function () {}); return; }
-    if (id === 6 || id === 8 || id === 9) return;
+    if (id === 8) { ensureDrawGuess().catch(function () {}); return; }
+    if (id === 9) { ensureLucky().catch(function () {}); return; }
+    if (id === 6) return;
     ensure3DEngine().catch(function () {});
 }
 
@@ -1152,7 +1173,23 @@ function openGame(id) {
     const game = games.find(g => g.id === id);
     if (!game) return;
     const token = ++gameOpenToken;
-    if (id === 6 || id === 8 || id === 9) { openGameNow(id); return; }
+    if (id === 6) { openGameNow(id); return; }
+    if (id === 8) {
+        showViewLoader('Loading ' + game.name + '…');
+        ensureDrawGuess().then(function () { if (token === gameOpenToken) { openGameNow(id); hideViewLoader(); } }).catch(function () {
+            hideViewLoader();
+            alert('Could not load ' + game.name + '. Check your connection and try again.');
+        });
+        return;
+    }
+    if (id === 9) {
+        showViewLoader('Loading ' + game.name + '…');
+        ensureLucky().then(function () { if (token === gameOpenToken) { openGameNow(id); hideViewLoader(); } }).catch(function () {
+            hideViewLoader();
+            alert('Could not load ' + game.name + '. Check your connection and try again.');
+        });
+        return;
+    }
     if (id === 13) {
         showViewLoader('Loading ' + game.name + '…');
         ensureLanding().then(function () { if (token === gameOpenToken) { openGameNow(id); hideViewLoader(); } }).catch(function () {
@@ -8424,6 +8461,15 @@ function renderPostMediaPreview() {
         '<button type="button" class="post-media-remove" onclick="clearPostMedia()">Remove</button>';
 }
 
+const COMMUNITY_PAGE_SIZE = 10;
+let communityVisibleCount = COMMUNITY_PAGE_SIZE;
+
+function communityLoadMore() {
+    communityVisibleCount += COMMUNITY_PAGE_SIZE;
+    showViewLoader('Loading more posts…');
+    renderCommunity().finally(function () { hideViewLoader(); });
+}
+
 async function renderCommunity() {
     const container = document.getElementById('communityPosts');
     if (!container) return;
@@ -8434,28 +8480,33 @@ async function renderCommunity() {
         return;
     }
 
-    const results = await Promise.all([
-        socialQuery(supabaseClient.from('posts').select('*').order('created_at', { ascending: false })),
-        socialQuery(supabaseClient.from('post_replies').select('*').order('created_at', { ascending: true })),
-        socialQuery(supabaseClient.from('post_reactions').select('*').order('created_at', { ascending: false })),
-        socialQuery(supabaseClient.from('reply_reactions').select('*').order('created_at', { ascending: false }))
-    ]);
-
-    if (results[0].error) {
-        container.innerHTML = '<div class="community-closed-card"><strong>Could not load posts.</strong><p>' + escapeHtml(results[0].error.message || 'Unknown error') + '</p></div>';
+    const postRes = await socialQuery(
+        supabaseClient.from('posts').select('*').order('created_at', { ascending: false }).limit(communityVisibleCount + 1)
+    );
+    if (postRes.error) {
+        container.innerHTML = '<div class="community-closed-card"><strong>Could not load posts.</strong><p>' + escapeHtml(postRes.error.message || 'Unknown error') + '</p></div>';
         return;
     }
-
-    const posts = results[0].data || [];
-    const replies = results[1].data || [];
-    const postReactions = results[2].data || [];
-    const replyReactions = results[3].data || [];
-    const migrationMissing = !!(results[1].error || results[2].error || results[3].error);
-
+    const allPosts = postRes.data || [];
+    const hasMorePosts = allPosts.length > communityVisibleCount;
+    const posts = allPosts.slice(0, communityVisibleCount);
     if (!posts.length) {
         container.innerHTML = '<p class="community-empty">No posts yet. Start the conversation.</p>';
         return;
     }
+    const postIds = posts.map(function (post) { return post.id; });
+    const related = await Promise.all([
+        socialQuery(supabaseClient.from('post_replies').select('*').in('post_id', postIds).order('created_at', { ascending: true })),
+        socialQuery(supabaseClient.from('post_reactions').select('*').in('post_id', postIds).order('created_at', { ascending: false }))
+    ]);
+    const replies = related[0].data || [];
+    const postReactions = related[1].data || [];
+    const replyIds = replies.map(function (reply) { return reply.id; });
+    const replyReactRes = replyIds.length
+        ? await socialQuery(supabaseClient.from('reply_reactions').select('*').in('reply_id', replyIds).order('created_at', { ascending: false }))
+        : { data: [], error: null };
+    const replyReactions = replyReactRes.data || [];
+    const migrationMissing = !!(related[0].error || related[1].error || replyReactRes.error);
 
     const repliesByPost = {};
     const postReactionsByPost = {};
@@ -8545,7 +8596,8 @@ async function renderCommunity() {
                 '</div>' +
                 repliesHtml +
             '</div>';
-        }).join('');
+        }).join('') +
+        (hasMorePosts ? '<button type="button" class="community-load-more" onclick="communityLoadMore()">Load more posts</button>' : '');
 }
 
 function loadUser(){ 
@@ -8617,8 +8669,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.05";
-const UPDATE_NOTES = "Community, Friends, Store and game loading now show a liquid-glass loading overlay, and hovering a game starts preloading it";
+const APP_VERSION = "LessFun Public Beta 1.33.06";
+const UPDATE_NOTES = "Community now loads 10 posts at a time with Load More, and Draw & Guess and Lucky Spin load as separate game modules";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -11319,593 +11371,4 @@ function radioPresenceConnect() {
         radioPresenceChannel = null;
     }
     return radioPresenceChannel;
-}
-
-/* ============================================================
-   Draw & Guess — live public drawing game
-   ============================================================ */
-const DG_WORDS = [
-    'merlion', 'hdb', 'mrt', 'durian', 'laksa', 'satay', 'kopi', 'kaya', 'otter', 'supertree',
-    'umbrella', 'slippers', 'laptop', 'sunflower', 'fishball', 'mooncake', 'dragon', 'mermaid', 'pirate', 'rocket',
-    'volcano', 'penguin', 'giraffe', 'octopus', 'dinosaur', 'robot', 'wizard', 'castle', 'rainbow', 'snowman',
-    'pumpkin', 'ghost', 'vampire', 'werewolf', 'zombie', 'skeleton', 'witch', 'cauldron', 'broom', 'potion',
-    'treasure', 'island', 'coconut', 'pineapple', 'watermelon', 'strawberry', 'banana', 'carrot', 'broccoli', 'pizza',
-    'burger', 'sushi', 'noodles', 'dumpling', 'teapot', 'monsoon', 'lightning', 'thunder', 'cloud', 'sun',
-    'moon', 'star', 'planet', 'astronaut', 'satellite', 'telescope', 'camera', 'guitar', 'piano', 'drum',
-    'headphones', 'microphone', 'bicycle', 'motorcycle', 'airplane', 'helicopter', 'submarine', 'sailboat', 'train', 'bus',
-    'taxi', 'signal', 'escalator', 'elevator', 'staircase', 'window', 'mirror', 'clock', 'candle', 'lamp',
-    'key', 'lock', 'door', 'bridge', 'fountain', 'garden', 'playground', 'swings', 'balloon', 'kite'
-];
-const DG_COLORS = ['#ffffff', '#111111', '#ef476f', '#ffd166', '#06d6a0', '#118ab2', '#9b5de5', '#ff7b00'];
-let drawGame = {
-    channel: null,
-    id: '',
-    name: '',
-    players: {},
-    hostId: '',
-    word: '',
-    drawerId: '',
-    roundEnd: 0,
-    timer: 0,
-    drawing: false,
-    lastPoint: null,
-    color: '#ffffff',
-    size: 4,
-    eraser: false,
-    scores: {},
-    guesses: {},
-    chosenDrawer: '',
-    roundActive: false
-};
-
-function dgId() {
-    return 'dg-' + Math.random().toString(36).slice(2, 10);
-}
-
-function dgName() {
-    if (currentUser && currentUser.type === 'user' && currentUser.username) return currentUser.username;
-    return 'Guest-' + Math.random().toString(36).slice(2, 6);
-}
-
-function dgIsHost() {
-    return drawGame.hostId === drawGame.id;
-}
-
-function dgIsDrawer() {
-    return drawGame.drawerId === drawGame.id && drawGame.roundActive;
-}
-
-function dgSetStatus(text) {
-    var el = document.getElementById('dgStatus');
-    if (el) el.textContent = text || '';
-}
-
-function dgSend(event, payload) {
-    if (!drawGame.channel) return;
-    try {
-        var sent = drawGame.channel.send({ type: 'broadcast', event: event, payload: payload });
-        if (sent && sent.catch) sent.catch(function () {});
-    } catch (e) {}
-}
-
-function dgPlayersSorted() {
-    return Object.keys(drawGame.players).map(function (id) {
-        var p = drawGame.players[id];
-        return { id: id, name: p.name || 'Player', joinedAt: p.joinedAt || 0, score: drawGame.scores[id] || 0 };
-    }).sort(function (a, b) {
-        return (a.joinedAt - b.joinedAt) || a.id.localeCompare(b.id);
-    });
-}
-
-function dgRenderPlayers() {
-    var host = document.getElementById('dgPlayers');
-    if (!host) return;
-    var list = dgPlayersSorted();
-    host.innerHTML = list.map(function (p) {
-        var tags = [];
-        if (p.id === drawGame.hostId) tags.push('host');
-        if (p.id === drawGame.drawerId) tags.push('drawing');
-        if (p.id === drawGame.id) tags.push('you');
-        return '<div class="dg-player' + (p.id === drawGame.id ? ' is-me' : '') + (p.id === drawGame.drawerId ? ' is-drawing' : '') + '">' +
-            '<span class="dg-avatar">' + escapeHtml(p.name.charAt(0).toUpperCase()) + '</span>' +
-            '<span class="dg-player-name">' + escapeHtml(p.name) + '</span>' +
-            '<span class="dg-player-score">' + p.score + '</span>' +
-            (tags.length ? '<small>' + tags.join(' · ') + '</small>' : '') +
-        '</div>';
-    }).join('') || '<p class="dg-empty">Connecting…</p>';
-
-    var select = document.getElementById('dgDrawerSelect');
-    var wrap = document.getElementById('dgChooseWrap');
-    if (wrap) wrap.style.display = (dgIsHost() && !drawGame.roundActive && list.length > 1) ? 'flex' : 'none';
-    if (select) {
-        var current = drawGame.chosenDrawer || '';
-        select.innerHTML = list.map(function (p) {
-            return '<option value="' + escapeAttr(p.id) + '"' + (p.id === current ? ' selected' : '') + '>' + escapeHtml(p.name) + '</option>';
-        }).join('');
-        if (list.length && !list.some(function (p) { return p.id === current; })) {
-            drawGame.chosenDrawer = list[0].id;
-            select.value = list[0].id;
-        } else if (!current && list.length) {
-            drawGame.chosenDrawer = list[0].id;
-            select.value = list[0].id;
-        }
-    }
-    var banner = document.getElementById('dgDrawerBanner');
-    if (banner) {
-        if (drawGame.roundActive && drawGame.drawerId) {
-            var drawer = list.find(function (p) { return p.id === drawGame.drawerId; });
-            banner.textContent = '✏️ ' + (drawer ? drawer.name : 'A player') + ' is drawing' + (dgIsDrawer() ? ' — that is you!' : '');
-            banner.classList.add('is-active');
-        } else {
-            banner.textContent = dgIsHost() ? 'Choose a drawer and start the round' : 'Waiting for the host to start…';
-            banner.classList.remove('is-active');
-        }
-    }
-    var startBtn = document.getElementById('dgStartBtn');
-    if (startBtn) startBtn.style.display = (dgIsHost() && !drawGame.roundActive) ? 'inline-flex' : 'none';
-}
-
-function dgRenderWord() {
-    var el = document.getElementById('dgWord');
-    if (!el) return;
-    if (!drawGame.roundActive) {
-        el.textContent = drawGame.word ? 'Word: ' + drawGame.word : 'Waiting for a round…';
-        return;
-    }
-    if (dgIsDrawer()) el.textContent = drawGame.word;
-    else el.textContent = drawGame.word.split('').map(function () { return '_'; }).join(' ');
-    var banner = document.getElementById('dgDrawerBanner');
-    if (banner && drawGame.roundActive) {
-        var list = dgPlayersSorted();
-        var drawer = list.find(function (p) { return p.id === drawGame.drawerId; });
-        banner.textContent = '✏️ ' + (drawer ? drawer.name : 'A player') + ' is drawing' + (dgIsDrawer() ? ' — that is you!' : '');
-        banner.classList.add('is-active');
-    }
-}
-
-function dgAppendChat(name, text, system) {
-    var chat = document.getElementById('dgChat');
-    if (!chat) return;
-    var row = document.createElement('div');
-    row.className = 'dg-chat-row' + (system ? ' is-system' : '');
-    row.innerHTML = system ? escapeHtml(text) : '<b>' + escapeHtml(name) + '</b> ' + escapeHtml(text);
-    chat.appendChild(row);
-    while (chat.children.length > 5) chat.removeChild(chat.firstChild);
-    chat.scrollTop = chat.scrollHeight;
-}
-
-function dgCanvasPoint(e) {
-    var canvas = document.getElementById('dgCanvas');
-    if (!canvas) return null;
-    var r = canvas.getBoundingClientRect();
-    return {
-        x: Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)),
-        y: Math.max(0, Math.min(1, (e.clientY - r.top) / r.height))
-    };
-}
-
-function dgDrawLine(x1, y1, x2, y2, color, size, erase) {
-    var canvas = document.getElementById('dgCanvas');
-    if (!canvas) return;
-    var g = canvas.getContext('2d');
-    var w = canvas.width, h = canvas.height;
-    g.save();
-    g.strokeStyle = erase ? '#0b1018' : color;
-    g.lineWidth = size * (w / 900);
-    g.lineCap = 'round';
-    g.lineJoin = 'round';
-    g.beginPath();
-    g.moveTo(x1 * w, y1 * h);
-    g.lineTo(x2 * w, y2 * h);
-    g.stroke();
-    g.restore();
-}
-
-function dgClearCanvas() {
-    var canvas = document.getElementById('dgCanvas');
-    if (!canvas) return;
-    var g = canvas.getContext('2d');
-    g.fillStyle = '#0b1018';
-    g.fillRect(0, 0, canvas.width, canvas.height);
-}
-
-function dgChooseDrawer(id) {
-    drawGame.chosenDrawer = String(id || '');
-}
-
-function dgStartRound() {
-    if (!dgIsHost() || !supabaseClient) return;
-    var list = dgPlayersSorted();
-    if (list.length < 2) { dgSetStatus('Need at least 2 players to start.'); return; }
-    var candidates = list.filter(function (p) { return p.id !== drawGame.drawerId; });
-    if (!candidates.length) candidates = list;
-    var drawer = candidates[Math.floor(Math.random() * candidates.length)];
-    var word = DG_WORDS[Math.floor(Math.random() * DG_WORDS.length)];
-    drawGame.word = word;
-    drawGame.drawerId = drawer.id;
-    drawGame.roundActive = true;
-    drawGame.roundEnd = Date.now() + 60000;
-    drawGame.guesses = {};
-    dgSend('dg-round', { word: word, drawerId: drawer.id, endsAt: drawGame.roundEnd, scores: drawGame.scores });
-    dgClearCanvas();
-    dgRenderWord();
-    dgRenderPlayers();
-    dgAppendChat('', 'New round! ' + drawer.name + ' is drawing.', true);
-    dgSetStatus('60 seconds. Drawer: ' + drawer.name);
-}
-
-function dgEndRound() {
-    if (!drawGame.roundActive) return;
-    drawGame.roundActive = false;
-    dgSend('dg-end', { word: drawGame.word, scores: drawGame.scores });
-    dgRenderWord();
-    dgRenderPlayers();
-    dgAppendChat('', 'Round over. The word was "' + drawGame.word + '".', true);
-    dgSetStatus('Round over. Host can start another.');
-}
-
-function dgHandleGuess(payload) {
-    if (!drawGame.roundActive || payload.id === drawGame.drawerId) return;
-    if (drawGame.guesses[payload.id]) return;
-    var guess = String(payload.text || '').trim().toLowerCase();
-    if (!guess) return;
-    dgAppendChat(payload.name, payload.text, false);
-    if (!dgIsHost()) return;
-    if (guess !== drawGame.word.toLowerCase()) return;
-    drawGame.guesses[payload.id] = true;
-    drawGame.scores[payload.id] = (drawGame.scores[payload.id] || 0) + 1;
-    drawGame.scores[drawGame.drawerId] = (drawGame.scores[drawGame.drawerId] || 0) + 1;
-    dgSend('dg-correct', { id: payload.id, name: payload.name, scores: drawGame.scores });
-    dgAppendChat('', payload.name + ' guessed it!', true);
-    dgRenderPlayers();
-    var correctCount = Object.keys(drawGame.guesses).length;
-    if (correctCount >= Math.max(1, Object.keys(drawGame.players).length - 1)) dgEndRound();
-}
-
-function dgConnect() {
-    if (!supabaseClient) { dgSetStatus('Draw & Guess needs a connection.'); return; }
-    drawGame.id = dgId();
-    drawGame.name = dgName();
-    drawGame.channel = supabaseClient.channel('lessfun-drawguess-public', {
-        config: { presence: { key: drawGame.id } }
-    });
-    drawGame.channel.on('presence', { event: 'sync' }, function () {
-        var state = drawGame.channel.presenceState() || {};
-        drawGame.players = {};
-        Object.keys(state).forEach(function (key) {
-            (state[key] || []).forEach(function (meta) {
-                drawGame.players[key] = { name: meta.name || key, joinedAt: meta.joinedAt || 0 };
-            });
-        });
-        var sorted = dgPlayersSorted();
-        drawGame.hostId = sorted.length ? sorted[0].id : drawGame.id;
-        dgRenderPlayers();
-        dgRenderWord();
-    });
-    drawGame.channel.on('broadcast', { event: 'dg-line' }, function (msg) {
-        var p = msg.payload || {};
-        dgDrawLine(p.x1, p.y1, p.x2, p.y2, p.color, p.size, p.erase);
-    });
-    drawGame.channel.on('broadcast', { event: 'dg-clear' }, function () { dgClearCanvas(); });
-    drawGame.channel.on('broadcast', { event: 'dg-round' }, function (msg) {
-        var p = msg.payload || {};
-        drawGame.word = p.word || '';
-        drawGame.drawerId = p.drawerId || '';
-        drawGame.roundEnd = p.endsAt || 0;
-        drawGame.scores = p.scores || drawGame.scores;
-        drawGame.roundActive = true;
-        drawGame.guesses = {};
-        dgClearCanvas();
-        dgRenderWord();
-        dgRenderPlayers();
-        dgAppendChat('', 'New round! The word has ' + drawGame.word.length + ' letters.', true);
-    });
-    drawGame.channel.on('broadcast', { event: 'dg-end' }, function (msg) {
-        var p = msg.payload || {};
-        drawGame.roundActive = false;
-        drawGame.scores = p.scores || drawGame.scores;
-        dgRenderWord();
-        dgRenderPlayers();
-        dgAppendChat('', 'Round over. The word was "' + (p.word || drawGame.word) + '".', true);
-    });
-    drawGame.channel.on('broadcast', { event: 'dg-guess' }, function (msg) { dgHandleGuess(msg.payload || {}); });
-    drawGame.channel.on('broadcast', { event: 'dg-correct' }, function (msg) {
-        var p = msg.payload || {};
-        drawGame.scores = p.scores || drawGame.scores;
-        if (p.id && !drawGame.guesses[p.id]) {
-            drawGame.guesses[p.id] = true;
-            dgAppendChat('', (p.name || 'Player') + ' guessed it!', true);
-        }
-        dgRenderPlayers();
-    });
-    drawGame.channel.subscribe(function (status) {
-        if (status === 'SUBSCRIBED') {
-            drawGame.channel.track({ name: drawGame.name, joinedAt: Date.now() });
-            dgSetStatus('Connected. Waiting for players…');
-        }
-    });
-    clearInterval(drawGame.timer);
-    drawGame.timer = setInterval(function () {
-        var t = document.getElementById('dgTimer');
-        if (!t) return;
-        if (drawGame.roundActive) {
-            var left = Math.max(0, Math.ceil((drawGame.roundEnd - Date.now()) / 1000));
-            t.textContent = left + 's';
-            if (left <= 0 && dgIsHost()) dgEndRound();
-        } else {
-            t.textContent = '--';
-        }
-    }, 250);
-}
-
-function dgDestroy() {
-    if (drawGame.timer) { clearInterval(drawGame.timer); drawGame.timer = 0; }
-    if (drawGame.channel && supabaseClient) {
-        try { drawGame.channel.untrack(); } catch (e) {}
-        try { supabaseClient.removeChannel(drawGame.channel); } catch (e) {}
-    }
-    drawGame.channel = null;
-    drawGame.players = {};
-    drawGame.roundActive = false;
-}
-
-function openDrawGuessGame() {
-    if (arcadeMp.connected) arcadeMpLeave(true);
-    if (zombieMp.connected) zombieMpLeave(true);
-    if (window.Games3D) window.Games3D.stop();
-    dgDestroy();
-    currentGameId = 8;
-    document.getElementById('modalGameTitle').textContent = 'Draw & Guess';
-    var body = document.getElementById('modalGameBody');
-    body.innerHTML =
-        '<div class="dg-wrap">' +
-            '<div class="dg-head">' +
-                '<div><span class="dg-kicker">LESSFUN · DRAW & GUESS</span><strong id="dgWord">Waiting for a round…</strong></div>' +
-                '<div class="dg-clock"><small>TIME</small><span class="dg-timer" id="dgTimer">--</span></div>' +
-            '</div>' +
-            '<div class="dg-drawer-banner" id="dgDrawerBanner">Waiting for players…</div>' +
-            '<div class="dg-main">' +
-                '<canvas id="dgCanvas" class="dg-canvas" width="900" height="520"></canvas>' +
-                '<aside class="dg-side">' +
-                    '<div class="dg-players" id="dgPlayers"><p class="dg-empty">Connecting…</p></div>' +
-                    '<div class="dg-chat" id="dgChat"></div>' +
-                    '<form class="dg-guess-form" onsubmit="event.preventDefault();dgSubmitGuess();">' +
-                        '<input id="dgGuess" type="text" maxlength="80" placeholder="Type your guess…" autocomplete="off">' +
-                        '<button type="submit">Send</button>' +
-                    '</form>' +
-                    '<div class="dg-status" id="dgStatus"></div>' +
-                '</aside>' +
-            '</div>' +
-            '<div class="dg-tools">' +
-                '<div class="dg-colors" id="dgColors"></div>' +
-                '<div class="dg-sizes"><button type="button" onclick="dgSetSize(2)">S</button><button type="button" onclick="dgSetSize(4)">M</button><button type="button" onclick="dgSetSize(8)">L</button></div>' +
-                '<button type="button" class="dg-tool" onclick="dgToggleEraser()">Eraser</button>' +
-                '<button type="button" class="dg-tool" onclick="dgClear()">Clear</button>' +
-                '<button type="button" class="dg-tool dg-start" id="dgStartBtn" onclick="dgStartRound()">Start round</button>' +
-                '<button type="button" class="dg-tool" onclick="closeGame()">Leave</button>' +
-            '</div>' +
-        '</div>';
-    document.getElementById('gameModal').style.display = 'flex';
-    var colors = document.getElementById('dgColors');
-    if (colors) {
-        colors.innerHTML = DG_COLORS.map(function (c, i) {
-            return '<button type="button" class="dg-color' + (i === 0 ? ' is-active' : '') + '" style="--swatch:' + c + '" onclick="dgSetColor(\'' + c + '\')"></button>';
-        }).join('');
-    }
-    dgClearCanvas();
-    dgConnect();
-    var canvas = document.getElementById('dgCanvas');
-    if (canvas) {
-        canvas.addEventListener('pointerdown', dgPointerDown);
-        canvas.addEventListener('pointermove', dgPointerMove);
-        canvas.addEventListener('pointerup', dgPointerUp);
-        canvas.addEventListener('pointercancel', dgPointerUp);
-        canvas.addEventListener('pointerleave', dgPointerUp);
-    }
-}
-
-function dgSetColor(color) {
-    drawGame.color = color;
-    drawGame.eraser = false;
-    var buttons = document.querySelectorAll('.dg-color');
-    for (var i = 0; i < buttons.length; i++) {
-        buttons[i].classList.toggle('is-active', buttons[i].style.getPropertyValue('--swatch') === color);
-    }
-}
-
-function dgSetSize(size) { drawGame.size = Number(size) || 4; }
-function dgToggleEraser() { drawGame.eraser = !drawGame.eraser; }
-function dgClear() { dgClearCanvas(); dgSend('dg-clear', {}); }
-function dgSubmitGuess() {
-    var input = document.getElementById('dgGuess');
-    if (!input) return;
-    var text = String(input.value || '').trim();
-    if (!text) return;
-    input.value = '';
-    if (dgIsDrawer()) {
-        dgAppendChat(drawGame.name, text, false);
-        dgSend('dg-guess', { id: drawGame.id, name: drawGame.name, text: text });
-        return;
-    }
-    dgSend('dg-guess', { id: drawGame.id, name: drawGame.name, text: text });
-    if (!dgIsHost()) dgAppendChat(drawGame.name, text, false);
-}
-
-function dgPointerDown(e) {
-    if (!dgIsDrawer()) return;
-    e.preventDefault();
-    drawGame.drawing = true;
-    drawGame.lastPoint = dgCanvasPoint(e);
-    try { e.target.setPointerCapture(e.pointerId); } catch (err) {}
-}
-function dgPointerMove(e) {
-    if (!drawGame.drawing || !dgIsDrawer()) return;
-    var p = dgCanvasPoint(e);
-    if (!p || !drawGame.lastPoint) return;
-    dgDrawLine(drawGame.lastPoint.x, drawGame.lastPoint.y, p.x, p.y, drawGame.color, drawGame.size, drawGame.eraser);
-    dgSend('dg-line', { x1: drawGame.lastPoint.x, y1: drawGame.lastPoint.y, x2: p.x, y2: p.y, color: drawGame.color, size: drawGame.size, erase: drawGame.eraser });
-    drawGame.lastPoint = p;
-}
-function dgPointerUp() { drawGame.drawing = false; drawGame.lastPoint = null; }
-
-/* ============================================================
-   Lucky Spin — virtual-coin slot machine
-   ============================================================ */
-const LUCKY_SYMBOLS = ['🍒', '🍒', '🍒', '🍋', '🍋', '🔔', '🔔', '⭐', '💎', '7️⃣'];
-const LUCKY_PAYOUTS = { '🍒': 4, '🍋': 6, '🔔': 10, '⭐': 16, '💎': 35, '7️⃣': 60 };
-let luckySpin = { spinning: false, bet: 50, timer: 0, tones: null };
-
-function luckyTone(freq, dur, type, vol) {
-    try {
-        if (!luckySpin.tones) luckySpin.tones = new (window.AudioContext || window.webkitAudioContext)();
-        var ctx = luckySpin.tones;
-        var now = ctx.currentTime;
-        var o = ctx.createOscillator();
-        var g = ctx.createGain();
-        o.type = type || 'square';
-        o.frequency.setValueAtTime(freq, now);
-        g.gain.setValueAtTime(vol || 0.04, now);
-        g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
-        o.connect(g); g.connect(ctx.destination);
-        o.start(now); o.stop(now + dur + 0.02);
-    } catch (e) {}
-}
-
-function luckyBalanceText() {
-    var bal = wallet ? wallet.shells : 0;
-    var el = document.getElementById('lsBalance');
-    if (el) el.innerHTML = shellIcon(13) + ' ' + bal.toLocaleString() + ' Coins';
-    return bal;
-}
-
-function luckySetBet(amount) {
-    if (luckySpin.spinning) return;
-    luckySpin.bet = Math.max(10, Math.floor(Number(amount) || 10));
-    var buttons = document.querySelectorAll('.ls-bet');
-    for (var i = 0; i < buttons.length; i++) {
-        buttons[i].classList.toggle('is-active', Number(buttons[i].getAttribute('data-bet')) === luckySpin.bet);
-    }
-    var spinBtn = document.getElementById('lsSpinBtn');
-    if (spinBtn) spinBtn.textContent = 'SPIN · ' + luckySpin.bet.toLocaleString();
-}
-
-function luckySymbol() {
-    return LUCKY_SYMBOLS[Math.floor(Math.random() * LUCKY_SYMBOLS.length)];
-}
-
-function luckySetReel(i, symbol) {
-    var el = document.getElementById('lsReel' + i);
-    if (el) el.textContent = symbol;
-}
-
-function luckyResult(symbols) {
-    var counts = {};
-    symbols.forEach(function (s) { counts[s] = (counts[s] || 0) + 1; });
-    var keys = Object.keys(counts);
-    var triple = keys.find(function (k) { return counts[k] === 3; });
-    if (triple) return { mult: LUCKY_PAYOUTS[triple] || 0, triple: true, symbol: triple };
-    var pair = keys.find(function (k) { return counts[k] === 2; });
-    if (pair) return { mult: 1.2, triple: false, symbol: pair };
-    return { mult: 0, triple: false, symbol: '' };
-}
-
-function luckySpinSpin() {
-    if (!wallet) return;
-    if (luckySpin.spinning) return;
-    var bet = luckySpin.bet;
-    if ((wallet.shells || 0) < bet) {
-        var msg = document.getElementById('lsMessage');
-        if (msg) msg.textContent = 'Not enough Coins. Lower your bet or earn more.';
-        luckyTone(120, 0.15, 'square', 0.05);
-        return;
-    }
-    luckySpin.spinning = true;
-    wallet.shells -= bet;
-    wallet.totalEarned = Math.max(0, wallet.totalEarned || 0);
-    saveWallet();
-    renderWalletUI();
-    luckyBalanceText();
-    var spinBtn = document.getElementById('lsSpinBtn');
-    if (spinBtn) { spinBtn.disabled = true; spinBtn.textContent = 'SPINNING…'; }
-    var msg = document.getElementById('lsMessage');
-    if (msg) msg.textContent = 'Spinning…';
-    luckyTone(220, 0.08, 'square', 0.04);
-
-    var finals = [luckySymbol(), luckySymbol(), luckySymbol()];
-    var ticks = 0;
-    clearInterval(luckySpin.timer);
-    luckySpin.timer = setInterval(function () {
-        ticks++;
-        luckySetReel(0, luckySymbol());
-        luckySetReel(1, luckySymbol());
-        luckySetReel(2, luckySymbol());
-        if (ticks % 2 === 0) luckyTone(320 + (ticks % 5) * 40, 0.03, 'square', 0.02);
-    }, 70);
-
-    setTimeout(function () { clearInterval(luckySpin.timer); luckySetReel(0, finals[0]); luckyTone(480, 0.1, 'triangle', 0.04); }, 900);
-    setTimeout(function () { luckySetReel(1, finals[1]); luckyTone(560, 0.1, 'triangle', 0.04); }, 1200);
-    setTimeout(function () { luckySetReel(2, finals[2]); luckyTone(660, 0.12, 'triangle', 0.05); }, 1500);
-    setTimeout(function () {
-        var res = luckyResult(finals);
-        var win = Math.round(bet * res.mult);
-        if (win > 0) {
-            wallet.shells += win;
-            wallet.totalEarned = (wallet.totalEarned || 0) + win;
-            saveWallet();
-            renderWalletUI();
-            luckyBalanceText();
-            if (msg) msg.textContent = (res.triple ? 'JACKPOT! ' : 'Two of a kind! ') + 'You win ' + win.toLocaleString() + ' Coins.';
-            luckyTone(880, 0.18, 'square', 0.05);
-            setTimeout(function () { luckyTone(1180, 0.25, 'triangle', 0.05); }, 120);
-        } else {
-            if (msg) msg.textContent = 'No match. Better luck next spin.';
-            luckyTone(140, 0.2, 'sawtooth', 0.04);
-        }
-        luckySpin.spinning = false;
-        if (spinBtn) { spinBtn.disabled = false; spinBtn.textContent = 'SPIN · ' + bet.toLocaleString(); }
-    }, 1700);
-}
-
-function luckyCleanup() {
-    clearInterval(luckySpin.timer);
-    luckySpin.spinning = false;
-}
-
-function openLuckySpinGame() {
-    luckyCleanup();
-    if (arcadeMp.connected) arcadeMpLeave(true);
-    if (zombieMp.connected) zombieMpLeave(true);
-    if (window.Games3D) window.Games3D.stop();
-    currentGameId = 9;
-    document.getElementById('modalGameTitle').textContent = 'Lucky Spin';
-    var body = document.getElementById('modalGameBody');
-    body.innerHTML =
-        '<div class="ls-wrap">' +
-            '<div class="ls-head">' +
-                '<div><span class="ls-kicker">LESSFUN · VIRTUAL CASINO</span><h2>Lucky Spin</h2></div>' +
-                '<div class="ls-balance" id="lsBalance">— Coins</div>' +
-            '</div>' +
-            '<div class="ls-machine">' +
-                '<div class="ls-reels">' +
-                    '<div class="ls-reel" id="lsReel0">🍒</div>' +
-                    '<div class="ls-reel" id="lsReel1">🔔</div>' +
-                    '<div class="ls-reel" id="lsReel2">💎</div>' +
-                    '<div class="ls-payline"></div>' +
-                '</div>' +
-                '<p class="ls-message" id="lsMessage">Choose a bet and spin.</p>' +
-            '</div>' +
-            '<div class="ls-bets">' +
-                [10, 50, 100, 500, 1000].map(function (b) {
-                    return '<button type="button" class="ls-bet" data-bet="' + b + '" onclick="luckySetBet(' + b + ')">' + b + '</button>';
-                }).join('') +
-            '</div>' +
-            '<button type="button" class="ls-spin" id="lsSpinBtn" onclick="luckySpinSpin()">SPIN · 50</button>' +
-            '<div class="ls-paytable">' +
-                '<span>🍒 x4</span><span>🍋 x6</span><span>🔔 x10</span><span>⭐ x16</span><span>💎 x35</span><span>7️⃣ x60</span>' +
-            '</div>' +
-            '<p class="ls-disclaimer">Virtual Coins only. No real-money value, purchases, or withdrawals.</p>' +
-        '</div>';
-    document.getElementById('gameModal').style.display = 'flex';
-    luckySetBet(50);
-    luckyBalanceText();
 }

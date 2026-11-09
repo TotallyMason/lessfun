@@ -11685,3 +11685,5 @@ html.is-loading, html.is-loading body { overflow: hidden; }
     .view-loader-card { animation: none; }
     .view-loader-spinner { animation-duration: 2s; }
 }
+.community-load-more { display: block; width: 100%; max-width: 320px; margin: 16px auto 4px; min-height: 44px; border-radius: 999px; border: 1px solid rgba(150, 215, 255, 0.24); background: rgba(255, 255, 255, 0.055); color: rgba(225, 245, 255, 0.72); font: inherit; font-size: 10px; font-weight: 800; letter-spacing: 0.06em; cursor: pointer; }
+.community-load-more:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(170, 225, 255, 0.42); color: #fff; }
