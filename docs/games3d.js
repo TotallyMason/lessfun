@@ -22,7 +22,17 @@
     var motionBlurEnabled = true;
     var crashSlowmoEnabled = true;
     var shadowQuality = !isMobileDevice;
-    var motionBlurAutoOff = isMobileDevice;
+    var deviceCores = (global.navigator && global.navigator.hardwareConcurrency) || 8;
+    var deviceMemory = (global.navigator && global.navigator.deviceMemory) || 8;
+    var lowPowerDevice = isMobileDevice || deviceCores <= 4 || deviceMemory <= 4;
+    if (lowPowerDevice) {
+        adaptiveScale = 0.72;
+        graphicsPreset = 'medium';
+        qualityLevel = 1;
+        shadowQuality = false;
+        motionBlurEnabled = false;
+    }
+    var motionBlurAutoOff = isMobileDevice || lowPowerDevice;
     var lowFpsTime = 0;
     var showFps = true;
     var motionBlurTargets = null;
@@ -223,6 +233,8 @@
         var engineLowLoop = null, engineHighLoop = null;
         var samplesLoading = false;
         var gearSelectBuffer = null;
+        var crashBuffer = null;
+        var fatalCrashBuffer = null;
         var audioResumeHandler = null;
         var revLevel = 0;
         var carDamage = { engine: 0, steering: 0, suspension: 0, tires: [0, 0, 0, 0], fire: 0 };
@@ -264,7 +276,9 @@
                 decodeSample('audio/wind-high.mp3'),
                 decodeSample('audio/engine-low.mp3'),
                 decodeSample('audio/engine-high.mp3'),
-                decodeSample('audio/gear-select.mp3')
+                decodeSample('audio/gear-select.mp3'),
+                decodeSample('audio/crash.mp3'),
+                decodeSample('audio/crash-fatal.mp3')
             ]).then(function (buffers) {
                 if (!audioCtx || audioCtx.state === 'closed') return;
                 windLowLoop = makeSampleLoop(buffers[0]);
@@ -272,6 +286,8 @@
                 engineLowLoop = makeSampleLoop(buffers[2]);
                 engineHighLoop = makeSampleLoop(buffers[3]);
                 gearSelectBuffer = buffers[4];
+                crashBuffer = buffers[5];
+                fatalCrashBuffer = buffers[6];
             }).catch(function () {
                 // If loading fails, the synthesized engine and wind stay available.
             }).then(function () {
@@ -289,12 +305,14 @@
             try {
                 var src = audioCtx.createBufferSource();
                 src.buffer = buffer;
-                src.playbackRate.value = 1;
+                var variation = 0.94 + Math.random() * 0.12;
+                if (typeof gear === 'number') variation += (gear % 4) * 0.018;
+                src.playbackRate.value = variation;
                 var gain = audioCtx.createGain();
-                gain.gain.value = 0.38;
+                gain.gain.value = 0.32 + Math.random() * 0.12;
                 src.connect(gain);
                 gain.connect(audioMaster);
-                src.start(0, 0, 0.7);
+                src.start(0, Math.random() * 0.12, 0.58);
             } catch (e) {}
         }
 
@@ -445,7 +463,27 @@
             } catch (e) {}
         }
 
+        function playCrashSample(fatal) {
+            if (!soundEnabled || !audioCtx) return false;
+            var buffer = fatal ? fatalCrashBuffer : crashBuffer;
+            if (!buffer) return false;
+            try {
+                var src = audioCtx.createBufferSource();
+                src.buffer = buffer;
+                src.playbackRate.value = 0.95 + Math.random() * 0.1;
+                var gain = audioCtx.createGain();
+                gain.gain.value = 0.55;
+                src.connect(gain);
+                gain.connect(audioMaster);
+                src.start(0, 0, fatal ? 1.8 : 1.25);
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
         function crashSound() {
+            if (playCrashSample(crashFatal)) return;
             tone(90, 0.35, 'sawtooth', 0.16, 35);
             tone(180, 0.22, 'square', 0.09, 60);
         }
@@ -605,7 +643,7 @@
         });
         var cloudLayers = [];
         var cloudTints = [0xffffff, 0xffe6d8, 0xdfefff, 0xfff1de, 0xe8ddff];
-        for (var cl = 0; cl < 18; cl++) {
+        for (var cl = 0; cl < (lowPowerDevice ? 10 : 18); cl++) {
             var cluster = new THREE.Group();
             var puffs = 6 + Math.floor(Math.random() * 5);
             for (var cp = 0; cp < puffs; cp++) {
@@ -9298,7 +9336,7 @@
                     applyPixelRatio();
                     adaptiveTransition = null;
                 }
-            } else if (adaptiveCooldown <= 0) {
+            } else if (adaptiveCooldown <= 0 && !(active && active.isCinematic && active.isCinematic())) {
                 if (fps < 56 && adaptiveScale > 0.2) {
                     beginResolutionTransition(Math.max(0.2, adaptiveScale - 0.1));
                 } else if (fps > 58 && adaptiveScale < 1) {
@@ -9317,7 +9355,7 @@
             var shouldRender = true;
             if (active && active.isCinematic && active.isCinematic()) {
                 var nowCinema = (global.performance && global.performance.now) ? global.performance.now() : Date.now();
-                if (nowCinema - lastCinemaFrame < 16.7) shouldRender = false;
+                if (nowCinema - lastCinemaFrame < 15.0) shouldRender = false;
                 else lastCinemaFrame = nowCinema;
             }
             if (shouldRender) renderFrame();
@@ -9355,8 +9393,17 @@
         playedSeconds = 0;
 
         resetScene();
-        renderer = new THREE.WebGLRenderer({ antialias: (global.devicePixelRatio || 1) <= 1, powerPreference: 'high-performance' });
-        renderer.shadowMap.enabled = !isMobileDevice;
+        try {
+            renderer = new THREE.WebGLRenderer({ antialias: !lowPowerDevice && (global.devicePixelRatio || 1) <= 1, powerPreference: 'high-performance' });
+        } catch (glError) {
+            container.innerHTML = '<div style="padding:40px;text-align:center;color:#eafaff;font:600 14px system-ui,sans-serif">' +
+                '<h2 style="margin:0 0 8px">3D graphics are not available</h2>' +
+                '<p style="color:rgba(220,240,250,.6)">This browser or computer does not support WebGL. Try Chrome, Edge, Firefox or Safari with hardware acceleration enabled.</p>' +
+                '</div>';
+            running = false;
+            return;
+        }
+        renderer.shadowMap.enabled = !isMobileDevice && !lowPowerDevice;
         renderer.shadowMap.type = THREE.PCFShadowMap;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.08;

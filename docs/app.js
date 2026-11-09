@@ -1120,7 +1120,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261313'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261314'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1129,7 +1129,7 @@ function ensure3DEngine() {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261313').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261314').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1137,7 +1137,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261313').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261314').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1145,8 +1145,8 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261313')
-            .then(function () { return loadScriptOnce('assistant.js?v=20261313'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261314')
+            .then(function () { return loadScriptOnce('assistant.js?v=20261314'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1162,7 +1162,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261313').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261314').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1170,7 +1170,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261313').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261314').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1178,7 +1178,7 @@ function ensureLucky() {
 function ensureTycoon() {
     if (window.Tycoon) return Promise.resolve();
     if (!tycoonPromise) {
-        tycoonPromise = loadScriptOnce('tycoon.js?v=20261313').catch(function (error) { tycoonPromise = null; throw error; });
+        tycoonPromise = loadScriptOnce('tycoon.js?v=20261314').catch(function (error) { tycoonPromise = null; throw error; });
     }
     return tycoonPromise;
 }
@@ -6878,6 +6878,35 @@ const CAR_CATALOG = CAR_DATA.trim().split('\n').map(function (line, index) {
     };
 });
 
+// Expand the showroom to 1000 cars with 499 extra trims. Appending keeps
+// every existing car ID and saved garage intact.
+var BASE_CARS = CAR_CATALOG.slice();
+var TRIM_SUFFIXES = ['S', 'RS', 'GT', 'Track', 'Sport', 'Plus', 'Edition', 'Club', 'Performance', 'Limited'];
+for (var genIndex = 0; genIndex < 499; genIndex++) {
+    var baseCar = BASE_CARS[genIndex % BASE_CARS.length];
+    var trim = TRIM_SUFFIXES[genIndex % TRIM_SUFFIXES.length];
+    var genTop = Math.max(80, Math.min(320, baseCar.topSpeed + ((genIndex % 9) - 4) * 3));
+    var genZero = Math.max(1.8, Number((baseCar.zeroTo60 + ((genIndex % 5) - 2) * 0.15).toFixed(2)));
+    var genHp = Math.max(80, baseCar.hp + ((genIndex % 7) - 3) * 25);
+    var genPrice = Math.max(1500, Math.round((baseCar.price * (0.85 + (genIndex % 5) * 0.09)) / 100) * 100);
+    CAR_CATALOG.push({
+        id: 'car_gen_' + ('000' + (genIndex + 1)).slice(-3),
+        brand: baseCar.brand,
+        model: baseCar.model + ' ' + trim,
+        year: Math.max(1960, Math.min(2026, baseCar.year + (genIndex % 3) - 1)),
+        topSpeed: genTop,
+        zeroTo60: genZero,
+        hp: genHp,
+        style: baseCar.style,
+        color: baseCar.color,
+        threeColor: baseCar.threeColor,
+        drivetrain: baseCar.drivetrain,
+        price: genPrice,
+        tier: genPrice >= 60000 ? 'Hypercar' : genPrice >= 30000 ? 'Supercar' : genPrice >= 15000 ? 'Performance' : 'Sport',
+        generated: true
+    });
+}
+
 // Holiday freebie. Kept out of the generated list so existing car IDs and
 // saved garages stay stable.
 CAR_CATALOG.unshift({
@@ -8942,8 +8971,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.29";
-const UPDATE_NOTES = "All gear shifts now use the gear-select sound. Beach Racer also has engine, steering, suspension and tire damage, broken glass, fire, blowouts and a wider traffic vehicle mix";
+const APP_VERSION = "LessFun Public Beta 1.33.30";
+const UPDATE_NOTES = "Beach Racer now has varied gear-select sounds, licensed crash effects, 1000 showroom cars, a 60 FPS crash slow-motion camera and a lighter preset for lower-end computers";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
