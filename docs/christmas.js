@@ -22,6 +22,8 @@
     var boostTimer = 0;
     var radioActive = false;
     var radioWasPlaying = false;
+    var focusActive = false;
+    var focusWasPlaying = false;
 
     // ---- Synthesized fallback (public-domain Jingle Bells) ----
     var context = null;
@@ -232,12 +234,16 @@
         audio = new Audio();
         audio.src = TRACK_URL;
         audio.loop = true;
-        audio.preload = 'none';
+        audio.preload = 'auto';
+        audio.autoplay = true;
         audio.volume = BASE_VOLUME;
         audio.setAttribute('playsinline', '');
         audio.addEventListener('error', function () {
             audioBroken = true;
             if (playing) startSynth();
+        });
+        audio.addEventListener('canplay', function () {
+            if (enabled && unlocked && !playing && !radioActive && !focusActive) start();
         });
         return audio;
     }
@@ -295,7 +301,7 @@
     }
 
     function start() {
-        if (!enabled || !isHoliday() || playing || radioActive) return;
+        if (!enabled || !isHoliday() || playing || radioActive || focusActive) return;
         if (!unlocked) return;
         if (audioBroken) {
             startSynth();
@@ -327,7 +333,21 @@
         }
         var resume = radioWasPlaying;
         radioWasPlaying = false;
-        if (resume && enabled && unlocked) start();
+        if (resume && enabled && unlocked && !focusActive) start();
+    }
+
+    function setFocusMode(active) {
+        active = !!active;
+        if (active === focusActive) return;
+        focusActive = active;
+        if (active) {
+            focusWasPlaying = playing;
+            if (playing) stop();
+            return;
+        }
+        var resume = focusWasPlaying;
+        focusWasPlaying = false;
+        if (resume && enabled && unlocked && !radioActive) start();
     }
 
     // Hidden reindeer easter egg: turn the music up for a few seconds.
@@ -392,13 +412,16 @@
         syncToggle();
         updateButton();
         if (!isHoliday()) return;
-        // Browsers only allow audible autoplay after a gesture.
+        // Try to start immediately. Some browsers allow audible autoplay after
+        // previous engagement with the site; otherwise the gesture fallback runs.
+        unlocked = true;
+        start();
         document.addEventListener('pointerdown', unlock, { once: true, passive: true });
         document.addEventListener('keydown', unlock, { once: true });
         // The MP3 keeps playing while the tab is hidden; restart if the
         // browser suspended it for any reason when we return.
         document.addEventListener('visibilitychange', function () {
-            if (!document.hidden && enabled && unlocked && !playing && !radioActive) start();
+            if (!document.hidden && enabled && unlocked && !playing && !radioActive && !focusActive) start();
         });
     }
 
@@ -412,7 +435,7 @@
         };
     }
 
-    window.LessFunJingle = { toggle: toggle, start: start, stop: stop, setEnabled: setEnabled, boost: boost, status: status, setRadioActive: setRadioActive };
+    window.LessFunJingle = { toggle: toggle, start: start, stop: stop, setEnabled: setEnabled, boost: boost, status: status, setRadioActive: setRadioActive, setFocusMode: setFocusMode };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
     else init();
 })();

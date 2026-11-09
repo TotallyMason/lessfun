@@ -12630,3 +12630,53 @@ body.in-game .xmas-snowman { display: none; }
     0% { transform: translateX(-110%); }
     100% { transform: translateX(280%); }
 }
+
+/* Focus Mode — instant mute and neutral full-screen cover. */
+.focus-mode {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: #0c1118;
+    color: #e8eef6;
+    font-family: inherit;
+    animation: focusModeIn 0.18s ease-out both;
+}
+@keyframes focusModeIn { from { opacity: 0; } to { opacity: 1; } }
+.focus-mode-inner { width: min(520px, 100%); text-align: center; }
+.focus-mode-kicker {
+    margin: 0 0 18px;
+    color: rgba(180, 205, 225, 0.55);
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+}
+.focus-mode h1 {
+    margin: 0;
+    color: #f4f8ff;
+    font-size: clamp(56px, 14vw, 110px);
+    font-weight: 300;
+    letter-spacing: -0.04em;
+    line-height: 1;
+}
+.focus-mode p { margin: 10px 0 0; color: rgba(190, 210, 228, 0.55); font-size: 13px; }
+.focus-mode .focus-mode-hint { margin-top: 28px; font-size: 11px; }
+.focus-mode-resume {
+    min-height: 36px;
+    margin-top: 18px;
+    padding: 0 22px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.06);
+    color: #dce8f5;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+}
+.focus-mode-resume:hover { background: rgba(255, 255, 255, 0.12); }
+body.focus-mode-on { overflow: hidden; }

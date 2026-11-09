@@ -1140,7 +1140,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261336'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261337'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1149,7 +1149,7 @@ function ensure3DEngine() {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261336').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261337').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1157,7 +1157,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261336').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261337').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1165,9 +1165,9 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261336')
-            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261336'); })
-            .then(function () { return loadScriptOnce('assistant.js?v=20261336'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261337')
+            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261337'); })
+            .then(function () { return loadScriptOnce('assistant.js?v=20261337'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1195,7 +1195,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261336').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261337').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1203,7 +1203,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261336').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261337').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1211,7 +1211,7 @@ function ensureLucky() {
 function ensureTycoon() {
     if (window.Tycoon) return Promise.resolve();
     if (!tycoonPromise) {
-        tycoonPromise = loadScriptOnce('tycoon.js?v=20261336').catch(function (error) { tycoonPromise = null; throw error; });
+        tycoonPromise = loadScriptOnce('tycoon.js?v=20261337').catch(function (error) { tycoonPromise = null; throw error; });
     }
     return tycoonPromise;
 }
@@ -9175,8 +9175,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.52";
-const UPDATE_NOTES = "Radio now stops the Christmas jingle while it plays and stays quiet in Radio Off mode. The assistant also has a new general chat pack built from 5,000 conversations";
+const APP_VERSION = "LessFun Public Beta 1.33.53";
+const UPDATE_NOTES = "The Christmas jingle now tries to autoplay on load. Press Esc twice for Focus Mode: mutes all audio, pauses games and radio, and hides the screen instantly";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -11889,6 +11889,100 @@ function radioSetVolume(value) {
     if (audio) audio.volume = volume;
     try { localStorage.setItem('lessfun_radio_volume', String(volume)); } catch (e) {}
 }
+
+/* ---------------- Focus Mode quick hide ---------------- */
+var focusModeActive = false;
+var focusModeLastEsc = 0;
+var focusModePrevTitle = 'LessFun';
+var focusModeRadioWasPlaying = false;
+var focusModeGameWasOpen = false;
+var focusClockTimer = 0;
+
+function updateFocusClock() {
+    var now = new Date();
+    var clock = document.getElementById('focusModeClock');
+    var date = document.getElementById('focusModeDate');
+    if (clock) clock.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (date) date.textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+}
+
+function enterFocusMode() {
+    if (focusModeActive) return;
+    focusModeActive = true;
+    focusModePrevTitle = document.title;
+    focusModeGameWasOpen = currentGameId != null;
+    if (window.LessFunAI && window.LessFunAI.close) window.LessFunAI.close();
+    if (window.LessFunJingle && window.LessFunJingle.setFocusMode) window.LessFunJingle.setFocusMode(true);
+    var radio = document.getElementById('lessfunRadioAudio');
+    focusModeRadioWasPlaying = !!(radio && !radio.paused && !radio.ended);
+    if (radio && !radio.paused) {
+        radioOwnMusicMode = true;
+        radioTuning = false;
+        try { radio.pause(); } catch (e) {}
+    }
+    if (window.Games3D && window.Games3D.setPaused) window.Games3D.setPaused(true);
+    document.title = 'Focus Mode';
+    updateFocusClock();
+    if (focusClockTimer) clearInterval(focusClockTimer);
+    focusClockTimer = setInterval(updateFocusClock, 1000);
+    document.body.classList.add('focus-mode-on');
+    var el = document.getElementById('focusMode');
+    if (el) el.style.display = 'flex';
+}
+
+function leaveFocusMode() {
+    if (!focusModeActive) return;
+    focusModeActive = false;
+    focusModeLastEsc = 0;
+    if (focusClockTimer) { clearInterval(focusClockTimer); focusClockTimer = 0; }
+    var el = document.getElementById('focusMode');
+    if (el) el.style.display = 'none';
+    document.body.classList.remove('focus-mode-on');
+    document.title = focusModePrevTitle || 'LessFun';
+    if (window.LessFunJingle && window.LessFunJingle.setFocusMode) window.LessFunJingle.setFocusMode(false);
+    if (focusModeRadioWasPlaying) {
+        focusModeRadioWasPlaying = false;
+        radioOwnMusicMode = false;
+        radioTuning = true;
+        radioJingleSync(true);
+        var radio = document.getElementById('lessfunRadioAudio');
+        if (radio) {
+            var attempt = radio.play();
+            if (attempt && attempt.catch) {
+                attempt.catch(function () {
+                    radioTuning = false;
+                    if (!radioOwnMusicMode) radioJingleSync(false);
+                    radioSetStatus('Tap Play to resume radio');
+                });
+            }
+        }
+    }
+    if (focusModeGameWasOpen && window.Games3D && window.Games3D.setPaused) window.Games3D.setPaused(false);
+    focusModeGameWasOpen = false;
+}
+
+document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') {
+        if (focusModeActive) {
+            event.preventDefault();
+            leaveFocusMode();
+            return;
+        }
+        var now = Date.now();
+        if (now - focusModeLastEsc <= 550) {
+            event.preventDefault();
+            focusModeLastEsc = 0;
+            enterFocusMode();
+            return;
+        }
+        focusModeLastEsc = now;
+        return;
+    }
+    if ((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'X' || event.key === 'x')) {
+        event.preventDefault();
+        enterFocusMode();
+    }
+}, true);
 
 
 /* ---------------- Radio listener presence ---------------- */
