@@ -57,6 +57,16 @@ playing in the background. Turn it off or on with the **Christmas Jingle**
 toggle in **Settings → Gameplay**. If the MP3 cannot load, an original
 synthesized Jingle Bells arrangement plays instead.
 
+## Beach Racer wind audio
+
+Beach Racer crossfades two wind loops as speed rises:
+
+- `docs/audio/wind-low.mp3` — Mixkit “Windy sea loop”
+- `docs/audio/wind-high.mp3` — Mixkit “Wind in the top of the mountain”
+
+Both are used under the [Mixkit License](https://mixkit.co/license/). No
+attribution is required, but the source is credited here.
+
 ## Run locally
 
 The web version lives in [`docs/`](docs) and uses no build step, no bundler, and

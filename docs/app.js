@@ -1120,7 +1120,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261304'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261305'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1129,7 +1129,7 @@ function ensure3DEngine() {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261304').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261305').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1137,7 +1137,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261304').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261305').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1145,8 +1145,8 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261304')
-            .then(function () { return loadScriptOnce('assistant.js?v=20261304'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261305')
+            .then(function () { return loadScriptOnce('assistant.js?v=20261305'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1162,7 +1162,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261304').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261305').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1170,7 +1170,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261304').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261305').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1178,7 +1178,7 @@ function ensureLucky() {
 function ensureTycoon() {
     if (window.Tycoon) return Promise.resolve();
     if (!tycoonPromise) {
-        tycoonPromise = loadScriptOnce('tycoon.js?v=20261304').catch(function (error) { tycoonPromise = null; throw error; });
+        tycoonPromise = loadScriptOnce('tycoon.js?v=20261305').catch(function (error) { tycoonPromise = null; throw error; });
     }
     return tycoonPromise;
 }
@@ -1291,7 +1291,7 @@ function openGameNow(id) {
     document.getElementById('modalGameTitle').textContent = game.name;
     const body = document.getElementById('modalGameBody');
     body.innerHTML =
-        '<div class="game3d-wrap' + (game.fpsMode ? ' is-fps' : '') + '">' +
+        '<div class="game3d-wrap' + (game.fpsMode ? ' is-fps' : '') + (game.id === 1 ? ' is-racer' : '') + '">' +
             '<div class="game3d-hud">' +
                 '<div class="game3d-glass">' +
                     '<strong class="game3d-glass-status" id="g3dExtra">-</strong>' +
@@ -1305,6 +1305,22 @@ function openGameNow(id) {
                 '</div>' +
             '</div>' +
             '<div id="g3dCanvas" class="game3d-canvas"></div>' +
+            (game.id === 1 ?
+                '<div class="g3d-gauges" id="g3dGauges">' +
+                    '<div class="g3d-tach" id="g3dTach">' +
+                        '<div class="g3d-tach-ticks"></div>' +
+                        '<div class="g3d-tach-red"></div>' +
+                        '<div class="g3d-gauge-needle" id="g3dNeedle"></div>' +
+                        '<span class="g3d-tach-label">RPM</span>' +
+                        '<strong class="g3d-tach-gear" id="g3dGaugeGear">D</strong>' +
+                    '</div>' +
+                    '<div class="g3d-gauge-digital">' +
+                        '<div class="g3d-gauge-speed"><strong id="g3dGaugeSpeed">0</strong><span id="g3dGaugeUnit">mph</span></div>' +
+                        '<div class="g3d-gauge-row"><span>RPM <b id="g3dGaugeRpm">0</b></span><span>GEAR <b id="g3dGaugeGearBig">D</b></span></div>' +
+                        '<div class="g3d-gauge-status" id="g3dGaugeStatus">HOLD W TO START</div>' +
+                        '<div class="g3d-gauge-meta"><span>SCORE <b id="g3dGaugeScore">0</b></span><span>COINS <b id="g3dGaugeCoins">0</b></span></div>' +
+                    '</div>' +
+                '</div>' : '') +
             (game.id === 4 ?
                 '<div class="dc-hud" id="dcHud">' +
                     '<div class="dc-head"><span class="dc-kicker">DEAD COAST · 10 KM RUN</span><strong id="dcDistance">0.00 / 10 km</strong></div>' +
@@ -8926,8 +8942,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.20";
-const UPDATE_NOTES = "Arcade Tycoon now has snack bars, prize counters, marketing boosts, daily bonuses and tournaments. Loading screens hold their animation, minor-crash particles fade, and km/h reads lower";
+const APP_VERSION = "LessFun Public Beta 1.33.21";
+const UPDATE_NOTES = "Beach Racer now has a real RPM and gear gauge, speed-based FOV, camera lag under acceleration, subtle power shake and licensed wind sounds that change with speed";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

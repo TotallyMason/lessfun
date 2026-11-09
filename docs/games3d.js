@@ -218,6 +218,7 @@
         var engineOsc = null, engineOsc2 = null, engineGain = null, engineGain2 = null, engineFilter = null;
         var windGain = null, nitroGain = null, driftGain = null, driftFilter = null;
         var windSrc = null, nitroSrc = null, driftSrc = null;
+        var windLowEl = null, windHighEl = null;
         var engineOscStarted = false, audioNoiseStarted = false;
         var lastAudioGear = 0;
         var audioDriftLevel = 0;
@@ -237,6 +238,8 @@
                 };
                 audioCleanup = function () {
                     audioMuteHandler = null;
+                    try { if (windLowEl) windLowEl.pause(); } catch (e) {}
+                    try { if (windHighEl) windHighEl.pause(); } catch (e) {}
                     try { audioCtx.close(); } catch (e) {}
                     audioCtx = null;
                 };
@@ -304,6 +307,28 @@
                 driftGain.connect(audioMaster);
 
                 if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                // Licensed-free wind loops. They crossfade with speed so the
+                // wind changes character instead of only getting louder.
+                if (global.Audio) {
+                    try {
+                        windLowEl = new global.Audio('audio/wind-low.mp3');
+                        windLowEl.loop = true;
+                        windLowEl.preload = 'auto';
+                        windLowEl.volume = 0;
+                        var lowPlay = windLowEl.play();
+                        if (lowPlay && lowPlay.catch) lowPlay.catch(function () {});
+                        windHighEl = new global.Audio('audio/wind-high.mp3');
+                        windHighEl.loop = true;
+                        windHighEl.preload = 'auto';
+                        windHighEl.volume = 0;
+                        var highPlay = windHighEl.play();
+                        if (highPlay && highPlay.catch) highPlay.catch(function () {});
+                    } catch (windErr) {
+                        windLowEl = null;
+                        windHighEl = null;
+                    }
+                }
             } catch (e) {
                 audioCtx = null;
             }
@@ -365,11 +390,45 @@
                 engineOsc.frequency.setTargetAtTime(liveRpm, now, 0.055);
                 engineOsc2.frequency.setTargetAtTime(liveRpm * 1.5 + 7, now, 0.06);
                 engineFilter.frequency.setTargetAtTime(430 + absSpeed * 10 + (nitroActive ? 320 : 0), now, 0.1);
-                windGain.gain.setTargetAtTime(running ? Math.min(0.075, absSpeed / 1700) : 0, now, 0.15);
+                var hasWindSamples = !!(windLowEl && windHighEl);
+                windGain.gain.setTargetAtTime(!hasWindSamples && running ? Math.min(0.075, absSpeed / 1700) : 0, now, 0.15);
+                if (hasWindSamples) {
+                    var windFrac = Math.min(1, absSpeed / 150);
+                    var lowVol = soundEnabled ? (0.025 + windFrac * 0.085) : 0;
+                    var highVol = soundEnabled ? Math.max(0, windFrac - 0.34) / 0.66 * 0.12 : 0;
+                    windLowEl.volume = Math.max(0, Math.min(0.25, lowVol));
+                    windHighEl.volume = Math.max(0, Math.min(0.25, highVol));
+                    windLowEl.playbackRate = 0.82 + windFrac * 0.62;
+                    windHighEl.playbackRate = 0.9 + windFrac * 0.75;
+                }
                 nitroGain.gain.setTargetAtTime(running && nitroActive ? 0.05 : 0, now, 0.1);
                 driftGain.gain.setTargetAtTime(running ? Math.min(0.1, audioDriftLevel * 0.1) : 0, now, 0.08);
                 driftFilter.frequency.setTargetAtTime(1200 + Math.abs(currentVx) * 55, now, 0.1);
             } catch (e) {}
+        }
+
+        function updateRacerGauge(rpm, speedValue, gear, statusText, scoreValue, coins) {
+            var speedParts = speedText(speedValue).split(' ');
+            var speedNumber = speedParts[0] || '0';
+            var unit = speedParts[1] || 'mph';
+            var gearLabel = gear === 'OFF' ? 'N' : String(gear).replace('/6', '');
+            function setText(id, value) {
+                var el = document.getElementById(id);
+                if (el && el.textContent !== String(value)) el.textContent = String(value);
+            }
+            setText('g3dGaugeSpeed', speedNumber);
+            setText('g3dGaugeUnit', unit);
+            setText('g3dGaugeRpm', Math.round(rpm));
+            setText('g3dGaugeGear', gearLabel);
+            setText('g3dGaugeGearBig', gearLabel);
+            setText('g3dGaugeStatus', statusText);
+            setText('g3dGaugeScore', Math.round(scoreValue));
+            setText('g3dGaugeCoins', Math.round(coins));
+            var needle = document.getElementById('g3dNeedle');
+            if (needle) {
+                var angle = -135 + Math.max(0, Math.min(1, rpm / 8000)) * 270;
+                needle.style.transform = 'translateX(-50%) rotate(' + angle.toFixed(2) + 'deg)';
+            }
         }
 
         scene.background = new THREE.Color(0x9bd7f2);
@@ -3830,7 +3889,7 @@
         var nitroWasActive = false, nitroShiftT = 0;
         var coinsCollected = 0;
         var garageMode = false;
-        var hudT = 0;
+        var hudT = 0, gaugeT = 0, prevSpeedAbs = 0;
         var maxX = ROAD_W / 2 - 1.3;
         var steerX = 0;
         var steerAngle = 0;
@@ -4985,11 +5044,13 @@
                 warningT = 0;
             }
 
-            var fov = 68 + Math.min(36, Math.abs(speed) * 0.24);
-            if (Math.abs(camera.fov - fov) > 0.1) {
-                camera.fov = fov;
-                camera.updateProjectionMatrix();
-            }
+            var accelNow = (Math.abs(speed) - prevSpeedAbs) / Math.max(0.001, dt);
+            prevSpeedAbs = Math.abs(speed);
+            var powerLoad = (engineOn ? 1 : 0) * throttleSmooth;
+            var powerShake = powerLoad * (0.012 + Math.min(0.034, Math.max(0, accelNow) * 0.0011));
+            var fovTarget = 68 + Math.min(46, Math.abs(speed) * 0.34);
+            camera.fov += (fovTarget - camera.fov) * Math.min(1, dt * 2.6);
+            camera.updateProjectionMatrix();
 
             var streakIntensity = Math.min(1, Math.max(0, (Math.abs(speed) - 22) / 85));
             speedStreakMat.opacity = streakIntensity * 0.5;
@@ -5025,19 +5086,21 @@
                 );
                 camera.rotateZ(bodyRoll * 0.55);
             } else {
+                var cameraLag = Math.min(3.4, Math.max(0, accelNow) * 0.13) + powerLoad * 0.8;
                 camDesired.set(
                     player.position.x * 0.42,
                     5.3 + playerY * 0.78 + (player.userData.bodyGroup ? player.userData.bodyGroup.position.y * 4.0 : 0) - suspensionImpulse * 0.3 + Math.sin(elapsed * 1.4) * 0.035,
-                    13
+                    13 + cameraLag
                 );
-                camera.position.lerpVectors(camera.position, camDesired, Math.min(1, dt * 5));
-                var speedShake = Math.min(0.085, Math.abs(speed) * 0.00095);
-                camera.position.x += Math.sin(elapsed * 37.0) * speedShake;
-                camera.position.y += Math.cos(elapsed * 43.0) * speedShake * 0.55;
+                camera.position.lerpVectors(camera.position, camDesired, Math.min(1, dt * 4.2));
                 camera.lookAt(player.position.x * 0.5 + vx * 0.22 + curveAhead * 0.22, 0.5 + playerY * 0.9, -12);
                 camera.rotateZ(-curveAhead * 0.0016 - bodyRoll * 0.1);
                 camera.rotateY(curveAhead * 0.0009 - steerAngle * 0.16);
                 camera.rotateX(bodyPitch * 0.05);
+            }
+            if (powerShake > 0.0002) {
+                camera.position.x += Math.sin(elapsed * 61.0) * powerShake;
+                camera.position.y += Math.cos(elapsed * 73.0) * powerShake * 0.65;
             }
             if (fpWheel) {
                 fpWheel.visible = cameraMode === 3 && !ragdollActive;
@@ -5067,6 +5130,17 @@
                 (playerY > 0.4 && !(isSleigh && flyTime > 0) ? ' · JUMP' : '') +
                 (isSleigh ? (flyTime > 0 ? ' · FLYING ' + flyTime.toFixed(1) + 's' : (flyCooldown > 0 ? ' · FLY CD ' + Math.ceil(flyCooldown) + 's' : ' · FLY READY [SPACE]')) : '') +
                 (exitHintText ? ' · ' + exitHintText : '');
+            var hudValue = giftMode ? (giftScore + Math.round(distance * 0.2)) : (distance + checkpointsPassed * CHECKPOINT_BONUS + driftScore);
+            gaugeT -= dt;
+            if (gaugeT <= 0) {
+                gaugeT = 1 / 30;
+                var gaugeGearIndex = engineOn ? Math.max(0, gearFor(Math.abs(speed)) - 1) : 0;
+                var gaugeLower = gaugeGearIndex === 0 ? 0 : GEAR_FRACTIONS[gaugeGearIndex - 1];
+                var gaugeUpper = gaugeGearIndex < GEAR_FRACTIONS.length ? GEAR_FRACTIONS[gaugeGearIndex] : 1;
+                var gaugeWithin = Math.min(1, Math.max(0, (Math.min(1, Math.abs(speed) / perf.topSpeed) - gaugeLower) / Math.max(0.01, gaugeUpper - gaugeLower)));
+                var gaugeRpm = engineOn ? 800 + gaugeWithin * 6300 + gaugeGearIndex * 180 : 0;
+                updateRacerGauge(gaugeRpm, speed, gearText, status, hudValue, coinsCollected);
+            }
             if (racerBannerT > 0) {
                 racerBannerT -= dt;
                 if (racerBannerT <= 0) {
@@ -5077,7 +5151,7 @@
             hudT -= dt;
             if (hudT <= 0) {
                 hudT = 0.1;
-                setHud(giftMode ? (giftScore + Math.round(distance * 0.2)) : (distance + checkpointsPassed * CHECKPOINT_BONUS + driftScore), status, gearText);
+                setHud(hudValue, status, gearText);
             }
             updateRaceHud();
             updateFsdVisual();
@@ -5174,6 +5248,8 @@
                     bodyMeshes: player.userData.bodyGroup ? player.userData.bodyGroup.children.length : 0,
                     bodyRoll: player.userData.bodyGroup ? player.userData.bodyGroup.rotation.z : 0,
                     bodyPitch: player.userData.bodyGroup ? player.userData.bodyGroup.rotation.x : 0,
+                    fov: camera.fov,
+                    cameraZ: camera.position.z,
                     crashing: crashActive
                 };
             },

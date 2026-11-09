@@ -12351,3 +12351,166 @@ body.in-game .xmas-snowman { display: none; }
 @media (max-width: 760px) {
     .tycoon-actions { grid-template-columns: 1fr; }
 }
+
+/* ============================================================
+   Beach Racer tachometer / gauge cluster
+   ============================================================ */
+.game3d-wrap.is-racer .game3d-hud { display: none !important; }
+.g3d-gauges {
+    position: absolute;
+    right: 18px;
+    bottom: 18px;
+    z-index: 6;
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    pointer-events: none;
+    filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.45));
+}
+.g3d-tach {
+    position: relative;
+    width: 168px;
+    height: 168px;
+    border-radius: 50%;
+    border: 3px solid #303840;
+    background: radial-gradient(circle at 50% 42%, #222a31 0%, #11171c 48%, #05080a 100%);
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.12), inset 0 -8px 18px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(0, 0, 0, 0.9);
+}
+.g3d-tach::before {
+    content: '';
+    position: absolute;
+    inset: 7px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.055), transparent 46%);
+}
+.g3d-tach-ticks {
+    position: absolute;
+    inset: 14px;
+    border-radius: 50%;
+    background: repeating-conic-gradient(from 135deg, rgba(235, 245, 255, 0.72) 0 0.8deg, transparent 0.8deg 7.2deg);
+    -webkit-mask: radial-gradient(circle, transparent 59%, #000 60% 66%, transparent 67%);
+    mask: radial-gradient(circle, transparent 59%, #000 60% 66%, transparent 67%);
+    opacity: 0.75;
+}
+.g3d-tach-red {
+    position: absolute;
+    inset: 16px;
+    border-radius: 50%;
+    background: conic-gradient(from 135deg, transparent 0 222deg, rgba(255, 51, 74, 0.75) 222deg 270deg, transparent 270deg 360deg);
+    -webkit-mask: radial-gradient(circle, transparent 55%, #000 56% 69%, transparent 70%);
+    mask: radial-gradient(circle, transparent 55%, #000 56% 69%, transparent 70%);
+}
+.g3d-gauge-needle {
+    position: absolute;
+    left: 50%;
+    bottom: 50%;
+    width: 3px;
+    height: 62px;
+    border-radius: 3px;
+    background: linear-gradient(to top, #ff3b4b 0%, #ff6b4a 62%, #ffd166 100%);
+    transform-origin: 50% 100%;
+    transform: translateX(-50%) rotate(-135deg);
+    box-shadow: 0 0 8px rgba(255, 59, 75, 0.75);
+    transition: transform 0.045s linear;
+}
+.g3d-tach::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(circle at 40% 35%, #ffd166, #9b2226 65%, #2b0a0d);
+    box-shadow: 0 0 10px rgba(255, 59, 75, 0.55);
+}
+.g3d-tach-label {
+    position: absolute;
+    left: 50%;
+    bottom: 20px;
+    transform: translateX(-50%);
+    color: rgba(225, 245, 255, 0.42);
+    font-size: 7px;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+}
+.g3d-tach-gear {
+    position: absolute;
+    left: 50%;
+    top: 51%;
+    transform: translate(-50%, 16px);
+    color: #ffe2a0;
+    font-size: 24px;
+    font-weight: 900;
+    line-height: 1;
+    text-shadow: 0 0 14px rgba(255, 209, 102, 0.3);
+}
+.g3d-gauge-digital {
+    width: 196px;
+    padding: 11px 14px 10px;
+    border-radius: 12px;
+    border: 1px solid #333c45;
+    background: linear-gradient(160deg, #171e24 0%, #0b1014 55%, #05080a 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 10px 24px rgba(0, 0, 0, 0.5);
+}
+.g3d-gauge-speed { display: flex; align-items: baseline; gap: 5px; }
+.g3d-gauge-speed strong {
+    color: #f4f8fb;
+    font-size: 42px;
+    font-weight: 900;
+    line-height: 0.88;
+    letter-spacing: -0.05em;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 18px rgba(95, 231, 255, 0.24);
+}
+.g3d-gauge-speed span {
+    color: #8fd8ff;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+.g3d-gauge-row {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 7px;
+    color: rgba(220, 240, 250, 0.4);
+    font-size: 7px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+}
+.g3d-gauge-row b { color: #ffd166; font-size: 11px; letter-spacing: 0; }
+.g3d-gauge-status {
+    max-width: 100%;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+    color: #8affd0;
+    font-size: 7.5px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.g3d-gauge-meta {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 4px;
+    color: rgba(220, 240, 250, 0.34);
+    font-size: 7px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+}
+.g3d-gauge-meta b { color: #eafaff; font-size: 9px; }
+@media (max-width: 760px) {
+    .g3d-gauges { right: 8px; bottom: 8px; gap: 7px; }
+    .g3d-tach { width: 124px; height: 124px; }
+    .g3d-gauge-needle { height: 43px; }
+    .g3d-tach-gear { font-size: 18px; transform: translate(-50%, 10px); }
+    .g3d-gauge-digital { width: 150px; padding: 8px 10px; }
+    .g3d-gauge-speed strong { font-size: 30px; }
+    .g3d-gauge-status { font-size: 6.5px; }
+}
