@@ -1166,7 +1166,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261345'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261346'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1175,7 +1175,7 @@ function ensure3DEngine() {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261345').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261346').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1183,7 +1183,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261345').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261346').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1191,9 +1191,9 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261345')
-            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261345'); })
-            .then(function () { return loadScriptOnce('assistant.js?v=20261345'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261346')
+            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261346'); })
+            .then(function () { return loadScriptOnce('assistant.js?v=20261346'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1221,7 +1221,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261345').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261346').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1229,7 +1229,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261345').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261346').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1237,7 +1237,7 @@ function ensureLucky() {
 function ensureTycoon() {
     if (window.Tycoon) return Promise.resolve();
     if (!tycoonPromise) {
-        tycoonPromise = loadScriptOnce('tycoon.js?v=20261345').catch(function (error) { tycoonPromise = null; throw error; });
+        tycoonPromise = loadScriptOnce('tycoon.js?v=20261346').catch(function (error) { tycoonPromise = null; throw error; });
     }
     return tycoonPromise;
 }
@@ -9208,8 +9208,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.61";
-const UPDATE_NOTES = "Games use fewer resources on weaker devices. FSD waits 1 second between normal lane changes, animates the lane-change strip, and still allows emergency swerves";
+const APP_VERSION = "LessFun Public Beta 1.33.62";
+const UPDATE_NOTES = "Private messages now play a ding and show a notification that opens Messages. The arcade km/h scale is back to divided-by-3";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -9839,6 +9839,81 @@ let notifPoll = 0;
 let notifLoading = false;
 let notifShownIds = {};
 let topNotifTimers = {};
+let messageNotifPoll = 0;
+let messageNotifBusy = false;
+let messageNotifReady = false;
+let messageNotifSeen = {};
+let messageDingCtx = null;
+
+function playMessageDing() {
+    if (!soundSetting) return;
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    try {
+        if (!messageDingCtx) messageDingCtx = new AC();
+        if (messageDingCtx.state === 'suspended') {
+            try { messageDingCtx.resume(); } catch (e) {}
+        }
+        var now = messageDingCtx.currentTime;
+        var master = messageDingCtx.createGain();
+        master.gain.setValueAtTime(0.0001, now);
+        master.gain.exponentialRampToValueAtTime(0.14, now + 0.02);
+        master.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
+        master.connect(messageDingCtx.destination);
+        [880, 1318.5].forEach(function (freq, index) {
+            var osc = messageDingCtx.createOscillator();
+            var gain = messageDingCtx.createGain();
+            var start = now + index * 0.09;
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.0001, start);
+            gain.gain.exponentialRampToValueAtTime(0.85, start + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.38);
+            osc.connect(gain);
+            gain.connect(master);
+            osc.start(start);
+            osc.stop(start + 0.42);
+        });
+    } catch (e) {}
+}
+
+function openMessageNotification() {
+    if (!dmState.open) toggleDmSidebar(true);
+    else dmLoadInbox();
+}
+
+async function loadMessageNotifications() {
+    if (document.hidden || messageNotifBusy) return;
+    var me = friendUsername();
+    if (!me || !supabaseClient) return;
+    messageNotifBusy = true;
+    try {
+        var res = await socialQuery(supabaseClient.from('direct_messages')
+            .select('id,sender,created_at')
+            .eq('recipient', me)
+            .order('created_at', { ascending: false })
+            .limit(20));
+        if (res.error) return;
+        var rows = res.data || [];
+        if (!messageNotifReady) {
+            rows.forEach(function (row) { messageNotifSeen[String(row.id)] = true; });
+            messageNotifReady = true;
+            return;
+        }
+        var fresh = rows.filter(function (row) { return !messageNotifSeen[String(row.id)]; });
+        if (!fresh.length) return;
+        fresh.forEach(function (row) { messageNotifSeen[String(row.id)] = true; });
+        playMessageDing();
+        if (fresh.length === 1) {
+            showTopNotification('<strong>' + escapeHtml(fresh[0].sender || 'Someone') + '</strong> sent you a message', '💬', openMessageNotification);
+        } else {
+            showTopNotification('<strong>' + fresh.length + '</strong> new messages', '💬', openMessageNotification);
+        }
+    } catch (e) {
+    } finally {
+        messageNotifBusy = false;
+    }
+}
 
 function ensureTopLayer(el) {
     if (!el) return;
@@ -9981,12 +10056,18 @@ function startNotifications() {
     if (!friendUsername() || !supabaseClient) return;
     loadNotifications(true);
     if (!notifPoll) notifPoll = setInterval(function () { loadNotifications(true); }, 25000);
+    loadMessageNotifications();
+    if (!messageNotifPoll) messageNotifPoll = setInterval(loadMessageNotifications, 15000);
 }
 
 function stopNotifications() {
     if (notifPoll) { clearInterval(notifPoll); notifPoll = 0; }
+    if (messageNotifPoll) { clearInterval(messageNotifPoll); messageNotifPoll = 0; }
     notifRows = [];
     notifShownIds = {};
+    messageNotifSeen = {};
+    messageNotifReady = false;
+    messageNotifBusy = false;
     updateNotifBadge();
 }
 

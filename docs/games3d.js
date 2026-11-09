@@ -9755,9 +9755,10 @@
         unitSystem = unit === 'kmh' ? 'kmh' : 'mph';
     }
     function speedText(mps) {
-        // Physics stays in metres per second; this is the real unit conversion.
+        // Physics stays in metres per second. The km/h readout uses the
+        // arcade display scale again so numbers stay readable.
         return unitSystem === 'kmh'
-            ? Math.round(Math.abs(mps) * 3.6) + ' km/h'
+            ? Math.round(Math.abs(mps) * 3.6 / 3) + ' km/h'
             : Math.round(Math.abs(mps) * 2.23694) + ' mph';
     }
     function setPaused(on) {
