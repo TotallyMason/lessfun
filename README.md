@@ -12,7 +12,7 @@ A 3D arcade with a liquid-glass interface. Play it at
 | Cube Stack | Stack the tower as high as you can before the blocks drift away. |
 | Funtutu Test | GPU/CPU benchmark that shows its work, produces a score, and recommends graphics settings for this device. |
 
-Low-power devices (4 GB RAM, 4 cores or fewer, Chromebooks) automatically use a lighter preset, adaptive resolution, lighter snow and a 30 FPS cap for heavy 3D games.
+Low-power devices (4 GB RAM, 4 cores or fewer, Chromebooks) automatically use a lighter preset, adaptive resolution and lighter snow, with a 60 FPS target.
 | Snow Rush | Christmas sleigh game: collect gifts, hit candy boosts, survive snowstorms and the Grinch. |
 | Draw & Guess | Live public drawing game: one player draws, everyone else races to guess the word. |
 | Lucky Spin | Virtual-coin slot machine with bets, jackpots and a 60× top payout. |

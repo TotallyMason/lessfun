@@ -9382,10 +9382,9 @@
     function loop() {
         raf = requestAnimationFrame(loop);
         var frameNow = (global.performance && global.performance.now) ? global.performance.now() : Date.now();
-        var heavyGame = lastGameId === 1 || lastGameId === 4 || lastGameId === 7;
-        // Low-power laptops keep heavy 3D games at a stable 30 FPS instead of
-        // chasing 60 FPS and heating up.
-        var minFrameMs = (lowPowerDevice && heavyGame) ? 33 : 15.5;
+        // Always target up to 60 FPS. Low-power devices still use adaptive
+        // resolution, but are never capped at 30 FPS.
+        var minFrameMs = 15.5;
         if (lastFrameNow && frameNow - lastFrameNow < minFrameMs) return;
         var dt = lastFrameNow
             ? Math.min(0.05, (frameNow - lastFrameNow) / 1000)
@@ -9396,7 +9395,7 @@
         if (fpsTime >= 1) {
             var fps = fpsFrames / fpsTime;
             lastFps = fps;
-            if (fps < (lowPowerDevice ? 26 : 45)) lowFpsTime += fpsTime;
+            if (fps < 45) lowFpsTime += fpsTime;
             else lowFpsTime = 0;
             if (lowFpsTime >= 2 && motionBlurEnabled && !motionBlurAutoOff) {
                 motionBlurAutoOff = true;
@@ -9432,11 +9431,9 @@
                     adaptiveTransition = null;
                 }
             } else if (adaptiveCooldown <= 0 && !(active && active.isCinematic && active.isCinematic())) {
-                var lowFpsThreshold = lowPowerDevice ? 26 : 56;
-                var highFpsThreshold = lowPowerDevice ? 33 : 58;
-                if (fps < lowFpsThreshold && adaptiveScale > 0.2) {
+                if (fps < 56 && adaptiveScale > 0.2) {
                     beginResolutionTransition(Math.max(0.2, adaptiveScale - 0.1));
-                } else if (fps > highFpsThreshold && adaptiveScale < 1) {
+                } else if (fps > 58 && adaptiveScale < 1) {
                     beginResolutionTransition(Math.min(1, adaptiveScale + 0.05));
                 }
             }
@@ -9452,7 +9449,7 @@
             var shouldRender = true;
             if (active && active.isCinematic && active.isCinematic()) {
                 var nowCinema = (global.performance && global.performance.now) ? global.performance.now() : Date.now();
-                if (nowCinema - lastCinemaFrame < (lowPowerDevice ? 33 : 15.0)) shouldRender = false;
+                if (nowCinema - lastCinemaFrame < 15.0) shouldRender = false;
                 else lastCinemaFrame = nowCinema;
             }
             if (shouldRender) renderFrame();
