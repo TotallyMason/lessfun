@@ -65,7 +65,6 @@ Beach Racer crossfades two wind loops as speed rises:
 - `docs/audio/wind-high.mp3` — Mixkit “Wind in the top of the mountain”
 - `docs/audio/engine-low.mp3` — Mixkit “ATV engine motor hum”
 - `docs/audio/engine-high.mp3` — Mixkit “Sports bike engine”
-- `docs/audio/gear-shift.mp3` — Mixkit “Motorcycle changing gears”
 - `docs/audio/gear-select.mp3` — Mixkit “Metal tank gear shift”
 
 The wind loops crossfade with speed. The engine loops crossfade with RPM, and
@@ -221,7 +220,7 @@ handling real user data or payments.
 - Manual Q/E gear selector (P, R, N, D) with reverse and park in Beach Racer
 - Real steering angle with turning front wheels and camera yaw plus speed-scaled steering that locks at a standstill, automatic drift detection from speed/steering/braking, and an **F-key FSD** mode with safer multi-lane choices, a Tesla-style lane/traffic display, animated blue chevrons, smooth automatic braking, emergency braking, and visible turn signals for the car and traffic
 - Three.js performance pass: tighter camera far planes, scenery LOD visibility culling, mobile detail counts, resolution presets, and automatic motion-blur shutdown
-- Richer multi-oscillator engine notes with gear-shift sounds and tire-screech drift audio
+- Richer engine and wind samples with gear-select sounds and tire-screech drift audio
 - Ignition bar, synthesized engine/tire/nitrous audio, and a drainable nitrous boost on **Shift** or **N**, with a NITRO SHIFT kick
 - Gold track coins that are collected during a run and paid into the Coins wallet at game over
 - Private messages and group messages with ECDH P-256 + AES-GCM end-to-end encryption, started by searching for a person in the in-game sidebar or creating a group

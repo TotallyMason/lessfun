@@ -222,10 +222,12 @@
         var windLowLoop = null, windHighLoop = null;
         var engineLowLoop = null, engineHighLoop = null;
         var samplesLoading = false;
-        var gearShiftBuffer = null;
         var gearSelectBuffer = null;
         var audioResumeHandler = null;
         var revLevel = 0;
+        var carDamage = { engine: 0, steering: 0, suspension: 0, tires: [0, 0, 0, 0], fire: 0 };
+        var damageSmokeT = 0;
+        var damageFireSprites = [];
         var engineOscStarted = false, audioNoiseStarted = false, driftOscStarted = false;
         var lastAudioGear = 0;
         var audioDriftLevel = 0;
@@ -262,7 +264,6 @@
                 decodeSample('audio/wind-high.mp3'),
                 decodeSample('audio/engine-low.mp3'),
                 decodeSample('audio/engine-high.mp3'),
-                decodeSample('audio/gear-shift.mp3'),
                 decodeSample('audio/gear-select.mp3')
             ]).then(function (buffers) {
                 if (!audioCtx || audioCtx.state === 'closed') return;
@@ -270,8 +271,7 @@
                 windHighLoop = makeSampleLoop(buffers[1]);
                 engineLowLoop = makeSampleLoop(buffers[2]);
                 engineHighLoop = makeSampleLoop(buffers[3]);
-                gearShiftBuffer = buffers[4];
-                gearSelectBuffer = buffers[5];
+                gearSelectBuffer = buffers[4];
             }).catch(function () {
                 // If loading fails, the synthesized engine and wind stay available.
             }).then(function () {
@@ -281,20 +281,20 @@
 
         function playGearSound(kind, gear) {
             if (!soundEnabled || !audioCtx) return;
-            var buffer = kind === 'select' ? gearSelectBuffer : gearShiftBuffer;
+            var buffer = gearSelectBuffer;
             if (!buffer) {
-                tone(kind === 'select' ? 190 : 260, 0.06, 'square', 0.03, kind === 'select' ? 140 : 190);
+                tone(190, 0.06, 'square', 0.03, 140);
                 return;
             }
             try {
                 var src = audioCtx.createBufferSource();
                 src.buffer = buffer;
-                src.playbackRate.value = kind === 'select' ? 1 : Math.max(0.82, Math.min(1.24, 0.9 + (Number(gear) || 1) * 0.032));
+                src.playbackRate.value = 1;
                 var gain = audioCtx.createGain();
-                gain.gain.value = kind === 'select' ? 0.38 : 0.42;
+                gain.gain.value = 0.38;
                 src.connect(gain);
                 gain.connect(audioMaster);
-                src.start(0, 0, kind === 'select' ? 0.7 : 0.38);
+                src.start(0, 0, 0.7);
             } catch (e) {}
         }
 
@@ -481,7 +481,7 @@
                 if (engineOn && audioGear + 1 !== lastAudioGear) {
                     if (lastAudioGear) {
                         tone(130, 0.05, 'square', 0.028, 90);
-                        playGearSound('shift', audioGear + 1);
+                        playGearSound('select', audioGear + 1);
                     }
                     lastAudioGear = audioGear + 1;
                 }
@@ -1758,6 +1758,7 @@
             var body = makeBodyMesh(spec, bodyMat); g.add(body);
 
             var cabin = makeCabin(spec, glassMat, bodyMat); g.add(cabin);
+            g.userData.cabin = cabin;
             if (spec.f1) cabin.visible = false;
 
             // Rocker panels and bumpers.
@@ -2254,6 +2255,24 @@
         else if (HOLIDAY) addHolidayWreath(player);
         player.position.set(LANES[2], 0, 5);
         scene.add(player);
+        var fireTex = makeCanvasTexture(64, 64, function (g, w, h) {
+            var grad = g.createRadialGradient(w / 2, h * 0.62, 2, w / 2, h * 0.62, w / 2);
+            grad.addColorStop(0, 'rgba(255,250,190,0.95)');
+            grad.addColorStop(0.35, 'rgba(255,170,40,0.8)');
+            grad.addColorStop(0.72, 'rgba(255,70,20,0.32)');
+            grad.addColorStop(1, 'rgba(255,40,0,0)');
+            g.fillStyle = grad;
+            g.fillRect(0, 0, w, h);
+        });
+        for (var fi = 0; fi < 3; fi++) {
+            var fireMat = new THREE.SpriteMaterial({ map: fireTex, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending });
+            var fireSprite = new THREE.Sprite(fireMat);
+            fireSprite.position.set((fi - 1) * 0.45, 0.8 + Math.random() * 0.2, -((player.userData.spec && player.userData.spec.len) || 3.6) * 0.25);
+            fireSprite.scale.set(1.1, 1.7, 1);
+            fireSprite.visible = false;
+            (player.userData.bodyGroup || player).add(fireSprite);
+            damageFireSprites.push(fireSprite);
+        }
 
         function makeAiRacers() {
             var defs = [
@@ -3404,6 +3423,7 @@
             spawnCrashDebris(mx2, mz2);
             spawnSparks(mx2, 0.7, mz2, 18 + Math.round(relativeKmh * 0.5));
             spawnCrashSmoke(mx2, mz2, 2);
+            applyCrashDamage(relativeKmh / 3.6 * 0.35, 'side');
             var minorLoss = Math.min(0.28, 0.08 + relativeKmh * 0.007);
             speed = Math.max(0, speed * (1 - minorLoss));
             suspensionImpulse = Math.max(suspensionImpulse, Math.min(0.5, 0.2 + relativeKmh * 0.01));
@@ -3546,6 +3566,45 @@
             }
         }
 
+        function applyCrashDamage(impactSpeed, zone) {
+            var norm = Math.min(1, Math.max(0, impactSpeed / 52));
+            carDamage.engine = Math.min(1, carDamage.engine + 0.1 + norm * 0.55);
+            carDamage.steering = Math.min(1, carDamage.steering + norm * 0.45);
+            carDamage.suspension = Math.min(1, carDamage.suspension + norm * 0.5);
+            if (norm > 0.3 && Math.random() < 0.7) {
+                var tire = Math.floor(Math.random() * 4);
+                carDamage.tires[tire] = 1;
+                var pivot = player.userData.suspensionPivots && player.userData.suspensionPivots[tire];
+                if (pivot) pivot.visible = false;
+                spawnCrashSmoke(player.position.x, player.position.z, 4);
+            }
+            if (norm > 0.55 && player.userData.cabin) player.userData.cabin.visible = false;
+            if (carDamage.engine > 0.7) carDamage.fire = 1;
+        }
+
+        function updateDamageEffects(dt) {
+            if (carDamage.fire > 0) {
+                for (var f = 0; f < damageFireSprites.length; f++) {
+                    var flame = damageFireSprites[f];
+                    flame.visible = true;
+                    var flicker = 0.75 + Math.sin(elapsed * 19 + f * 2.1) * 0.22;
+                    flame.scale.set(1.1 * flicker, 1.7 * flicker, 1);
+                    flame.material.opacity = 0.55 + Math.sin(elapsed * 23 + f) * 0.2;
+                }
+                damageSmokeT -= dt;
+                if (damageSmokeT <= 0) {
+                    damageSmokeT = 0.28;
+                    spawnCrashSmoke(player.position.x, player.position.z, 2);
+                }
+            } else if (carDamage.engine > 0.45) {
+                damageSmokeT -= dt;
+                if (damageSmokeT <= 0) {
+                    damageSmokeT = 0.6;
+                    spawnCrashSmoke(player.position.x, player.position.z, 1);
+                }
+            }
+        }
+
         function triggerCrash(car, halfWidth) {
             if (crashActive) return;
             fsdActive = false;
@@ -3569,6 +3628,7 @@
             var mass = Math.max(0.8, Math.min(2.2, ((spec.width || 1.8) * (spec.len || 3.2)) / 8));
             var dir = player.position.x >= car.position.x ? 1 : -1;
             var impactSpeed = Math.abs(speed - (car.userData.cruiseSpeed || 0));
+            applyCrashDamage(impactSpeed, zone);
             var dz = car.position.z - player.position.z;
             var zone = Math.abs(dz) > 1.9 ? (dz < 0 ? 'front' : 'rear') : (player.position.x >= car.position.x ? 'right' : 'left');
             // Each crumple zone absorbs part of the impact. The struck corner
@@ -3733,6 +3793,7 @@
             updateRagdoll(dt);
             updateSparks(dt);
             updateDriftPuffs(dt, false);
+            updateDamageEffects(dt);
 
             if (crashWheel) {
                 crashWheel.position.x += crashWheelVx * dt;
@@ -4029,7 +4090,7 @@
 
         var traffic = [];
         var colors = [0xef476f, 0xffd166, 0x06d6a0, 0x118ab2, 0xf78c6b, 0xf7f3e8, 0x7f8c8d, 0x9b5de5];
-        var trafficStyles = ['classic', 'buggy', 'wagon', 'truck', 'suv', 'racer', 'van', 'roadster', 'muscle', 'retro', 'taxi', 'cyber', 'suv', 'truck', 'bus', 'bus', 'semi', 'semi'];
+        var trafficStyles = ['classic', 'buggy', 'wagon', 'truck', 'suv', 'racer', 'van', 'roadster', 'muscle', 'retro', 'taxi', 'cyber', 'suv', 'truck', 'bus', 'bus', 'semi', 'semi', 'monster', 'offroad', 'limo', 'f1', 'gt', 'super'];
         var trafficEngines = ['stock', 'stock', 'v8', 'turbo', 'electric', 'diesel', 'twin'];
 
         function laneBusy(lane, self, z, range) {
@@ -4940,8 +5001,9 @@
                 var brakeDecel = (fsdActive && fsdEmergency) ? 165 : 58;
                 speed = Math.max(0, speed - brakeDecel * Math.max(0.18, brakeSmooth) * dt);
             } else if (throttleCmd) {
-                var topSpeedNow = (fsdActive ? FSD_MAX_SPEED : perf.topSpeed) * (nitroActive ? 1.32 : 1);
-                var pull = perf.accel * (fsdActive ? 4.5 : 1) * (nitroActive ? 2.35 : 1) * (1 - 0.5 * Math.min(1, speed / topSpeedNow));
+                var damageTop = Math.max(0.38, 1 - carDamage.engine * 0.5 - (carDamage.tires[0] + carDamage.tires[1] + carDamage.tires[2] + carDamage.tires[3]) * 0.03);
+                var topSpeedNow = (fsdActive ? FSD_MAX_SPEED : perf.topSpeed) * (nitroActive ? 1.32 : 1) * damageTop;
+                var pull = perf.accel * (fsdActive ? 4.5 : 1) * (nitroActive ? 2.35 : 1) * (1 - 0.5 * Math.min(1, speed / topSpeedNow)) * Math.max(0.35, 1 - carDamage.engine * 0.45);
                 speed = Math.min(topSpeedNow, speed + pull * (0.35 + 0.65 * throttleSmooth) * dt);
             } else if (speed > CREEP_SPEED) {
                 // Coasting: keep momentum much longer when the throttle is off.
@@ -5000,6 +5062,7 @@
             if (fsdActive) steerTarget = (fsdSteerX - player.position.x) * 0.18;
             else if (input.pointerActive) steerTarget = ((input.pointerX * maxX) - player.position.x) / Math.max(1, maxX) * 0.84;
             else steerTarget = steerInput * 0.62;
+            steerTarget += Math.sin(elapsed * 2.3) * carDamage.steering * 0.14;
             steerTarget = Math.max(-0.7, Math.min(0.7, steerTarget));
             steerAngle += (steerTarget - steerAngle) * Math.min(1, dt * 6.0);
             if (fsdActive) {
@@ -5014,7 +5077,9 @@
                 steerX = Math.max(-maxX, Math.min(maxX, steerX));
             } else {
                 var highSpeedStability = 1 - 0.26 * Math.min(1, Math.abs(speed) / 140);
-                steerX += steerInput * dt * 7.2 * perf.grip * speedSteerFactor * highSpeedStability * (driftIntent ? 1.25 : 1);
+                var blownTires = carDamage.tires[0] + carDamage.tires[1] + carDamage.tires[2] + carDamage.tires[3];
+                var damageGrip = Math.max(0.42, 1 - carDamage.suspension * 0.28 - blownTires * 0.12);
+                steerX += steerInput * dt * 7.2 * perf.grip * damageGrip * speedSteerFactor * highSpeedStability * (driftIntent ? 1.25 : 1);
                 steerX = Math.max(-maxX, Math.min(maxX, steerX));
             }
 
@@ -5075,6 +5140,7 @@
             animateSuspension(player, dt, speed, distance, bodyRoll, bodyPitch, suspensionImpulse);
             suspensionImpulse *= Math.max(0, 1 - dt * 5);
             updateDriftPuffs(dt, driftIntent);
+            updateDamageEffects(dt);
             updateSparks(dt);
             updateCrashDebris(dt);
 
@@ -5436,6 +5502,7 @@
                 (nitroActive ? (nitroShiftT > 0 ? ' · NITRO SHIFT' : ' · NOS') : '') +
                 (driftIntent ? ' · DRIFT' : '') +
                 (freeRevNow && revLevel > 0.12 ? ' · REV' : '') +
+                ((function () { var d = Math.round(Math.max(carDamage.engine, carDamage.steering, carDamage.suspension) * 100); return d > 4 ? ' · DMG ' + d + '%' : ''; })()) +
                 (playerY > 0.4 && !(isSleigh && flyTime > 0) ? ' · JUMP' : '') +
                 (isSleigh ? (flyTime > 0 ? ' · FLYING ' + flyTime.toFixed(1) + 's' : (flyCooldown > 0 ? ' · FLY CD ' + Math.ceil(flyCooldown) + 's' : ' · FLY READY [SPACE]')) : '') +
                 (exitHintText ? ' · ' + exitHintText : '');
@@ -5562,7 +5629,7 @@
                     fov: camera.fov,
                     cameraZ: camera.position.z,
                     audioSamples: !!(windLowLoop && windHighLoop && engineLowLoop && engineHighLoop),
-                    gearAudio: !!(gearShiftBuffer && gearSelectBuffer),
+                    gearAudio: !!gearSelectBuffer,
                     audioState: audioCtx ? audioCtx.state : 'none',
                     rampPhysics: rampPhysicsActive,
                     revLevel: revLevel,
