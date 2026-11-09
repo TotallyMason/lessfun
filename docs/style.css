@@ -11630,3 +11630,13 @@ body.in-game .ai-dock { display: none !important; }
     .ai-dock { top: 64px; right: 8px; bottom: auto; left: auto; }
     .ai-panel { max-height: calc(100vh - 80px); }
 }
+
+/* Remove on-screen game control bars — keyboard, mouse and gestures remain */
+.lsim-controls,
+.game3d-throttle,
+.game3d-brake,
+.game3d-pedals,
+.game3d-touch-controls,
+.fps-touch {
+    display: none !important;
+}

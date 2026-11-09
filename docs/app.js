@@ -8452,8 +8452,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.98";
-const UPDATE_NOTES = "The assistant is now in the top bar and smarter, with small talk, typo handling and follow-up context. The desktop LessFun Browser also has a Google button";
+const APP_VERSION = "LessFun Public Beta 1.32.99";
+const UPDATE_NOTES = "The on-screen game control bars are gone. Keyboard, mouse and drag gestures still control every game";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
