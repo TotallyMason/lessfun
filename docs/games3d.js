@@ -222,7 +222,6 @@
         var windLowLoop = null, windHighLoop = null;
         var engineLowLoop = null, engineHighLoop = null;
         var samplesLoading = false;
-        var saveClipBuffer = null;
         var audioResumeHandler = null;
         var revLevel = 0;
         var engineOscStarted = false, audioNoiseStarted = false, driftOscStarted = false;
@@ -260,15 +259,13 @@
                 decodeSample('audio/wind-low.mp3'),
                 decodeSample('audio/wind-high.mp3'),
                 decodeSample('audio/engine-low.mp3'),
-                decodeSample('audio/engine-high.mp3'),
-                decodeSample('audio/save-clip.mp3')
+                decodeSample('audio/engine-high.mp3')
             ]).then(function (buffers) {
                 if (!audioCtx || audioCtx.state === 'closed') return;
                 windLowLoop = makeSampleLoop(buffers[0]);
                 windHighLoop = makeSampleLoop(buffers[1]);
                 engineLowLoop = makeSampleLoop(buffers[2]);
                 engineHighLoop = makeSampleLoop(buffers[3]);
-                saveClipBuffer = buffers[4];
             }).catch(function () {
                 // If loading fails, the synthesized engine and wind stay available.
             }).then(function () {
@@ -283,10 +280,17 @@
             try {
                 audioCtx = new AC();
                 audioMaster = audioCtx.createGain();
-                audioMaster.gain.value = soundEnabled ? 0.28 : 0;
-                audioMaster.connect(audioCtx.destination);
+                audioMaster.gain.value = soundEnabled ? 0.36 : 0;
+                var masterCompressor = audioCtx.createDynamicsCompressor();
+                masterCompressor.threshold.value = -16;
+                masterCompressor.knee.value = 18;
+                masterCompressor.ratio.value = 5;
+                masterCompressor.attack.value = 0.003;
+                masterCompressor.release.value = 0.2;
+                audioMaster.connect(masterCompressor);
+                masterCompressor.connect(audioCtx.destination);
                 audioMuteHandler = function (on) {
-                    try { if (audioMaster) audioMaster.gain.value = on ? 0.28 : 0; } catch (e) {}
+                    try { if (audioMaster) audioMaster.gain.value = on ? 0.36 : 0; } catch (e) {}
                 };
                 audioCleanup = function () {
                     audioMuteHandler = null;
@@ -463,17 +467,17 @@
                 windGain.gain.setTargetAtTime(!hasWindSamples && running ? Math.min(0.075, absSpeed / 1700) : 0, now, 0.15);
                 if (hasWindSamples) {
                     var windFrac = Math.min(1, absSpeed / 150);
-                    var lowVol = soundEnabled ? (0.025 + windFrac * 0.085) : 0;
-                    var highVol = soundEnabled ? Math.max(0, windFrac - 0.34) / 0.66 * 0.12 : 0;
-                    windLowLoop.gain.gain.setTargetAtTime(Math.max(0, Math.min(0.25, lowVol)), now, 0.12);
-                    windHighLoop.gain.gain.setTargetAtTime(Math.max(0, Math.min(0.25, highVol)), now, 0.12);
+                    var lowVol = soundEnabled ? (0.05 + windFrac * 0.14) : 0;
+                    var highVol = soundEnabled ? Math.max(0, windFrac - 0.34) / 0.66 * 0.2 : 0;
+                    windLowLoop.gain.gain.setTargetAtTime(Math.max(0, Math.min(0.34, lowVol)), now, 0.12);
+                    windHighLoop.gain.gain.setTargetAtTime(Math.max(0, Math.min(0.34, highVol)), now, 0.12);
                     windLowLoop.src.playbackRate.setTargetAtTime(0.82 + windFrac * 0.62, now, 0.15);
                     windHighLoop.src.playbackRate.setTargetAtTime(0.9 + windFrac * 0.75, now, 0.15);
                 }
                 if (hasEngineSamples && running) {
                     var revFrac = freeRev ? revLevel : (0.15 + Math.min(1, absSpeed / 140) * 0.85);
-                    engineLowLoop.gain.gain.setTargetAtTime(soundEnabled ? Math.max(0, Math.min(0.22, 0.075 + revFrac * 0.1)) : 0, now, 0.1);
-                    engineHighLoop.gain.gain.setTargetAtTime(soundEnabled ? Math.max(0, Math.min(0.2, Math.max(0, revFrac - 0.42) / 0.58 * 0.16)) : 0, now, 0.1);
+                    engineLowLoop.gain.gain.setTargetAtTime(soundEnabled ? Math.max(0, Math.min(0.36, 0.13 + revFrac * 0.17)) : 0, now, 0.1);
+                    engineHighLoop.gain.gain.setTargetAtTime(soundEnabled ? Math.max(0, Math.min(0.34, Math.max(0, revFrac - 0.42) / 0.58 * 0.27)) : 0, now, 0.1);
                     engineLowLoop.src.playbackRate.setTargetAtTime(0.78 + revFrac * 0.9, now, 0.12);
                     engineHighLoop.src.playbackRate.setTargetAtTime(0.88 + revFrac * 1.15, now, 0.12);
                 } else if (hasEngineSamples) {
@@ -481,10 +485,10 @@
                     engineHighLoop.gain.gain.setTargetAtTime(0, now, 0.12);
                 }
                 nitroGain.gain.setTargetAtTime(running && nitroActive ? 0.05 : 0, now, 0.1);
-                driftGain.gain.setTargetAtTime(running ? Math.min(0.14, audioDriftLevel * 0.14) : 0, now, 0.08);
+                driftGain.gain.setTargetAtTime(running ? Math.min(0.24, audioDriftLevel * 0.24) : 0, now, 0.08);
                 driftFilter.frequency.setTargetAtTime(1600 + Math.abs(currentVx) * 55, now, 0.1);
                 if (driftOscGain && driftToneFilter) {
-                    driftOscGain.gain.setTargetAtTime(running ? Math.min(0.034, audioDriftLevel * 0.034) : 0, now, 0.07);
+                    driftOscGain.gain.setTargetAtTime(running ? Math.min(0.06, audioDriftLevel * 0.06) : 0, now, 0.07);
                     driftToneFilter.frequency.setTargetAtTime(1550 + Math.abs(currentVx) * 38, now, 0.1);
                     driftOsc.frequency.setTargetAtTime(760 + Math.min(1, audioDriftLevel) * 620 + Math.min(280, Math.abs(currentVx) * 12), now, 0.08);
                 }
@@ -2991,19 +2995,6 @@
         var crashRealT = 0;
         var crashStartMs = 0;
         var crashScore = 0;
-        var crashClipSaved = false;
-        var crashReplayPaused = false;
-        var crashPauseStartMs = 0;
-        var crashCamEl = document.getElementById('g3dCrashCam');
-        var crashCamPlay = document.getElementById('g3dCrashPlay');
-        var crashCamSave = document.getElementById('g3dCrashSave');
-        var crashCamProgress = document.getElementById('g3dCrashProgress');
-        var crashCamTime = document.getElementById('g3dCrashTime');
-        var crashCamSpeed = document.getElementById('g3dCrashSpeed');
-        var crashCamGear = document.getElementById('g3dCrashGear');
-        var crashCamDist = document.getElementById('g3dCrashDist');
-        var crashCamStamp = document.getElementById('g3dCrashStamp');
-        var crashCamGauge = document.getElementById('g3dGauges');
         var crashVx = 0, crashSpinX = 0, crashSpinY = 0, crashSpinZ = 0;
         var warningT = 0;
         var honkCooldown = 0;
@@ -3117,8 +3108,10 @@
                 var entry = driftPuffs[driftPuffCursor % driftPuffs.length];
                 driftPuffCursor++;
                 entry.life = 0.9 + Math.random() * 0.4;
+                entry.maxLife = entry.life;
+                entry.baseScale = 1 + Math.random() * 0.8;
                 entry.sprite.position.set(x + (Math.random() - 0.5) * 1.8, 0.3 + Math.random() * 0.5, z + (Math.random() - 0.5) * 2);
-                entry.sprite.scale.set(1 + Math.random() * 0.8, 1 + Math.random() * 0.8, 1);
+                entry.sprite.scale.set(entry.baseScale, entry.baseScale, 1);
             }
         }
 
@@ -3525,82 +3518,6 @@
             }
         }
 
-        function crashTimeText(seconds) {
-            var total = Math.max(0, Math.round(seconds));
-            return '0:' + (total < 10 ? '0' : '') + total;
-        }
-
-        function playCrashSaveChime() {
-            if (!soundEnabled || !audioCtx) return;
-            if (saveClipBuffer) {
-                try {
-                    var src = audioCtx.createBufferSource();
-                    src.buffer = saveClipBuffer;
-                    var gain = audioCtx.createGain();
-                    gain.gain.value = 0.32;
-                    src.connect(gain);
-                    gain.connect(audioMaster);
-                    src.start(0);
-                    return;
-                } catch (e) {}
-            }
-            tone(988, 0.1, 'sine', 0.055);
-            setTimeout(function () {
-                tone(1319, 0.18, 'sine', 0.05);
-            }, 105);
-        }
-
-        function updateCrashCam(time, duration) {
-            if (!crashCamEl) return;
-            var progress = Math.max(0, Math.min(1, time / Math.max(0.01, duration)));
-            if (crashCamProgress) crashCamProgress.style.width = (progress * 100).toFixed(2) + '%';
-            if (crashCamTime) crashCamTime.textContent = crashTimeText(time) + ' / ' + crashTimeText(duration);
-            if (crashCamSpeed) crashCamSpeed.textContent = String(Math.round(Math.abs(speed) * (unitSystem === 'kmh' ? 1.2 : 2.23694)));
-            if (crashCamGear) crashCamGear.textContent = gearMode === 'P' || gearMode === 'R' || gearMode === 'N' ? gearMode : (speed < 0.15 ? '1' : String(gearFor(Math.abs(speed))));
-            if (crashCamDist) crashCamDist.textContent = Math.round(distance) + ' m';
-            if (crashCamStamp) {
-                var secs = Math.floor(time);
-                crashCamStamp.textContent = '00:00:' + (secs < 10 ? '0' : '') + secs;
-            }
-        }
-
-        function setCrashCamVisible(on) {
-            if (!crashCamEl) return;
-            crashCamEl.classList.toggle('is-active', !!on);
-            if (crashCamGauge) crashCamGauge.classList.toggle('is-replay', !!on);
-        }
-
-        function saveCrashClip(auto) {
-            if (crashClipSaved) return;
-            crashClipSaved = true;
-            if (crashCamSave) {
-                crashCamSave.textContent = 'SAVED ✓';
-                crashCamSave.classList.add('is-saved');
-            }
-            playCrashSaveChime();
-        }
-
-        function toggleCrashPlayback() {
-            if (!crashActive) return;
-            if (!crashReplayPaused) {
-                crashReplayPaused = true;
-                crashPauseStartMs = Date.now();
-                paused = true;
-                if (audioMuteHandler) audioMuteHandler(false);
-                if (crashCamPlay) crashCamPlay.textContent = '▶';
-            } else {
-                crashReplayPaused = false;
-                if (crashPauseStartMs) crashStartMs += Date.now() - crashPauseStartMs;
-                crashPauseStartMs = 0;
-                paused = false;
-                if (audioMuteHandler) audioMuteHandler(soundEnabled);
-                if (crashCamPlay) crashCamPlay.textContent = 'II';
-            }
-        }
-
-        if (crashCamPlay) crashCamPlay.addEventListener('click', toggleCrashPlayback);
-        if (crashCamSave) crashCamSave.addEventListener('click', function () { saveCrashClip(false); });
-
         function triggerCrash(car, halfWidth) {
             if (crashActive) return;
             fsdActive = false;
@@ -3620,15 +3537,6 @@
             crashSprings = [];
             crashStartMs = (global.performance && global.performance.now) ? global.performance.now() : Date.now();
             crashScore = distance + checkpointsPassed * CHECKPOINT_BONUS + driftScore;
-            crashClipSaved = false;
-            crashReplayPaused = false;
-            crashPauseStartMs = 0;
-            if (crashCamPlay) crashCamPlay.textContent = 'II';
-            if (crashCamSave) {
-                crashCamSave.textContent = 'SAVE CLIP';
-                crashCamSave.classList.remove('is-saved');
-            }
-            setCrashCamVisible(true);
             var spec = car.userData && car.userData.spec ? car.userData.spec : {};
             var mass = Math.max(0.8, Math.min(2.2, ((spec.width || 1.8) * (spec.len || 3.2)) / 8));
             var dir = player.position.x >= car.position.x ? 1 : -1;
@@ -3640,7 +3548,6 @@
             var absorb = zone === 'front' ? 0.6 : zone === 'rear' ? 0.52 : 0.44;
             var severity = Math.min(0.44, 0.07 + impactSpeed * 0.0055);
             crashFatal = !!(spec.bus && impactSpeed * 3.6 > 55);
-            updateCrashCam(0, crashFatal ? 3.2 : 5.5);
             var impulse = Math.max(0, impactSpeed * mass * 0.32) * (1 - absorb * 0.55);
             crashVx = dir * (3 + impulse);
             crashSpinX = (Math.random() - 0.5) * 1.0 * (1 - absorb * 0.4);
@@ -3739,7 +3646,6 @@
         function updateCrash(dt) {
             var nowMs = (global.performance && global.performance.now) ? global.performance.now() : Date.now();
             crashRealT = (nowMs - crashStartMs) / 1000;
-            updateCrashCam(crashRealT, crashFatal ? 3.2 : 5.5);
             if (crashWorld && crashPlayerBody && crashOtherBody) {
                 crashWorld.step(1 / 60, dt, 4);
                 for (var sp = 0; sp < crashSprings.length; sp++) {
@@ -3845,7 +3751,6 @@
             updateAudio();
 
             if (crashRealT > (crashFatal ? 3.2 : 5.5)) {
-                saveCrashClip(true);
                 var flash = document.getElementById('g3dCrashFlash');
                 if (flash) flash.classList.remove('is-active');
                 setCrashCinema(false);
@@ -3854,7 +3759,6 @@
                 clearSoftWreck();
                 crashActive = false;
                 endGame(crashScore);
-                setTimeout(function () { setCrashCamVisible(false); }, 1400);
             }
         }
 
@@ -3889,23 +3793,49 @@
                 var entry = driftPuffs[driftPuffCursor % driftPuffs.length];
                 driftPuffCursor++;
                 entry.life = 0.75;
+                entry.maxLife = 0.75;
+                entry.baseScale = 0.9 + Math.random() * 0.7;
                 entry.sprite.position.set(
                     player.position.x + (Math.random() - 0.5) * 1.6,
                     playerY + 0.35,
                     player.position.z + 1.7 + Math.random() * 0.5
                 );
-                entry.sprite.scale.set(0.9 + Math.random() * 0.7, 0.9 + Math.random() * 0.7, 1);
+                entry.sprite.scale.set(entry.baseScale, entry.baseScale, 1);
             }
             for (var pi = 0; pi < driftPuffs.length; pi++) {
                 var p = driftPuffs[pi];
                 if (p.life <= 0) { p.sprite.visible = false; continue; }
                 p.life -= dt;
                 p.sprite.visible = p.life > 0;
-                p.sprite.material.opacity = Math.max(0, p.life / 0.75) * 0.55;
-                var grow = 1 + (0.75 - p.life) * 2.4;
+                var puffMax = p.maxLife || 0.75;
+                p.sprite.material.opacity = Math.max(0, p.life / puffMax) * (p.maxOpacity || 0.55);
+                var grow = (p.baseScale || 1) * (1 + (puffMax - p.life) * (p.growth || 1.9));
                 p.sprite.scale.set(grow, grow * 0.85, 1);
                 p.sprite.position.y += dt * 1.1;
                 p.sprite.position.z += speed * dt;
+            }
+        }
+
+        var revSmokeT = 0;
+
+        function spawnRevSmoke(intensity) {
+            for (var n = 0; n < 2; n++) {
+                var entry = driftPuffs[driftPuffCursor % driftPuffs.length];
+                driftPuffCursor++;
+                entry.life = 1.1 + intensity * 0.6;
+                entry.maxLife = entry.life;
+                entry.baseScale = 1.7 + intensity * 1.25;
+                entry.maxOpacity = 0.5;
+                entry.growth = 1.8;
+                var side = n === 0 ? -1 : 1;
+                entry.sprite.position.set(
+                    player.position.x + side * (0.52 + Math.random() * 0.3),
+                    0.3 + Math.random() * 0.18,
+                    player.position.z + 1.8 + Math.random() * 0.35
+                );
+                entry.sprite.material.color.setHex(0xaab6c2);
+                entry.sprite.scale.set(entry.baseScale, entry.baseScale * 0.8, 1);
+                entry.sprite.material.opacity = 0.5;
             }
         }
 
@@ -4188,7 +4118,10 @@
         var nitroWasActive = false, nitroShiftT = 0;
         var coinsCollected = 0;
         var garageMode = false;
-        var hudT = 0, gaugeT = 0, prevSpeedAbs = 0;
+        var hudT = 0, gaugeT = 0, prevSpeedAbs = 0, cullT = 0;
+        var cullFrustum = new THREE.Frustum();
+        var cullProjection = new THREE.Matrix4();
+        var cullSphere = new THREE.Sphere();
         var maxX = ROAD_W / 2 - 1.3;
         var steerX = 0;
         var steerAngle = 0;
@@ -4220,6 +4153,27 @@
             if (car.userData.lodVisible === show) return;
             car.userData.lodVisible = show;
             for (var i = 0; i < details.length; i++) details[i].visible = show;
+        }
+
+        function gpuCullPass() {
+            camera.updateMatrixWorld();
+            camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
+            cullProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+            cullFrustum.setFromProjectionMatrix(cullProjection);
+            for (var ci = 0; ci < cloudLayers.length; ci++) {
+                var cloud = cloudLayers[ci];
+                cullSphere.center.copy(cloud.position);
+                cullSphere.radius = 210;
+                cloud.visible = cullFrustum.intersectsSphere(cullSphere);
+            }
+            for (var ti = 0; ti < traffic.length; ti++) {
+                var car = traffic[ti];
+                if (!car || !car.userData) continue;
+                var spec = car.userData.spec || {};
+                cullSphere.center.copy(car.position);
+                cullSphere.radius = (spec.len || 3.2) * 0.7 + 3;
+                car.visible = car.position.z < 24 && car.position.z > -420 && cullFrustum.intersectsSphere(cullSphere);
+            }
         }
 
         function laneIndexOf(x) {
@@ -4873,6 +4827,12 @@
             var freeRevNow = engineOn && (gearMode === 'N' || gearMode === 'P');
             var revTarget = freeRevNow ? (input.up ? 1 : 0) : 0;
             revLevel += (revTarget - revLevel) * Math.min(1, dt * (revTarget > revLevel ? 7 : 3.2));
+            revSmokeT -= dt;
+            var revSmokeActive = freeRevNow ? revLevel > 0.16 : (engineOn && throttleSmooth > 0.82 && Math.abs(speed) < 20);
+            if (revSmokeActive && revSmokeT <= 0) {
+                revSmokeT = 0.13;
+                spawnRevSmoke(freeRevNow ? revLevel : 0.55);
+            }
             brakeSmooth += (brakeTarget - brakeSmooth) * Math.min(1, dt * 9);
 
             honkCooldown = Math.max(0, honkCooldown - dt);
@@ -4952,7 +4912,8 @@
                 var pull = perf.accel * (fsdActive ? 4.5 : 1) * (nitroActive ? 2.35 : 1) * (1 - 0.5 * Math.min(1, speed / topSpeedNow));
                 speed = Math.min(topSpeedNow, speed + pull * (0.35 + 0.65 * throttleSmooth) * dt);
             } else if (speed > CREEP_SPEED) {
-                speed = Math.max(CREEP_SPEED, speed - 11 * dt);
+                // Coasting: keep momentum much longer when the throttle is off.
+                speed = Math.max(CREEP_SPEED, speed - 3.4 * dt);
             } else {
                 speed = Math.min(CREEP_SPEED, speed + 5 * dt);
             }
@@ -5005,10 +4966,10 @@
             if (input.right) steerInput += 1;
             var steerTarget = 0;
             if (fsdActive) steerTarget = (fsdSteerX - player.position.x) * 0.18;
-            else if (input.pointerActive) steerTarget = ((input.pointerX * maxX) - player.position.x) / Math.max(1, maxX) * 0.72;
-            else steerTarget = steerInput * 0.52;
-            steerTarget = Math.max(-0.58, Math.min(0.58, steerTarget));
-            steerAngle += (steerTarget - steerAngle) * Math.min(1, dt * 4.5);
+            else if (input.pointerActive) steerTarget = ((input.pointerX * maxX) - player.position.x) / Math.max(1, maxX) * 0.84;
+            else steerTarget = steerInput * 0.62;
+            steerTarget = Math.max(-0.7, Math.min(0.7, steerTarget));
+            steerAngle += (steerTarget - steerAngle) * Math.min(1, dt * 6.0);
             if (fsdActive) {
                 steerX += (fsdSteerX - steerX) * Math.min(1, dt * (2.0 + speedSteerFactor * 3.5));
                 if (Math.abs(speed) < 1) steerX = player.position.x;
@@ -5017,16 +4978,16 @@
                 steerX = player.position.x;
             } else if (input.pointerActive) {
                 var pointerTarget = Math.max(-maxX, Math.min(maxX, input.pointerX * maxX * 1.08));
-                steerX += (pointerTarget - steerX) * Math.min(1, dt * 4.2 * speedSteerFactor);
+                steerX += (pointerTarget - steerX) * Math.min(1, dt * 5.6 * speedSteerFactor);
                 steerX = Math.max(-maxX, Math.min(maxX, steerX));
             } else {
-                var highSpeedStability = 1 - 0.4 * Math.min(1, Math.abs(speed) / 140);
-                steerX += steerInput * dt * 5.5 * perf.grip * speedSteerFactor * highSpeedStability * (driftIntent ? 1.25 : 1);
+                var highSpeedStability = 1 - 0.26 * Math.min(1, Math.abs(speed) / 140);
+                steerX += steerInput * dt * 7.2 * perf.grip * speedSteerFactor * highSpeedStability * (driftIntent ? 1.25 : 1);
                 steerX = Math.max(-maxX, Math.min(maxX, steerX));
             }
 
             var beforeX = player.position.x;
-            player.position.x += (steerX - player.position.x) * Math.min(1, dt * (driftIntent ? 4.8 : 6.4));
+            player.position.x += (steerX - player.position.x) * Math.min(1, dt * (driftIntent ? 5.6 : 7.8));
             player.position.x = Math.max(-maxX, Math.min(maxX, player.position.x));
             var vx = (player.position.x - beforeX) / (dt || 0.016);
             currentVx = vx;
@@ -5412,6 +5373,11 @@
                 camera.position.x += Math.sin(elapsed * 61.0) * powerShake;
                 camera.position.y += Math.cos(elapsed * 73.0) * powerShake * 0.65;
             }
+            cullT -= dt;
+            if (cullT <= 0) {
+                cullT = 1 / 30;
+                gpuCullPass();
+            }
             if (fpWheel) {
                 fpWheel.visible = cameraMode === 3 && !ragdollActive;
                 fpWheel.rotation.z = -steerAngle * 2.3;
@@ -5566,6 +5532,8 @@
                     audioSamples: !!(windLowLoop && windHighLoop && engineLowLoop && engineHighLoop),
                     audioState: audioCtx ? audioCtx.state : 'none',
                     rampPhysics: rampPhysicsActive,
+                    revLevel: revLevel,
+                    smokePuffs: driftPuffs.reduce(function (n, p) { return n + (p.life > 0 ? 1 : 0); }, 0),
                     crashing: crashActive
                 };
             },
