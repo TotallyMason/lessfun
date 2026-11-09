@@ -8452,8 +8452,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.96";
-const UPDATE_NOTES = "Boeing Landing now shows touchdown FPM, a clear NOSE UP / NOSE DOWN attitude readout, working ground takeoff, and TotallyMason auto-lock toggled with K";
+const APP_VERSION = "LessFun Public Beta 1.32.97";
+const UPDATE_NOTES = "The LessFun Assistant is live: tap Ask AI for instant answers from a 1,000-pattern on-site knowledge base about games, Coins, gifts, accounts, controls and settings";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

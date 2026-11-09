@@ -30,6 +30,10 @@ Guests can play without an account, but guest scores and posts are not saved.
 Account mode keeps scores, posts, Coins and purchases across devices once the
 Supabase tables below are created.
 
+## LessFun Assistant
+
+The floating **Ask AI** button opens a local assistant with a 1,000-pattern knowledge base covering every game, controls, Coins, Daily Gifts, accounts, cloud sync, the Store, Garage, Showroom, friends, radio, settings and troubleshooting. It runs entirely in the browser and does not send questions to an external service.
+
 ## Run locally
 
 The web version lives in [`docs/`](docs) and uses no build step, no bundler, and
