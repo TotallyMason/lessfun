@@ -141,6 +141,10 @@
     }
 
     var entries = [];
+    var indexBuilt = false;
+    var N = 0;
+    var df = {};
+    var idf = {};
     var seeds = (typeof window !== 'undefined' && window.LESSFUN_AI_SEEDS) ? window.LESSFUN_AI_SEEDS : [];
 
     var VOCAB = {};
@@ -187,32 +191,44 @@
         return bestD <= max ? best : null;
     }
 
-    seeds.forEach(function (seed) {
-        VARIANTS.forEach(function (make) {
-            TAILS.forEach(function (tail) {
-                var phrase = make(seed.t) + ' ' + (seed.k || '') + tail;
-                var topicTokens = tokenize(phrase, false);
-                var tokens = topicTokens.concat(tokenize(seed.a || '', false));
-                entries.push({
-                    q: phrase,
-                    a: seed.a,
-                    t: seed.t,
-                    game: gameForSeed(seed),
-                    terms: tokens,
-                    termSet: tokens.reduce(function (o, w) { o[w] = true; return o; }, {}),
-                    topicSet: topicTokens.reduce(function (o, w) { o[w] = true; return o; }, {})
+    function buildIndex() {
+        if (indexBuilt) return;
+        entries = [];
+        df = {};
+        idf = {};
+        seeds.forEach(function (seed) {
+            VARIANTS.forEach(function (make) {
+                TAILS.forEach(function (tail) {
+                    var phrase = make(seed.t) + ' ' + (seed.k || '') + tail;
+                    var topicTokens = tokenize(phrase, false);
+                    var tokens = topicTokens.concat(tokenize(seed.a || '', false));
+                    entries.push({
+                        q: phrase,
+                        a: seed.a,
+                        t: seed.t,
+                        game: gameForSeed(seed),
+                        terms: tokens,
+                        termSet: tokens.reduce(function (o, w) { o[w] = true; return o; }, {}),
+                        topicSet: topicTokens.reduce(function (o, w) { o[w] = true; return o; }, {})
+                    });
                 });
             });
         });
-    });
+        N = entries.length;
+        entries.forEach(function (e) {
+            Object.keys(e.termSet).forEach(function (w) { df[w] = (df[w] || 0) + 1; });
+        });
+        Object.keys(df).forEach(function (w) { idf[w] = Math.log((N + 1) / (df[w] + 1)) + 1; });
+        indexBuilt = true;
+    }
 
-    var N = entries.length;
-    var df = {};
-    entries.forEach(function (e) {
-        Object.keys(e.termSet).forEach(function (w) { df[w] = (df[w] || 0) + 1; });
-    });
-    var idf = {};
-    Object.keys(df).forEach(function (w) { idf[w] = Math.log((N + 1) / (df[w] + 1)) + 1; });
+    function releaseIndex() {
+        entries = [];
+        df = {};
+        idf = {};
+        N = 0;
+        indexBuilt = false;
+    }
 
     var lastTopic = '';
     var lastGame = '';
@@ -248,6 +264,7 @@
     }
 
     function answerFor(input) {
+        buildIndex();
         var text = String(input || '').trim();
         if (!text) return 'Ask me about a game, Coins, gifts, controls, accounts, the Store, Garage, friends or settings.';
         var lower = text.toLowerCase().replace(/\bwhats\b/g, 'what is').replace(/\bur\b/g, 'your').replace(/\bu\b/g, 'you').replace(/\br\b/g, 'are');
@@ -412,6 +429,7 @@
     }
 
     function openPanel() {
+        buildIndex();
         var dock = document.getElementById('aiDock');
         var panel = document.getElementById('aiPanel');
         if (!dock || !panel) return;
@@ -432,6 +450,7 @@
         open = false;
         if (dock) dock.classList.remove('is-open');
         if (panel) panel.style.display = 'none';
+        releaseIndex();
     }
 
     function togglePanel() {
@@ -511,7 +530,7 @@
         toggle: togglePanel,
         reset: resetChat,
         submit: submitForm,
-        entries: entries.length,
+        get entries() { return entries.length; },
         _answer: answerFor
     };
 

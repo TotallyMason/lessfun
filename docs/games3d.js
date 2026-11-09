@@ -61,6 +61,8 @@
     var playedSeconds = 0;
     var paused = false;
     var lastGameId = 0;
+    var lastFrameNow = 0;
+    var thermalSaver = false;
     var lastStartOpts = null;
 
     function addCleanup(fn) { cleanupFns.push(fn); }
@@ -700,9 +702,9 @@
         });
         var cloudLayers = [];
         var cloudTints = [0xffffff, 0xffe6d8, 0xdfefff, 0xfff1de, 0xe8ddff];
-        for (var cl = 0; cl < (lowPowerDevice ? 10 : 18); cl++) {
+        for (var cl = 0; cl < (lowPowerDevice ? 8 : 12); cl++) {
             var cluster = new THREE.Group();
-            var puffs = 6 + Math.floor(Math.random() * 5);
+            var puffs = 5 + Math.floor(Math.random() * 4);
             for (var cp = 0; cp < puffs; cp++) {
                 var cloudMat = new THREE.SpriteMaterial({
                     map: cloudTexture,
@@ -9425,7 +9427,14 @@
 
     function loop() {
         raf = requestAnimationFrame(loop);
-        var dt = Math.min(clock.getDelta(), 0.05);
+        var frameNow = (global.performance && global.performance.now) ? global.performance.now() : Date.now();
+        var heavyGame = lastGameId === 1 || lastGameId === 4 || lastGameId === 7;
+        var minFrameMs = 15.5;
+        if (lastFrameNow && frameNow - lastFrameNow < minFrameMs) return;
+        var dt = lastFrameNow
+            ? Math.min(0.05, (frameNow - lastFrameNow) / 1000)
+            : Math.min(clock.getDelta(), 0.05);
+        lastFrameNow = frameNow;
         fpsTime += dt;
         fpsFrames++;
         if (fpsTime >= 1) {
@@ -9436,6 +9445,17 @@
             if (lowFpsTime >= 2 && motionBlurEnabled && !motionBlurAutoOff) {
                 motionBlurAutoOff = true;
                 resetMotionBlurHistory();
+            }
+            if (lowFpsTime >= 3 && !thermalSaver) {
+                thermalSaver = true;
+                shadowQuality = false;
+                if (renderer) {
+                    renderer.shadowMap.enabled = false;
+                }
+                motionBlurEnabled = false;
+                motionBlurAutoOff = true;
+                adaptiveScale = Math.min(adaptiveScale, 0.75);
+                applyPixelRatio();
             }
             adaptiveCooldown = Math.max(0, adaptiveCooldown - fpsTime);
             if (!autoGraphics) {
@@ -9541,6 +9561,8 @@
         resizeObs.observe(container);
 
         clock = new THREE.Clock();
+        lastFrameNow = 0;
+        thermalSaver = false;
         resetMotionBlurHistory();
         lastCinemaFrame = 0;
         motionBlurAutoOff = isMobileDevice;
@@ -9591,6 +9613,8 @@
     }
 
     function stop() {
+        lastFrameNow = 0;
+        thermalSaver = false;
         running = false;
         paused = false;
         playedSeconds = 0;
