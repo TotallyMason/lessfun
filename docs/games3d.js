@@ -3101,9 +3101,10 @@
         }
 
         function resolveCollision(car, halfWidth) {
-            var playerKmh = Math.abs(speed) * 3.6;
-            var otherKmh = Math.abs(car.userData.cruiseSpeed || 0) * 3.6;
-            if (playerKmh > 30 && otherKmh > 30) {
+            // A full cinematic crash needs a real speed difference. If both
+            // cars are moving at a similar pace, it is just a minor bump.
+            var relativeKmh = Math.abs(Math.abs(speed) - Math.abs(car.userData.cruiseSpeed || 0)) * 3.6;
+            if (relativeKmh >= 30) {
                 triggerCrash(car, halfWidth);
                 return true;
             }
@@ -3111,10 +3112,11 @@
             var mx2 = (player.position.x + car.position.x) * 0.5;
             var mz2 = (player.position.z + car.position.z) * 0.5;
             spawnCrashDebris(mx2, mz2);
-            spawnSparks(mx2, 0.7, mz2, 28);
+            spawnSparks(mx2, 0.7, mz2, 18 + Math.round(relativeKmh * 0.5));
             spawnCrashSmoke(mx2, mz2, 2);
-            speed = Math.max(0, speed * 0.72);
-            suspensionImpulse = Math.max(suspensionImpulse, 0.45);
+            var minorLoss = Math.min(0.28, 0.08 + relativeKmh * 0.007);
+            speed = Math.max(0, speed * (1 - minorLoss));
+            suspensionImpulse = Math.max(suspensionImpulse, Math.min(0.5, 0.2 + relativeKmh * 0.01));
             var dirX = player.position.x >= car.position.x ? 1 : -1;
             player.position.x = Math.max(-maxX, Math.min(maxX, player.position.x + dirX * 0.38));
             car.position.x += dirX * 0.2;

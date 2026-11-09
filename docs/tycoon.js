@@ -29,6 +29,19 @@
         return Math.floor(Number(n) || 0).toLocaleString();
     }
 
+    function fmtCash(n) {
+        var value = Number(n) || 0;
+        if (value < 100000) {
+            return value.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+        }
+        return Math.floor(value).toLocaleString();
+    }
+
+    function fmtMissing(n) {
+        var value = Math.max(0, Number(n) || 0);
+        return value < 10 ? value.toFixed(1) : fmt(value);
+    }
+
     function getArcade() {
         if (!wallet) return null;
         if (!wallet.arcade || typeof wallet.arcade !== 'object') {
@@ -172,7 +185,7 @@
                 '<strong>' + info.name + '</strong>' +
                 '<span>Level ' + cab.l + ' · ' + income.toFixed(1) + '/min</span>' +
                 (cab.l < 5
-                    ? '<button type="button" class="tycoon-slot-btn" onclick="tycoonUpgrade(' + index + ')">Upgrade · ' + fmt(upCost) + '</button>'
+                    ? '<button type="button" class="tycoon-slot-btn" data-upgrade="' + index + '" data-cost="' + upCost + '" onclick="tycoonUpgrade(' + index + ')">Upgrade · ' + fmt(upCost) + '</button>'
                     : '<em class="tycoon-maxed">MAX LEVEL</em>') +
             '</div>';
         }).join('');
@@ -188,12 +201,12 @@
         var shopHtml = CABINET_ORDER.map(function (type) {
             var info = CABINETS[type];
             var canBuy = a.cash >= info.cost && a.cabinets.length < a.slots;
-            var reason = a.cabinets.length >= a.slots ? 'No free bays' : (a.cash < info.cost ? 'Need ' + fmt(info.cost - a.cash) + ' more' : 'Build');
+            var reason = a.cabinets.length >= a.slots ? 'No free bays' : (a.cash < info.cost ? 'Need ' + fmtMissing(info.cost - a.cash) + ' more' : 'Build');
             return '<div class="tycoon-shop-card" style="--cab:' + info.color + '">' +
                 '<div class="tycoon-shop-top"><div class="tycoon-cab-icon">' + cabinetIcon(type) + '</div>' +
                 '<div><strong>' + info.name + '</strong><span>' + info.income + '/min · ' + info.rep + ' rep</span></div></div>' +
                 '<div class="tycoon-shop-cost">' + fmt(info.cost) + ' <small>cash</small></div>' +
-                '<button type="button" class="tycoon-buy' + (canBuy ? '' : ' is-disabled') + '" onclick="tycoonBuy(\'' + type + '\')">' + reason + '</button>' +
+                '<button type="button" class="tycoon-buy' + (canBuy ? '' : ' is-disabled') + '" data-buy="' + type + '" data-cost="' + info.cost + '" onclick="tycoonBuy(\'' + type + '\')">' + reason + '</button>' +
             '</div>';
         }).join('');
 
@@ -215,8 +228,8 @@
                     '</div>' +
                     '<div class="tycoon-cash">' +
                         '<small>ARCADE CASH</small>' +
-                        '<strong id="tyCash">' + fmt(a.cash) + '</strong>' +
-                        '<span id="tyRate">+' + rate.toFixed(1) + ' / min</span>' +
+                        '<strong id="tyCash">' + fmtCash(a.cash) + '</strong>' +
+                        '<span id="tyRate">+' + (rate / 60).toFixed(2) + ' / sec</span>' +
                     '</div>' +
                 '</div>' +
                 '<div class="tycoon-stats">' +
@@ -245,8 +258,26 @@
         if (!a) return;
         var cashEl = document.getElementById('tyCash');
         var rateEl = document.getElementById('tyRate');
-        if (cashEl) cashEl.textContent = fmt(a.cash);
-        if (rateEl) rateEl.textContent = '+' + incomePerMinute(a).toFixed(1) + ' / min';
+        var rate = incomePerMinute(a);
+        if (cashEl) cashEl.textContent = fmtCash(a.cash);
+        if (rateEl) rateEl.textContent = '+' + (rate / 60).toFixed(2) + ' / sec';
+        var full = a.cabinets.length >= a.slots;
+        var buyButtons = document.querySelectorAll('.tycoon-buy[data-buy]');
+        for (var i = 0; i < buyButtons.length; i++) {
+            var btn = buyButtons[i];
+            var info = CABINETS[btn.getAttribute('data-buy')];
+            if (!info) continue;
+            var canBuy = !full && a.cash >= info.cost;
+            btn.classList.toggle('is-disabled', !canBuy);
+            var label = full ? 'No free bays' : (a.cash < info.cost ? 'Need ' + fmtMissing(info.cost - a.cash) + ' more' : 'Build');
+            if (btn.textContent !== label) btn.textContent = label;
+        }
+        var upgradeButtons = document.querySelectorAll('.tycoon-slot-btn[data-upgrade]');
+        for (var j = 0; j < upgradeButtons.length; j++) {
+            var up = upgradeButtons[j];
+            var cost = Number(up.getAttribute('data-cost')) || 0;
+            up.classList.toggle('is-disabled', a.cash < cost);
+        }
     }
 
     function tick() {
