@@ -11,8 +11,8 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261319">
-    <link rel="preload" href="app.js?v=20261319" as="script">
+    <link rel="stylesheet" href="style.css?v=20261320">
+    <link rel="preload" href="app.js?v=20261320" as="script">
 </head>
 <body>
     <div id="siteLoader" class="site-loader" role="status" aria-live="polite" aria-label="Loading LessFun">
@@ -50,6 +50,8 @@
         if (!loader) return;
         var started = (window.performance && performance.now) ? performance.now() : Date.now();
         var hidden = false;
+        var pageLoaded = document.readyState === 'complete';
+        var appReady = !!(window.__lessFunReady);
         function hide() {
             if (hidden) return;
             hidden = true;
@@ -61,11 +63,14 @@
                 setTimeout(function () { loader.style.display = 'none'; }, 520);
             }, wait);
         }
-        if (document.readyState === 'complete') hide();
-        else {
-            window.addEventListener('load', hide, { once: true });
-            setTimeout(hide, 6000);
+        function maybeHide() {
+            if (pageLoaded && appReady) hide();
         }
+        window.addEventListener('load', function () { pageLoaded = true; maybeHide(); });
+        window.addEventListener('lessfun-ready', function () { appReady = true; maybeHide(); });
+        maybeHide();
+        // Never leave the splash stuck if a script fails.
+        setTimeout(function () { appReady = true; maybeHide(); }, 8000);
     })();
     </script>
     <div id="updateShutdown" class="update-shutdown" style="display:none;">
@@ -1047,7 +1052,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Public Beta 1.33.35</p>
+                            <p>LessFun Public Beta 1.33.36</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -1184,6 +1189,7 @@
                             <li><strong>1.33.33</strong> — Automatic gear changes now take longer, shift one gear at a time, briefly cut torque and play the gear-select sound on each change.</li>
                             <li><strong>1.33.34</strong> — Showroom filters and sorting, unique handling for every car, and car exhaust trails removed.</li>
                             <li><strong>1.33.35</strong> — Always-on ABS, dashboard warning lights, engine heat/blowout and transmission damage, persistent skid marks and stronger tire smoke.</li>
+                            <li><strong>1.33.36</strong> — The loading splash now waits for the snow to start, and the gauge cluster shows a live engine-temperature bar.</li>
                         </ul>
                     </div>
                     <div class="info-card">
@@ -1526,8 +1532,8 @@
     <div id="globalToast" class="global-toast"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=20261319"></script>
-    <script src="christmas.js?v=20261319"></script>
-    <script src="easter.js?v=20261319"></script>
+    <script src="app.js?v=20261320"></script>
+    <script src="christmas.js?v=20261320"></script>
+    <script src="easter.js?v=20261320"></script>
 </body>
 </html>

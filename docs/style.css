@@ -12573,3 +12573,35 @@ body.in-game .xmas-snowman { display: none; }
 .g3d-warn[data-warn="eng"].is-on,
 .g3d-warn[data-warn="dmg"].is-on { background: #ff4a5c; border-color: #ff4a5c; box-shadow: 0 0 7px rgba(255, 74, 92, 0.4); }
 .g3d-warn[data-warn="hot"].is-on { background: #ff9f1c; border-color: #ff9f1c; box-shadow: 0 0 7px rgba(255, 159, 28, 0.4); }
+
+/* Engine temperature readout */
+.g3d-temp {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 5px;
+    color: rgba(220, 240, 250, 0.4);
+    font-size: 6px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+}
+.g3d-temp-track {
+    flex: 1;
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.09);
+    overflow: hidden;
+}
+.g3d-temp-track i {
+    display: block;
+    width: 0%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #5fe7ff, #8affd0);
+    transition: width 0.15s linear;
+}
+.g3d-temp.is-warm i { background: linear-gradient(90deg, #ffd166, #ff9f1c); }
+.g3d-temp.is-hot i { background: linear-gradient(90deg, #ff9f1c, #ff3b4b); }
+.g3d-temp b { min-width: 36px; color: #8fd8ff; font-size: 7.5px; text-align: right; }
+.g3d-temp.is-warm b { color: #ffd166; }
+.g3d-temp.is-hot b { color: #ff4a5c; }

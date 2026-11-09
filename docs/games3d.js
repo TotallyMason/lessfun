@@ -585,6 +585,18 @@
             warn('trans', carDamage.transmission > 0.45);
             warn('tire', blownTire);
             warn('dmg', maxDamage > 0.12);
+            var tempEl = document.getElementById('g3dTemp');
+            var tempFill = document.getElementById('g3dTempFill');
+            var tempValue = document.getElementById('g3dTempValue');
+            var heatPct = Math.max(0, Math.min(1, engineHeat));
+            if (tempFill) tempFill.style.width = (heatPct * 100).toFixed(1) + '%';
+            if (tempEl) {
+                tempEl.classList.toggle('is-warm', heatPct > 0.62 && heatPct <= 0.82);
+                tempEl.classList.toggle('is-hot', heatPct > 0.82 || engineBlown);
+            }
+            if (tempValue) {
+                tempValue.textContent = engineBlown ? 'BLOWN' : Math.round(40 + engineHeat * 100) + '°';
+            }
         }
 
         scene.background = new THREE.Color(0x9bd7f2);
