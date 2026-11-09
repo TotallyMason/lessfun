@@ -11,8 +11,8 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261288">
-    <link rel="preload" href="app.js?v=20261288" as="script">
+    <link rel="stylesheet" href="style.css?v=20261289">
+    <link rel="preload" href="app.js?v=20261289" as="script">
 </head>
 <body>
     <div id="siteLoader" class="site-loader" role="status" aria-live="polite" aria-label="Loading LessFun">
@@ -27,6 +27,13 @@
             <div class="site-loader-word">LessFun</div>
             <div class="site-loader-track"><i></i></div>
             <p class="site-loader-status">Warming up the arcade</p>
+        </div>
+    </div>
+    <div id="viewLoader" class="view-loader" role="status" aria-live="polite">
+        <div class="view-loader-card">
+            <span class="view-loader-spinner"></span>
+            <strong id="viewLoaderTitle">Loading…</strong>
+            <small>LessFun</small>
         </div>
     </div>
     <script>
@@ -1000,7 +1007,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Public Beta 1.33.04</p>
+                            <p>LessFun Public Beta 1.33.05</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -1106,6 +1113,7 @@
                             <li><strong>1.33.02</strong> — The assistant knowledge base grows from 1,000 to 10,000 answer patterns.</li>
                             <li><strong>1.33.03</strong> — New site loading splash with the LessFun mark, aurora glow and progress shimmer. The assistant also got game-aware context and follow-up handling.</li>
                             <li><strong>1.33.04</strong> — Much faster startup: the 3D engine, game scripts and assistant now load on demand instead of blocking the first page load.</li>
+                            <li><strong>1.33.05</strong> — Added liquid-glass loading overlays for Community, Friends, Store, Garage and game loading, with hover preloading for faster game starts.</li>
                         </ul>
                     </div>
                     <div class="info-card">
@@ -1427,6 +1435,6 @@
     <div id="globalToast" class="global-toast"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=20261288"></script>
+    <script src="app.js?v=20261289"></script>
 </body>
 </html>

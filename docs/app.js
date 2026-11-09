@@ -458,6 +458,47 @@ function getIcon(name) {
     return icons[name] || '';
 }
 
+let viewLoaderShownAt = 0;
+let viewLoaderHideTimer = 0;
+
+function showViewLoader(label) {
+    var el = document.getElementById('viewLoader');
+    var title = document.getElementById('viewLoaderTitle');
+    if (!el) return;
+    if (title) title.textContent = label || 'Loading…';
+    clearTimeout(viewLoaderHideTimer);
+    viewLoaderShownAt = Date.now();
+    el.style.display = 'flex';
+    requestAnimationFrame(function () { el.classList.add('is-visible'); });
+}
+
+function hideViewLoader() {
+    var el = document.getElementById('viewLoader');
+    if (!el) return;
+    var wait = Math.max(0, 340 - (Date.now() - viewLoaderShownAt));
+    clearTimeout(viewLoaderHideTimer);
+    viewLoaderHideTimer = setTimeout(function () {
+        el.classList.remove('is-visible');
+        setTimeout(function () {
+            if (!el.classList.contains('is-visible')) el.style.display = 'none';
+        }, 240);
+    }, wait);
+}
+
+let viewRenderToken = 0;
+function renderViewDeferred(label, fn) {
+    var token = ++viewRenderToken;
+    showViewLoader(label);
+    setTimeout(function () {
+        if (token !== viewRenderToken) return;
+        var result;
+        try { result = fn(); } catch (e) { hideViewLoader(); return; }
+        Promise.resolve(result).finally(function () {
+            if (token === viewRenderToken) hideViewLoader();
+        });
+    }, 40);
+}
+
 function showView(view) {
     if (view === 'debug' && (!isOwner() || !ownerUnlocked)) {
         alert('Owner tools are locked. Sign in as TotallyMason and unlock them first.');
@@ -474,12 +515,35 @@ function showView(view) {
     document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
     if (document.getElementById('profileModal')) document.getElementById('profileModal').style.display = 'none';
     if (view === 'games') { document.getElementById('gamesView').style.display = 'block'; document.getElementById('nav-games').classList.add('active'); }
-    else if (view === 'community') { document.getElementById('communityView').style.display = 'block'; document.getElementById('nav-community').classList.add('active'); renderCommunity(); }
-    else if (view === 'users') { if(document.getElementById('usersView')){ document.getElementById('usersView').style.display = 'block'; document.getElementById('nav-users').classList.add('active'); renderFriends(); partyRender(); } }
-    else if (view === 'store') { document.getElementById('storeView').style.display = 'block'; document.getElementById('nav-store').classList.add('active'); renderWalletUI(); renderStore(); }
-    else if (view === 'garage') { document.getElementById('garageView').style.display = 'block'; var gnav = document.getElementById('nav-garage'); if (gnav) gnav.classList.add('active'); renderWalletUI(); renderGarage(); }
+    else if (view === 'community') {
+        document.getElementById('communityView').style.display = 'block';
+        document.getElementById('nav-community').classList.add('active');
+        renderViewDeferred('Opening Community…', function () { return renderCommunity(); });
+    }
+    else if (view === 'users') {
+        if (document.getElementById('usersView')) {
+            document.getElementById('usersView').style.display = 'block';
+            document.getElementById('nav-users').classList.add('active');
+            renderViewDeferred('Opening Friends…', function () { renderFriends(); partyRender(); });
+        }
+    }
+    else if (view === 'store') {
+        document.getElementById('storeView').style.display = 'block';
+        document.getElementById('nav-store').classList.add('active');
+        renderViewDeferred('Opening Store…', function () { renderWalletUI(); renderStore(); });
+    }
+    else if (view === 'garage') {
+        document.getElementById('garageView').style.display = 'block';
+        var gnav = document.getElementById('nav-garage');
+        if (gnav) gnav.classList.add('active');
+        renderViewDeferred('Opening Garage…', function () { renderWalletUI(); renderGarage(); });
+    }
     else if (view === 'settings') { document.getElementById('settingsView').style.display = 'block'; document.getElementById('nav-settings').classList.add('active'); }
-    else if (view === 'debug') { document.getElementById('debugView').style.display = 'block'; document.getElementById('nav-debug').classList.add('active'); renderDebugUsers(); }
+    else if (view === 'debug') {
+        document.getElementById('debugView').style.display = 'block';
+        document.getElementById('nav-debug').classList.add('active');
+        renderViewDeferred('Opening Owner Tools…', function () { renderDebugUsers(); });
+    }
     currentView = view;
     touchPresence();
 }
@@ -575,7 +639,7 @@ function renderGames() {
     gameList.innerHTML = list.map(game => {
         const locked = disabled[game.id] && !isOwner();
         return `
-        <div class="game-card${locked ? ' is-disabled' : ''}" onclick="openGame(${game.id})">
+        <div class="game-card${locked ? ' is-disabled' : ''}" onclick="openGame(${game.id})" onpointerenter="preloadGame(${game.id})">
             <div class="game-icon">${getIcon(game.icon).replace('width="24" height="24"', 'width="28" height="28"')}</div>
             <h3>${game.name}${siteSettings.featured_game && gameBySlug(siteSettings.featured_game) && gameBySlug(siteSettings.featured_game).id === game.id ? ' <span class="game-featured-tag">FEATURED</span>' : ''}</h3>
             <p>${game.description}</p>
@@ -1038,7 +1102,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261288'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261289'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1047,7 +1111,7 @@ function ensure3DEngine() {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261288').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261289').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1055,7 +1119,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261288').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261289').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1063,8 +1127,8 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261288')
-            .then(function () { return loadScriptOnce('assistant.js?v=20261288'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261289')
+            .then(function () { return loadScriptOnce('assistant.js?v=20261289'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1077,27 +1141,39 @@ function openAssistant() {
     });
 }
 
+function preloadGame(id) {
+    if (id === 13) { ensureLanding().catch(function () {}); return; }
+    if (id === 14) { ensureTranq().catch(function () {}); return; }
+    if (id === 6 || id === 8 || id === 9) return;
+    ensure3DEngine().catch(function () {});
+}
+
 function openGame(id) {
     const game = games.find(g => g.id === id);
     if (!game) return;
     const token = ++gameOpenToken;
     if (id === 6 || id === 8 || id === 9) { openGameNow(id); return; }
     if (id === 13) {
-        if (typeof showGameToast === 'function') showGameToast('Loading ' + game.name + '…');
-        ensureLanding().then(function () { if (token === gameOpenToken) openGameNow(id); }).catch(function () {
+        showViewLoader('Loading ' + game.name + '…');
+        ensureLanding().then(function () { if (token === gameOpenToken) { openGameNow(id); hideViewLoader(); } }).catch(function () {
+            hideViewLoader();
             alert('Could not load ' + game.name + '. Check your connection and try again.');
         });
         return;
     }
     if (id === 14) {
-        if (typeof showGameToast === 'function') showGameToast('Loading ' + game.name + '…');
-        ensureTranq().then(function () { if (token === gameOpenToken) openGameNow(id); }).catch(function () {
+        showViewLoader('Loading ' + game.name + '…');
+        ensureTranq().then(function () { if (token === gameOpenToken) { openGameNow(id); hideViewLoader(); } }).catch(function () {
+            hideViewLoader();
             alert('Could not load ' + game.name + '. Check your connection and try again.');
         });
         return;
     }
-    if (typeof showGameToast === 'function') showGameToast('Loading 3D engine…');
-    ensure3DEngine().then(function () { if (token === gameOpenToken) openGameNow(id); }).catch(function () {
+    showViewLoader('Loading ' + game.name + '…');
+    ensure3DEngine().then(function () {
+        if (token === gameOpenToken) { openGameNow(id); hideViewLoader(); }
+    }).catch(function () {
+        hideViewLoader();
         alert('Could not load the 3D engine. Check your connection and try again.');
     });
 }
@@ -8541,8 +8617,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.04";
-const UPDATE_NOTES = "LessFun now starts faster: the 3D engine and game scripts load only when you open a game, so the arcade appears sooner";
+const APP_VERSION = "LessFun Public Beta 1.33.05";
+const UPDATE_NOTES = "Community, Friends, Store and game loading now show a liquid-glass loading overlay, and hovering a game starts preloading it";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
