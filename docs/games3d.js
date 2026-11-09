@@ -48,6 +48,12 @@
     var motionBlurStrength = 0.34;
     var rayTraceEnabled = false;
     var rtEnvTexture = null;
+    var ssrTarget = null;
+    var ssrScene = null;
+    var ssrCamera = null;
+    var ssrMaterial = null;
+    var ssrSize = '';
+    var ssrResolution = null;
     var fpsTime = 0;
     var fpsFrames = 0;
     var lastFps = 0;
@@ -1037,7 +1043,7 @@
                     rtEnvTexture.mapping = THREE.EquirectangularReflectionMapping;
                     try { rtEnvTexture.colorSpace = THREE.SRGBColorSpace; } catch (e) {}
                 }
-                if (scene) scene.environment = rtEnvTexture || null;
+                if (scene) scene.environment = null;
                 if (ocean) {
                     ocean.material.envMap = rtEnvTexture || null;
                     ocean.material.envMapIntensity = 0.65;
@@ -1047,8 +1053,8 @@
                 }
                 if (track) {
                     track.material.envMap = rtEnvTexture || null;
-                    track.material.envMapIntensity = 0.35;
-                    track.material.metalness = 0.2;
+                    track.material.envMapIntensity = 0.15;
+                    track.material.metalness = 0.1;
                     track.material.roughness = 0.5;
                     track.material.needsUpdate = true;
                 }
@@ -9969,8 +9975,105 @@
         return true;
     }
 
+    function ensureSsrResources() {
+        if (!renderer) return false;
+        var size = renderer.getDrawingBufferSize(new THREE.Vector2());
+        var scale = lowPowerDevice ? 0.35 : 0.5;
+        var w = Math.max(160, Math.floor(size.x * scale));
+        var h = Math.max(90, Math.floor(size.y * scale));
+        var key = w + 'x' + h;
+        if (ssrTarget && key === ssrSize) return true;
+        if (ssrTarget) { if (ssrTarget.depthTexture) ssrTarget.depthTexture.dispose(); ssrTarget.dispose(); }
+        var depth = new THREE.DepthTexture(w, h);
+        depth.type = THREE.UnsignedIntType;
+        ssrTarget = new THREE.WebGLRenderTarget(w, h, {
+            depthBuffer: true,
+            depthTexture: depth,
+            minFilter: THREE.LinearFilter,
+            magFilter: THREE.LinearFilter
+        });
+        if (ssrTarget.texture) ssrTarget.texture.colorSpace = THREE.SRGBColorSpace;
+        ssrSize = key;
+        ssrResolution = new THREE.Vector2(w, h);
+        if (!ssrScene) {
+            ssrScene = new THREE.Scene();
+            ssrCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+            ssrMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                    tDiffuse: { value: null },
+                    tDepth: { value: null },
+                    uProj: { value: new THREE.Matrix4() },
+                    uProjInv: { value: new THREE.Matrix4() },
+                    uResolution: { value: new THREE.Vector2(1, 1) }
+                },
+                vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+                fragmentShader: [
+                    'uniform sampler2D tDiffuse;',
+                    'uniform sampler2D tDepth;',
+                    'uniform mat4 uProj;',
+                    'uniform mat4 uProjInv;',
+                    'uniform vec2 uResolution;',
+                    'varying vec2 vUv;',
+                    'vec3 viewPos(vec2 uv, float d){',
+                    '  vec4 clip = vec4(uv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0);',
+                    '  vec4 p = uProjInv * clip;',
+                    '  return p.xyz / p.w;',
+                    '}',
+                    'void main(){',
+                    '  vec3 base = texture2D(tDiffuse, vUv).rgb;',
+                    '  float d = texture2D(tDepth, vUv).x;',
+                    '  if (d >= 0.99995) { gl_FragColor = vec4(base, 1.0); return; }',
+                    '  vec3 p = viewPos(vUv, d);',
+                    '  vec3 n = normalize(cross(dFdx(p), dFdy(p)));',
+                    '  vec3 v = normalize(p);',
+                    '  vec3 r = normalize(reflect(v, n));',
+                    '  vec3 ray = p + n * 0.04;',
+                    '  bool hit = false;',
+                    '  vec3 hitColor = vec3(0.0);',
+                    '  for (int i = 0; i < 16; i++) {',
+                    '    ray += r * (0.45 + float(i) * 0.08);',
+                    '    vec4 clip = uProj * vec4(ray, 1.0);',
+                    '    if (clip.w <= 0.0) break;',
+                    '    vec2 uv = clip.xy / clip.w * 0.5 + 0.5;',
+                    '    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) break;',
+                    '    float sd = texture2D(tDepth, uv).x;',
+                    '    if (sd >= 0.99995) continue;',
+                    '    vec3 sp = viewPos(uv, sd);',
+                    '    float diff = ray.z - sp.z;',
+                    '    if (diff > 0.0 && diff < 1.0) { hitColor = texture2D(tDiffuse, uv).rgb; hit = true; break; }',
+                    '  }',
+                    '  float fres = pow(1.0 - max(dot(n, -v), 0.0), 3.0);',
+                    '  vec3 col = hit ? mix(base, hitColor, 0.18 + fres * 0.28) : base;',
+                    '  gl_FragColor = vec4(col, 1.0);',
+                    '}'
+                ].join('\n'),
+                depthTest: false,
+                depthWrite: false
+            });
+            ssrMaterial.extensions = { derivatives: true };
+            ssrScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), ssrMaterial));
+        }
+        return true;
+    }
+
+    function renderSoftwareRT() {
+        if (!ensureSsrResources()) return false;
+        renderer.setRenderTarget(ssrTarget);
+        renderer.clear();
+        renderer.render(scene, camera);
+        renderer.setRenderTarget(null);
+        ssrMaterial.uniforms.tDiffuse.value = ssrTarget.texture;
+        ssrMaterial.uniforms.tDepth.value = ssrTarget.depthTexture;
+        ssrMaterial.uniforms.uProj.value.copy(camera.projectionMatrix);
+        ssrMaterial.uniforms.uProjInv.value.copy(camera.projectionMatrixInverse);
+        ssrMaterial.uniforms.uResolution.value.copy(ssrResolution);
+        renderer.render(ssrScene, ssrCamera);
+        return true;
+    }
+
     function renderFrame() {
         if (!renderer || !scene || !camera) return;
+        if (rayTraceEnabled && lastGameId === 1 && renderSoftwareRT()) return;
         // Motion blur is a Beach Racer-only speed effect and stays on there,
         // regardless of the graphics preset or automatic quality fallback.
         var racerBlur = lastGameId === 1;
