@@ -5512,8 +5512,11 @@
             var accelNow = (Math.abs(speed) - prevSpeedAbs) / Math.max(0.001, dt);
             prevSpeedAbs = Math.abs(speed);
             var powerLoad = (engineOn ? 1 : 0) * throttleSmooth;
-            var powerShake = powerLoad * (0.026 + Math.min(0.075, Math.max(0, accelNow) * 0.0022)) + revLevel * 0.018;
-            var fovTarget = 68 + Math.min(46, Math.abs(speed) * 0.34);
+            // Stronger, more visible power shake: base throttle rumble plus an
+            // acceleration kick and a little speed rumble.
+            var powerShake = powerLoad * (0.05 + Math.min(0.16, Math.max(0, accelNow) * 0.006)) + revLevel * 0.03;
+            powerShake += powerLoad * Math.min(0.045, Math.abs(speed) * 0.0003);
+            var fovTarget = 68 + Math.min(46, Math.abs(speed) * 0.34) + Math.min(5, Math.max(0, accelNow) * 0.18);
             camera.fov += (fovTarget - camera.fov) * Math.min(1, dt * 2.6);
             camera.updateProjectionMatrix();
 
@@ -5564,8 +5567,12 @@
                 camera.rotateX(bodyPitch * 0.05);
             }
             if (powerShake > 0.0002) {
-                camera.position.x += Math.sin(elapsed * 61.0) * powerShake;
-                camera.position.y += Math.cos(elapsed * 73.0) * powerShake * 0.65;
+                var shakeSpeed = 55 + revLevel * 22;
+                camera.position.x += Math.sin(elapsed * shakeSpeed) * powerShake;
+                camera.position.y += Math.cos(elapsed * shakeSpeed * 1.17) * powerShake * 0.7;
+                camera.position.z += Math.sin(elapsed * shakeSpeed * 0.83) * powerShake * 0.35;
+                camera.rotateZ(Math.sin(elapsed * shakeSpeed * 0.91) * powerShake * 0.035);
+                camera.rotateX(Math.cos(elapsed * shakeSpeed * 1.07) * powerShake * 0.02);
             }
             cullT -= dt;
             if (cullT <= 0) {
