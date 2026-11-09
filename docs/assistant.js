@@ -56,17 +56,17 @@
         [/fly\s+(the\s+)?(plane|aircraft|boeing)/g, 'boeing landing'],
         [/land\s+(the\s+)?(plane|aircraft|boeing)/g, 'boeing landing'],
         [/pilot\s+(the\s+)?(plane|aircraft)/g, 'boeing landing'],
-        [/what'?s/g, 'what is'],
-        [/whats/g, 'what is'],
-        [/im/g, 'i am'],
+        [/\bwhat'?s\b/g, 'what is'],
+        [/\bwhats\b/g, 'what is'],
+        [/\bim\b/g, 'i am'],
         [/\bur\b/g, 'your'],
         [/\bu\b/g, 'you'],
         [/\br\b/g, 'are'],
         [/\bwht\b|\bwat\b/g, 'what'],
         [/\bhw\b/g, 'how'],
         [/\bpls\b|\bplz\b/g, 'please'],
-        [/cant/g, 'cannot'],
-        [/dont/g, 'do not'],
+        [/\bcant\b/g, 'cannot'],
+        [/\bdont\b/g, 'do not'],
         [/get\s+(more\s+)?coins/g, 'earn coins'],
         [/more\s+coins/g, 'earn coins'],
         [/take[\s-]?off/g, 'takeoff'],
@@ -96,7 +96,7 @@
         for (var i = 0; i < raw.length; i++) {
             var w = raw[i];
             if (!w || STOP[w] || w.length < 2) continue;
-            if (fuzzy !== false && !VOCAB[w] && !SYNONYMS[w]) {
+            if (fuzzy !== false && !VOCAB[w] && !SYNONYMS[w] && !CHAT_VOCAB[w]) {
                 var fixed = closestWord(w);
                 if (fixed) w = fixed;
             }
@@ -121,6 +121,7 @@
         ['tranq arena', 'Tranq Arena'], ['tranq', 'Tranq Arena'], ['tranquil', 'Tranq Arena']
     ];
     var SITE_TOPIC = { coin: 1, gift: 1, store: 1, garage: 1, showroom: 1, account: 1, sync: 1, radio: 1, setting: 1, friend: 1, message: 1, community: 1, score: 1, update: 1 };
+    var CHAT_SITE_WORDS = { cookie: 1, advent: 1, christmas: 1, holiday: 1, assistant: 1, ai: 1, game: 1, arcade: 1, control: 1, tip: 1, guide: 1, wallet: 1, purchase: 1, gift: 1, daily: 1 };
 
     function detectGame(text) {
         for (var i = 0; i < GAME_ALIASES.length; i++) {
@@ -141,11 +142,21 @@
     }
 
     var entries = [];
+    var chatEntries = [];
     var indexBuilt = false;
     var N = 0;
     var df = {};
     var idf = {};
+    var chatDf = {};
+    var chatIdf = {};
     var seeds = (typeof window !== 'undefined' && window.LESSFUN_AI_SEEDS) ? window.LESSFUN_AI_SEEDS : [];
+    var chatPairs = (typeof window !== 'undefined' && window.LESSFUN_CHAT_PAIRS) ? window.LESSFUN_CHAT_PAIRS : [];
+    var CHAT_VOCAB = {};
+    chatPairs.forEach(function (pair) {
+        String(pair[0] || '').toLowerCase().split(/[^a-z0-9]+/).forEach(function (w) {
+            if (w.length > 2) CHAT_VOCAB[w] = true;
+        });
+    });
 
     var VOCAB = {};
     seeds.forEach(function (seed) {
@@ -219,13 +230,41 @@
             Object.keys(e.termSet).forEach(function (w) { df[w] = (df[w] || 0) + 1; });
         });
         Object.keys(df).forEach(function (w) { idf[w] = Math.log((N + 1) / (df[w] + 1)) + 1; });
+
+        chatEntries = [];
+        chatDf = {};
+        chatIdf = {};
+        chatPairs.forEach(function (pair) {
+            var q = String(pair[0] || '');
+            var a = String(pair[1] || '');
+            var topic = String(pair[2] || 'general');
+            var topicTokens = tokenize(q, false);
+            var tokens = topicTokens.concat(tokenize(a, false));
+            chatEntries.push({
+                q: q,
+                a: a,
+                t: q,
+                topic: topic,
+                terms: tokens,
+                termSet: tokens.reduce(function (o, w) { o[w] = true; return o; }, {}),
+                topicSet: topicTokens.reduce(function (o, w) { o[w] = true; return o; }, {})
+            });
+        });
+        var chatN = chatEntries.length;
+        chatEntries.forEach(function (e) {
+            Object.keys(e.termSet).forEach(function (w) { chatDf[w] = (chatDf[w] || 0) + 1; });
+        });
+        Object.keys(chatDf).forEach(function (w) { chatIdf[w] = Math.log((chatN + 1) / (chatDf[w] + 1)) + 1; });
         indexBuilt = true;
     }
 
     function releaseIndex() {
         entries = [];
+        chatEntries = [];
         df = {};
         idf = {};
+        chatDf = {};
+        chatIdf = {};
         N = 0;
         indexBuilt = false;
     }
@@ -271,15 +310,16 @@
         return 'Use the ' + label + ' button in the top navigation.';
     }
 
-    function findBest(pool, unique, lower) {
-        var best = null, bestScore = 0, second = null, secondScore = 0;
+    function findBest(pool, unique, lower, weights) {
+        var best = null, bestScore = 0, second = null, secondScore = 0, bestMatched = 0;
+        var table = weights || idf;
         for (var i = 0; i < pool.length; i++) {
             var e = pool[i];
             var score = 0, matched = 0;
             for (var j = 0; j < unique.length; j++) {
                 var w = unique[j];
-                if (e.topicSet[w]) { score += (idf[w] || 1) * 1.8; matched++; }
-                else if (e.termSet[w]) { score += (idf[w] || 1) * 0.55; matched++; }
+                if (e.topicSet[w]) { score += (table[w] || 1) * 1.8; matched++; }
+                else if (e.termSet[w]) { score += (table[w] || 1) * 0.55; matched++; }
             }
             if (!matched) continue;
             score += (matched / unique.length) * 2.4;
@@ -293,12 +333,77 @@
             if (fullTopic) score += 4.5;
             if (score > bestScore) {
                 second = best; secondScore = bestScore;
-                best = e; bestScore = score;
+                best = e; bestScore = score; bestMatched = matched;
             } else if (score > secondScore) {
                 second = e; secondScore = score;
             }
         }
-        return { best: best, score: bestScore, second: second, secondScore: secondScore };
+        return { best: best, score: bestScore, matched: bestMatched, second: second, secondScore: secondScore };
+    }
+
+    function formatNumber(value) {
+        return String(Math.round(value * 1000000) / 1000000);
+    }
+
+    function tryQuickAnswer(lower) {
+        var m = lower.match(/^(?:(?:what is|what's|calculate|solve|how much is)\s+)?(-?\d+(?:\.\d+)?)\s*([+\-*/x×÷])\s*(-?\d+(?:\.\d+)?)\s*\??$/);
+        if (m) {
+            var x = parseFloat(m[1]), y = parseFloat(m[3]), op = m[2], out;
+            if (op === '+') out = x + y;
+            else if (op === '-') out = x - y;
+            else if (op === '*' || op === 'x' || op === '×') out = x * y;
+            else {
+                if (y === 0) return 'You cannot divide by zero.';
+                out = x / y;
+            }
+            return 'The answer is ' + formatNumber(out) + '.';
+        }
+        var wm = lower.match(/^(?:(?:what is|what's|calculate|solve|how much is)\s+)?(-?\d+(?:\.\d+)?)\s*(plus|minus|times|multiplied by|divided by)\s*(-?\d+(?:\.\d+)?)\s*\??$/);
+        if (wm) {
+            var a = parseFloat(wm[1]), b = parseFloat(wm[3]), opWord = wm[2], answer;
+            if (opWord === 'plus') answer = a + b;
+            else if (opWord === 'minus') answer = a - b;
+            else if (opWord === 'times' || opWord === 'multiplied by') answer = a * b;
+            else {
+                if (b === 0) return 'You cannot divide by zero.';
+                answer = a / b;
+            }
+            return 'The answer is ' + formatNumber(answer) + '.';
+        }
+        if (/^(what time is it|what is the time|current time|tell me the time)\??$/.test(lower)) {
+            return 'The local time is ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '.';
+        }
+        if (/^(what is the date|what date is it|what day is it|today's date|todays date)\??$/.test(lower)) {
+            return 'Today is ' + new Date().toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) + '.';
+        }
+        if (/^(flip a coin|toss a coin|heads or tails)\??$/.test(lower)) {
+            return 'It landed on ' + (Math.random() < 0.5 ? 'heads' : 'tails') + '.';
+        }
+        if (/^(roll a dice|roll a die|roll the dice)\??$/.test(lower)) {
+            return 'You rolled a ' + (Math.floor(Math.random() * 6) + 1) + '.';
+        }
+        if (/^(pick a number|random number)\??$/.test(lower)) {
+            return 'I pick ' + (Math.floor(Math.random() * 100) + 1) + '.';
+        }
+        if (/how many days until christmas/.test(lower)) {
+            var now = new Date();
+            var target = new Date(now.getFullYear(), 11, 25);
+            if (now > target) target = new Date(now.getFullYear() + 1, 11, 25);
+            var days = Math.ceil((target - now) / 86400000);
+            return 'Christmas is in ' + days + ' day' + (days === 1 ? '' : 's') + '.';
+        }
+        return '';
+    }
+
+    function generalChatAnswer(lower, unique) {
+        var quick = tryQuickAnswer(lower);
+        if (quick) return quick;
+        if (!chatEntries.length || !unique.length) return '';
+        var result = findBest(chatEntries, unique, lower, chatIdf);
+        if (!result.best || result.score < 2.6) return '';
+        var ratio = result.matched / unique.length;
+        if (unique.length > 1 && ratio < 0.5) return '';
+        return result.best.a;
     }
 
     function answerFor(input) {
@@ -307,8 +412,8 @@
         if (!text) return 'Ask me about a game, Coins, gifts, controls, accounts, the Store, Garage, friends or settings.';
         var lower = text.toLowerCase().replace(/\bwhats\b/g, 'what is').replace(/\bur\b/g, 'your').replace(/\bu\b/g, 'you').replace(/\br\b/g, 'are');
         if (/^(hi|hello|hey|yo|sup|hiya)\b/.test(lower)) return 'Hi. Ask me about a game, Coins, Cookies, Daily Gifts, controls, accounts, the Store, Garage, friends, radio or settings.';
-        if (/your name|who are you|what are you called|what is your name/.test(lower)) return 'I am the LessFun Assistant. I run locally in the page and answer from a 10,000+ pattern knowledge base about the arcade.';
-        if (/^(can (you )?tell( me)?( something| anything)?|what can you (do|tell me)|what can i (do|ask)|what do you do|what do you know|help me|what can you help with)\??$/.test(lower)) return 'I can tell you about every LessFun game, controls, Coins, Cookies, Daily Gifts, accounts, cloud sync, the Store, Garage, Showroom, friends, radio, settings, multiplayer or troubleshooting.';
+        if (/your name|who are you|what are you called|what is your name/.test(lower)) return 'I am the LessFun Assistant. I run locally in the page and answer from a 10,000+ pattern arcade knowledge base plus a general chat pack.';
+        if (/^(can (you )?tell( me)?( something| anything)?|what can you (do|tell me)|what can i (do|ask)|what do you do|what do you know|help me|what can you help with)\??$/.test(lower)) return 'I can answer LessFun questions — every game, controls, Coins, Cookies, Daily Gifts, accounts, Store, Garage, friends, radio, settings and multiplayer — and I can chat about general knowledge, jokes, riddles, food, travel, technology and everyday advice.';
         if (/are you (a )?(real|human|ai|robot)|are you real/.test(lower)) return 'I am a local assistant, not a person. I match your question against the built-in LessFun knowledge base.';
         if (/how are you/.test(lower)) return 'I am awake and ready. Ask me anything about LessFun.';
         if (/^(what|what\?|huh|what do you mean|i do not understand|i don't understand|i dont understand|meaning|explain)\??$/.test(lower)) {
@@ -386,7 +491,7 @@
         if (/^(thanks|thank you|ty|cheers)\b/.test(lower)) return 'You are welcome. Ask another LessFun question any time.';
         if (/^(bye|goodbye|see you)\b/.test(lower)) return 'See you. Come back for another run soon.';
         if (/^(help|what can i ask|what do you know)\b/.test(lower)) {
-            return 'Ask about any of the ten games, controls, Coins, Cookies, Advent, Daily Gifts, accounts, cloud sync, Store, Garage, Showroom, friends, messages, radio, graphics, Reduce Motion or multiplayer.';
+            return 'Ask about the games, Coins, Cookies, Advent, Daily Gifts, accounts, Store, Garage, friends, radio or settings. You can also ask for general knowledge, a joke, a riddle or everyday advice.';
         }
         if (/what are gifts|what is a gift|tell me about gifts/.test(lower)) {
             return 'Daily Gifts are free Coin rewards claimed once a day from the Games page. The seven-day cycle pays 50, 75, 100, 150, 200, 300 and 500 Coins.';
@@ -394,6 +499,9 @@
         if (/get (more )?coins|earn coins|more coins|coins fast/.test(lower)) {
             return 'Earn Coins by playing, completing runs, claiming the Daily Gift and keeping a daily streak. Longer active runs pay more.';
         }
+
+        var quickAnswer = tryQuickAnswer(lower);
+        if (quickAnswer) return quickAnswer;
 
         var queryGame = detectGame(lower);
         if (!queryGame && (/^(what|how) about\b/.test(lower) || /^and\b/.test(lower)) && lastGame) {
@@ -417,6 +525,12 @@
         });
         if (!queryGame && genericWords.length === unique.length) {
             return 'Which game? Beach Racer, Tunnel Rush, Cube Stack, Dead Coast, Funtutu Test, Snow Rush, Draw and Guess, Lucky Spin, Boeing Landing or Tranq Arena.';
+        }
+
+        var siteContext = unique.some(function (w) { return !!SITE_TOPIC[w] || !!CHAT_SITE_WORDS[w]; });
+        if (!queryGame && !siteContext) {
+            var chatReply = generalChatAnswer(lower, unique);
+            if (chatReply) return chatReply;
         }
 
         if (queryGame && /multiplayer|online/.test(lower)) {
@@ -446,7 +560,7 @@
             var hint = queryGame ? ' Try asking about its controls, release, tips, multiplayer or common problems.' : '';
             var focus = queryGame || lastGame;
             var focusHint = focus ? ' You were asking about ' + focus + '.' : '';
-            return 'I am not sure about that one.' + focusHint + hint + ' Try asking about games, controls, Coins, Cookies, Daily Gifts, accounts, Store, Garage, friends, radio or settings.';
+            return 'I am not sure about that one.' + focusHint + hint + ' Try asking about games, Coins, Cookies, Daily Gifts, accounts, settings, general knowledge, jokes or advice.';
         }
         if (result.best.game) lastGame = result.best.game;
         lastTopic = result.best.t;
@@ -552,7 +666,7 @@
         panel.style.display = 'flex';
         if (!greeted) {
             greeted = true;
-            addMessage('bot', 'Hi, I am the LessFun assistant. I know 10,000+ answer patterns about the games, Coins, Cookies, Daily Gifts, accounts, Store, Garage, friends, radio and settings. What do you want to know?');
+            addMessage('bot', 'Hi, I am the LessFun assistant. I can answer LessFun questions from a 10,000+ pattern knowledge base and chat about general topics too. What do you want to know?');
         }
         var input = document.getElementById('aiInput');
         if (input) setTimeout(function () { input.focus(); }, 80);
@@ -602,7 +716,7 @@
             '<section class="ai-panel" id="aiPanel" role="dialog" aria-label="LessFun assistant">' +
                 '<header class="ai-head">' +
                     '<div class="ai-avatar">✦</div>' +
-                    '<div class="ai-head-copy"><strong>LessFun Assistant</strong><small>10,000+ fact knowledge base</small></div>' +
+                    '<div class="ai-head-copy"><strong>LessFun Assistant</strong><small>10,000+ facts · general chat</small></div>' +
                     '<button type="button" class="ai-reset" onclick="LessFunAI.reset()" title="New chat">Reset</button>' +
                     '<button type="button" class="ai-close" onclick="LessFunAI.close()" aria-label="Close assistant">×</button>' +
                 '</header>' +
@@ -617,7 +731,7 @@
                     '<input id="aiInput" type="text" maxlength="240" autocomplete="off" placeholder="Ask about LessFun…" aria-label="Ask a question">' +
                     '<button type="submit" aria-label="Send">↑</button>' +
                 '</form>' +
-                '<p class="ai-foot">Answers from the built-in LessFun knowledge base.</p>' +
+                '<p class="ai-foot">Answers from the built-in LessFun knowledge and general chat packs.</p>' +
             '</section>';
         document.body.appendChild(wrap);
     }
@@ -644,7 +758,7 @@
         toggle: togglePanel,
         reset: resetChat,
         submit: submitForm,
-        get entries() { return entries.length; },
+        get entries() { return entries.length + chatEntries.length; },
         _answer: answerFor
     };
 

@@ -20,6 +20,8 @@
     var BOOST_VOLUME = 1;
     var BOOST_SYNTH_GAIN = 0.34;
     var boostTimer = 0;
+    var radioActive = false;
+    var radioWasPlaying = false;
 
     // ---- Synthesized fallback (public-domain Jingle Bells) ----
     var context = null;
@@ -293,7 +295,7 @@
     }
 
     function start() {
-        if (!enabled || !isHoliday() || playing) return;
+        if (!enabled || !isHoliday() || playing || radioActive) return;
         if (!unlocked) return;
         if (audioBroken) {
             startSynth();
@@ -312,6 +314,20 @@
         if (timer) { clearTimeout(timer); timer = 0; }
         if (master) master.gain.value = 0.0001;
         updateButton();
+    }
+
+    function setRadioActive(active) {
+        active = !!active;
+        if (active === radioActive) return;
+        radioActive = active;
+        if (active) {
+            radioWasPlaying = playing;
+            if (playing) stop();
+            return;
+        }
+        var resume = radioWasPlaying;
+        radioWasPlaying = false;
+        if (resume && enabled && unlocked) start();
     }
 
     // Hidden reindeer easter egg: turn the music up for a few seconds.
@@ -382,7 +398,7 @@
         // The MP3 keeps playing while the tab is hidden; restart if the
         // browser suspended it for any reason when we return.
         document.addEventListener('visibilitychange', function () {
-            if (!document.hidden && enabled && unlocked && !playing) start();
+            if (!document.hidden && enabled && unlocked && !playing && !radioActive) start();
         });
     }
 
@@ -396,7 +412,7 @@
         };
     }
 
-    window.LessFunJingle = { toggle: toggle, start: start, stop: stop, setEnabled: setEnabled, boost: boost, status: status };
+    window.LessFunJingle = { toggle: toggle, start: start, stop: stop, setEnabled: setEnabled, boost: boost, status: status, setRadioActive: setRadioActive };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
     else init();
 })();

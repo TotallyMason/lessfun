@@ -1140,7 +1140,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261334'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261336'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1149,7 +1149,7 @@ function ensure3DEngine() {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261334').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261336').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1157,7 +1157,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261334').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261336').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1165,8 +1165,9 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261334')
-            .then(function () { return loadScriptOnce('assistant.js?v=20261334'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261336')
+            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261336'); })
+            .then(function () { return loadScriptOnce('assistant.js?v=20261336'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1194,7 +1195,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261334').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261336').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1202,7 +1203,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261334').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261336').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1210,7 +1211,7 @@ function ensureLucky() {
 function ensureTycoon() {
     if (window.Tycoon) return Promise.resolve();
     if (!tycoonPromise) {
-        tycoonPromise = loadScriptOnce('tycoon.js?v=20261334').catch(function (error) { tycoonPromise = null; throw error; });
+        tycoonPromise = loadScriptOnce('tycoon.js?v=20261336').catch(function (error) { tycoonPromise = null; throw error; });
     }
     return tycoonPromise;
 }
@@ -9174,8 +9175,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.50";
-const UPDATE_NOTES = "The assistant now handles capabilities, this game, turning it off, settings, discontinued games, deleted accounts and clarification replies, and can open pages for you";
+const APP_VERSION = "LessFun Public Beta 1.33.52";
+const UPDATE_NOTES = "Radio now stops the Christmas jingle while it plays and stays quiet in Radio Off mode. The assistant also has a new general chat pack built from 5,000 conversations";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -11616,6 +11617,14 @@ const RADIO_STATIONS = [
 ];
 let radioIndex = 0;
 let radioHasSource = false;
+let radioOwnMusicMode = false;
+let radioTuning = false;
+
+function radioJingleSync(radioPlaying) {
+    if (window.LessFunJingle && typeof window.LessFunJingle.setRadioActive === 'function') {
+        window.LessFunJingle.setRadioActive(!!radioPlaying);
+    }
+}
 
 function radioStationLabel(station) {
     return station.name + ' · ' + station.freq + ' FM';
@@ -11682,10 +11691,15 @@ function radioInit() {
     radioUpdateNow();
     var wasOff = false;
     try { wasOff = localStorage.getItem('lessfun_radio_off') === '1'; } catch (e) {}
+    radioOwnMusicMode = wasOff;
+    if (wasOff) radioJingleSync(true);
     radioSetStatus(wasOff ? 'Radio off · play your own music' : 'Paused · tap Play');
 
     audio.addEventListener('playing', function () {
         radioHasSource = true;
+        radioTuning = false;
+        radioOwnMusicMode = false;
+        radioJingleSync(true);
         radioSetBuffering(false);
         if (window.radioWatchdog) { clearTimeout(window.radioWatchdog); window.radioWatchdog = 0; }
         radioPresenceConnect();
@@ -11697,6 +11711,7 @@ function radioInit() {
         if (playBtn) playBtn.textContent = 'Pause';
     });
     audio.addEventListener('pause', function () {
+        if (!radioOwnMusicMode) radioJingleSync(false);
         radioSetBuffering(false);
         radioPresenceTrack();
         radioSetStatus('Paused');
@@ -11717,6 +11732,8 @@ function radioInit() {
     });
     audio.addEventListener('error', function () {
         if (!radioHasSource) return;
+        radioTuning = false;
+        if (!radioOwnMusicMode) radioJingleSync(false);
         radioSetBuffering(false);
         radioPresenceTrack();
         radioSetStatus('Stream unavailable · try another station');
@@ -11780,6 +11797,9 @@ function radioTogglePanel(force) {
 function radioTune(index, autoplay) {
     var audio = document.getElementById('lessfunRadioAudio');
     if (!audio || !RADIO_STATIONS.length) return;
+    radioOwnMusicMode = false;
+    radioTuning = true;
+    radioJingleSync(true);
     radioIndex = ((index % RADIO_STATIONS.length) + RADIO_STATIONS.length) % RADIO_STATIONS.length;
     try { localStorage.setItem('lessfun_radio_station', String(radioIndex)); } catch (e) {}
     var station = RADIO_STATIONS[radioIndex];
@@ -11805,6 +11825,8 @@ function radioTune(index, autoplay) {
         var attempt = audio.play();
         if (attempt && attempt.catch) {
             attempt.catch(function () {
+                radioTuning = false;
+                if (!radioOwnMusicMode) radioJingleSync(false);
                 radioSetBuffering(false);
                 radioSetStatus('Tap Play to start audio');
             });
@@ -11813,6 +11835,9 @@ function radioTune(index, autoplay) {
 }
 
 function radioTurnOff() {
+    radioOwnMusicMode = true;
+    radioTuning = false;
+    radioJingleSync(true);
     var audio = document.getElementById('lessfunRadioAudio');
     if (audio) {
         audio.pause();
@@ -11839,9 +11864,15 @@ function radioToggle() {
         return;
     }
     if (audio.paused) {
+        radioTuning = true;
+        radioJingleSync(true);
         var attempt = audio.play();
         if (attempt && attempt.catch) {
-            attempt.catch(function () { radioSetStatus('Tap Play again to allow audio'); });
+            attempt.catch(function () {
+                radioTuning = false;
+                if (!radioOwnMusicMode) radioJingleSync(false);
+                radioSetStatus('Tap Play again to allow audio');
+            });
         }
     } else {
         audio.pause();
