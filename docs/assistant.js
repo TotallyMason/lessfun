@@ -1,5 +1,5 @@
 /* ============================================================
-   LessFun Assistant — local 1,000-pattern knowledge base
+   LessFun Assistant — local 10,000-pattern knowledge base
    ============================================================ */
 (function () {
     'use strict';
@@ -7,18 +7,29 @@
     var VARIANTS = [
         function (t) { return t; },
         function (t) { return 'what is ' + t; },
+        function (t) { return 'what are ' + t; },
         function (t) { return 'tell me about ' + t; },
-        function (t) { return 'how does ' + t + ' work'; },
         function (t) { return 'explain ' + t; },
+        function (t) { return 'how does ' + t + ' work'; },
+        function (t) { return 'how do ' + t + ' work'; },
+        function (t) { return 'how do i use ' + t; },
+        function (t) { return 'where can i find ' + t; },
+        function (t) { return 'where is ' + t; },
+        function (t) { return 'can you explain ' + t; },
+        function (t) { return 'can you tell me about ' + t; },
         function (t) { return 'info about ' + t; },
         function (t) { return 'help with ' + t; },
         function (t) { return 'details about ' + t; },
+        function (t) { return 'what should i know about ' + t; },
+        function (t) { return 'what does ' + t + ' do'; },
+        function (t) { return 'how do i get ' + t; },
         function (t) { return 'question about ' + t; },
-        function (t) { return 'can you explain ' + t; }
+        function (t) { return t + ' guide'; }
     ];
+    var TAILS = ['', ' please', ' for me', ' for us', ' thanks'];
 
     var STOP = {};
-    'the a an is are was were how do does did i you your my me we our to of on in for what can could would should tell about and or it its with work works help please give detail details question explain know'.split(' ').forEach(function (w) { STOP[w] = true; });
+    'the a an is are was were how do does did i you your my me we our to of on in for what can could would should tell about and or it its with work works help please give detail details question explain know thanks'.split(' ').forEach(function (w) { STOP[w] = true; });
 
     var SYNONYMS = {
         shell: 'coin', shells: 'coin', money: 'coin', cash: 'coin', currency: 'coin',
@@ -143,16 +154,18 @@
 
     seeds.forEach(function (seed) {
         VARIANTS.forEach(function (make) {
-            var phrase = make(seed.t) + ' ' + (seed.k || '');
-            var topicTokens = tokenize(phrase);
-            var tokens = topicTokens.concat(tokenize(seed.a || ''));
-            entries.push({
-                q: phrase,
-                a: seed.a,
-                t: seed.t,
-                terms: tokens,
-                termSet: tokens.reduce(function (o, w) { o[w] = true; return o; }, {}),
-                topicSet: topicTokens.reduce(function (o, w) { o[w] = true; return o; }, {})
+            TAILS.forEach(function (tail) {
+                var phrase = make(seed.t) + ' ' + (seed.k || '') + tail;
+                var topicTokens = tokenize(phrase);
+                var tokens = topicTokens.concat(tokenize(seed.a || ''));
+                entries.push({
+                    q: phrase,
+                    a: seed.a,
+                    t: seed.t,
+                    terms: tokens,
+                    termSet: tokens.reduce(function (o, w) { o[w] = true; return o; }, {}),
+                    topicSet: topicTokens.reduce(function (o, w) { o[w] = true; return o; }, {})
+                });
             });
         });
     });
@@ -172,7 +185,7 @@
         if (!text) return 'Ask me about a game, Coins, gifts, controls, accounts, the Store, Garage, friends or settings.';
         var lower = text.toLowerCase().replace(/\bwhats\b/g, 'what is').replace(/\bur\b/g, 'your').replace(/\bu\b/g, 'you').replace(/\br\b/g, 'are');
         if (/^(hi|hello|hey|yo|sup|hiya)\b/.test(lower)) return 'Hi. Ask me about a game, Coins, Daily Gifts, controls, accounts, the Store, Garage, friends, radio or settings.';
-        if (/your name|who are you|what are you called|what is your name/.test(lower)) return 'I am the LessFun Assistant. I run locally in the page and answer from a 1,000-pattern knowledge base about the arcade.';
+        if (/your name|who are you|what are you called|what is your name/.test(lower)) return 'I am the LessFun Assistant. I run locally in the page and answer from a 10,000-pattern knowledge base about the arcade.';
         if (/^(can (you )?tell( me)?( something| anything)?|what can you (do|tell me)|what do you do|help me|what can you help with)\??$/.test(lower)) return 'I can tell you about every LessFun game, controls, Coins, Daily Gifts, accounts, cloud sync, the Store, Garage, Showroom, friends, radio, settings, multiplayer or troubleshooting.';
         if (/are you (a )?(real|human|ai|robot)|are you real/.test(lower)) return 'I am a local assistant, not a person. I match your question against the built-in LessFun knowledge base.';
         if (/how are you/.test(lower)) return 'I am awake and ready. Ask me anything about LessFun.';
@@ -308,7 +321,7 @@
         panel.style.display = 'flex';
         if (!greeted) {
             greeted = true;
-            addMessage('bot', 'Hi, I am the LessFun assistant. I know 1,000 answer patterns about the games, Coins, Daily Gifts, accounts, Store, Garage, friends, radio and settings. What do you want to know?');
+            addMessage('bot', 'Hi, I am the LessFun assistant. I know 10,000 answer patterns about the games, Coins, Daily Gifts, accounts, Store, Garage, friends, radio and settings. What do you want to know?');
         }
         var input = document.getElementById('aiInput');
         if (input) setTimeout(function () { input.focus(); }, 80);
@@ -357,7 +370,7 @@
             '<section class="ai-panel" id="aiPanel" role="dialog" aria-label="LessFun assistant">' +
                 '<header class="ai-head">' +
                     '<div class="ai-avatar">✦</div>' +
-                    '<div class="ai-head-copy"><strong>LessFun Assistant</strong><small>1,000-fact knowledge base</small></div>' +
+                    '<div class="ai-head-copy"><strong>LessFun Assistant</strong><small>10,000-fact knowledge base</small></div>' +
                     '<button type="button" class="ai-reset" onclick="LessFunAI.reset()" title="New chat">Reset</button>' +
                     '<button type="button" class="ai-close" onclick="LessFunAI.close()" aria-label="Close assistant">×</button>' +
                 '</header>' +

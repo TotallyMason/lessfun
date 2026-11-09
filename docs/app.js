@@ -8452,8 +8452,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.01";
-const UPDATE_NOTES = "The assistant now understands more typos, swapped letters and shorthand, and pauses briefly before streaming each answer";
+const APP_VERSION = "LessFun Public Beta 1.33.02";
+const UPDATE_NOTES = "The LessFun Assistant now runs on 10,000 answer patterns, with typo tolerance and streamed replies";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

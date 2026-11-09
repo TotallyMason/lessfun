@@ -32,7 +32,7 @@ Supabase tables below are created.
 
 ## LessFun Assistant
 
-The **AI** button in the top bar opens a local assistant with a 1,000-pattern knowledge base covering every game, controls, Coins, Daily Gifts, accounts, cloud sync, the Store, Garage, Showroom, friends, radio, settings and troubleshooting. It handles small talk and common typos, runs entirely in the browser, and does not send questions to an external service.
+The **AI** button in the top bar opens a local assistant with a 10,000-pattern knowledge base covering every game, controls, Coins, Daily Gifts, accounts, cloud sync, the Store, Garage, Showroom, friends, radio, settings and troubleshooting. It handles small talk and common typos, runs entirely in the browser, and does not send questions to an external service.
 
 ## Run locally
 
