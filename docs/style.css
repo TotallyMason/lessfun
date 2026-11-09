@@ -12680,3 +12680,10 @@ body.in-game .xmas-snowman { display: none; }
 }
 .focus-mode-resume:hover { background: rgba(255, 255, 255, 0.12); }
 body.focus-mode-on { overflow: hidden; }
+
+/* Low-power Chromebook / Celeron tuning: drop expensive frosted-glass blur. */
+body.low-power * {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+body.low-power .site-snow { opacity: 0.55; }

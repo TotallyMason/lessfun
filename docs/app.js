@@ -64,6 +64,11 @@ const GRAPHICS_PRESETS = {
 };
 let renderScaleSetting = 0;
 const isMobileUI = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || window.innerWidth < 820;
+const deviceCores = Number(navigator.hardwareConcurrency) || 8;
+const deviceMemory = Number(navigator.deviceMemory) || 8;
+const isChromebook = /CrOS/i.test(navigator.userAgent || '');
+const isLowPowerDevice = isMobileUI || deviceCores <= 4 || deviceMemory <= 4 || (isChromebook && deviceCores <= 4);
+if (document.body) document.body.classList.add(isLowPowerDevice ? 'low-power' : 'standard-power');
 let graphicsPresetSetting = 'extreme';
 let autoGraphicsSetting = false;
 let motionBlurSetting = !isMobileUI;
@@ -93,23 +98,44 @@ try {
     const savedSlow = localStorage.getItem('lessfun_crash_slowmo');
     if (savedSlow != null) crashSlowmoSetting = savedSlow !== '0';
 
-    // First launch (or one-time migration) starts at maximum graphics with
-    // automatic resolution scaling disabled.
+    // First launch (or one-time migration): low-power devices start on Medium
+    // with adaptive resolution and effects off. Stronger devices keep maximum.
     const GFX_MIGRATION_KEY = 'lessfun_gfx_extreme_default_v1';
     if (!localStorage.getItem(GFX_MIGRATION_KEY)) {
-        graphicsPresetSetting = 'extreme';
-        autoGraphicsSetting = false;
-        motionBlurSetting = true;
-        shadowSetting = true;
-        grainSetting = true;
-        crashSlowmoSetting = true;
-        localStorage.setItem('lessfun_graphics_preset', 'extreme');
-        localStorage.setItem('lessfun_auto_graphics', '0');
-        localStorage.setItem('lessfun_motion_blur', '1');
-        localStorage.setItem('lessfun_shadows', '1');
-        localStorage.setItem('lessfun_film_grain', '1');
-        localStorage.setItem('lessfun_crash_slowmo', '1');
+        graphicsPresetSetting = isLowPowerDevice ? 'medium' : 'extreme';
+        autoGraphicsSetting = isLowPowerDevice;
+        motionBlurSetting = !isLowPowerDevice;
+        shadowSetting = !isLowPowerDevice;
+        grainSetting = !isLowPowerDevice;
+        crashSlowmoSetting = !isLowPowerDevice;
+        localStorage.setItem('lessfun_graphics_preset', graphicsPresetSetting);
+        localStorage.setItem('lessfun_auto_graphics', autoGraphicsSetting ? '1' : '0');
+        localStorage.setItem('lessfun_motion_blur', motionBlurSetting ? '1' : '0');
+        localStorage.setItem('lessfun_shadows', shadowSetting ? '1' : '0');
+        localStorage.setItem('lessfun_film_grain', grainSetting ? '1' : '0');
+        localStorage.setItem('lessfun_crash_slowmo', crashSlowmoSetting ? '1' : '0');
         localStorage.setItem(GFX_MIGRATION_KEY, '1');
+    }
+
+    // Existing low-power profiles may still be on the old maximum preset.
+    // Apply a one-time lighter default; later manual changes are respected.
+    const LOW_POWER_DEFAULTS_KEY = 'lessfun_low_power_defaults_v1';
+    if (isLowPowerDevice && !localStorage.getItem(LOW_POWER_DEFAULTS_KEY)) {
+        if (graphicsPresetSetting === 'extreme' || graphicsPresetSetting === 'ultra' || graphicsPresetSetting === 'high') {
+            graphicsPresetSetting = 'medium';
+            autoGraphicsSetting = true;
+            motionBlurSetting = false;
+            shadowSetting = false;
+            grainSetting = false;
+            crashSlowmoSetting = false;
+            localStorage.setItem('lessfun_graphics_preset', 'medium');
+            localStorage.setItem('lessfun_auto_graphics', '1');
+            localStorage.setItem('lessfun_motion_blur', '0');
+            localStorage.setItem('lessfun_shadows', '0');
+            localStorage.setItem('lessfun_film_grain', '0');
+            localStorage.setItem('lessfun_crash_slowmo', '0');
+        }
+        localStorage.setItem(LOW_POWER_DEFAULTS_KEY, '1');
     }
     renderScaleSetting = GRAPHICS_PRESETS[graphicsPresetSetting].scale;
 } catch (e) {}
@@ -1140,7 +1166,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261337'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261338'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1149,7 +1175,7 @@ function ensure3DEngine() {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261337').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261338').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1157,7 +1183,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261337').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261338').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1165,9 +1191,9 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261337')
-            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261337'); })
-            .then(function () { return loadScriptOnce('assistant.js?v=20261337'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261338')
+            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261338'); })
+            .then(function () { return loadScriptOnce('assistant.js?v=20261338'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1195,7 +1221,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261337').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261338').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1203,7 +1229,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261337').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261338').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1211,7 +1237,7 @@ function ensureLucky() {
 function ensureTycoon() {
     if (window.Tycoon) return Promise.resolve();
     if (!tycoonPromise) {
-        tycoonPromise = loadScriptOnce('tycoon.js?v=20261337').catch(function (error) { tycoonPromise = null; throw error; });
+        tycoonPromise = loadScriptOnce('tycoon.js?v=20261338').catch(function (error) { tycoonPromise = null; throw error; });
     }
     return tycoonPromise;
 }
@@ -9175,8 +9201,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.53";
-const UPDATE_NOTES = "The Christmas jingle now tries to autoplay on load. Press Esc twice for Focus Mode: mutes all audio, pauses games and radio, and hides the screen instantly";
+const APP_VERSION = "LessFun Public Beta 1.33.54";
+const UPDATE_NOTES = "Chromebook and low-power laptop tuning: lighter graphics by default, 30 FPS cap for heavy 3D games, lighter snow and no expensive backdrop blur";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -9277,14 +9303,14 @@ function initSiteSnow() {
     var flakes = [];
     var w = 0, h = 0, dpr = 1;
     function resizeSnow() {
-        dpr = Math.min(2, window.devicePixelRatio || 1);
+        dpr = Math.min(isLowPowerDevice ? 1 : 2, window.devicePixelRatio || 1);
         w = window.innerWidth;
         h = window.innerHeight;
         canvas.width = Math.round(w * dpr);
         canvas.height = Math.round(h * dpr);
         canvas.style.width = w + 'px';
         canvas.style.height = h + 'px';
-        var count = w < 700 ? 34 : 72;
+        var count = isLowPowerDevice ? (w < 700 ? 16 : 32) : (w < 700 ? 34 : 72);
         flakes = [];
         for (var i = 0; i < count; i++) {
             flakes.push({
@@ -9301,10 +9327,14 @@ function initSiteSnow() {
     resizeSnow();
     window.addEventListener('resize', resizeSnow, { passive: true });
     var last = 0;
+    var snowMinMs = isLowPowerDevice ? 33 : 0;
+    var snowLastDraw = 0;
     function snowFrame(ts) {
         requestAnimationFrame(snowFrame);
         signalLessFunReady();
         if (document.hidden || document.body.classList.contains('in-game')) return;
+        if (snowMinMs && snowLastDraw && ts - snowLastDraw < snowMinMs) return;
+        snowLastDraw = ts;
         if (!last) last = ts;
         var dt = Math.min(0.05, (ts - last) / 1000);
         last = ts;

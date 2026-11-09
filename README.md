@@ -11,6 +11,8 @@ A 3D arcade with a liquid-glass interface. Play it at
 | Tunnel Rush | Thread an endless neon tunnel and rotate through the gaps. |
 | Cube Stack | Stack the tower as high as you can before the blocks drift away. |
 | Funtutu Test | GPU/CPU benchmark that shows its work, produces a score, and recommends graphics settings for this device. |
+
+Low-power devices (4 GB RAM, 4 cores or fewer, Chromebooks) automatically use a lighter preset, adaptive resolution, lighter snow and a 30 FPS cap for heavy 3D games.
 | Snow Rush | Christmas sleigh game: collect gifts, hit candy boosts, survive snowstorms and the Grinch. |
 | Draw & Guess | Live public drawing game: one player draws, everyone else races to guess the word. |
 | Lucky Spin | Virtual-coin slot machine with bets, jackpots and a 60× top payout. |
@@ -259,7 +261,7 @@ handling real user data or payments.
 - Coin-gift notifications in a bell menu, showing who sent Coins and how much
 - A one-time shared **+500 Coin** reward per session for playing multiplayer with at least one other person
 - Live Now Playing list in Friends showing what signed-in players are doing, with Join buttons
-- smooth vertical throttle and brake bars at the bottom left, no ignition bar, a mobile layout without the drift button, defaults to the Your Computer Will Die graphics preset with auto graphics off (one-time migration), mph/km-h setting, a live FPS/resolution counter, 60 FPS-targeted automatic resolution scaling, one-piece road geometry, and throttled ocean/HUD updates
+- smooth vertical throttle and brake bars at the bottom left, no ignition bar, a mobile layout without the drift button, defaults to Your Computer Will Die on strong devices and Medium with adaptive resolution on low-power devices (one-time migration), mph/km-h setting, a live FPS/resolution counter, 60 FPS-targeted automatic resolution scaling, one-piece road geometry, and throttled ocean/HUD updates
 - Graphics presets plus dynamic-shadow, crash slow-mo, film-grain, motion-blur, FPS-counter, and render-scale controls
 - 60 FPS-targeted crash cinema with a black fade into the slow-motion wreck render
 - Site-wide mobile pass: safe-area insets, full-height game modal, larger touch targets, 16px form inputs, scrollable store tabs, and responsive showroom/benchmark layouts
