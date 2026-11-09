@@ -217,17 +217,64 @@
         var audioCtx = null, audioMaster = null;
         var engineOsc = null, engineOsc2 = null, engineGain = null, engineGain2 = null, engineFilter = null;
         var windGain = null, nitroGain = null, driftGain = null, driftFilter = null;
+        var driftOsc = null, driftOscGain = null, driftToneFilter = null;
         var windSrc = null, nitroSrc = null, driftSrc = null;
-        var windLowEl = null, windHighEl = null;
-        var engineLowEl = null, engineHighEl = null;
+        var windLowLoop = null, windHighLoop = null;
+        var engineLowLoop = null, engineHighLoop = null;
+        var samplesLoading = false;
+        var audioResumeHandler = null;
         var revLevel = 0;
-        var engineOscStarted = false, audioNoiseStarted = false;
+        var engineOscStarted = false, audioNoiseStarted = false, driftOscStarted = false;
         var lastAudioGear = 0;
         var audioDriftLevel = 0;
         var currentVx = 0;
 
+        function decodeSample(url) {
+            return fetch(url).then(function (response) {
+                if (!response.ok) throw new Error('audio fetch failed');
+                return response.arrayBuffer();
+            }).then(function (data) {
+                return new Promise(function (resolve, reject) {
+                    audioCtx.decodeAudioData(data, resolve, reject);
+                });
+            });
+        }
+
+        function makeSampleLoop(buffer) {
+            var src = audioCtx.createBufferSource();
+            src.buffer = buffer;
+            src.loop = true;
+            var gain = audioCtx.createGain();
+            gain.gain.value = 0;
+            src.connect(gain);
+            gain.connect(audioMaster);
+            try { src.start(0); } catch (e) {}
+            return { src: src, gain: gain };
+        }
+
+        function loadSampleLoops() {
+            if (samplesLoading || !audioCtx) return;
+            samplesLoading = true;
+            Promise.all([
+                decodeSample('audio/wind-low.mp3'),
+                decodeSample('audio/wind-high.mp3'),
+                decodeSample('audio/engine-low.mp3'),
+                decodeSample('audio/engine-high.mp3')
+            ]).then(function (buffers) {
+                if (!audioCtx || audioCtx.state === 'closed') return;
+                windLowLoop = makeSampleLoop(buffers[0]);
+                windHighLoop = makeSampleLoop(buffers[1]);
+                engineLowLoop = makeSampleLoop(buffers[2]);
+                engineHighLoop = makeSampleLoop(buffers[3]);
+            }).catch(function () {
+                // If loading fails, the synthesized engine and wind stay available.
+            }).then(function () {
+                samplesLoading = false;
+            });
+        }
+
         function initAudio() {
-            if (audioCtx || !soundEnabled) return;
+            if (audioCtx) return;
             var AC = global.AudioContext || global.webkitAudioContext;
             if (!AC) return;
             try {
@@ -240,13 +287,28 @@
                 };
                 audioCleanup = function () {
                     audioMuteHandler = null;
-                    try { if (windLowEl) windLowEl.pause(); } catch (e) {}
-                    try { if (windHighEl) windHighEl.pause(); } catch (e) {}
-                    try { if (engineLowEl) engineLowEl.pause(); } catch (e) {}
-                    try { if (engineHighEl) engineHighEl.pause(); } catch (e) {}
+                    if (audioResumeHandler) {
+                        document.removeEventListener('pointerdown', audioResumeHandler);
+                        document.removeEventListener('keydown', audioResumeHandler);
+                        audioResumeHandler = null;
+                    }
+                    [windLowLoop, windHighLoop, engineLowLoop, engineHighLoop].forEach(function (loop) {
+                        if (!loop) return;
+                        try { loop.src.stop(); } catch (e) {}
+                        try { loop.src.disconnect(); } catch (e) {}
+                    });
+                    windLowLoop = windHighLoop = engineLowLoop = engineHighLoop = null;
                     try { audioCtx.close(); } catch (e) {}
                     audioCtx = null;
                 };
+                audioResumeHandler = function () {
+                    if (audioCtx && audioCtx.state === 'suspended') {
+                        var resumed = audioCtx.resume();
+                        if (resumed && resumed.catch) resumed.catch(function () {});
+                    }
+                };
+                document.addEventListener('pointerdown', audioResumeHandler, { passive: true });
+                document.addEventListener('keydown', audioResumeHandler);
                 engineFilter = audioCtx.createBiquadFilter();
                 engineFilter.type = 'lowpass';
                 engineFilter.frequency.value = 800;
@@ -310,46 +372,24 @@
                 driftFilter.connect(driftGain);
                 driftGain.connect(audioMaster);
 
+                driftToneFilter = audioCtx.createBiquadFilter();
+                driftToneFilter.type = 'bandpass';
+                driftToneFilter.frequency.value = 1800;
+                driftToneFilter.Q.value = 9;
+                driftOscGain = audioCtx.createGain();
+                driftOscGain.gain.value = 0;
+                driftToneFilter.connect(driftOscGain);
+                driftOscGain.connect(audioMaster);
+                driftOsc = audioCtx.createOscillator();
+                driftOsc.type = 'sawtooth';
+                driftOsc.frequency.value = 1100;
+                driftOsc.connect(driftToneFilter);
+
                 if (audioCtx.state === 'suspended') audioCtx.resume();
 
-                // Licensed-free wind loops. They crossfade with speed so the
-                // wind changes character instead of only getting louder.
-                if (global.Audio) {
-                    try {
-                        windLowEl = new global.Audio('audio/wind-low.mp3');
-                        windLowEl.loop = true;
-                        windLowEl.preload = 'auto';
-                        windLowEl.volume = 0;
-                        var lowPlay = windLowEl.play();
-                        if (lowPlay && lowPlay.catch) lowPlay.catch(function () {});
-                        windHighEl = new global.Audio('audio/wind-high.mp3');
-                        windHighEl.loop = true;
-                        windHighEl.preload = 'auto';
-                        windHighEl.volume = 0;
-                        var highPlay = windHighEl.play();
-                        if (highPlay && highPlay.catch) highPlay.catch(function () {});
-                    } catch (windErr) {
-                        windLowEl = null;
-                        windHighEl = null;
-                    }
-                    try {
-                        engineLowEl = new global.Audio('audio/engine-low.mp3');
-                        engineLowEl.loop = true;
-                        engineLowEl.preload = 'auto';
-                        engineLowEl.volume = 0;
-                        var engineLowPlay = engineLowEl.play();
-                        if (engineLowPlay && engineLowPlay.catch) engineLowPlay.catch(function () {});
-                        engineHighEl = new global.Audio('audio/engine-high.mp3');
-                        engineHighEl.loop = true;
-                        engineHighEl.preload = 'auto';
-                        engineHighEl.volume = 0;
-                        var engineHighPlay = engineHighEl.play();
-                        if (engineHighPlay && engineHighPlay.catch) engineHighPlay.catch(function () {});
-                    } catch (engineErr) {
-                        engineLowEl = null;
-                        engineHighEl = null;
-                    }
-                }
+                // Licensed-free samples are decoded into looping Web Audio buffers.
+                // This avoids browser autoplay blocks that can silence HTMLAudio.
+                loadSampleLoops();
             } catch (e) {
                 audioCtx = null;
             }
@@ -394,6 +434,8 @@
                     try { windSrc.start(); } catch (e) {}
                     try { nitroSrc.start(); } catch (e) {}
                     try { driftSrc.start(); } catch (e) {}
+                    try { driftOsc.start(); } catch (e) {}
+                    driftOscStarted = true;
                     audioNoiseStarted = true;
                 }
                 var freeRev = engineOn && (gearMode === 'N' || gearMode === 'P');
@@ -408,36 +450,41 @@
                     if (lastAudioGear) tone(130, 0.05, 'square', 0.028, 90);
                     lastAudioGear = audioGear + 1;
                 }
-                var hasEngineSamples = !!(engineLowEl && engineHighEl);
+                var hasEngineSamples = !!(engineLowLoop && engineHighLoop);
                 var synthLevel = hasEngineSamples ? 0.007 : (0.045 + Math.min(0.038, absSpeed / 3000));
                 engineGain.gain.setTargetAtTime(running ? synthLevel : 0, now, 0.08);
                 engineOsc.frequency.setTargetAtTime(synthRpm, now, 0.055);
                 engineOsc2.frequency.setTargetAtTime(synthRpm * 1.5 + 7, now, 0.06);
                 engineFilter.frequency.setTargetAtTime(430 + absSpeed * 10 + (nitroActive ? 320 : 0), now, 0.1);
-                var hasWindSamples = !!(windLowEl && windHighEl);
+                var hasWindSamples = !!(windLowLoop && windHighLoop);
                 windGain.gain.setTargetAtTime(!hasWindSamples && running ? Math.min(0.075, absSpeed / 1700) : 0, now, 0.15);
                 if (hasWindSamples) {
                     var windFrac = Math.min(1, absSpeed / 150);
                     var lowVol = soundEnabled ? (0.025 + windFrac * 0.085) : 0;
                     var highVol = soundEnabled ? Math.max(0, windFrac - 0.34) / 0.66 * 0.12 : 0;
-                    windLowEl.volume = Math.max(0, Math.min(0.25, lowVol));
-                    windHighEl.volume = Math.max(0, Math.min(0.25, highVol));
-                    windLowEl.playbackRate = 0.82 + windFrac * 0.62;
-                    windHighEl.playbackRate = 0.9 + windFrac * 0.75;
+                    windLowLoop.gain.gain.setTargetAtTime(Math.max(0, Math.min(0.25, lowVol)), now, 0.12);
+                    windHighLoop.gain.gain.setTargetAtTime(Math.max(0, Math.min(0.25, highVol)), now, 0.12);
+                    windLowLoop.src.playbackRate.setTargetAtTime(0.82 + windFrac * 0.62, now, 0.15);
+                    windHighLoop.src.playbackRate.setTargetAtTime(0.9 + windFrac * 0.75, now, 0.15);
                 }
                 if (hasEngineSamples && running) {
                     var revFrac = freeRev ? revLevel : (0.15 + Math.min(1, absSpeed / 140) * 0.85);
-                    engineLowEl.volume = soundEnabled ? Math.max(0, Math.min(0.22, 0.075 + revFrac * 0.1)) : 0;
-                    engineHighEl.volume = soundEnabled ? Math.max(0, Math.min(0.2, Math.max(0, revFrac - 0.42) / 0.58 * 0.16)) : 0;
-                    engineLowEl.playbackRate = 0.78 + revFrac * 0.9;
-                    engineHighEl.playbackRate = 0.88 + revFrac * 1.15;
+                    engineLowLoop.gain.gain.setTargetAtTime(soundEnabled ? Math.max(0, Math.min(0.22, 0.075 + revFrac * 0.1)) : 0, now, 0.1);
+                    engineHighLoop.gain.gain.setTargetAtTime(soundEnabled ? Math.max(0, Math.min(0.2, Math.max(0, revFrac - 0.42) / 0.58 * 0.16)) : 0, now, 0.1);
+                    engineLowLoop.src.playbackRate.setTargetAtTime(0.78 + revFrac * 0.9, now, 0.12);
+                    engineHighLoop.src.playbackRate.setTargetAtTime(0.88 + revFrac * 1.15, now, 0.12);
                 } else if (hasEngineSamples) {
-                    engineLowEl.volume = 0;
-                    engineHighEl.volume = 0;
+                    engineLowLoop.gain.gain.setTargetAtTime(0, now, 0.12);
+                    engineHighLoop.gain.gain.setTargetAtTime(0, now, 0.12);
                 }
                 nitroGain.gain.setTargetAtTime(running && nitroActive ? 0.05 : 0, now, 0.1);
-                driftGain.gain.setTargetAtTime(running ? Math.min(0.1, audioDriftLevel * 0.1) : 0, now, 0.08);
-                driftFilter.frequency.setTargetAtTime(1200 + Math.abs(currentVx) * 55, now, 0.1);
+                driftGain.gain.setTargetAtTime(running ? Math.min(0.14, audioDriftLevel * 0.14) : 0, now, 0.08);
+                driftFilter.frequency.setTargetAtTime(1600 + Math.abs(currentVx) * 55, now, 0.1);
+                if (driftOscGain && driftToneFilter) {
+                    driftOscGain.gain.setTargetAtTime(running ? Math.min(0.034, audioDriftLevel * 0.034) : 0, now, 0.07);
+                    driftToneFilter.frequency.setTargetAtTime(1550 + Math.abs(currentVx) * 38, now, 0.1);
+                    driftOsc.frequency.setTargetAtTime(760 + Math.min(1, audioDriftLevel) * 620 + Math.min(280, Math.abs(currentVx) * 12), now, 0.08);
+                }
             } catch (e) {}
         }
 
@@ -5290,6 +5337,8 @@
                     bodyPitch: player.userData.bodyGroup ? player.userData.bodyGroup.rotation.x : 0,
                     fov: camera.fov,
                     cameraZ: camera.position.z,
+                    audioSamples: !!(windLowLoop && windHighLoop && engineLowLoop && engineHighLoop),
+                    audioState: audioCtx ? audioCtx.state : 'none',
                     crashing: crashActive
                 };
             },
