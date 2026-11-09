@@ -213,18 +213,10 @@
             }
         };
         var terrainWaveScale = 1;
-        var elevationName = 'canyon';
+        var elevationName = 'flat';
         var roadElev = 0;
         function elevationAt(trackS) {
-            if (elevationName === 'hills') {
-                return Math.sin(trackS * 0.025) * 4.2 + Math.sin(trackS * 0.065 + 1.3) * 1.3;
-            }
-            if (elevationName === 'mountains') {
-                return Math.sin(trackS * 0.018) * 9.0 + Math.sin(trackS * 0.045 + 0.7) * 3.0;
-            }
-            if (elevationName === 'canyon') {
-                return Math.sin(trackS * 0.03) * 6.0 + Math.cos(trackS * 0.075) * 2.0;
-            }
+            // The road is flat again.
             return 0;
         }
         function worldElevation(worldZ) {
