@@ -207,6 +207,7 @@
     var open = false;
     var greeted = false;
     var typingTimer = 0;
+    var streamTimer = 0;
 
     function esc(text) {
         var d = document.createElement('div');
@@ -248,16 +249,45 @@
         if (row) row.remove();
     }
 
+    function streamMessage(text) {
+        var box = document.getElementById('aiMessages');
+        if (!box) return;
+        if (streamTimer) { clearInterval(streamTimer); streamTimer = 0; }
+        var row = document.createElement('div');
+        row.className = 'ai-msg ai-msg-bot';
+        var bubble = document.createElement('div');
+        bubble.className = 'ai-bubble ai-streaming';
+        row.appendChild(bubble);
+        box.appendChild(row);
+        var words = String(text || '').split(' ');
+        var index = 0;
+        var buffer = '';
+        scrollMessages();
+        streamTimer = setInterval(function () {
+            if (index >= words.length) {
+                bubble.textContent = buffer.trim();
+                bubble.classList.remove('ai-streaming');
+                clearInterval(streamTimer);
+                streamTimer = 0;
+                scrollMessages();
+                return;
+            }
+            buffer += (index ? ' ' : '') + words[index++];
+            bubble.textContent = buffer;
+            scrollMessages();
+        }, 22);
+    }
+
     function ask(text, instant) {
         var value = String(text || '').trim();
         if (!value) return;
         addMessage('user', value);
         showTyping();
         clearTimeout(typingTimer);
-        var delay = instant ? 0 : 260 + Math.min(600, value.length * 4);
+        var delay = instant ? 0 : 320 + Math.min(520, value.length * 3);
         typingTimer = setTimeout(function () {
             hideTyping();
-            addMessage('bot', answerFor(value));
+            streamMessage(answerFor(value));
         }, delay);
     }
 
@@ -289,6 +319,8 @@
     }
 
     function resetChat() {
+        if (streamTimer) { clearInterval(streamTimer); streamTimer = 0; }
+        clearTimeout(typingTimer);
         var box = document.getElementById('aiMessages');
         if (box) box.innerHTML = '';
         greeted = false;

@@ -10958,7 +10958,6 @@ body.reduce-motion *::after {
     .lsim-systems { display: none; }
     .lsim-hint { display: none; }
 }
-body.in-game .radio-dock { display: none; }
 @media (max-width: 760px) {
     body.in-game .lsim-brand { display: none; }
     body.in-game .lsim-top { right: 112px; }
@@ -11567,8 +11566,7 @@ body {
 
 /* Stop the site behind the game from rendering during play */
 body.in-game .view,
-body.in-game .top-nav,
-body.in-game .radio-dock {
+body.in-game .top-nav {
     display: none !important;
 }
 body.in-game::before { animation: none !important; }
@@ -11637,6 +11635,13 @@ body.in-game .ai-dock { display: none !important; }
 .game3d-brake,
 .game3d-pedals,
 .game3d-touch-controls,
-.fps-touch {
+.fps-touch,
+.g3d-gears,
+.lsim-hint,
+.game3d-hint,
+.tq-hint,
+.fps-prompt {
     display: none !important;
 }
+.ai-bubble.ai-streaming::after { content: '▍'; color: #7cc4ff; animation: aiCursor 0.8s steps(2, start) infinite; }
+@keyframes aiCursor { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }

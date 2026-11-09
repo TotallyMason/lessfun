@@ -8452,8 +8452,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.32.99";
-const UPDATE_NOTES = "The on-screen game control bars are gone. Keyboard, mouse and drag gestures still control every game";
+const APP_VERSION = "LessFun Public Beta 1.33.00";
+const UPDATE_NOTES = "The radio stays visible during games, hint bars are gone, and the assistant now streams answers word by word";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
