@@ -5157,6 +5157,11 @@
             shiftHoldT = Math.max(0, shiftHoldT - dt);
             shiftCutT = Math.max(0, shiftCutT - dt);
             if (engineOn && gearMode === 'D') {
+                if (Math.abs(speed) < 2 && currentGear > 1) {
+                    currentGear = 1;
+                    shiftHoldT = 0;
+                    shiftCutT = 0;
+                }
                 var targetGear = gearFor(Math.abs(speed));
                 if (targetGear !== currentGear && shiftHoldT <= 0) {
                     currentGear += targetGear > currentGear ? 1 : -1;

@@ -12643,3 +12643,26 @@ body.in-game .xmas-snowman { display: none; }
 .settings-details summary::after { content: '+'; float: right; color: rgba(255,209,102,0.6); }
 .settings-details[open] summary::after { content: '−'; }
 .settings-details .secrets-card { margin: 0 12px 12px; }
+
+.nav-btn.nav-cookies { color: #ffd9a0; }
+.cookie-shop {
+    margin: 0 0 18px;
+    padding: 16px 18px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 190, 90, 0.25);
+    background: linear-gradient(145deg, rgba(255, 190, 90, 0.09), rgba(255, 255, 255, 0.02));
+}
+.cookie-shop-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.cookie-shop-head span { color: rgba(255, 209, 102, 0.55); font-size: 7px; font-weight: 900; letter-spacing: 0.16em; }
+.cookie-shop-head h2 { margin: 3px 0 2px; color: #ffe2a0; font-size: 20px; }
+.cookie-shop-head p { margin: 0; color: rgba(220, 240, 250, 0.46); font-size: 9px; }
+.cookie-balance { flex: 0 0 auto; padding: 8px 12px; border-radius: 999px; border: 1px solid rgba(255, 209, 102, 0.25); background: rgba(255, 209, 102, 0.07); color: #ffe2a0; font-size: 12px; }
+.cookie-balance b { font-size: 15px; }
+.cookie-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+.cookie-actions button {
+    min-height: 32px; padding: 0 12px; border-radius: 999px;
+    border: 1px solid rgba(255, 209, 102, 0.32);
+    background: rgba(255, 209, 102, 0.08);
+    color: #ffe2a0; font: inherit; font-size: 9px; font-weight: 800; cursor: pointer;
+}
+.cookie-actions button:hover { background: rgba(255, 209, 102, 0.16); }

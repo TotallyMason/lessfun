@@ -1133,7 +1133,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261327'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261328'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1142,7 +1142,7 @@ function ensure3DEngine() {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261327').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261328').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1150,7 +1150,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261327').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261328').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1158,8 +1158,8 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261327')
-            .then(function () { return loadScriptOnce('assistant.js?v=20261327'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261328')
+            .then(function () { return loadScriptOnce('assistant.js?v=20261328'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1186,7 +1186,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261327').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261328').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1194,7 +1194,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261327').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261328').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1202,7 +1202,7 @@ function ensureLucky() {
 function ensureTycoon() {
     if (window.Tycoon) return Promise.resolve();
     if (!tycoonPromise) {
-        tycoonPromise = loadScriptOnce('tycoon.js?v=20261327').catch(function (error) { tycoonPromise = null; throw error; });
+        tycoonPromise = loadScriptOnce('tycoon.js?v=20261328').catch(function (error) { tycoonPromise = null; throw error; });
     }
     return tycoonPromise;
 }
@@ -3982,6 +3982,36 @@ function awardRunCoins(amount) {
     wallet.totalEarned = Math.max(0, (Number(wallet.totalEarned) || 0) + earned);
     saveWallet();
     renderWalletUI();
+}
+
+function isHolidayEvent() {
+    return document.documentElement.classList.contains('is-holiday');
+}
+
+function awardCookies(amount, notify) {
+    var earned = Math.max(0, Math.floor(Number(amount) || 0));
+    if (!earned || !wallet) return 0;
+    wallet.cookies = Math.max(0, (Number(wallet.cookies) || 0) + earned);
+    saveWallet();
+    renderWalletUI();
+    if (notify) showGameToast('🍪 +' + earned + ' Cookies');
+    return earned;
+}
+
+function exchangeCookies(cost, coins) {
+    if (!wallet) return;
+    cost = Math.max(1, Math.floor(Number(cost) || 0));
+    coins = Math.max(1, Math.floor(Number(coins) || 0));
+    if ((Number(wallet.cookies) || 0) < cost) {
+        showGameToast('Need ' + (cost - (Number(wallet.cookies) || 0)) + ' more Cookies.');
+        return;
+    }
+    wallet.cookies -= cost;
+    wallet.shells = Math.max(0, (Number(wallet.shells) || 0) + coins);
+    wallet.totalEarned = Math.max(0, (Number(wallet.totalEarned) || 0) + coins);
+    saveWallet();
+    renderWalletUI();
+    showGameToast('🍪 ' + cost + ' Cookies → +' + coins.toLocaleString() + ' Coins');
 }
 
 function updateUserSection() {
@@ -7138,6 +7168,7 @@ function walletSyncExtras(w) {
         zombie: (w.zombie && typeof w.zombie === 'object') ? w.zombie : null,
         gift: (w.gift && typeof w.gift === 'object') ? w.gift : null,
         advent: (w.advent && typeof w.advent === 'object') ? w.advent : null,
+        cookies: Number(w.cookies) || 0,
         arcade: (w.arcade && typeof w.arcade === 'object') ? w.arcade : null
     };
 }
@@ -7234,6 +7265,7 @@ function normalizeWallet(raw, username) {
     return {
         username: username,
         shells: Number.isFinite(w.shells) ? Math.max(0, Math.floor(w.shells)) : SHELLS_START,
+        cookies: Number.isFinite(Number(w.cookies)) ? Math.max(0, Math.floor(Number(w.cookies))) : (Number.isFinite(Number(extras.cookies)) ? Math.max(0, Math.floor(Number(extras.cookies))) : 0),
         inventory: inventory,
         equipped: equipped,
         cars: ownedCars,
@@ -7316,6 +7348,10 @@ async function loadWallet() {
                 changed = true;
             }
             local.arcade = remote.arcade;
+            var mergedCookies = Math.max(remote.cookies || 0, local.cookies || 0);
+            if (mergedCookies !== (remote.cookies || 0)) changed = true;
+            remote.cookies = mergedCookies;
+            local.cookies = mergedCookies;
             if ((local.gift.lastClaim || '') > (remote.gift.lastClaim || '') ||
                 ((local.gift.lastClaim || '') === (remote.gift.lastClaim || '') && (local.gift.streak || 0) > (remote.gift.streak || 0))) {
                 remote.gift = local.gift;
@@ -7337,6 +7373,7 @@ async function loadWallet() {
             if (localNewer) {
                 // An offline or in-flight purchase on this device wins.
                 remote.shells = local.shells;
+                remote.cookies = Math.max(remote.cookies || 0, local.cookies || 0);
                 remote.totalEarned = Math.max(remote.totalEarned || 0, local.totalEarned || 0);
                 remote.streak = local.streak;
                 remote.lastPlayDay = local.lastPlayDay;
@@ -7593,12 +7630,14 @@ async function claimDailyGift() {
     wallet.gift = { lastClaim: dayKey(), streak: st.streak };
     wallet.shells = Math.max(0, (Number(wallet.shells) || 0) + st.amount);
     wallet.totalEarned = Math.max(0, (Number(wallet.totalEarned) || 0) + st.amount);
+    var cookieBonus = isHolidayEvent() ? 3 : 0;
+    if (cookieBonus) wallet.cookies = Math.max(0, (Number(wallet.cookies) || 0) + cookieBonus);
     await saveWallet();
     renderWalletUI();
     renderDailyGiftModal();
     var result = document.getElementById('dailyGiftResult');
-    if (result) result.textContent = '+' + st.amount.toLocaleString() + ' Coins · ' + st.streak + '-day streak';
-    showGameToast('Daily gift · +' + st.amount.toLocaleString() + ' Coins');
+    if (result) result.textContent = '+' + st.amount.toLocaleString() + ' Coins' + (cookieBonus ? ' · +' + cookieBonus + ' Cookies' : '') + ' · ' + st.streak + '-day streak';
+    showGameToast('Daily gift · +' + st.amount.toLocaleString() + ' Coins' + (cookieBonus ? ' · +' + cookieBonus + ' Cookies' : ''));
 }
 
 function adventNow() {
@@ -7678,11 +7717,12 @@ async function claimAdvent() {
     if (wallet.advent.days.indexOf(st.day) < 0) wallet.advent.days.push(st.day);
     wallet.shells = Math.max(0, (Number(wallet.shells) || 0) + reward.coins);
     wallet.totalEarned = Math.max(0, (Number(wallet.totalEarned) || 0) + reward.coins);
+    wallet.cookies = Math.max(0, (Number(wallet.cookies) || 0) + 2);
     if (reward.item && wallet.inventory.indexOf(reward.item) < 0) wallet.inventory.push(reward.item);
     await saveWallet();
     renderWalletUI();
     renderAdventModal();
-    showGameToast('Advent door ' + st.day + ' · +' + reward.coins.toLocaleString() + ' Coins');
+    showGameToast('Advent door ' + st.day + ' · +' + reward.coins.toLocaleString() + ' Coins · +2 Cookies');
 }
 
 window.LessFunGetCoins = function () {
@@ -7704,6 +7744,11 @@ function renderWalletUI() {
     ['navCoins', 'storeCoins', 'garageCoins', 'profileCoinsValue'].forEach(function (id) {
         var el = document.getElementById(id);
         if (el) el.textContent = shells.toLocaleString();
+    });
+    var cookies = wallet ? (Number(wallet.cookies) || 0) : 0;
+    ['navCookies', 'cookieBalance'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.textContent = cookies.toLocaleString();
     });
 
     var shopBalance = document.getElementById('g3dShopBalance');
@@ -8391,6 +8436,8 @@ function handleGameOver(score, seconds) {
         renderSnowLeaderboard();
     }
     var trackCoins = lastRunCoins;
+    var cookieReward = isHolidayEvent() ? Math.min(12, Math.max(1, Math.floor((Number(score) || 0) / 800) + 1)) : 0;
+    awardCookies(cookieReward, false);
     awardCoins(seconds).then(function (result) {
         var el = document.getElementById('g3dEarned');
         if (!el) return;
@@ -8402,10 +8449,11 @@ function handleGameOver(score, seconds) {
         var parts = [];
         if (playTotal > 0) parts.push('play +' + playTotal);
         if (trackCoins > 0) parts.push('track coins +' + trackCoins);
+        if (cookieReward > 0) parts.push('cookies +' + cookieReward);
         if (result && result.messages) {
             for (var i = 0; i < result.messages.length; i++) parts.push(result.messages[i]);
         }
-        el.innerHTML = shellIcon(14) + '<span>+' + (playTotal + trackCoins) + ' Coins</span><small>' + parts.join(' · ') + '</small>';
+        el.innerHTML = shellIcon(14) + '<span>+' + (playTotal + trackCoins) + ' Coins' + (cookieReward > 0 ? ' · +' + cookieReward + ' Cookies' : '') + '</span><small>' + parts.join(' · ') + '</small>';
         el.style.display = 'flex';
     });
 }
@@ -9081,8 +9129,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.43";
-const UPDATE_NOTES = "Browser Back closes the game, single-player games work offline after the first visit, and Settings is now grouped into Visuals, Audio, Gameplay and Account";
+const APP_VERSION = "LessFun Public Beta 1.33.44";
+const UPDATE_NOTES = "Cookies are here: earn them from games, Daily Gifts and Advent doors, then exchange them for Coins in the Store. Stopped cars now show first gear correctly";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

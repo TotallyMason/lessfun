@@ -11,8 +11,8 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261327">
-    <link rel="preload" href="app.js?v=20261327" as="script">
+    <link rel="stylesheet" href="style.css?v=20261328">
+    <link rel="preload" href="app.js?v=20261328" as="script">
 </head>
 <body>
     <div id="siteLoader" class="site-loader" role="status" aria-live="polite" aria-label="Loading LessFun">
@@ -135,6 +135,9 @@
                 </button>
             </div>
             <div class="nav-right" style="gap:12px;">
+                <button class="nav-btn nav-cookies" onclick="showView('store')" id="nav-cookies" title="Christmas Cookies">
+                    <span style="margin-right:5px;">🍪</span><span class="shells-amount" id="navCookies">0</span>
+                </button>
                 <button class="nav-btn nav-shells" onclick="showView('store')" id="nav-shells" title="Your Coins">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;">
                         <path d="M12 3c5.2 0 9 3.4 9 7.6 0 2.1-1.8 3.9-3.9 3.9H6.9C4.8 14.5 3 12.7 3 10.6 3 6.4 6.8 3 12 3Z"/>
@@ -243,6 +246,17 @@
                     <div class="store-balance-value" id="storeCoins">100</div>
                 </div>
                 <p class="store-balance-hint">Themes and avatar frames work across the whole app · Beach Racer car parts are in the Garage</p>
+            </div>
+            <div class="cookie-shop" id="cookieShop">
+                <div class="cookie-shop-head">
+                    <div><span>CHRISTMAS CURRENCY</span><h2>🍪 Cookies</h2><p>Earned in games during the holiday event. Exchange Cookies for Coins.</p></div>
+                    <div class="cookie-balance">🍪 <b id="cookieBalance">0</b></div>
+                </div>
+                <div class="cookie-actions">
+                    <button type="button" onclick="exchangeCookies(10, 250)">10 🍪 → 250 Coins</button>
+                    <button type="button" onclick="exchangeCookies(25, 750)">25 🍪 → 750 Coins</button>
+                    <button type="button" onclick="exchangeCookies(50, 2000)">50 🍪 → 2,000 Coins</button>
+                </div>
             </div>
             <p class="store-guest-note" id="storeGuestNote" style="display:none;">Playing as a guest — Coins are saved on this device only. <button type="button" onclick="openAuthModal()">Sign in</button> to keep them across devices.</p>
             <div class="store-status" id="storeStatus" role="status"></div>
@@ -1056,7 +1070,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Public Beta 1.33.43</p>
+                            <p>LessFun Public Beta 1.33.44</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -1201,6 +1215,7 @@
                             <li><strong>1.33.41</strong> — Fixed the post-load freeze by removing the AI startup prefetch, speeding up its index build, lazy-loading avatars and freeing view caches.</li>
                             <li><strong>1.33.42</strong> — Added an AI loading animation and releases its index when closed. Heavy 3D games are capped at 60 FPS, use fewer clouds, and drop quality automatically if they overheat.</li>
                             <li><strong>1.33.43</strong> — Browser Back now closes the game, single-player games work offline through a service worker, and Settings is grouped into Visuals, Audio, Gameplay and Account. Daily Gift stays one tap.</li>
+                            <li><strong>1.33.44</strong> — Added Cookies, a Christmas currency earned from games, Daily Gifts and Advent doors and exchanged for Coins. Fixed stopped-gear display and protected update checks from the offline cache.</li>
                         </ul>
                     </div>
                     <div class="info-card">
@@ -1543,8 +1558,8 @@
     <div id="globalToast" class="global-toast"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=20261327"></script>
-    <script src="christmas.js?v=20261327"></script>
-    <script src="easter.js?v=20261327"></script>
+    <script src="app.js?v=20261328"></script>
+    <script src="christmas.js?v=20261328"></script>
+    <script src="easter.js?v=20261328"></script>
 </body>
 </html>

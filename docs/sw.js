@@ -1,7 +1,7 @@
 /* LessFun offline shell — single-player games stay available offline. */
 'use strict';
 
-var CACHE_NAME = 'lessfun-static-1.33.43';
+var CACHE_NAME = 'lessfun-static-1.33.44';
 var CORE_ASSETS = [
     './',
     'index.html',
@@ -65,6 +65,8 @@ self.addEventListener('fetch', function (event) {
     var sameOrigin = url.origin === self.location.origin;
     var cdn = url.hostname === 'cdn.jsdelivr.net';
     if (!sameOrigin && !cdn) return;
+    // Never cache live update manifests or API-style JSON.
+    if (/\/(version|posts|users)\.json$/.test(url.pathname)) return;
 
     if (request.mode === 'navigate') {
         event.respondWith(
