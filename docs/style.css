@@ -11750,3 +11750,4 @@ body.in-game .site-snow { display: none !important; }
     .is-holiday .top-nav::after { animation: none; }
     .site-snow { display: none !important; }
 }
+#jingleBtn { margin-top: 0; }

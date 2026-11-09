@@ -11,8 +11,8 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261292">
-    <link rel="preload" href="app.js?v=20261292" as="script">
+    <link rel="stylesheet" href="style.css?v=20261293">
+    <link rel="preload" href="app.js?v=20261293" as="script">
 </head>
 <body>
     <div id="siteLoader" class="site-loader" role="status" aria-live="polite" aria-label="Loading LessFun">
@@ -181,6 +181,7 @@
                         <button type="button" class="game-btn-3d" onclick="openGame(7)">Play Snow Rush</button>
                         <button type="button" class="game-btn-3d is-secondary" onclick="startSnowStorm()">Snowstorm Mode</button>
                         <button type="button" class="game-btn-3d is-secondary" onclick="openAdvent()">Advent Calendar</button>
+                        <button type="button" class="game-btn-3d is-secondary" id="jingleBtn" onclick="LessFunJingle.toggle()" style="display:none;">Jingle: Ready</button>
                     </div>
                 </div>
                 <div class="snow-leaderboard">
@@ -1019,7 +1020,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Public Beta 1.33.08</p>
+                            <p>LessFun Public Beta 1.33.09</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -1129,6 +1130,7 @@
                             <li><strong>1.33.06</strong> — Performance pass: Community now loads 10 posts at a time with Load More, and Draw & Guess plus Lucky Spin are lazy-loaded game modules.</li>
                             <li><strong>1.33.07</strong> — Beach Racer gets a node-beam soft-body chassis: chassis nodes are connected by spring beams that flex under load and impacts.</li>
                             <li><strong>1.33.08</strong> — Christmas update: Advent Calendar with 24 daily doors, Snowstorm Mode for Snow Rush, site-wide snow and festive navigation lights.</li>
+                            <li><strong>1.33.09</strong> — Added an original synthesized Christmas jingle that starts automatically during the holiday event, with a Jingle On/Off button.</li>
                         </ul>
                     </div>
                     <div class="info-card">
@@ -1471,6 +1473,7 @@
     <div id="globalToast" class="global-toast"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=20261292"></script>
+    <script src="app.js?v=20261293"></script>
+    <script src="christmas.js?v=20261293"></script>
 </body>
 </html>
