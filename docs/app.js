@@ -1140,7 +1140,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261329'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261330'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1149,7 +1149,7 @@ function ensure3DEngine() {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261329').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261330').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1157,7 +1157,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261329').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261330').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1165,8 +1165,8 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261329')
-            .then(function () { return loadScriptOnce('assistant.js?v=20261329'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261330')
+            .then(function () { return loadScriptOnce('assistant.js?v=20261330'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1194,7 +1194,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261329').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261330').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1202,7 +1202,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261329').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261330').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1210,7 +1210,7 @@ function ensureLucky() {
 function ensureTycoon() {
     if (window.Tycoon) return Promise.resolve();
     if (!tycoonPromise) {
-        tycoonPromise = loadScriptOnce('tycoon.js?v=20261329').catch(function (error) { tycoonPromise = null; throw error; });
+        tycoonPromise = loadScriptOnce('tycoon.js?v=20261330').catch(function (error) { tycoonPromise = null; throw error; });
     }
     return tycoonPromise;
 }
@@ -1360,13 +1360,11 @@ function openGameNow(id) {
                         '<div class="g3d-warnings" id="g3dWarnings">' +
                             '<span class="g3d-warn" data-warn="abs">ABS</span>' +
                             '<span class="g3d-warn" data-warn="brake">BRAKE</span>' +
-                            '<span class="g3d-warn" data-warn="hot">HOT</span>' +
                             '<span class="g3d-warn" data-warn="eng">ENG</span>' +
                             '<span class="g3d-warn" data-warn="trans">TRANS</span>' +
                             '<span class="g3d-warn" data-warn="tire">TIRE</span>' +
                             '<span class="g3d-warn" data-warn="dmg">DMG</span>' +
                         '</div>' +
-                        '<div class="g3d-temp" id="g3dTemp"><span>ENGINE</span><div class="g3d-temp-track"><i id="g3dTempFill"></i></div><b id="g3dTempValue">COOL</b></div>' +
                         '<div class="g3d-gauge-meta"><span>SCORE <b id="g3dGaugeScore">0</b></span><span>COINS <b id="g3dGaugeCoins">0</b></span></div>' +
                     '</div>' +
                 '</div>' : '') +
@@ -9176,8 +9174,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.45";
-const UPDATE_NOTES = "Loading screens now show the real loading stage. Advent gives only Cookies, Cookies live in the Store, and they can buy Coins, Arcade Cash or a mystery cosmetic";
+const APP_VERSION = "LessFun Public Beta 1.33.46";
+const UPDATE_NOTES = "Engine heat is gone from Beach Racer: no temperature bar, no overheating and no engine blowouts. Crash damage still works";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

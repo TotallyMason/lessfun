@@ -318,35 +318,12 @@
             } catch (e) {}
         }
 
-        function playEngineBlowSound() {
-            if (!soundEnabled || !audioCtx) return;
-            tone(72, 0.6, 'sawtooth', 0.24, 26);
-            tone(150, 0.34, 'square', 0.14, 46);
-            tone(620, 0.13, 'square', 0.06, 180);
-            if (audioNoiseBuffer) {
-                try {
-                    var src = audioCtx.createBufferSource();
-                    src.buffer = audioNoiseBuffer;
-                    var filter = audioCtx.createBiquadFilter();
-                    filter.type = 'lowpass';
-                    filter.frequency.value = 1100;
-                    var gain = audioCtx.createGain();
-                    gain.gain.setValueAtTime(0.24, audioCtx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.55);
-                    src.connect(filter);
-                    filter.connect(gain);
-                    gain.connect(audioMaster);
-                    src.start(0, 0, 0.55);
-                } catch (e) {}
-            }
-        }
-
         function playWarningBeep(name) {
             if (!soundEnabled || !audioCtx) return;
             var now = Date.now();
             if (now - lastWarningBeepMs < 360) return;
             lastWarningBeepMs = now;
-            var critical = name === 'hot' || name === 'eng' || name === 'trans' || name === 'tire' || name === 'dmg';
+            var critical = name === 'eng' || name === 'trans' || name === 'tire' || name === 'dmg';
             var base = critical ? 760 : 1160;
             tone(base, 0.08, 'square', critical ? 0.05 : 0.028);
             setTimeout(function () {
@@ -625,23 +602,10 @@
             }
             warn('abs', absActive);
             warn('brake', brakeLock > 0.12);
-            warn('hot', engineHeat > 0.68 || engineBlown);
-            warn('eng', carDamage.engine > 0.35 || engineBlown);
+            warn('eng', carDamage.engine > 0.35);
             warn('trans', carDamage.transmission > 0.45);
             warn('tire', blownTire);
             warn('dmg', maxDamage > 0.12);
-            var tempEl = document.getElementById('g3dTemp');
-            var tempFill = document.getElementById('g3dTempFill');
-            var tempValue = document.getElementById('g3dTempValue');
-            var heatPct = Math.max(0, Math.min(1, engineHeat));
-            if (tempFill) tempFill.style.width = (heatPct * 100).toFixed(1) + '%';
-            if (tempEl) {
-                tempEl.classList.toggle('is-warm', heatPct > 0.62 && heatPct <= 0.82);
-                tempEl.classList.toggle('is-hot', heatPct > 0.82 || engineBlown);
-            }
-            if (tempValue) {
-                tempValue.textContent = engineBlown ? 'BLOWN' : Math.round(40 + engineHeat * 100) + '°';
-            }
         }
 
         scene.background = new THREE.Color(0x9bd7f2);
@@ -4324,8 +4288,6 @@
         var nitro = 100, nitroActive = false;
         var brakeLock = 0;
         var absActive = false;
-        var engineHeat = 0;
-        var engineBlown = false;
         var skidMarkT = 0;
         var currentGear = 1;
         var shiftHoldT = 0;
@@ -5133,8 +5095,7 @@
                 brakeDecel *= Math.max(0.58, 1 - brakeLock * 0.42) * (absActive ? 0.92 + Math.sin(elapsed * 38) * 0.08 : 1);
                 speed = Math.max(0, speed - brakeDecel * Math.max(0.18, brakeSmooth) * dt);
             } else if (throttleCmd) {
-                var heatPower = Math.max(0.22, 1 - Math.max(0, engineHeat - 0.55) * 1.35 - (engineBlown ? 0.42 : 0));
-                var damageTop = Math.max(0.38, (1 - carDamage.engine * 0.5 - (carDamage.tires[0] + carDamage.tires[1] + carDamage.tires[2] + carDamage.tires[3]) * 0.03) * heatPower);
+                var damageTop = Math.max(0.38, 1 - carDamage.engine * 0.5 - (carDamage.tires[0] + carDamage.tires[1] + carDamage.tires[2] + carDamage.tires[3]) * 0.03);
                 var topSpeedNow = (fsdActive ? FSD_MAX_SPEED : perf.topSpeed) * (nitroActive ? 1.32 : 1) * damageTop;
                 var pull = perf.accel * (fsdActive ? 4.5 : 1) * (nitroActive ? 2.35 : 1) * (1 - 0.5 * Math.min(1, speed / topSpeedNow)) * Math.max(0.35, 1 - carDamage.engine * 0.45);
                 speed = Math.min(topSpeedNow, speed + pull * (0.35 + 0.65 * throttleSmooth) * (shiftCutT > 0 ? 0.32 : 1) * dt);
@@ -5143,16 +5104,6 @@
                 speed = Math.max(CREEP_SPEED, speed - 3.4 * dt);
             } else {
                 speed = Math.min(CREEP_SPEED, speed + 5 * dt);
-            }
-            var airflowCooling = 0.018 + Math.min(0.03, Math.abs(speed) / 5000);
-            var engineLoad = throttleSmooth * 0.07 + revLevel * 0.085 + (engineBlown ? 0.015 : 0);
-            var heatGain = engineOn ? (engineLoad - airflowCooling) : -0.06;
-            engineHeat = Math.max(0, Math.min(1.15, engineHeat + heatGain * dt));
-            if (engineHeat > 0.92 && !engineBlown) {
-                engineBlown = true;
-                playEngineBlowSound();
-                carDamage.fire = 1;
-                carDamage.engine = Math.max(carDamage.engine, 0.86);
             }
             shiftHoldT = Math.max(0, shiftHoldT - dt);
             shiftCutT = Math.max(0, shiftCutT - dt);
@@ -5795,8 +5746,6 @@
                     revLevel: revLevel,
                     brakeLock: brakeLock,
                     absActive: absActive,
-                    engineHeat: engineHeat,
-                    engineBlown: engineBlown,
                     smokePuffs: driftPuffs.reduce(function (n, p) { return n + (p.life > 0 ? 1 : 0); }, 0),
                     crashing: crashActive
                 };
