@@ -1,32 +1,9 @@
 /* ============================================================
-   LessFun Assistant — local 10,000+ pattern knowledge base
+   LessFun Assistant — local 100,000+ answer knowledge engine
    ============================================================ */
 (function () {
     'use strict';
 
-    var VARIANTS = [
-        function (t) { return t; },
-        function (t) { return 'what is ' + t; },
-        function (t) { return 'what are ' + t; },
-        function (t) { return 'tell me about ' + t; },
-        function (t) { return 'explain ' + t; },
-        function (t) { return 'how does ' + t + ' work'; },
-        function (t) { return 'how do ' + t + ' work'; },
-        function (t) { return 'how do i use ' + t; },
-        function (t) { return 'where can i find ' + t; },
-        function (t) { return 'where is ' + t; },
-        function (t) { return 'can you explain ' + t; },
-        function (t) { return 'can you tell me about ' + t; },
-        function (t) { return 'info about ' + t; },
-        function (t) { return 'help with ' + t; },
-        function (t) { return 'details about ' + t; },
-        function (t) { return 'what should i know about ' + t; },
-        function (t) { return 'what does ' + t + ' do'; },
-        function (t) { return 'how do i get ' + t; },
-        function (t) { return 'question about ' + t; },
-        function (t) { return t + ' guide'; }
-    ];
-    var TAILS = ['', ' please', ' for me', ' for us', ' thanks'];
 
     var STOP = {};
     'the a an is are was were how do does did i you your my me we our to of on in for what can could would should tell about and or it its with work works help please give detail details question explain know thanks'.split(' ').forEach(function (w) { STOP[w] = true; });
@@ -144,6 +121,7 @@
     var entries = [];
     var chatEntries = [];
     var indexBuilt = false;
+    var chatIndexBuilt = false;
     var N = 0;
     var df = {};
     var idf = {};
@@ -207,22 +185,19 @@
         entries = [];
         df = {};
         idf = {};
+        // One compact entry per topic. Query forms are matched by tokens, so
+        // thousands of duplicate phrasing objects are no longer kept in RAM.
         seeds.forEach(function (seed) {
-            VARIANTS.forEach(function (make) {
-                TAILS.forEach(function (tail) {
-                    var phrase = make(seed.t) + ' ' + (seed.k || '') + tail;
-                    var topicTokens = tokenize(phrase, false);
-                    var tokens = topicTokens.concat(tokenize(seed.a || '', false));
-                    entries.push({
-                        q: phrase,
-                        a: seed.a,
-                        t: seed.t,
-                        game: gameForSeed(seed),
-                        terms: tokens,
-                        termSet: tokens.reduce(function (o, w) { o[w] = true; return o; }, {}),
-                        topicSet: topicTokens.reduce(function (o, w) { o[w] = true; return o; }, {})
-                    });
-                });
+            var phrase = seed.t + ' ' + (seed.k || '');
+            var topicTokens = tokenize(phrase, false);
+            var tokens = topicTokens.concat(tokenize(seed.a || '', false));
+            entries.push({
+                q: phrase,
+                a: seed.a,
+                t: seed.t,
+                game: gameForSeed(seed),
+                termSet: tokens.reduce(function (o, w) { o[w] = true; return o; }, {}),
+                topicSet: topicTokens.reduce(function (o, w) { o[w] = true; return o; }, {})
             });
         });
         N = entries.length;
@@ -230,22 +205,23 @@
             Object.keys(e.termSet).forEach(function (w) { df[w] = (df[w] || 0) + 1; });
         });
         Object.keys(df).forEach(function (w) { idf[w] = Math.log((N + 1) / (df[w] + 1)) + 1; });
+        indexBuilt = true;
+    }
 
+    function buildChatIndex() {
+        if (chatIndexBuilt) return;
         chatEntries = [];
         chatDf = {};
         chatIdf = {};
         chatPairs.forEach(function (pair) {
             var q = String(pair[0] || '');
             var a = String(pair[1] || '');
-            var topic = String(pair[2] || 'general');
             var topicTokens = tokenize(q, false);
             var tokens = topicTokens.concat(tokenize(a, false));
             chatEntries.push({
                 q: q,
                 a: a,
                 t: q,
-                topic: topic,
-                terms: tokens,
                 termSet: tokens.reduce(function (o, w) { o[w] = true; return o; }, {}),
                 topicSet: topicTokens.reduce(function (o, w) { o[w] = true; return o; }, {})
             });
@@ -255,7 +231,7 @@
             Object.keys(e.termSet).forEach(function (w) { chatDf[w] = (chatDf[w] || 0) + 1; });
         });
         Object.keys(chatDf).forEach(function (w) { chatIdf[w] = Math.log((chatN + 1) / (chatDf[w] + 1)) + 1; });
-        indexBuilt = true;
+        chatIndexBuilt = true;
     }
 
     function releaseIndex() {
@@ -267,6 +243,7 @@
         chatIdf = {};
         N = 0;
         indexBuilt = false;
+        chatIndexBuilt = false;
     }
 
     var lastTopic = '';
@@ -392,13 +369,63 @@
             var days = Math.ceil((target - now) / 86400000);
             return 'Christmas is in ' + days + ' day' + (days === 1 ? '' : 's') + '.';
         }
+        var pm = lower.match(/^(?:what is\s+)?(-?\d+(?:\.\d+)?)\s*%\s*of\s*(-?\d+(?:\.\d+)?)\??$/);
+        if (pm) return formatNumber(parseFloat(pm[1]) / 100 * parseFloat(pm[2])) + '.';
+        var sm = lower.match(/^(?:what is\s+)?(?:the\s+)?square root of\s+(-?\d+(?:\.\d+)?)\??$/);
+        if (sm) {
+            var sqrtValue = parseFloat(sm[1]);
+            if (sqrtValue < 0) return 'Negative numbers do not have a real square root.';
+            return 'The square root is ' + formatNumber(Math.sqrt(sqrtValue)) + '.';
+        }
+        var sqm = lower.match(/^(?:what is\s+)?(-?\d+(?:\.\d+)?)\s*squared\??$/);
+        if (sqm) return formatNumber(parseFloat(sqm[1]) * parseFloat(sqm[1])) + '.';
+        var powm = lower.match(/^(?:what is\s+)?(-?\d+(?:\.\d+)?)\s*(?:to the power of|\^)\s*(-?\d+(?:\.\d+)?)\??$/);
+        if (powm) return formatNumber(Math.pow(parseFloat(powm[1]), parseFloat(powm[2]))) + '.';
+
+        var um = lower.match(/^(?:what is\s+|convert\s+)?(-?\d+(?:\.\d+)?)\s*(c|celsius|f|fahrenheit|km|kilometers?|kilometres?|mi|miles?|kg|kilograms?|lb|lbs|pounds?|m|meters?|metres?|ft|feet)\s*(?:to|in)\s*(c|celsius|f|fahrenheit|km|kilometers?|kilometres?|mi|miles?|kg|kilograms?|lb|lbs|pounds?|m|meters?|metres?|ft|feet)\??$/);
+        if (um) {
+            var unitAliases = {
+                c: 'c', celsius: 'c', f: 'f', fahrenheit: 'f',
+                km: 'km', kilometer: 'km', kilometers: 'km', kilometre: 'km', kilometres: 'km',
+                mi: 'mi', mile: 'mi', miles: 'mi',
+                kg: 'kg', kilogram: 'kg', kilograms: 'kg',
+                lb: 'lb', lbs: 'lb', pound: 'lb', pounds: 'lb',
+                m: 'm', meter: 'm', meters: 'm', metre: 'm', metres: 'm',
+                ft: 'ft', foot: 'ft', feet: 'ft'
+            };
+            var amount = parseFloat(um[1]);
+            var fromUnit = unitAliases[um[2]];
+            var toUnit = unitAliases[um[3]];
+            var isTemp = (fromUnit === 'c' || fromUnit === 'f' || toUnit === 'c' || toUnit === 'f');
+            if (isTemp) {
+                if (!((fromUnit === 'c' || fromUnit === 'f') && (toUnit === 'c' || toUnit === 'f'))) {
+                    return 'Temperature conversion only works between Celsius and Fahrenheit.';
+                }
+                var celsius = fromUnit === 'c' ? amount : (amount - 32) * 5 / 9;
+                var convertedTemp = toUnit === 'c' ? celsius : celsius * 9 / 5 + 32;
+                return formatNumber(amount) + '°' + fromUnit.toUpperCase() + ' is ' + formatNumber(convertedTemp) + '°' + toUnit.toUpperCase() + '.';
+            }
+            var lengths = { km: 1000, m: 1, mi: 1609.344, ft: 0.3048 };
+            var masses = { kg: 1, lb: 0.45359237 };
+            var converted;
+            if (lengths[fromUnit] && lengths[toUnit]) {
+                converted = amount * lengths[fromUnit] / lengths[toUnit];
+            } else if (masses[fromUnit] && masses[toUnit]) {
+                converted = amount * masses[fromUnit] / masses[toUnit];
+            } else {
+                return 'Those units do not match. Try length, weight or temperature.';
+            }
+            return formatNumber(amount) + ' ' + um[2] + ' is ' + formatNumber(converted) + ' ' + um[3] + '.';
+        }
         return '';
     }
 
     function generalChatAnswer(lower, unique) {
         var quick = tryQuickAnswer(lower);
         if (quick) return quick;
-        if (!chatEntries.length || !unique.length) return '';
+        if (!unique.length) return '';
+        buildChatIndex();
+        if (!chatEntries.length) return '';
         var result = findBest(chatEntries, unique, lower, chatIdf);
         if (!result.best || result.score < 2.6) return '';
         var ratio = result.matched / unique.length;
@@ -412,7 +439,7 @@
         if (!text) return 'Ask me about a game, Coins, gifts, controls, accounts, the Store, Garage, friends or settings.';
         var lower = text.toLowerCase().replace(/\bwhats\b/g, 'what is').replace(/\bur\b/g, 'your').replace(/\bu\b/g, 'you').replace(/\br\b/g, 'are');
         if (/^(hi|hello|hey|yo|sup|hiya)\b/.test(lower)) return 'Hi. Ask me about a game, Coins, Cookies, Daily Gifts, controls, accounts, the Store, Garage, friends, radio or settings.';
-        if (/your name|who are you|what are you called|what is your name/.test(lower)) return 'I am the LessFun Assistant. I run locally in the page and answer from a 10,000+ pattern arcade knowledge base plus a general chat pack.';
+        if (/your name|who are you|what are you called|what is your name/.test(lower)) return 'I am the LessFun Assistant. I run locally in the page and answer from a 100,000+ answer knowledge engine covering LessFun and general topics.';
         if (/^(can (you )?tell( me)?( something| anything)?|what can you (do|tell me)|what can i (do|ask)|what do you do|what do you know|help me|what can you help with)\??$/.test(lower)) return 'I can answer LessFun questions — every game, controls, Coins, Cookies, Daily Gifts, accounts, Store, Garage, friends, radio, settings and multiplayer — and I can chat about general knowledge, jokes, riddles, food, travel, technology and everyday advice.';
         if (/are you (a )?(real|human|ai|robot)|are you real/.test(lower)) return 'I am a local assistant, not a person. I match your question against the built-in LessFun knowledge base.';
         if (/how are you/.test(lower)) return 'I am awake and ready. Ask me anything about LessFun.';
@@ -666,7 +693,7 @@
         panel.style.display = 'flex';
         if (!greeted) {
             greeted = true;
-            addMessage('bot', 'Hi, I am the LessFun assistant. I can answer LessFun questions from a 10,000+ pattern knowledge base and chat about general topics too. What do you want to know?');
+            addMessage('bot', 'Hi, I am the LessFun assistant. I can answer LessFun questions and chat about general topics, with 100,000+ possible answers. What do you want to know?');
         }
         var input = document.getElementById('aiInput');
         if (input) setTimeout(function () { input.focus(); }, 80);
@@ -716,7 +743,7 @@
             '<section class="ai-panel" id="aiPanel" role="dialog" aria-label="LessFun assistant">' +
                 '<header class="ai-head">' +
                     '<div class="ai-avatar">✦</div>' +
-                    '<div class="ai-head-copy"><strong>LessFun Assistant</strong><small>10,000+ facts · general chat</small></div>' +
+                    '<div class="ai-head-copy"><strong>LessFun Assistant</strong><small>100,000+ answers · general chat</small></div>' +
                     '<button type="button" class="ai-reset" onclick="LessFunAI.reset()" title="New chat">Reset</button>' +
                     '<button type="button" class="ai-close" onclick="LessFunAI.close()" aria-label="Close assistant">×</button>' +
                 '</header>' +

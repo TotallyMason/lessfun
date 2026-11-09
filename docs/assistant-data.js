@@ -1,4 +1,4 @@
-/* LessFun Assistant knowledge base — 100+ topics expanded to 10,000+ answer patterns. */
+/* LessFun Assistant knowledge base — compact LessFun topics plus a general answer engine. */
 window.LESSFUN_AI_SEEDS = [
   {
     "t": "LessFun",
@@ -283,7 +283,7 @@ window.LESSFUN_AI_SEEDS = [
   {
     "t": "who I am",
     "k": "who are you assistant ai",
-    "a": "I am the LessFun assistant, running on a local 10,000+ pattern knowledge base."
+    "a": "I am the LessFun assistant, running on a local 100,000+ answer knowledge engine."
   },
   {
     "t": "greetings",

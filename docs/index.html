@@ -11,8 +11,8 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261348">
-    <link rel="preload" href="app.js?v=20261348" as="script">
+    <link rel="stylesheet" href="style.css?v=20261349">
+    <link rel="preload" href="app.js?v=20261349" as="script">
 </head>
 <body>
     <div id="siteLoader" class="site-loader" role="status" aria-live="polite" aria-label="Loading LessFun">
@@ -146,13 +146,6 @@
                 </button>
             </div>
             <div class="nav-right" style="gap:12px;">
-                <button class="nav-btn nav-shells" onclick="showView('store')" id="nav-shells" title="Your Coins">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;">
-                        <path d="M12 3c5.2 0 9 3.4 9 7.6 0 2.1-1.8 3.9-3.9 3.9H6.9C4.8 14.5 3 12.7 3 10.6 3 6.4 6.8 3 12 3Z"/>
-                        <path d="M12 3v11.5M6.6 5.2 9.2 14M17.4 5.2 14.8 14"/>
-                    </svg>
-                    <span class="shells-amount" id="navCoins">100</span>
-                </button>
                 <button class="nav-btn nav-ai" onclick="openAssistant()" id="nav-ai" title="Ask LessFun AI">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;">
                         <path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3Z"/>
@@ -1079,7 +1072,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Public Beta 1.33.64</p>
+                            <p>LessFun Public Beta 1.33.65</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -1245,6 +1238,7 @@
                             <li><strong>1.33.62</strong> — New private messages now play a ding and show a notification that opens Messages. Restored the arcade km/h display scale (divided by 3).</li>
                             <li><strong>1.33.63</strong> — Whole-site speed pass: version checks run every 10 seconds instead of every second, background presence and the Snow Rush leaderboard wait until after first paint, snow renders at 1.5× density instead of 2×, and off-screen cards use content-visibility. No features removed.</li>
                             <li><strong>1.33.64</strong> — Completed the speed pass by actually applying the 10-second version poll and deferred presence startup.</li>
+                            <li><strong>1.33.65</strong> — Coins moved out of the top bar and remain visible in the Store. Assistant expanded to a 100,000+ answer engine with more general knowledge, periodic-table facts, US state facts, unit conversions, percentages, roots and powers. RAM use cut by removing 10,000 duplicate command variants and building the general index only when needed.</li>
                         </ul>
                     </div>
                     <div class="info-card">
@@ -1588,8 +1582,8 @@
     <div id="globalToast" class="global-toast"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=20261348"></script>
-    <script src="christmas.js?v=20261348"></script>
-    <script src="easter.js?v=20261348"></script>
+    <script src="app.js?v=20261349"></script>
+    <script src="christmas.js?v=20261349"></script>
+    <script src="easter.js?v=20261349"></script>
 </body>
 </html>
