@@ -8230,11 +8230,11 @@
         }
         function removeFrom(list, i) { scene.remove(list[i]); list.splice(i, 1); }
 
-        for (var a = 0; a < 5; a++) spawnIce();
+        for (var a = 0; a < (snowStorm ? 9 : 5); a++) spawnIce();
         for (var b2 = 0; b2 < 4; b2++) spawnGift();
 
         var candyGates = [], bossProjectiles = [], boss = null;
-        var stormT = 20, stormActive = 0, candyT = 7, boostT = 0;
+        var stormT = snowStorm ? 2 : 20, stormActive = snowStorm ? 9 : 0, candyT = snowStorm ? 4 : 7, boostT = 0;
         var bossActive = false, bossDefeated = false, bossT = 0, bossFireT = 0;
 
         function spawnCandyGate() {
@@ -8288,23 +8288,24 @@
             tone(180, 0.4, 'square', 0.06, 90);
         }
 
+        var snowStorm = !!(ctx.options && ctx.options.snowStorm);
         var elapsed = 0, speed = 24, iceT = 0, giftT = 0, score = 0, combo = 1, comboT = 0;
 
         function update(dt) {
             elapsed += dt;
-            var baseSpeed = Math.min(70, 24 + elapsed * 1.0);
-            speed = baseSpeed * (boostT > 0 ? 1.32 : 1) * (stormActive > 0 ? 1.08 : 1);
+            var baseSpeed = Math.min(74, (snowStorm ? 28 : 24) + elapsed * 1.04);
+            speed = baseSpeed * (boostT > 0 ? 1.32 : 1) * (stormActive > 0 ? (snowStorm ? 1.14 : 1.08) : 1);
             score += dt * 12 * combo;
             if (comboT > 0) { comboT -= dt; if (comboT <= 0) combo = 1; }
             if (boostT > 0) boostT = Math.max(0, boostT - dt);
             if (stormActive > 0) stormActive = Math.max(0, stormActive - dt);
             stormT -= dt;
-            if (stormT <= 0) { stormT = 24 + Math.random() * 6; stormActive = 7; tone(220, 0.25, 'triangle', 0.05, 120); }
+            if (stormT <= 0) { stormT = snowStorm ? 14 + Math.random() * 5 : 24 + Math.random() * 6; stormActive = snowStorm ? 10 : 7; tone(220, 0.25, 'triangle', 0.05, 120); }
             scene.fog.density = stormActive > 0 ? 0.024 : 0.014;
             snow.material.size = stormActive > 0 ? 0.42 : 0.22;
             candyT -= dt;
             if (candyT <= 0) { candyT = 9 + Math.random() * 4; spawnCandyGate(); }
-            if (elapsed > 42 && !bossActive && !bossDefeated) spawnGrinchBoss();
+            if (elapsed > (snowStorm ? 28 : 42) && !bossActive && !bossDefeated) spawnGrinchBoss();
 
             var tx = sleigh.position.x, ty = sleigh.position.y;
             if (input.left) tx -= dt * 30;
@@ -8352,7 +8353,7 @@
                 if (ob.position.z > 12) { removeFrom(obstacles, o); continue; }
                 if (ob.position.distanceTo(sleigh.position) < ob.userData.r + 1.0) {
                     blastAt(ob.position.x, ob.position.y, ob.position.z, 0x8fdcff);
-                    endGame(Math.round(score));
+                    endGame(Math.round(score * (snowStorm ? 1.5 : 1)));
                     return;
                 }
             }
@@ -8419,7 +8420,7 @@
                 if (pr.mesh.position.z > 15 || pr.mesh.position.y < -8) { scene.remove(pr.mesh); bossProjectiles.splice(bp2, 1); continue; }
                 if (pr.mesh.position.distanceTo(sleigh.position) < 1.2) {
                     blastAt(pr.mesh.position.x, pr.mesh.position.y, pr.mesh.position.z, 0x8fdcff);
-                    endGame(Math.round(score));
+                    endGame(Math.round(score * (snowStorm ? 1.5 : 1)));
                     return;
                 }
             }
@@ -8440,6 +8441,7 @@
             if (boostT > 0) snowStatus += ' · BOOST';
             if (stormActive > 0) snowStatus += ' · SNOWSTORM';
             if (bossActive) snowStatus += ' · GRINCH ' + Math.ceil(bossT) + 's';
+            if (snowStorm) snowStatus += ' · SNOWSTORM MODE ×1.5';
             setHud(Math.round(score), snowStatus);
         }
 

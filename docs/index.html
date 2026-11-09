@@ -11,8 +11,8 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261291">
-    <link rel="preload" href="app.js?v=20261291" as="script">
+    <link rel="stylesheet" href="style.css?v=20261292">
+    <link rel="preload" href="app.js?v=20261292" as="script">
 </head>
 <body>
     <div id="siteLoader" class="site-loader" role="status" aria-live="polite" aria-label="Loading LessFun">
@@ -29,6 +29,7 @@
             <p class="site-loader-status">Warming up the arcade</p>
         </div>
     </div>
+    <canvas id="siteSnow" class="site-snow" aria-hidden="true"></canvas>
     <div id="viewLoader" class="view-loader" role="status" aria-live="polite">
         <div class="view-loader-card">
             <span class="view-loader-spinner"></span>
@@ -38,7 +39,14 @@
     </div>
     <script>
     (function () {
+        var month = new Date().getMonth();
+        var holiday = month === 10 || month === 11 || month === 0;
+        if (holiday) document.documentElement.classList.add('is-holiday');
         var loader = document.getElementById('siteLoader');
+        if (holiday) {
+            var status = document.querySelector('.site-loader-status');
+            if (status) status.textContent = 'Warming up the Christmas arcade';
+        }
         if (!loader) return;
         var started = (window.performance && performance.now) ? performance.now() : Date.now();
         var hidden = false;
@@ -169,7 +177,11 @@
                     <h2>❄ Snow Rush</h2>
                     <p>Fly Santa's sleigh, collect gifts, dodge ice, survive the Grinch and the snowstorms.</p>
                     <p class="snow-countdown" id="snowCountdown">Christmas countdown loading…</p>
-                    <button type="button" class="game-btn-3d" onclick="openGame(7)">Play Snow Rush</button>
+                    <div class="snow-event-actions">
+                        <button type="button" class="game-btn-3d" onclick="openGame(7)">Play Snow Rush</button>
+                        <button type="button" class="game-btn-3d is-secondary" onclick="startSnowStorm()">Snowstorm Mode</button>
+                        <button type="button" class="game-btn-3d is-secondary" onclick="openAdvent()">Advent Calendar</button>
+                    </div>
                 </div>
                 <div class="snow-leaderboard">
                     <h3>Gift leaderboard</h3>
@@ -1007,7 +1019,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Public Beta 1.33.07</p>
+                            <p>LessFun Public Beta 1.33.08</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -1116,6 +1128,7 @@
                             <li><strong>1.33.05</strong> — Added liquid-glass loading overlays for Community, Friends, Store, Garage and game loading, with hover preloading for faster game starts.</li>
                             <li><strong>1.33.06</strong> — Performance pass: Community now loads 10 posts at a time with Load More, and Draw & Guess plus Lucky Spin are lazy-loaded game modules.</li>
                             <li><strong>1.33.07</strong> — Beach Racer gets a node-beam soft-body chassis: chassis nodes are connected by spring beams that flex under load and impacts.</li>
+                            <li><strong>1.33.08</strong> — Christmas update: Advent Calendar with 24 daily doors, Snowstorm Mode for Snow Rush, site-wide snow and festive navigation lights.</li>
                         </ul>
                     </div>
                     <div class="info-card">
@@ -1273,6 +1286,27 @@
             </div>
             <div class="modal-body" style="display:block;padding:18px;">
                 <div id="notificationsList" class="notif-list"><p class="notif-empty">No notifications yet.</p></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="adventModal" class="modal" style="display: none;">
+        <div class="modal-backdrop" onclick="closeAdvent()"></div>
+        <div class="modal-content advent-modal" style="max-width: 660px; margin: auto;">
+            <div class="modal-header">
+                <h2>Advent Calendar</h2>
+                <button class="modal-close" onclick="closeAdvent()">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                </button>
+            </div>
+            <div class="modal-body advent-body" style="display: block; padding: 18px 20px 22px;">
+                <div class="advent-head">
+                    <div><span class="advent-kicker">DECEMBER</span><h3 id="adventToday">December</h3></div>
+                    <div class="advent-balance" id="adventBalance">— Coins</div>
+                </div>
+                <p class="advent-status" id="adventStatus"></p>
+                <div class="advent-grid" id="adventGrid"></div>
+                <button type="button" class="advent-claim" id="adventClaim" onclick="claimAdvent()">Open door</button>
             </div>
         </div>
     </div>
@@ -1437,6 +1471,6 @@
     <div id="globalToast" class="global-toast"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=20261291"></script>
+    <script src="app.js?v=20261292"></script>
 </body>
 </html>

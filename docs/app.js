@@ -1077,6 +1077,7 @@ let garageSuppressed = false;
 let startMenuSuppressed = false;
 let mpRewardSessionClaimed = false;
 let gameToastTimer = 0;
+let snowStormMode = false;
 
 const lazyScripts = {};
 function loadScriptOnce(src) {
@@ -1105,7 +1106,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261291'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261292'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1114,7 +1115,7 @@ function ensure3DEngine() {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261291').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261292').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1122,7 +1123,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261291').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261292').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1130,8 +1131,8 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261291')
-            .then(function () { return loadScriptOnce('assistant.js?v=20261291'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261292')
+            .then(function () { return loadScriptOnce('assistant.js?v=20261292'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1147,7 +1148,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261291').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261292').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1155,7 +1156,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261291').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261292').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1167,6 +1168,11 @@ function preloadGame(id) {
     if (id === 9) { ensureLucky().catch(function () {}); return; }
     if (id === 6) return;
     ensure3DEngine().catch(function () {});
+}
+
+function startSnowStorm() {
+    snowStormMode = true;
+    openGame(7);
 }
 
 function openGame(id) {
@@ -1550,6 +1556,7 @@ function openGameNow(id) {
             raceAi: raceAiSetting,
             cityMode: cityModeSetting,
             zombieLoadout: getZombieLoadout(),
+            snowStorm: snowStormMode,
             onScore: function (name, score) { saveScore(name, score); },
             onCoins: function (amount) { awardRunCoins(amount); },
             onGameOver: function (score, seconds) { handleGameOver(score, seconds); }
@@ -1557,6 +1564,7 @@ function openGameNow(id) {
         applyRenderScaleSetting();
         applySoundSetting();
         applyUnitSetting();
+        if (id === 7) snowStormMode = false;
     }
     if (id === 1 && !garageSuppressed) {
         if (window.Games3D && window.Games3D.setGarageMode) window.Games3D.setGarageMode(true);
@@ -6046,6 +6054,14 @@ const WALLET_STORAGE_PREFIX = 'lessfun_wallet_v1_';
 const DAILY_BONUS = 25;
 const STREAK_BONUSES = { 3: 150, 7: 400, 14: 1000 };
 const DAILY_GIFTS = [50, 75, 100, 150, 200, 300, 500];
+const ADVENT_REWARDS = [
+    { coins: 50 }, { coins: 75 }, { coins: 100 }, { coins: 125 },
+    { coins: 150 }, { coins: 200 }, { coins: 300, item: 'paint_candy' },
+    { coins: 100 }, { coins: 125 }, { coins: 150 }, { coins: 175 }, { coins: 200 },
+    { coins: 250 }, { coins: 350, item: 'board_candy' }, { coins: 225 }, { coins: 250 },
+    { coins: 275 }, { coins: 300 }, { coins: 325 }, { coins: 350 }, { coins: 375 },
+    { coins: 400 }, { coins: 450 }, { coins: 1000 }
+];
 
 const COSMETICS = [
     // Global themes (apply to the whole app and every game)
@@ -6905,7 +6921,8 @@ function walletSyncExtras(w) {
         achievements: Array.isArray(w.achievements) ? w.achievements.slice() : [],
         stats: (w.stats && typeof w.stats === 'object') ? w.stats : {},
         zombie: (w.zombie && typeof w.zombie === 'object') ? w.zombie : null,
-        gift: (w.gift && typeof w.gift === 'object') ? w.gift : null
+        gift: (w.gift && typeof w.gift === 'object') ? w.gift : null,
+        advent: (w.advent && typeof w.advent === 'object') ? w.advent : null
     };
 }
 
@@ -6963,6 +6980,9 @@ function normalizeWallet(raw, username) {
     var giftSource = (w.gift && typeof w.gift === 'object') ? w.gift : ((extras.gift && typeof extras.gift === 'object') ? extras.gift : {});
     var giftClaim = typeof giftSource.lastClaim === 'string' ? giftSource.lastClaim : '';
     var giftStreak = Number.isFinite(giftSource.streak) ? Math.max(0, Math.floor(giftSource.streak)) : 0;
+    var adventSource = (w.advent && typeof w.advent === 'object') ? w.advent : ((extras.advent && typeof extras.advent === 'object') ? extras.advent : {});
+    var adventYear = Number.isFinite(adventSource.year) ? Math.floor(adventSource.year) : 0;
+    var adventDays = Array.isArray(adventSource.days) ? adventSource.days.filter(function (d) { return Number.isFinite(d) && d >= 1 && d <= 24; }).map(function (d) { return Math.floor(d); }) : [];
 
     return {
         username: username,
@@ -6976,6 +6996,7 @@ function normalizeWallet(raw, username) {
         stats: statsSource,
         zombie: zombieSource,
         gift: { lastClaim: giftClaim, streak: giftStreak },
+        advent: { year: adventYear, days: adventDays },
         streak: Number.isFinite(w.streak) ? Math.max(0, Math.floor(w.streak)) : 0,
         lastPlayDay: typeof w.lastPlayDay === 'string' ? w.lastPlayDay : (typeof w.last_play_day === 'string' ? w.last_play_day : null),
         streakRewards: Array.isArray(w.streakRewards) ? w.streakRewards : (Array.isArray(w.streak_rewards) ? w.streak_rewards : []),
@@ -7048,6 +7069,17 @@ async function loadWallet() {
                 changed = true;
             }
             local.gift = remote.gift;
+            var mergedAdventDays = (remote.advent.days || []).slice();
+            (local.advent.days || []).forEach(function (d) {
+                if (mergedAdventDays.indexOf(d) < 0) { mergedAdventDays.push(d); changed = true; }
+            });
+            if (local.advent.year > remote.advent.year) {
+                remote.advent = { year: local.advent.year, days: mergedAdventDays };
+                changed = true;
+            } else if (remote.advent.year === local.advent.year) {
+                remote.advent.days = mergedAdventDays;
+            }
+            local.advent = remote.advent;
             var localNewer = local.updatedAt > remote.updatedAt;
             if (localNewer) {
                 // An offline or in-flight purchase on this device wins.
@@ -7314,6 +7346,90 @@ async function claimDailyGift() {
     var result = document.getElementById('dailyGiftResult');
     if (result) result.textContent = '+' + st.amount.toLocaleString() + ' Coins · ' + st.streak + '-day streak';
     showGameToast('Daily gift · +' + st.amount.toLocaleString() + ' Coins');
+}
+
+function adventNow() {
+    if (window.__adventTestDate && typeof isOwner === 'function' && isOwner()) return new Date(window.__adventTestDate);
+    return new Date();
+}
+
+function adventState() {
+    var now = adventNow();
+    var year = now.getFullYear();
+    var month = now.getMonth();
+    var day = now.getDate();
+    var active = month === 11;
+    var claimed = (wallet && wallet.advent && wallet.advent.year === year) ? (wallet.advent.days || []) : [];
+    var canClaim = active && day >= 1 && day <= 24 && claimed.indexOf(day) < 0;
+    var rewardDay = active ? Math.min(24, Math.max(1, day)) : 1;
+    return {
+        year: year, month: month, day: active ? day : 0,
+        active: active, claimed: claimed, canClaim: canClaim,
+        reward: ADVENT_REWARDS[rewardDay - 1]
+    };
+}
+
+function renderAdventModal() {
+    var grid = document.getElementById('adventGrid');
+    if (!grid) return;
+    var st = adventState();
+    var today = document.getElementById('adventToday');
+    var status = document.getElementById('adventStatus');
+    var claim = document.getElementById('adventClaim');
+    if (status) {
+        status.textContent = st.active
+            ? (st.canClaim ? 'Day ' + st.day + ' is ready — ' + st.reward.coins.toLocaleString() + ' Coins' + (st.reward.item ? ' + a cosmetic' : '') : (st.day > 24 ? 'The calendar is complete. Merry Christmas!' : 'Door ' + st.day + ' already opened.'))
+            : 'The Advent Calendar opens on December 1.';
+    }
+    if (today) today.textContent = st.active ? 'December ' + st.day : 'December';
+    grid.innerHTML = ADVENT_REWARDS.map(function (reward, index) {
+        var d = index + 1;
+        var claimed = st.claimed.indexOf(d) >= 0;
+        var isToday = st.active && d === st.day;
+        var locked = !st.active || d > st.day;
+        var missed = st.active && d < st.day && !claimed;
+        var cls = 'advent-door' + (claimed ? ' is-claimed' : '') + (isToday ? ' is-today' : '') + (locked ? ' is-locked' : '') + (missed ? ' is-missed' : '');
+        return '<div class="' + cls + '">' +
+            '<span>DAY ' + d + '</span>' +
+            '<strong>' + reward.coins.toLocaleString() + '</strong>' +
+            '<small>Coins</small>' +
+            '<i>' + (claimed ? '✓' : (isToday ? '🎁' : (locked ? '🔒' : '•'))) + '</i>' +
+        '</div>';
+    }).join('');
+    var balance = document.getElementById('adventBalance');
+    if (balance) balance.innerHTML = shellIcon(13) + ' ' + (wallet ? wallet.shells.toLocaleString() : '—') + ' Coins';
+    if (claim) {
+        claim.disabled = !st.canClaim;
+        claim.textContent = st.canClaim ? 'Open Door ' + st.day : (st.active ? (st.day > 24 ? 'Calendar complete' : 'Come back tomorrow') : 'Opens December 1');
+    }
+}
+
+function openAdvent() {
+    if (!wallet) { showGameToast('Wallet is still loading.'); return; }
+    renderAdventModal();
+    var modal = document.getElementById('adventModal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeAdvent() {
+    var modal = document.getElementById('adventModal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function claimAdvent() {
+    if (!wallet) { showGameToast('Wallet is still loading.'); return; }
+    var st = adventState();
+    if (!st.canClaim) { showGameToast(st.active ? 'That door is not ready.' : 'The calendar opens in December.'); return; }
+    var reward = st.reward;
+    wallet.advent = wallet.advent && wallet.advent.year === st.year ? wallet.advent : { year: st.year, days: [] };
+    if (wallet.advent.days.indexOf(st.day) < 0) wallet.advent.days.push(st.day);
+    wallet.shells = Math.max(0, (Number(wallet.shells) || 0) + reward.coins);
+    wallet.totalEarned = Math.max(0, (Number(wallet.totalEarned) || 0) + reward.coins);
+    if (reward.item && wallet.inventory.indexOf(reward.item) < 0) wallet.inventory.push(reward.item);
+    await saveWallet();
+    renderWalletUI();
+    renderAdventModal();
+    showGameToast('Advent door ' + st.day + ' · +' + reward.coins.toLocaleString() + ' Coins');
 }
 
 window.LessFunGetCoins = function () {
@@ -8669,8 +8785,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.07";
-const UPDATE_NOTES = "Beach Racer now uses a node-beam soft-body chassis, with spring beams flexing under acceleration, roll and impacts";
+const APP_VERSION = "LessFun Public Beta 1.33.08";
+const UPDATE_NOTES = "Christmas is live: open the Advent Calendar each December day, try Snowstorm Mode in Snow Rush, and enjoy snow and festive lights across the site";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -8742,6 +8858,65 @@ document.addEventListener('pointermove', function (event) {
     el.style.setProperty('--my', (((event.clientY - rect.top) / rect.height) * 100).toFixed(2) + '%');
 }, { passive: true });
 
+function initSiteSnow() {
+    var canvas = document.getElementById('siteSnow');
+    if (!canvas) return;
+    if (!document.documentElement.classList.contains('is-holiday')) return;
+    if (reduceMotionSetting) { canvas.style.display = 'none'; return; }
+    var ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    var flakes = [];
+    var w = 0, h = 0, dpr = 1;
+    function resizeSnow() {
+        dpr = Math.min(2, window.devicePixelRatio || 1);
+        w = window.innerWidth;
+        h = window.innerHeight;
+        canvas.width = Math.round(w * dpr);
+        canvas.height = Math.round(h * dpr);
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
+        var count = w < 700 ? 34 : 72;
+        flakes = [];
+        for (var i = 0; i < count; i++) {
+            flakes.push({
+                x: Math.random() * w,
+                y: Math.random() * h,
+                r: 0.8 + Math.random() * 2.2,
+                s: 6 + Math.random() * 16,
+                drift: (Math.random() - 0.5) * 12,
+                phase: Math.random() * Math.PI * 2,
+                alpha: 0.18 + Math.random() * 0.42
+            });
+        }
+    }
+    resizeSnow();
+    window.addEventListener('resize', resizeSnow, { passive: true });
+    var last = 0;
+    function snowFrame(ts) {
+        requestAnimationFrame(snowFrame);
+        if (document.hidden || document.body.classList.contains('in-game')) return;
+        if (!last) last = ts;
+        var dt = Math.min(0.05, (ts - last) / 1000);
+        last = ts;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+        for (var i = 0; i < flakes.length; i++) {
+            var f = flakes[i];
+            f.y += f.s * dt;
+            f.phase += dt * 0.8;
+            f.x += (f.drift + Math.sin(f.phase) * 7) * dt;
+            if (f.y > h + 6) { f.y = -6; f.x = Math.random() * w; }
+            if (f.x < -8) f.x = w + 8;
+            if (f.x > w + 8) f.x = -8;
+            ctx.beginPath();
+            ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(235, 246, 255, ' + f.alpha + ')';
+            ctx.fill();
+        }
+    }
+    requestAnimationFrame(snowFrame);
+}
+
 document.addEventListener('DOMContentLoaded', ()=>{
     loadSiteSettings();
     renderGames();
@@ -8761,6 +8936,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     applyUnitSetting();
     radioInit();
     initSnowEvent();
+    initSiteSnow();
 });
 
 window.addEventListener('load', function () {

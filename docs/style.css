@@ -11687,3 +11687,66 @@ html.is-loading, html.is-loading body { overflow: hidden; }
 }
 .community-load-more { display: block; width: 100%; max-width: 320px; margin: 16px auto 4px; min-height: 44px; border-radius: 999px; border: 1px solid rgba(150, 215, 255, 0.24); background: rgba(255, 255, 255, 0.055); color: rgba(225, 245, 255, 0.72); font: inherit; font-size: 10px; font-weight: 800; letter-spacing: 0.06em; cursor: pointer; }
 .community-load-more:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(170, 225, 255, 0.42); color: #fff; }
+
+/* ============================================================
+   Advent Calendar + Snowstorm buttons
+   ============================================================ */
+.snow-event-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.snow-event-actions .game-btn-3d.is-secondary { margin-top: 0; }
+.advent-modal { height: auto; max-height: calc(100vh - 80px); border-radius: 24px; }
+.advent-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.advent-kicker { color: rgba(255, 210, 130, 0.58); font-size: 7px; font-weight: 900; letter-spacing: 0.2em; }
+.advent-head h3 { margin: 3px 0 0; color: #ffe2a0; font-size: 22px; font-weight: 800; letter-spacing: -0.03em; }
+.advent-balance { color: #ffe2a0; font-size: 10px; font-weight: 800; }
+.advent-status { margin: 0 0 12px; color: rgba(220, 240, 250, 0.55); font-size: 9px; line-height: 1.45; }
+.advent-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 7px; }
+.advent-door { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 74px; padding: 9px 4px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.09); background: rgba(255, 255, 255, 0.035); text-align: center; }
+.advent-door span { color: rgba(220, 240, 250, 0.4); font-size: 6px; font-weight: 900; letter-spacing: 0.08em; }
+.advent-door strong { color: #eafaff; font-size: 13px; font-weight: 900; }
+.advent-door small { color: rgba(220, 240, 250, 0.34); font-size: 6px; font-weight: 700; }
+.advent-door i { min-height: 12px; font-size: 10px; font-style: normal; }
+.advent-door.is-today { border-color: rgba(255, 209, 102, 0.7); background: linear-gradient(160deg, rgba(255, 209, 102, 0.18), rgba(255, 138, 45, 0.07)); box-shadow: 0 0 22px rgba(255, 190, 80, 0.16); }
+.advent-door.is-today strong { color: #ffe2a0; }
+.advent-door.is-claimed { border-color: rgba(125, 255, 176, 0.25); background: rgba(125, 255, 176, 0.07); }
+.advent-door.is-claimed strong { color: #b9f5d2; }
+.advent-door.is-locked { opacity: 0.45; }
+.advent-door.is-missed { opacity: 0.32; }
+.advent-claim { width: 100%; min-height: 48px; margin-top: 14px; border-radius: 999px; border: 1px solid rgba(255, 209, 102, 0.55); background: linear-gradient(145deg, #ffd166, #ff9d2e); color: #261500; font: inherit; font-size: 12px; font-weight: 900; letter-spacing: 0.06em; cursor: pointer; }
+.advent-claim:disabled { border-color: rgba(125, 255, 176, 0.28); background: rgba(125, 255, 176, 0.1); color: #b9f5d2; cursor: default; }
+@media (max-width: 640px) {
+    .advent-modal { width: calc(100% - 16px); max-height: calc(100vh - 28px); }
+    .advent-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* ============================================================
+   Christmas atmosphere
+   ============================================================ */
+.site-snow { position: fixed; inset: 0; z-index: 0; pointer-events: none; display: none; }
+.is-holiday .site-snow { display: block; }
+.view { position: relative; z-index: 1; }
+.is-holiday .top-nav::after {
+    content: '';
+    position: absolute;
+    left: 18px;
+    right: 18px;
+    bottom: -3px;
+    height: 8px;
+    pointer-events: none;
+    background-image:
+        radial-gradient(circle, rgba(255, 92, 102, 0.95) 0 1.7px, transparent 2.2px),
+        radial-gradient(circle, rgba(125, 255, 176, 0.9) 0 1.5px, transparent 2px),
+        radial-gradient(circle, rgba(255, 214, 102, 0.95) 0 1.7px, transparent 2.2px),
+        radial-gradient(circle, rgba(120, 200, 255, 0.9) 0 1.5px, transparent 2px);
+    background-size: 34px 8px, 34px 8px, 34px 8px, 34px 8px;
+    background-position: 0 2px, 8.5px 3px, 17px 2px, 25.5px 4px;
+    background-repeat: repeat-x;
+    opacity: 0.85;
+    filter: drop-shadow(0 0 4px rgba(255, 190, 90, 0.35));
+    animation: christmasLights 2.8s ease-in-out infinite alternate;
+}
+@keyframes christmasLights { 0% { opacity: 0.55; } 100% { opacity: 0.95; } }
+body.in-game .site-snow { display: none !important; }
+@media (prefers-reduced-motion: reduce) {
+    .is-holiday .top-nav::after { animation: none; }
+    .site-snow { display: none !important; }
+}
