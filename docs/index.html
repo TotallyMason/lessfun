@@ -10,7 +10,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261281">
+    <link rel="stylesheet" href="style.css?v=20261282">
 </head>
 <body>
     <div id="updateShutdown" class="update-shutdown" style="display:none;">
@@ -80,6 +80,13 @@
                         <path d="M12 3v11.5M6.6 5.2 9.2 14M17.4 5.2 14.8 14"/>
                     </svg>
                     <span class="shells-amount" id="navCoins">100</span>
+                </button>
+                <button class="nav-btn nav-ai" onclick="window.LessFunAI&&LessFunAI.open()" id="nav-ai" title="Ask LessFun AI">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;">
+                        <path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3Z"/>
+                        <path d="M19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8L19 14Z"/>
+                    </svg>
+                    <span>AI</span>
                 </button>
                 <button class="nav-btn nav-bell" onclick="openNotifications()" id="nav-bell" title="Notifications">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -953,7 +960,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Public Beta 1.32.97</p>
+                            <p>LessFun Public Beta 1.32.98</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -1052,6 +1059,7 @@
                             <li><strong>1.32.95</strong> — Boeing Landing shows touchdown FPM, takeoff works again with ground throttle, and the site behind a running game no longer renders. TotallyMason can press K to toggle auto-lock and 500 RPM.</li>
                             <li><strong>1.32.96</strong> — Boeing Landing pitch gauge now states NOSE UP / NOSE DOWN / LEVEL so the aircraft attitude is unambiguous.</li>
                             <li><strong>1.32.97</strong> — New LessFun Assistant: a floating Ask AI panel backed by a 1,000-pattern on-site knowledge base covering games, controls, Coins, gifts, accounts, sync, Store, Garage, friends, radio and settings.</li>
+                            <li><strong>1.32.98</strong> — AI moved into the top bar and got smarter: names, small talk, contractions, common typos and follow-up context. The desktop LessFun Browser also has a Google button.</li>
                         </ul>
                     </div>
                     <div class="info-card">
@@ -1375,11 +1383,11 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
-    <script src="games3d.js?v=20261281"></script>
-    <script src="landing.js?v=20261281"></script>
-    <script src="tranq.js?v=20261281"></script>
-    <script src="app.js?v=20261281"></script>
-    <script src="assistant-data.js?v=20261281"></script>
-    <script src="assistant.js?v=20261281"></script>
+    <script src="games3d.js?v=20261282"></script>
+    <script src="landing.js?v=20261282"></script>
+    <script src="tranq.js?v=20261282"></script>
+    <script src="app.js?v=20261282"></script>
+    <script src="assistant-data.js?v=20261282"></script>
+    <script src="assistant.js?v=20261282"></script>
 </body>
 </html>

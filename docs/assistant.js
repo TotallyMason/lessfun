@@ -33,13 +33,29 @@
         stations: 'station', scores: 'score', leaderboards: 'leaderboard',
         updates: 'update', versions: 'version', browsers: 'browser',
         devices: 'device', wallets: 'wallet', streaks: 'streak',
-        engines: 'engine', bodies: 'body', parts: 'part', paints: 'paint'
+        engines: 'engine', bodies: 'body', parts: 'part', paints: 'paint',
+        tranqulizer: 'tranq', tranquliser: 'tranq', tranqualizer: 'tranq',
+        tranquilizer: 'tranq', tranquiliser: 'tranq', tranq: 'tranq',
+        boing: 'plane', landin: 'landing', controlls: 'control', controll: 'control',
+        purchse: 'purchase', purchas: 'purchase', gogle: 'google', googel: 'google',
+        accross: 'across', acount: 'account', acounts: 'account', walet: 'wallet'
     };
 
     var PHRASES = [
         [/fly\s+(the\s+)?(plane|aircraft|boeing)/g, 'boeing landing'],
         [/land\s+(the\s+)?(plane|aircraft|boeing)/g, 'boeing landing'],
         [/pilot\s+(the\s+)?(plane|aircraft)/g, 'boeing landing'],
+        [/what'?s/g, 'what is'],
+        [/whats/g, 'what is'],
+        [/im/g, 'i am'],
+        [/\bur\b/g, 'your'],
+        [/\bu\b/g, 'you'],
+        [/\br\b/g, 'are'],
+        [/\bwht\b|\bwat\b/g, 'what'],
+        [/\bhw\b/g, 'how'],
+        [/\bpls\b|\bplz\b/g, 'please'],
+        [/cant/g, 'cannot'],
+        [/dont/g, 'do not'],
         [/take[\s-]?off/g, 'takeoff'],
         [/sign[\s-]?in/g, 'login'],
         [/log[\s-]?in/g, 'login'],
@@ -67,6 +83,10 @@
         for (var i = 0; i < raw.length; i++) {
             var w = raw[i];
             if (!w || STOP[w] || w.length < 2) continue;
+            if (!VOCAB[w] && !SYNONYMS[w]) {
+                var fixed = closestWord(w);
+                if (fixed) w = fixed;
+            }
             if (SYNONYMS[w]) w = SYNONYMS[w];
             if (w.length > 3 && /s$/.test(w) && !/ss$/.test(w)) w = w.slice(0, -1);
             if (!STOP[w]) out.push(w);
@@ -76,6 +96,46 @@
 
     var entries = [];
     var seeds = (typeof window !== 'undefined' && window.LESSFUN_AI_SEEDS) ? window.LESSFUN_AI_SEEDS : [];
+
+    var VOCAB = {};
+    seeds.forEach(function (seed) {
+        (seed.t + ' ' + (seed.k || '')).toLowerCase().split(/[^a-z]+/).forEach(function (w) {
+            if (w.length > 2) VOCAB[w] = true;
+        });
+    });
+    Object.keys(SYNONYMS).forEach(function (w) { VOCAB[w] = true; VOCAB[SYNONYMS[w]] = true; });
+    'name google assistant lessfun controls coins gift daily plane landing takeoff tranq arena revive multiplayer store garage showroom friend radio settings account sync purchase'.split(' ').forEach(function (w) { VOCAB[w] = true; });
+
+    function editDistance(a, b) {
+        var m = a.length, n = b.length;
+        if (!m) return n;
+        if (!n) return m;
+        var prev = new Array(n + 1);
+        var cur = new Array(n + 1);
+        for (var j = 0; j <= n; j++) prev[j] = j;
+        for (var i = 1; i <= m; i++) {
+            cur[0] = i;
+            for (var k = 1; k <= n; k++) {
+                cur[k] = Math.min(prev[k] + 1, cur[k - 1] + 1, prev[k - 1] + (a[i - 1] === b[k - 1] ? 0 : 1));
+            }
+            var tmp = prev; prev = cur; cur = tmp;
+        }
+        return prev[n];
+    }
+
+    function closestWord(word) {
+        var max = word.length >= 8 ? 2 : 1;
+        var best = null, bestD = max + 1;
+        var keys = Object.keys(VOCAB);
+        for (var i = 0; i < keys.length; i++) {
+            var k = keys[i];
+            if (Math.abs(k.length - word.length) > max) continue;
+            var d = editDistance(word, k);
+            if (d < bestD) { bestD = d; best = k; if (d === 1) break; }
+        }
+        return bestD <= max ? best : null;
+    }
+
     seeds.forEach(function (seed) {
         VARIANTS.forEach(function (make) {
             var phrase = make(seed.t) + ' ' + (seed.k || '');
@@ -98,15 +158,27 @@
     var idf = {};
     Object.keys(df).forEach(function (w) { idf[w] = Math.log((N + 1) / (df[w] + 1)) + 1; });
 
+    var lastTopic = '';
+
     function answerFor(input) {
         var text = String(input || '').trim();
         if (!text) return 'Ask me about a game, Coins, gifts, controls, accounts, the Store, Garage, friends or settings.';
-        var lower = text.toLowerCase();
-        if (/^(hi|hello|hey|yo|sup)\b/.test(lower)) return 'Hi. Ask me about a game, Coins, Daily Gifts, controls, accounts, the Store, Garage, friends, radio or settings.';
+        var lower = text.toLowerCase().replace(/\bwhats\b/g, 'what is').replace(/\bur\b/g, 'your').replace(/\bu\b/g, 'you').replace(/\br\b/g, 'are');
+        if (/^(hi|hello|hey|yo|sup|hiya)\b/.test(lower)) return 'Hi. Ask me about a game, Coins, Daily Gifts, controls, accounts, the Store, Garage, friends, radio or settings.';
+        if (/your name|who are you|what are you called|what is your name/.test(lower)) return 'I am the LessFun Assistant. I run locally in the page and answer from a 1,000-pattern knowledge base about the arcade.';
+        if (/^(can (you )?tell( me)?( something| anything)?|what can you (do|tell me)|what do you do|help me|what can you help with)\??$/.test(lower)) return 'I can tell you about every LessFun game, controls, Coins, Daily Gifts, accounts, cloud sync, the Store, Garage, Showroom, friends, radio, settings, multiplayer or troubleshooting.';
+        if (/are you (a )?(real|human|ai|robot)|are you real/.test(lower)) return 'I am a local assistant, not a person. I match your question against the built-in LessFun knowledge base.';
+        if (/how are you/.test(lower)) return 'I am awake and ready. Ask me anything about LessFun.';
         if (/^(thanks|thank you|ty|cheers)\b/.test(lower)) return 'You are welcome. Ask another LessFun question any time.';
         if (/^(bye|goodbye|see you)\b/.test(lower)) return 'See you. Come back for another run soon.';
         if (/^(help|what can i ask|what do you know)\b/.test(lower)) {
             return 'Ask about any of the ten games, controls, Coins, Daily Gifts, accounts, cloud sync, Store, Garage, Showroom, friends, messages, radio, graphics, Reduce Motion or multiplayer.';
+        }
+        if (/what are gifts|what is a gift|tell me about gifts/.test(lower)) {
+            return 'Daily Gifts are free Coin rewards claimed once a day from the Games page. The seven-day cycle pays 50, 75, 100, 150, 200, 300 and 500 Coins.';
+        }
+        if (/\b(it|that|this|them)\b/.test(lower) && lastTopic) {
+            text = lastTopic + ' ' + text;
         }
         var tokens = tokenize(text);
         if (!tokens.length) return 'Try asking about a game, Coins, Daily Gifts, controls or the Store.';
@@ -125,9 +197,10 @@
             if (e.q.toLowerCase().indexOf(lower) >= 0 && lower.length > 5) score += 2.2;
             if (score > bestScore) { bestScore = score; best = e; }
         }
-        if (!best || bestScore < 2.3) {
-            return 'I could not match that to the LessFun knowledge base. Try asking about a game name, Coins, Daily Gifts, controls, accounts, Store, Garage, friends, radio or settings.';
+        if (!best || bestScore < 2.0) {
+            return 'I am not sure about that one. Try a game name or a topic like Coins, Daily Gifts, controls, accounts, Store, Garage, friends, Boeing Landing or Tranq Arena.';
         }
+        lastTopic = best.t;
         return best.a;
     }
 
@@ -241,10 +314,6 @@
         wrap.id = 'aiDock';
         wrap.className = 'ai-dock';
         wrap.innerHTML =
-            '<button type="button" class="ai-fab" id="aiFab" onclick="LessFunAI.toggle()" aria-label="Ask the LessFun assistant">' +
-                '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3Z"/><path d="M19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8L19 14Z"/><path d="M5 15l.6 1.4L7 17l-1.4.6L5 19l-.6-1.4L3 17l1.4-.6L5 15Z"/></svg>' +
-                '<span>Ask AI</span>' +
-            '</button>' +
             '<section class="ai-panel" id="aiPanel" role="dialog" aria-label="LessFun assistant">' +
                 '<header class="ai-head">' +
                     '<div class="ai-avatar">✦</div>' +

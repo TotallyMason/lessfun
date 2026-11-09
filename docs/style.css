@@ -11619,3 +11619,14 @@ body.in-game .ai-dock { display: none !important; }
     .ai-panel { width: calc(100vw - 16px); max-height: min(520px, calc(100vh - 100px)); }
 }
 .ai-dock.is-open .ai-fab { display: none; }
+
+/* AI moved into the top bar */
+.nav-btn.nav-ai { color: #bfe9ff; background: rgba(10, 132, 255, 0.1); border: 1px solid rgba(130, 205, 255, 0.2); }
+.nav-btn.nav-ai:hover { background: rgba(10, 132, 255, 0.2); border-color: rgba(160, 220, 255, 0.45); color: #fff; }
+.ai-dock { top: 76px; right: 18px; bottom: auto; }
+.ai-dock.is-open .ai-fab { display: none; }
+.ai-panel { max-height: min(560px, calc(100vh - 100px)); }
+@media (max-width: 760px) {
+    .ai-dock { top: 64px; right: 8px; bottom: auto; left: auto; }
+    .ai-panel { max-height: calc(100vh - 80px); }
+}
