@@ -3,6 +3,8 @@ const SUPABASE_URL = "https://yuuopbgzfrwcatmhuypr.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_Ev9umZevWcT-AwVHTPQLnw_DHdpDHWR";
 const supabaseClient = (typeof window !== 'undefined' && window.supabase) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
+const IS_HOLIDAY_UI = document.documentElement.classList.contains('is-holiday');
+
 const games = [
     { id: 1, name: "Beach Racer", description: "Outrun traffic on a six-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · A D / ← → steer · Shift / N nitrous · C camera" },
     { id: 2, name: "Tunnel Rush", description: "Thread the neon tunnel at warp speed", icon: "tunnel", controls: "Left / Right or drag to rotate" },
@@ -727,6 +729,14 @@ function garageRace() {
     garagePlay(true);
 }
 
+function garageGiftRun() {
+    giftModeSetting = true;
+    raceModeSetting = false;
+    raceAiSetting = false;
+    cityModeSetting = false;
+    garagePlay(false);
+}
+
 function garageMultiplayer() {
     raceModeSetting = true;
     raceAiSetting = false;
@@ -1071,6 +1081,7 @@ function mobileFsd() {
 
 let currentGameId = null;
 let raceModeSetting = false;
+let giftModeSetting = false;
 let raceAiSetting = false;
 let cityModeSetting = false;
 let garageSuppressed = false;
@@ -1106,7 +1117,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261300'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261301'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1115,7 +1126,7 @@ function ensure3DEngine() {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261300').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261301').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1123,7 +1134,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261300').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261301').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1131,8 +1142,8 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261300')
-            .then(function () { return loadScriptOnce('assistant.js?v=20261300'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261301')
+            .then(function () { return loadScriptOnce('assistant.js?v=20261301'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1148,7 +1159,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261300').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261301').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1156,7 +1167,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261300').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261301').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1465,13 +1476,14 @@ function openGameNow(id) {
             (game.id === 1 ?
                 '<div class="game3d-garage" id="g3dGarage">' +
                     '<div class="game3d-garage-card">' +
-                        '<span class="game3d-garage-kicker">BEACH RACER · GARAGE</span>' +
+                        '<span class="game3d-garage-kicker">BEACH RACER · ' + (IS_HOLIDAY_UI ? 'HOLIDAY GARAGE' : 'GARAGE') + '</span>' +
                         '<h2>Your ride</h2>' +
                         '<p class="game3d-garage-sub">Buy and drive cars from the Garage. No part customisation.</p>' +
                         '<div class="game3d-garage-stats" id="g3dGarageStats"></div>' +
                         '<div class="game3d-garage-actions">' +
                             '<button type="button" class="game3d-mp-primary" onclick="garagePlay()">Play</button>' +
                             '<button type="button" class="game3d-mp-secondary" onclick="openRaceChoice()">Race</button>' +
+                            '<button type="button" class="game3d-mp-secondary is-gift-run" onclick="garageGiftRun()">🎁 Gift Run</button>' +
                             '<button type="button" class="game3d-mp-secondary" onclick="openShowroom()">Garage</button>' +
                         '</div>' +
                     '</div>' +
@@ -1509,7 +1521,7 @@ function openGameNow(id) {
                 '<div class="game3d-showroom" id="g3dShowroom" style="display:none;">' +
                     '<div class="game3d-showroom-inner">' +
                         '<div class="game3d-showroom-head">' +
-                            '<div><span class="game3d-garage-kicker">BEACH RACER · GARAGE</span><h2>Buy cars</h2></div>' +
+                            '<div><span class="game3d-garage-kicker">BEACH RACER · ' + (IS_HOLIDAY_UI ? 'HOLIDAY SHOWROOM' : 'GARAGE') + '</span><h2>' + (IS_HOLIDAY_UI ? 'Holiday cars' : 'Buy cars') + '</h2></div>' +
                             '<div class="game3d-showroom-balance" id="g3dShowroomBalance">— Coins</div>' +
                             '<button type="button" class="game3d-mp-x" onclick="closeShowroom()">×</button>' +
                         '</div>' +
@@ -1571,6 +1583,7 @@ function openGameNow(id) {
             cosmetics: getEquippedCosmetics(),
             raceMode: raceModeSetting,
             raceAi: raceAiSetting,
+            giftMode: giftModeSetting,
             cityMode: cityModeSetting,
             zombieLoadout: getZombieLoadout(),
             snowStorm: snowStormMode,
@@ -1581,6 +1594,7 @@ function openGameNow(id) {
         applyRenderScaleSetting();
         applySoundSetting();
         applyUnitSetting();
+        if (id === 1) giftModeSetting = false;
         if (id === 7) snowStormMode = false;
     }
     if (id === 1 && !garageSuppressed) {
@@ -1681,6 +1695,8 @@ function toggleGameFullscreen() {
 }
 
 function closeGame() {
+    giftModeSetting = false;
+    snowStormMode = false;
     closeRacerMpPanel(true);
     racerMpLeave(true);
     arcadeMpLeave(true);
@@ -6282,7 +6298,21 @@ const COSMETICS = [
     // Extra trails
     { id: 'trail_sunset', type: 'trail', name: 'Sunset Trail', cost: 700, color: '#ff7b00', threeColor: 0xff7b00 },
     { id: 'trail_electric', type: 'trail', name: 'Electric Trail', cost: 760, color: '#c6ff00', threeColor: 0xc6ff00 },
-    { id: 'trail_blood', type: 'trail', name: 'Blood Trail', cost: 860, color: '#b91c1c', threeColor: 0xb91c1c }
+    { id: 'trail_blood', type: 'trail', name: 'Blood Trail', cost: 860, color: '#b91c1c', threeColor: 0xb91c1c },
+
+    // Christmas event cosmetics
+    { id: 'paint_candycane', type: 'paint', name: 'Candy Cane', cost: 350, color: '#e63946', threeColor: 0xe63946 },
+    { id: 'paint_holly', type: 'paint', name: 'Holly Green', cost: 400, color: '#2d6a4f', threeColor: 0x2d6a4f },
+    { id: 'paint_snowfall', type: 'paint', name: 'Snowfall White', cost: 550, color: '#f1faee', threeColor: 0xf1faee },
+    { id: 'paint_elf', type: 'paint', name: 'Elf Green', cost: 650, color: '#1b7f3b', threeColor: 0x1b7f3b },
+    { id: 'paint_goldstar', type: 'paint', name: 'Gold Star', cost: 900, color: '#ffd166', threeColor: 0xffd166 },
+    { id: 'wheel_candy', type: 'wheel', name: 'Candy Rims', cost: 450, color: '#e63946', threeColor: 0xe63946 },
+    { id: 'wheel_holly', type: 'wheel', name: 'Holly Rims', cost: 500, color: '#2a9d8f', threeColor: 0x2a9d8f },
+    { id: 'wheel_snow', type: 'wheel', name: 'Snow Rims', cost: 550, color: '#e8f4ff', threeColor: 0xe8f4ff },
+    { id: 'trail_snowfall', type: 'trail', name: 'Snowfall Trail', cost: 600, color: '#e8f4ff', threeColor: 0xe8f4ff },
+    { id: 'trail_candycane', type: 'trail', name: 'Candy Cane Trail', cost: 700, color: '#ff3b4f', threeColor: 0xff3b4f },
+    { id: 'board_santa', type: 'board', name: 'Santa Board', cost: 800, color: '#c1121f', threeColor: 0xc1121f },
+    { id: 'umbrella_candy', type: 'umbrella', name: 'Candy Cane Umbrella', cost: 500, color: '#e63946', threeColor: 0xe63946 }
 ];
 
 // 500 real production cars from 60+ brands. Format:
@@ -8835,8 +8865,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.16";
-const UPDATE_NOTES = "Christmas is everywhere — find the full secrets list in Settings, try the higher Space-bar sleigh flight, and enjoy festive touches in every game";
+const APP_VERSION = "LessFun Public Beta 1.33.17";
+const UPDATE_NOTES = "Gift Run is live in Beach Racer: fly Santa's Sleigh through gift rings, deliver 10 presents and beat the clock. Plus 12 Christmas cosmetics and a holiday garage";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

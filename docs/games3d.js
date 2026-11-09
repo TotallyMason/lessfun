@@ -155,6 +155,10 @@
         var scene = ctx.scene, camera = ctx.camera, renderer = ctx.renderer;
         var raceMode = !!(ctx.options && ctx.options.raceMode);
         var raceAi = !!(ctx.options && ctx.options.raceAi);
+        var giftMode = !!(ctx.options && ctx.options.giftMode);
+        var GIFT_TARGET = 10, GIFT_TIME = 75;
+        var giftTimer = giftMode ? GIFT_TIME : 0;
+        var giftsDelivered = 0, giftScore = 0, giftRings = [];
         var RACE_LOOP = 2400, RACE_LAPS = 3;
         var playerLap = 1, raceStartDelay = raceMode ? 2.4 : 0, raceFinished = false, raceEndT = 0;
         var raceStartTime = 0, raceHudT = 0;
@@ -176,7 +180,7 @@
             var raceLoadEl = document.getElementById('g3dRaceLoad');
             if (raceLoadEl) raceLoadEl.classList.remove('is-active');
         }
-        var paintColor = cosmetics.paint != null ? cosmetics.paint : 0xef476f;
+        var paintColor = giftMode ? 0xb1121f : (cosmetics.paint != null ? cosmetics.paint : 0xef476f);
         var boardColor = cosmetics.board != null ? cosmetics.board : 0x06d6a0;
         var glowColor = cosmetics.glow != null ? cosmetics.glow : null;
         var glowRainbow = !!cosmetics.glowRainbow;
@@ -185,12 +189,12 @@
         var trailColor = cosmetics.trail != null ? cosmetics.trail : null;
         var trailRainbow = !!cosmetics.trailRainbow;
         var umbrellaColor = cosmetics.umbrella != null ? cosmetics.umbrella : null;
-        var bodyStyle = cosmetics.body || 'classic';
+        var bodyStyle = giftMode ? 'phantom' : (cosmetics.body || 'classic');
         var engineStyle = cosmetics.engine || 'stock';
         var engineColor = cosmetics.engineColor != null ? cosmetics.engineColor : null;
         var aeroStyle = cosmetics.aeroStyle || '';
         var kitStyle = cosmetics.kitStyle || '';
-        var isSleigh = cosmetics.carId === 'car_santa';
+        var isSleigh = cosmetics.carId === 'car_santa' || giftMode;
         var FLY_DURATION = 2, FLY_COOLDOWN = 10, FLY_HEIGHT = 5.5;
         var flyTime = 0, flyCooldown = 0, flySparkT = 0;
 
@@ -198,6 +202,7 @@
         // values shown in the shop. Higher base values make the coastal run
         // feel genuinely fast, especially with a good engine fitted.
         var equippedPerf = cosmetics.performance || {};
+        if (giftMode) equippedPerf = { topSpeed: 1.18, accel: 2.2, grip: 1.2 };
         var perf = {
             topSpeed: 192 * (equippedPerf.topSpeed || 1),
             accel: 34 * (equippedPerf.accel || 1),
@@ -2592,6 +2597,96 @@
             }
         }
 
+        function buildGiftRing(index) {
+            var group = new THREE.Group();
+            var ringColor = index % 2 ? 0xff3b4f : 0x2a9d8f;
+            var ringMat = new THREE.MeshStandardMaterial({
+                color: ringColor, emissive: ringColor, emissiveIntensity: 0.95,
+                metalness: 0.7, roughness: 0.24
+            });
+            var ring = new THREE.Mesh(new THREE.TorusGeometry(1.95, 0.13, 8, 40), ringMat);
+            group.add(ring);
+            var gold = new THREE.MeshStandardMaterial({
+                color: 0xffd166, emissive: 0xffb703, emissiveIntensity: 0.65,
+                metalness: 0.82, roughness: 0.2
+            });
+            var gift = new THREE.Group();
+            var box = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.0, 1.0), new THREE.MeshStandardMaterial({
+                color: 0xc1121f, emissive: 0x5a0505, emissiveIntensity: 0.55, roughness: 0.5
+            }));
+            gift.add(box);
+            var ribH = new THREE.Mesh(new THREE.BoxGeometry(1.06, 0.18, 1.06), gold);
+            var ribV = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.06, 1.06), gold);
+            gift.add(ribH); gift.add(ribV);
+            var bowL = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), gold);
+            bowL.scale.set(1.4, 0.8, 0.8); bowL.position.set(-0.13, 0.58, 0);
+            gift.add(bowL);
+            var bowR = bowL.clone(); bowR.position.x = 0.13;
+            gift.add(bowR);
+            group.add(gift);
+            group.userData.gift = gift;
+            scene.add(group);
+            return group;
+        }
+
+        if (giftMode) {
+            var GIFT_SPACING = 600;
+            for (var gi = 0; gi < GIFT_TARGET; gi++) {
+                var giftRing = buildGiftRing(gi);
+                giftRing.userData.distance = 360 + gi * GIFT_SPACING;
+                giftRing.userData.lane = (gi * 2 + 1) % LANES.length;
+                giftRing.userData.high = gi % 2 === 1;
+                giftRing.userData.y = giftRing.userData.high ? 5.0 : 2.0;
+                giftRing.userData.delivered = false;
+                giftRing.userData.missed = false;
+                giftRings.push(giftRing);
+            }
+        }
+
+        function updateGiftRun(dt) {
+            if (!giftMode) return false;
+            giftTimer -= dt;
+            for (var gr = 0; gr < giftRings.length; gr++) {
+                var ring = giftRings[gr];
+                if (ring.userData.delivered || ring.userData.missed) continue;
+                var rel = ring.userData.distance - distance;
+                var ringZ = player.position.z - rel;
+                var ringX = LANES[ring.userData.lane] + (roadCurveOffset(ringZ) - roadCurveOffset(player.position.z));
+                ring.position.set(ringX, ring.userData.y, ringZ);
+                ring.userData.gift.rotation.y += dt * 1.15;
+                ring.visible = rel > -30 && rel < 700;
+                if (rel <= 0 && rel > -20) {
+                    var hit = ring.userData.high
+                        ? (flyTime > 0 && playerY > 3.0 && Math.abs(player.position.x - ringX) < 2.6)
+                        : (playerY < 2.1 && Math.abs(player.position.x - ringX) < 2.4);
+                    if (hit) {
+                        ring.userData.delivered = true;
+                        ring.visible = false;
+                        giftsDelivered++;
+                        giftScore += 1000;
+                        giftTimer += 8;
+                        racerBanner('DELIVERED +8s');
+                        tone(720, 0.18, 'triangle', 0.07, 1080);
+                        spawnSparks(ringX, ring.userData.y, ringZ, 34);
+                        if (giftsDelivered >= GIFT_TARGET) {
+                            endGame(giftScore + Math.round(distance));
+                            return true;
+                        }
+                    } else {
+                        ring.userData.missed = true;
+                        ring.visible = false;
+                        racerBanner('MISSED GIFT');
+                        tone(150, 0.2, 'square', 0.05, 180);
+                    }
+                }
+            }
+            if (giftTimer <= 0) {
+                endGame(giftScore + Math.round(distance));
+                return true;
+            }
+            return false;
+        }
+
         function updateRaceHud() {
             var ign = document.getElementById('g3dIgnition');
             if (ign) {
@@ -3725,7 +3820,8 @@
         var playerY = 0, vy = 0, driftScore = 0;
         var suspensionImpulse = 0;
         var ignition = 0, engineOn = false;
-        if (raceMode) { ignition = 1; engineOn = true; gearMode = 'D'; }
+        if (raceMode || giftMode) { ignition = 1; engineOn = true; gearMode = 'D'; }
+        if (giftMode) speed = 32;
         var nitro = 100, nitroActive = false;
         var throttleDisplay = 0, brakeDisplay = 0;
         var throttleSmooth = 0, brakeSmooth = 0;
@@ -4516,7 +4612,10 @@
                     if (raceEndT <= 0) { endGame(score + 6000); return; }
                 }
             }
-            if (!raceMode) {
+            if (giftMode) {
+                if (updateGiftRun(dt)) return;
+            }
+            if (!raceMode && !giftMode) {
                 updateCheckpoints();
                 if (updateRamps()) return;
                 updateCoins(prevDistance);
@@ -4955,7 +5054,8 @@
                 var g = gearFor(Math.abs(speed));
                 gearText = (speed < 0.15 ? 1 : g) + '/6';
             }
-            var status = (fsdActive ? 'FSD · ' : (brakeCmd ? 'BRAKE · ' : (throttleCmd ? 'THROTTLE · ' : ''))) +
+            var status = (giftMode ? 'GIFT RUN · ' + giftsDelivered + '/' + GIFT_TARGET + ' · ' + Math.max(0, Math.ceil(giftTimer)) + 's · ' : '') +
+                (fsdActive ? 'FSD · ' : (brakeCmd ? 'BRAKE · ' : (throttleCmd ? 'THROTTLE · ' : ''))) +
                 speedText(speed) +
                 (!engineOn ? ' · HOLD W TO START' : '') +
                 (nitroActive ? (nitroShiftT > 0 ? ' · NITRO SHIFT' : ' · NOS') : '') +
@@ -4973,7 +5073,7 @@
             hudT -= dt;
             if (hudT <= 0) {
                 hudT = 0.1;
-                setHud(distance + checkpointsPassed * CHECKPOINT_BONUS + driftScore, status, gearText);
+                setHud(giftMode ? (giftScore + Math.round(distance * 0.2)) : (distance + checkpointsPassed * CHECKPOINT_BONUS + driftScore), status, gearText);
             }
             updateRaceHud();
             updateFsdVisual();
@@ -5020,6 +5120,7 @@
         }
         var crashFlash = document.getElementById('g3dCrashFlash');
         if (crashFlash) crashFlash.classList.remove('is-active');
+        if (giftMode) racerBanner('GIFT RUN');
         initAudio();
         updateRaceHud();
         updateRaceModeHud();

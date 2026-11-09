@@ -12009,3 +12009,70 @@ body.in-game .xmas-snowman { display: none; }
     font-size: 11px;
     opacity: 0.24;
 }
+
+/* Holiday garage, showroom and Gift Run */
+.game3d-mp-secondary.is-gift-run {
+    border-color: rgba(255, 209, 102, 0.45);
+    background: linear-gradient(145deg, rgba(193, 18, 31, 0.55), rgba(42, 157, 143, 0.35));
+    color: #ffe2a0;
+}
+.is-holiday .game3d-garage {
+    background:
+        radial-gradient(circle at 78% 22%, rgba(255, 209, 102, 0.12), transparent 34%),
+        radial-gradient(circle at 18% 82%, rgba(80, 220, 160, 0.1), transparent 30%),
+        linear-gradient(90deg, rgba(4, 6, 12, 0.88) 0%, rgba(4, 6, 12, 0.5) 42%, rgba(4, 6, 12, 0) 70%);
+}
+.is-holiday .game3d-garage::before {
+    content: '🎄';
+    position: absolute;
+    right: 7%;
+    bottom: 4%;
+    z-index: 0;
+    font-size: clamp(58px, 9vw, 118px);
+    opacity: 0.28;
+    pointer-events: none;
+    filter: drop-shadow(0 0 18px rgba(80, 220, 160, 0.35));
+}
+.is-holiday .game3d-garage::after {
+    content: '🎁  ❄  🎁';
+    position: absolute;
+    right: 6%;
+    bottom: 2%;
+    z-index: 0;
+    font-size: clamp(12px, 2vw, 20px);
+    opacity: 0.3;
+    pointer-events: none;
+}
+.is-holiday .game3d-garage-card { position: relative; z-index: 2; }
+.is-holiday .game3d-showroom {
+    background:
+        radial-gradient(circle at 12% 10%, rgba(255, 209, 102, 0.12), transparent 30%),
+        radial-gradient(circle at 88% 90%, rgba(80, 220, 160, 0.12), transparent 32%),
+        radial-gradient(circle at 50% 0%, rgba(8, 44, 40, 0.95), rgba(2, 7, 12, 0.98) 72%);
+}
+.is-holiday .game3d-showroom::before {
+    content: '🎄';
+    position: absolute;
+    left: 3%;
+    bottom: 2%;
+    z-index: 0;
+    font-size: clamp(50px, 8vw, 110px);
+    opacity: 0.22;
+    pointer-events: none;
+    filter: drop-shadow(0 0 16px rgba(80, 220, 160, 0.32));
+}
+.is-holiday .game3d-showroom::after {
+    content: '🎁';
+    position: absolute;
+    right: 3%;
+    bottom: 2%;
+    z-index: 0;
+    font-size: clamp(34px, 5vw, 64px);
+    opacity: 0.25;
+    pointer-events: none;
+}
+.is-holiday .game3d-showroom-inner { position: relative; z-index: 1; }
+.is-holiday .game3d-showroom .showroom-card {
+    border-color: rgba(255, 209, 102, 0.2);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
