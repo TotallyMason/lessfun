@@ -8452,8 +8452,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.00";
-const UPDATE_NOTES = "The radio stays visible during games, hint bars are gone, and the assistant now streams answers word by word";
+const APP_VERSION = "LessFun Public Beta 1.33.01";
+const UPDATE_NOTES = "The assistant now understands more typos, swapped letters and shorthand, and pauses briefly before streaming each answer";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

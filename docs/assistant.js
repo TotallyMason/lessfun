@@ -36,7 +36,7 @@
         engines: 'engine', bodies: 'body', parts: 'part', paints: 'paint',
         tranqulizer: 'tranq', tranquliser: 'tranq', tranqualizer: 'tranq',
         tranquilizer: 'tranq', tranquiliser: 'tranq', tranq: 'tranq',
-        boing: 'plane', landin: 'landing', controlls: 'control', controll: 'control',
+        boing: 'plane', landin: 'landing', laning: 'landing', lnding: 'landing', geer: 'gear', controlls: 'control', controll: 'control',
         purchse: 'purchase', purchas: 'purchase', gogle: 'google', googel: 'google',
         accross: 'across', acount: 'account', acounts: 'account', walet: 'wallet'
     };
@@ -110,21 +110,26 @@
         var m = a.length, n = b.length;
         if (!m) return n;
         if (!n) return m;
-        var prev = new Array(n + 1);
-        var cur = new Array(n + 1);
-        for (var j = 0; j <= n; j++) prev[j] = j;
-        for (var i = 1; i <= m; i++) {
-            cur[0] = i;
-            for (var k = 1; k <= n; k++) {
-                cur[k] = Math.min(prev[k] + 1, cur[k - 1] + 1, prev[k - 1] + (a[i - 1] === b[k - 1] ? 0 : 1));
-            }
-            var tmp = prev; prev = cur; cur = tmp;
+        var d = [];
+        for (var i = 0; i <= m; i++) {
+            d[i] = [i];
+            for (var j = 1; j <= n; j++) d[i][j] = i === 0 ? j : 0;
         }
-        return prev[n];
+        for (var r = 1; r <= m; r++) {
+            for (var c = 1; c <= n; c++) {
+                var cost = a[r - 1] === b[c - 1] ? 0 : 1;
+                d[r][c] = Math.min(d[r - 1][c] + 1, d[r][c - 1] + 1, d[r - 1][c - 1] + cost);
+                // Treat a swapped pair as one typo instead of two.
+                if (r > 1 && c > 1 && a[r - 1] === b[c - 2] && a[r - 2] === b[c - 1]) {
+                    d[r][c] = Math.min(d[r][c], d[r - 2][c - 2] + 1);
+                }
+            }
+        }
+        return d[m][n];
     }
 
     function closestWord(word) {
-        var max = word.length >= 8 ? 2 : 1;
+        var max = word.length >= 6 ? 2 : 1;
         var best = null, bestD = max + 1;
         var keys = Object.keys(VOCAB);
         for (var i = 0; i < keys.length; i++) {
@@ -139,13 +144,15 @@
     seeds.forEach(function (seed) {
         VARIANTS.forEach(function (make) {
             var phrase = make(seed.t) + ' ' + (seed.k || '');
-            var tokens = tokenize(phrase);
+            var topicTokens = tokenize(phrase);
+            var tokens = topicTokens.concat(tokenize(seed.a || ''));
             entries.push({
                 q: phrase,
                 a: seed.a,
                 t: seed.t,
                 terms: tokens,
-                termSet: tokens.reduce(function (o, w) { o[w] = true; return o; }, {})
+                termSet: tokens.reduce(function (o, w) { o[w] = true; return o; }, {}),
+                topicSet: topicTokens.reduce(function (o, w) { o[w] = true; return o; }, {})
             });
         });
     });
@@ -189,7 +196,8 @@
             var score = 0, matched = 0;
             for (var j = 0; j < unique.length; j++) {
                 var w = unique[j];
-                if (e.termSet[w]) { score += idf[w] || 1; matched++; }
+                if (e.topicSet[w]) { score += (idf[w] || 1) * 1.8; matched++; }
+                else if (e.termSet[w]) { score += (idf[w] || 1) * 0.55; matched++; }
             }
             if (!matched) continue;
             score += (matched / unique.length) * 2.4;
@@ -275,7 +283,7 @@
             buffer += (index ? ' ' : '') + words[index++];
             bubble.textContent = buffer;
             scrollMessages();
-        }, 22);
+        }, 28);
     }
 
     function ask(text, instant) {
@@ -284,7 +292,7 @@
         addMessage('user', value);
         showTyping();
         clearTimeout(typingTimer);
-        var delay = instant ? 0 : 320 + Math.min(520, value.length * 3);
+        var delay = instant ? 0 : 950 + Math.min(850, value.length * 5);
         typingTimer = setTimeout(function () {
             hideTyping();
             streamMessage(answerFor(value));

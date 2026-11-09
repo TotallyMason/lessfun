@@ -72,7 +72,7 @@ window.LESSFUN_AI_SEEDS = [
   },
   {
     "t": "spending Coins",
-    "k": "spend coins buy",
+    "k": "spend coins buy purchase",
     "a": "Spend Coins in the Store, Garage and Showroom."
   },
   {
@@ -447,7 +447,7 @@ window.LESSFUN_AI_SEEDS = [
   },
   {
     "t": "Boeing Landing controls",
-    "k": "boeing landing controls pitch throttle",
+    "k": "boeing landing controls pitch throttle flaps gear brakes",
     "a": "W/S pitch, A/D throttle, Space brakes, F flaps, G gear, H guide and R restart."
   },
   {
