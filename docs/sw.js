@@ -1,7 +1,7 @@
 /* LessFun offline shell — single-player games stay available offline. */
 'use strict';
 
-var CACHE_NAME = 'lessfun-static-1.33.65';
+var CACHE_NAME = 'lessfun-static-1.33.66';
 var CORE_ASSETS = [
     './',
     'index.html',
@@ -52,18 +52,17 @@ self.addEventListener('install', function (event) {
 self.addEventListener('activate', function (event) {
     event.waitUntil(
         caches.keys().then(function (keys) {
-            var hadOldCaches = keys.some(function (key) { return key !== CACHE_NAME; });
             return Promise.all(keys.map(function (key) {
                 if (key !== CACHE_NAME) return caches.delete(key);
-            })).then(function () {
-                return self.clients.claim();
-            }).then(function () {
-                // A previous build was cached: reload open tabs so they pick up the new files.
-                if (!hadOldCaches) return;
-                return self.clients.matchAll({ type: 'window' }).then(function (clients) {
-                    return Promise.all(clients.map(function (client) {
-                        return client.navigate(client.url).catch(function () {});
-                    }));
+            }));
+        }).then(function () {
+            return self.clients.claim();
+        }).then(function () {
+            // Ask open tabs to check for a new version, but never force-navigate
+            // or reload them in the middle of a tap or a game.
+            return self.clients.matchAll({ type: 'window' }).then(function (clients) {
+                clients.forEach(function (client) {
+                    client.postMessage({ type: 'lessfun-sw-updated' });
                 });
             });
         })
