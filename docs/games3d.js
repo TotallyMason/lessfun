@@ -1380,6 +1380,122 @@
             return g;
         }
 
+        function attachNodeBeam(car, spec, bodyGroup, isPlayer) {
+            if (!isPlayer) return;
+            var w = Math.max(1.2, spec.width * 1.04);
+            var h = 0.46;
+            var l = Math.max(2.4, spec.len * 0.92);
+            var cy = spec.ride + 0.3;
+            var pts = [
+                new THREE.Vector3(-w / 2, cy - h / 2, -l / 2),
+                new THREE.Vector3(w / 2, cy - h / 2, -l / 2),
+                new THREE.Vector3(-w / 2, cy - h / 2, l / 2),
+                new THREE.Vector3(w / 2, cy - h / 2, l / 2),
+                new THREE.Vector3(-w / 2, cy + h / 2, -l / 2),
+                new THREE.Vector3(w / 2, cy + h / 2, -l / 2),
+                new THREE.Vector3(-w / 2, cy + h / 2, l / 2),
+                new THREE.Vector3(w / 2, cy + h / 2, l / 2)
+            ];
+            var nodeGeo = new THREE.SphereGeometry(0.045, 8, 6);
+            var nodeMat = new THREE.MeshStandardMaterial({
+                color: 0x17222a, metalness: 0.85, roughness: 0.25,
+                emissive: 0x2ff6ff, emissiveIntensity: 0.65
+            });
+            var beamGeo = new THREE.CylinderGeometry(0.015, 0.015, 1, 6);
+            var beamMat = new THREE.MeshStandardMaterial({
+                color: 0x4a5a66, metalness: 0.9, roughness: 0.28
+            });
+            var group = new THREE.Group();
+            group.name = 'nodeBeamChassis';
+            var nodes = pts.map(function (home) {
+                var mesh = new THREE.Mesh(nodeGeo, nodeMat);
+                mesh.position.copy(home);
+                group.add(mesh);
+                return { home: home.clone(), off: new THREE.Vector3(), vel: new THREE.Vector3(), mesh: mesh };
+            });
+            var edgePairs = [
+                [0, 1], [1, 3], [3, 2], [2, 0],
+                [4, 5], [5, 7], [7, 6], [6, 4],
+                [0, 4], [1, 5], [2, 6], [3, 7],
+                [0, 6], [1, 7], [2, 4], [3, 5]
+            ];
+            var beams = edgePairs.map(function (pair) {
+                var rest = pts[pair[0]].distanceTo(pts[pair[1]]);
+                var mesh = new THREE.Mesh(beamGeo, beamMat);
+                mesh.scale.y = rest;
+                group.add(mesh);
+                return { a: pair[0], b: pair[1], rest: rest, mesh: mesh };
+            });
+            bodyGroup.add(group);
+            car.userData.nodeBeam = { group: group, nodes: nodes, beams: beams };
+        }
+
+        function updateNodeBeam(car, dt, spd, roll, pitch, impulse) {
+            var nb = car && car.userData && car.userData.nodeBeam;
+            if (!nb) return;
+            var step = Math.min(dt || 0, 0.033);
+            var nodes = nb.nodes;
+            var speedFrac = Math.min(1, Math.abs(spd || 0) / 190);
+            for (var i = 0; i < nodes.length; i++) {
+                var n = nodes[i];
+                var ax = -n.off.x * 42 - n.vel.x * 6.5;
+                var ay = -n.off.y * 48 - n.vel.y * 7;
+                var az = -n.off.z * 38 - n.vel.z * 6;
+                ax += (roll || 0) * 1.4;
+                ay += (pitch || 0) * 1.1;
+                az += (impulse || 0) * (n.home.z < 0 ? -1 : 1) * 0.8;
+                ay -= speedFrac * 0.06;
+                n.vel.x += ax * step;
+                n.vel.y += ay * step;
+                n.vel.z += az * step;
+            }
+            for (var b = 0; b < nb.beams.length; b++) {
+                var beam = nb.beams[b];
+                var na = nodes[beam.a], nbb = nodes[beam.b];
+                var pa = na.home.clone().add(na.off);
+                var pb = nbb.home.clone().add(nbb.off);
+                var delta = pb.clone().sub(pa);
+                var len = Math.max(0.001, delta.length());
+                var dir = delta.clone().multiplyScalar(1 / len);
+                var rel = nbb.vel.clone().sub(na.vel).dot(dir);
+                var force = (len - beam.rest) * 120 + rel * 7;
+                na.vel.addScaledVector(dir, force * step);
+                nbb.vel.addScaledVector(dir, -force * step);
+            }
+            for (var k = 0; k < nodes.length; k++) {
+                var node = nodes[k];
+                node.vel.multiplyScalar(Math.max(0, 1 - step * 1.6));
+                node.off.addScaledVector(node.vel, step);
+                if (node.off.length() > 0.34) node.off.setLength(0.34);
+                node.mesh.position.copy(node.home).add(node.off);
+            }
+            for (var m = 0; m < nb.beams.length; m++) {
+                var bm = nb.beams[m];
+                var p1 = nodes[bm.a].mesh.position;
+                var p2 = nodes[bm.b].mesh.position;
+                bm.mesh.position.copy(p1).add(p2).multiplyScalar(0.5);
+                var d = p2.clone().sub(p1);
+                bm.mesh.scale.y = Math.max(0.01, d.length());
+                bm.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
+            }
+        }
+
+        function nodeBeamImpact(car, zone, severity) {
+            var nb = car && car.userData && car.userData.nodeBeam;
+            if (!nb) return;
+            for (var i = 0; i < nb.nodes.length; i++) {
+                var n = nb.nodes[i];
+                var hit = zone === 'front' ? n.home.z < 0 :
+                    zone === 'rear' ? n.home.z > 0 :
+                    zone === 'left' ? n.home.x < 0 : n.home.x > 0;
+                if (!hit) continue;
+                var push = zone === 'front' ? 1 : zone === 'rear' ? -1 : 0;
+                n.vel.z += push * severity * 5.5;
+                n.vel.y += severity * 2.2;
+                n.vel.x += (zone === 'left' ? 1 : zone === 'right' ? -1 : 0) * severity * 4.5;
+            }
+        }
+
         function buildCar(bodyColor, rimColor, styleName, engineName, engineGlowColor, isPlayer) {
             var spec = BODY_SPECS[styleName] || BODY_SPECS.classic;
             var g = new THREE.Group();
@@ -1723,6 +1839,7 @@
             g.userData.bodyGroup = bodyGroup;
             g.userData.suspensionPivots = suspensionPivots;
             g.userData.suspensionSprings = suspensionSprings;
+            attachNodeBeam(g, spec, bodyGroup, isPlayer);
             return g;
         }
 
@@ -1763,6 +1880,7 @@
                 body.rotation.z += ((roll || 0) * 0.4 - body.rotation.z) * Math.min(1, dt * 6);
                 body.rotation.x += ((pitch || 0) * 0.7 - body.rotation.x) * Math.min(1, dt * 6);
             }
+            updateNodeBeam(car, dt, spd, roll, pitch, impulse);
         }
 
         function buildSurfboard(color) {
@@ -3061,7 +3179,9 @@
             }
 
             crumpleCarPart(player.userData.bodyGroup, zone, severity);
+            nodeBeamImpact(player, zone, severity);
             crumpleCarPart(car.userData && car.userData.bodyGroup, zone === 'left' ? 'right' : zone === 'right' ? 'left' : zone, severity * 0.72);
+            if (car && car.userData) nodeBeamImpact(car, zone === 'left' ? 'right' : zone === 'right' ? 'left' : zone, severity * 0.72);
             launchRagdoll(dir, impactSpeed, zone);
             buildSoftWreck(zone, severity);
             setCrashCinema(true);
