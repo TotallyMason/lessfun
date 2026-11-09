@@ -1120,7 +1120,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261322'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261323'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1129,7 +1129,7 @@ function ensure3DEngine() {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261322').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261323').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1137,7 +1137,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261322').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261323').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1145,8 +1145,8 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261322')
-            .then(function () { return loadScriptOnce('assistant.js?v=20261322'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261323')
+            .then(function () { return loadScriptOnce('assistant.js?v=20261323'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1162,7 +1162,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261322').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261323').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1170,7 +1170,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261322').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261323').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1178,7 +1178,7 @@ function ensureLucky() {
 function ensureTycoon() {
     if (window.Tycoon) return Promise.resolve();
     if (!tycoonPromise) {
-        tycoonPromise = loadScriptOnce('tycoon.js?v=20261322').catch(function (error) { tycoonPromise = null; throw error; });
+        tycoonPromise = loadScriptOnce('tycoon.js?v=20261323').catch(function (error) { tycoonPromise = null; throw error; });
     }
     return tycoonPromise;
 }
@@ -1218,6 +1218,10 @@ function startSnowStorm() {
 function openGame(id) {
     const game = games.find(g => g.id === id);
     if (!game) return;
+    if (typeof updateShutdownActive !== 'undefined' && updateShutdownActive) {
+        showUpdateShutdown('Update required', 'This version is no longer valid for play. Refresh to load the latest LessFun build.', false, true);
+        return;
+    }
     if (window.Tycoon && currentGameId === 15 && id !== 15) window.Tycoon.close();
     const token = ++gameOpenToken;
     if (id === 6) { openGameNow(id); return; }
@@ -9047,20 +9051,22 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.38";
-const UPDATE_NOTES = "Engine blowouts now have a layered mechanical bang and hiss, and each dashboard warning light plays an alert tone when it activates";
+const APP_VERSION = "LessFun Public Beta 1.33.39";
+const UPDATE_NOTES = "LessFun now checks for a new build every minute. When a new version is live, the old build is blocked from play and asks you to refresh";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
 let updateShutdownActive = false;
 
-function showUpdateShutdown(title, text, reloading) {
+function showUpdateShutdown(title, text, reloading, showRefresh) {
     updateShutdownActive = true;
     const overlay = document.getElementById('updateShutdown');
     const titleEl = document.getElementById('updateShutdownTitle');
     const textEl = document.getElementById('updateShutdownText');
+    const refreshBtn = document.getElementById('updateRefreshBtn');
     if (titleEl) titleEl.textContent = title;
     if (textEl) textEl.textContent = text;
+    if (refreshBtn) refreshBtn.style.display = showRefresh ? 'inline-flex' : 'none';
     if (overlay) overlay.style.display = 'flex';
     if (window.Games3D && window.Games3D.setPaused) window.Games3D.setPaused(true);
     if (!reloading && !updateShutdownTimer) {
@@ -9077,6 +9083,8 @@ function hideUpdateShutdown() {
     if (updateReloadTimer) { clearTimeout(updateReloadTimer); updateReloadTimer = 0; }
     const overlay = document.getElementById('updateShutdown');
     if (overlay) overlay.style.display = 'none';
+    const refreshBtn = document.getElementById('updateRefreshBtn');
+    if (refreshBtn) refreshBtn.style.display = 'none';
 }
 
 async function checkForServerUpdate() {
@@ -9090,10 +9098,8 @@ async function checkForServerUpdate() {
             return;
         }
         if (data && data.version && data.version !== APP_VERSION) {
-            showUpdateShutdown('Updating LessFun', 'A new version has been deployed. Reloading automatically…', true);
-            if (!updateReloadTimer) {
-                updateReloadTimer = setTimeout(function () { location.reload(); }, 4200);
-            }
+            if (currentGameId != null) closeGame();
+            showUpdateShutdown('Update required', 'This version is no longer valid for play. Refresh to load the latest LessFun build.', false, true);
             return;
         }
         hideUpdateShutdown();

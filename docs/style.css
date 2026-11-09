@@ -12605,3 +12605,21 @@ body.in-game .xmas-snowman { display: none; }
 .g3d-temp b { min-width: 36px; color: #8fd8ff; font-size: 7.5px; text-align: right; }
 .g3d-temp.is-warm b { color: #ffd166; }
 .g3d-temp.is-hot b { color: #ff4a5c; }
+
+.update-refresh-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    margin-top: 16px;
+    padding: 0 22px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 209, 102, 0.55);
+    background: linear-gradient(145deg, #ffd166, #ff9d2e);
+    color: #261500;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+}
