@@ -87,7 +87,7 @@
         [/boeing\s+landing/g, 'boeing landing']
     ];
 
-    function tokenize(text) {
+    function tokenize(text, fuzzy) {
         var s = String(text || '').toLowerCase();
         PHRASES.forEach(function (pair) { s = s.replace(pair[0], pair[1]); });
         s = s.replace(/[^a-z0-9]+/g, ' ').trim();
@@ -96,7 +96,7 @@
         for (var i = 0; i < raw.length; i++) {
             var w = raw[i];
             if (!w || STOP[w] || w.length < 2) continue;
-            if (!VOCAB[w] && !SYNONYMS[w]) {
+            if (fuzzy !== false && !VOCAB[w] && !SYNONYMS[w]) {
                 var fixed = closestWord(w);
                 if (fixed) w = fixed;
             }
@@ -191,8 +191,8 @@
         VARIANTS.forEach(function (make) {
             TAILS.forEach(function (tail) {
                 var phrase = make(seed.t) + ' ' + (seed.k || '') + tail;
-                var topicTokens = tokenize(phrase);
-                var tokens = topicTokens.concat(tokenize(seed.a || ''));
+                var topicTokens = tokenize(phrase, false);
+                var tokens = topicTokens.concat(tokenize(seed.a || '', false));
                 entries.push({
                     q: phrase,
                     a: seed.a,
@@ -231,7 +231,7 @@
             score += (matched / unique.length) * 2.4;
             if (matched === unique.length) score += 1.5;
             if (e.q.toLowerCase().indexOf(lower) >= 0 && lower.length > 5) score += 2.2;
-            var topicWords = tokenize(e.t);
+            var topicWords = tokenize(e.t, false);
             var fullTopic = topicWords.length > 0;
             for (var k = 0; k < topicWords.length; k++) {
                 if (unique.indexOf(topicWords[k]) < 0) { fullTopic = false; break; }
