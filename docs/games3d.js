@@ -5099,7 +5099,9 @@
             } else {
                 speed = Math.min(CREEP_SPEED, speed + 5 * dt);
             }
-            var heatGain = engineOn ? (0.012 + throttleSmooth * 0.028 + revLevel * 0.06 + Math.abs(speed) / 7000) : -0.032;
+            var airflowCooling = 0.018 + Math.min(0.03, Math.abs(speed) / 5000);
+            var engineLoad = throttleSmooth * 0.07 + revLevel * 0.085 + (engineBlown ? 0.015 : 0);
+            var heatGain = engineOn ? (engineLoad - airflowCooling) : -0.06;
             engineHeat = Math.max(0, Math.min(1.15, engineHeat + heatGain * dt));
             if (engineHeat > 0.92 && !engineBlown) {
                 engineBlown = true;
