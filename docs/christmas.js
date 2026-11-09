@@ -1,5 +1,5 @@
 /* ============================================================
-   LessFun Christmas Jingle — original synthesized loop
+   LessFun Christmas Jingle — upbeat synthesized Jingle Bells
    ============================================================ */
 (function () {
     'use strict';
@@ -14,14 +14,20 @@
     var unlocked = false;
     var noiseBuffer = null;
 
-    var BEAT = 60 / 108;
+    var BPM = 140;
+    var BEAT = 60 / BPM;
+
+    // Jingle Bells chorus, four bars + two-bar tag. Public-domain melody.
     var MELODY = [
-        79, 81, 83, 84,
-        83, 81, 79, 76,
-        77, 81, 84, 81,
-        79, 83, 86, 79
+        [76, 1], [76, 1], [76, 1], [76, 1],
+        [76, 1], [79, 1], [72, 1], [74, 1],
+        [77, 1], [77, 1], [77, 1], [77, 1],
+        [77, 1], [76, 1], [76, 1], [76, 1],
+        [76, 1], [74, 1], [74, 1], [76, 1],
+        [74, 2], [67, 2]
     ];
-    var BASS = [48, 45, 41, 43];
+    var BASS = [36, 36, 41, 36, 43, 43];
+    var LOOP_BEATS = 24;
 
     function midi(n) {
         return 440 * Math.pow(2, (n - 69) / 12);
@@ -38,12 +44,19 @@
         try {
             context = new AC();
             master = context.createGain();
-            master.gain.value = 0.075;
-            master.connect(context.destination);
-            var length = context.sampleRate * 1.2;
+            master.gain.value = 0.2;
+            var comp = context.createDynamicsCompressor();
+            comp.threshold.value = -18;
+            comp.knee.value = 18;
+            comp.ratio.value = 4;
+            comp.attack.value = 0.004;
+            comp.release.value = 0.18;
+            master.connect(comp);
+            comp.connect(context.destination);
+            var length = context.sampleRate * 1.0;
             noiseBuffer = context.createBuffer(1, length, context.sampleRate);
             var data = noiseBuffer.getChannelData(0);
-            for (var i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * 0.55;
+            for (var i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * 0.7;
             return true;
         } catch (e) {
             context = null;
@@ -52,42 +65,70 @@
         }
     }
 
-    function bell(time, note, duration, volume) {
+    function brass(time, note, duration, volume) {
         var freq = midi(note);
+        var out = context.createGain();
+        var filter = context.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(2600, time);
+        filter.frequency.exponentialRampToValueAtTime(1400, time + duration);
+        filter.Q.value = 1.1;
+        out.gain.setValueAtTime(0.0001, time);
+        out.gain.exponentialRampToValueAtTime(volume || 0.16, time + 0.012);
+        out.gain.setValueAtTime(volume || 0.16, time + Math.max(0.04, duration * 0.55));
+        out.gain.exponentialRampToValueAtTime(0.0001, time + duration + 0.07);
+        filter.connect(out);
+        out.connect(master);
+
+        var a = context.createOscillator();
+        a.type = 'sawtooth';
+        a.frequency.setValueAtTime(freq, time);
+        a.detune.setValueAtTime(-5, time);
+        var b = context.createOscillator();
+        b.type = 'square';
+        b.frequency.setValueAtTime(freq, time);
+        b.detune.setValueAtTime(6, time);
+        var bg = context.createGain();
+        bg.gain.value = 0.36;
+        a.connect(filter);
+        b.connect(bg);
+        bg.connect(filter);
+        a.start(time);
+        b.start(time);
+        a.stop(time + duration + 0.09);
+        b.stop(time + duration + 0.09);
+    }
+
+    function chime(time, note, volume) {
+        var freq = midi(note + 12);
         var osc = context.createOscillator();
         var gain = context.createGain();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(freq, time);
         gain.gain.setValueAtTime(0.0001, time);
-        gain.gain.exponentialRampToValueAtTime(volume || 0.12, time + 0.008);
-        gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+        gain.gain.exponentialRampToValueAtTime(volume || 0.045, time + 0.006);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.36);
         osc.connect(gain);
         gain.connect(master);
         osc.start(time);
-        osc.stop(time + duration + 0.03);
-
-        var shimmer = context.createOscillator();
-        var shimmerGain = context.createGain();
-        shimmer.type = 'triangle';
-        shimmer.frequency.setValueAtTime(freq * 2.01, time);
-        shimmerGain.gain.setValueAtTime(0.0001, time);
-        shimmerGain.gain.exponentialRampToValueAtTime((volume || 0.12) * 0.32, time + 0.006);
-        shimmerGain.gain.exponentialRampToValueAtTime(0.0001, time + duration * 0.7);
-        shimmer.connect(shimmerGain);
-        shimmerGain.connect(master);
-        shimmer.start(time);
-        shimmer.stop(time + duration);
+        osc.stop(time + 0.4);
     }
 
-    function pad(time, note, duration) {
+    function bassNote(time, note, duration) {
         var osc = context.createOscillator();
+        var filter = context.createBiquadFilter();
         var gain = context.createGain();
-        osc.type = 'triangle';
+        osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(midi(note), time);
+        filter.type = 'lowpass';
+        filter.frequency.value = 420;
+        filter.Q.value = 0.8;
         gain.gain.setValueAtTime(0.0001, time);
-        gain.gain.exponentialRampToValueAtTime(0.035, time + 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.13, time + 0.015);
+        gain.gain.setValueAtTime(0.13, time + Math.max(0.05, duration * 0.5));
         gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
-        osc.connect(gain);
+        osc.connect(filter);
+        filter.connect(gain);
         gain.connect(master);
         osc.start(time);
         osc.stop(time + duration + 0.03);
@@ -100,31 +141,79 @@
         var gain = context.createGain();
         src.buffer = noiseBuffer;
         filter.type = 'bandpass';
-        filter.frequency.value = 6200;
-        filter.Q.value = 1.2;
+        filter.frequency.value = 6800;
+        filter.Q.value = 1.4;
         gain.gain.setValueAtTime(0.0001, time);
-        gain.gain.exponentialRampToValueAtTime(volume || 0.018, time + 0.005);
-        gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.085);
+        gain.gain.exponentialRampToValueAtTime(volume || 0.035, time + 0.004);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.075);
         src.connect(filter);
         filter.connect(gain);
         gain.connect(master);
         src.start(time);
-        src.stop(time + 0.1);
+        src.stop(time + 0.09);
+    }
+
+    function kick(time) {
+        var osc = context.createOscillator();
+        var gain = context.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(140, time);
+        osc.frequency.exponentialRampToValueAtTime(44, time + 0.16);
+        gain.gain.setValueAtTime(0.0001, time);
+        gain.gain.exponentialRampToValueAtTime(0.16, time + 0.006);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.2);
+        osc.connect(gain);
+        gain.connect(master);
+        osc.start(time);
+        osc.stop(time + 0.22);
+    }
+
+    function snare(time) {
+        if (!noiseBuffer) return;
+        var src = context.createBufferSource();
+        var filter = context.createBiquadFilter();
+        var gain = context.createGain();
+        src.buffer = noiseBuffer;
+        filter.type = 'highpass';
+        filter.frequency.value = 1500;
+        gain.gain.setValueAtTime(0.0001, time);
+        gain.gain.exponentialRampToValueAtTime(0.075, time + 0.005);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.11);
+        src.connect(filter);
+        filter.connect(gain);
+        gain.connect(master);
+        src.start(time);
+        src.stop(time + 0.13);
     }
 
     function scheduleLoop() {
         if (!context || !master || !playing) return;
         var start = context.currentTime + 0.06;
+        var beatCursor = 0;
+        var bar = 0;
+
         for (var i = 0; i < MELODY.length; i++) {
-            bell(start + i * BEAT, MELODY[i], 0.55, i % 4 === 0 ? 0.11 : 0.08);
-            sleigh(start + i * BEAT, 0.016);
-            if (i % 2 === 1) sleigh(start + i * BEAT + BEAT * 0.5, 0.009);
+            var note = MELODY[i];
+            var t = start + beatCursor * BEAT;
+            brass(t, note[0], note[1] * BEAT * 0.92, i % 4 === 0 ? 0.18 : 0.14);
+            chime(t, note[0], 0.045);
+            beatCursor += note[1];
+            if (beatCursor % 4 === 0) bar++;
         }
+
         for (var b = 0; b < BASS.length; b++) {
-            pad(start + b * BEAT * 4, BASS[b], BEAT * 3.6);
-            pad(start + b * BEAT * 4 + BEAT * 2, BASS[b] + 7, BEAT * 1.6);
+            bassNote(start + b * 4 * BEAT, BASS[b], BEAT * 3.4);
         }
-        timer = setTimeout(scheduleLoop, MELODY.length * BEAT * 1000 - 90);
+
+        for (var beat = 0; beat < LOOP_BEATS; beat++) {
+            var bt = start + beat * BEAT;
+            if (beat % 4 === 0 || beat % 4 === 2) kick(bt);
+            if (beat % 4 === 1 || beat % 4 === 3) snare(bt);
+            sleigh(bt, 0.045);
+            sleigh(bt + BEAT * 0.5, 0.022);
+        }
+
+        timer = setTimeout(scheduleLoop, LOOP_BEATS * BEAT * 1000 - 90);
     }
 
     function start() {
@@ -152,12 +241,8 @@
     function toggle() {
         enabled = !enabled;
         try { localStorage.setItem('lessfun_jingle', enabled ? '1' : '0'); } catch (e) {}
-        if (enabled) {
-            unlocked = true;
-            start();
-        } else {
-            stop();
-        }
+        if (enabled) { unlocked = true; start(); }
+        else stop();
         updateButton();
     }
 
@@ -182,11 +267,8 @@
         document.addEventListener('pointerdown', unlock, { once: true, passive: true });
         document.addEventListener('keydown', unlock, { once: true });
         document.addEventListener('visibilitychange', function () {
-            if (document.hidden) {
-                if (playing) { stop(); }
-            } else if (enabled && soundOn && unlocked) {
-                start();
-            }
+            if (document.hidden) { if (playing) stop(); }
+            else if (enabled && soundOn && unlocked) start();
         });
         if (typeof soundSetting !== 'undefined') soundOn = !!soundSetting;
     }
