@@ -8452,8 +8452,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.02";
-const UPDATE_NOTES = "The LessFun Assistant now runs on 10,000 answer patterns, with typo tolerance and streamed replies";
+const APP_VERSION = "LessFun Public Beta 1.33.03";
+const UPDATE_NOTES = "A new LessFun loading splash warms up the arcade, with an aurora glow, glass mark and shimmer bar";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

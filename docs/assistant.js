@@ -47,7 +47,7 @@
         engines: 'engine', bodies: 'body', parts: 'part', paints: 'paint',
         tranqulizer: 'tranq', tranquliser: 'tranq', tranqualizer: 'tranq',
         tranquilizer: 'tranq', tranquiliser: 'tranq', tranq: 'tranq',
-        boing: 'plane', landin: 'landing', laning: 'landing', lnding: 'landing', geer: 'gear', controlls: 'control', controll: 'control',
+        boing: 'plane', moar: 'more', landin: 'landing', laning: 'landing', lnding: 'landing', geer: 'gear', controlls: 'control', controll: 'control',
         purchse: 'purchase', purchas: 'purchase', gogle: 'google', googel: 'google',
         accross: 'across', acount: 'account', acounts: 'account', walet: 'wallet'
     };
@@ -67,6 +67,8 @@
         [/\bpls\b|\bplz\b/g, 'please'],
         [/cant/g, 'cannot'],
         [/dont/g, 'do not'],
+        [/get\s+(more\s+)?coins/g, 'earn coins'],
+        [/more\s+coins/g, 'earn coins'],
         [/take[\s-]?off/g, 'takeoff'],
         [/sign[\s-]?in/g, 'login'],
         [/log[\s-]?in/g, 'login'],
@@ -103,6 +105,39 @@
             if (!STOP[w]) out.push(w);
         }
         return out;
+    }
+
+    var GAME_NAMES = ['Beach Racer', 'Tunnel Rush', 'Cube Stack', 'Dead Coast', 'Funtutu Test', 'Snow Rush', 'Draw and Guess', 'Lucky Spin', 'Boeing Landing', 'Tranq Arena'];
+    var GAME_ALIASES = [
+        ['beach racer', 'Beach Racer'], ['beach', 'Beach Racer'],
+        ['tunnel rush', 'Tunnel Rush'], ['tunnel', 'Tunnel Rush'],
+        ['cube stack', 'Cube Stack'], ['cube', 'Cube Stack'],
+        ['dead coast', 'Dead Coast'],
+        ['funtutu', 'Funtutu Test'], ['benchmark', 'Funtutu Test'],
+        ['snow rush', 'Snow Rush'], ['snow', 'Snow Rush'],
+        ['draw and guess', 'Draw and Guess'], ['draw guess', 'Draw and Guess'],
+        ['lucky spin', 'Lucky Spin'], ['slot', 'Lucky Spin'],
+        ['boeing landing', 'Boeing Landing'], ['boeing', 'Boeing Landing'], ['737', 'Boeing Landing'], ['plane', 'Boeing Landing'],
+        ['tranq arena', 'Tranq Arena'], ['tranq', 'Tranq Arena'], ['tranquil', 'Tranq Arena']
+    ];
+    var SITE_TOPIC = { coin: 1, gift: 1, store: 1, garage: 1, showroom: 1, account: 1, sync: 1, radio: 1, setting: 1, friend: 1, message: 1, community: 1, score: 1, update: 1 };
+
+    function detectGame(text) {
+        for (var i = 0; i < GAME_ALIASES.length; i++) {
+            if (text.indexOf(GAME_ALIASES[i][0]) >= 0) return GAME_ALIASES[i][1];
+        }
+        return null;
+    }
+
+    function gameForSeed(seed) {
+        var hay = (seed.t + ' ' + (seed.k || '')).toLowerCase();
+        for (var i = 0; i < GAME_NAMES.length; i++) {
+            if (seed.t.toLowerCase().indexOf(GAME_NAMES[i].toLowerCase()) === 0) return GAME_NAMES[i];
+        }
+        for (var j = 0; j < GAME_ALIASES.length; j++) {
+            if (hay.indexOf(GAME_ALIASES[j][0]) >= 0) return GAME_ALIASES[j][1];
+        }
+        return null;
     }
 
     var entries = [];
@@ -162,6 +197,7 @@
                     q: phrase,
                     a: seed.a,
                     t: seed.t,
+                    game: gameForSeed(seed),
                     terms: tokens,
                     termSet: tokens.reduce(function (o, w) { o[w] = true; return o; }, {}),
                     topicSet: topicTokens.reduce(function (o, w) { o[w] = true; return o; }, {})
@@ -179,6 +215,37 @@
     Object.keys(df).forEach(function (w) { idf[w] = Math.log((N + 1) / (df[w] + 1)) + 1; });
 
     var lastTopic = '';
+    var lastGame = '';
+
+    function findBest(pool, unique, lower) {
+        var best = null, bestScore = 0, second = null, secondScore = 0;
+        for (var i = 0; i < pool.length; i++) {
+            var e = pool[i];
+            var score = 0, matched = 0;
+            for (var j = 0; j < unique.length; j++) {
+                var w = unique[j];
+                if (e.topicSet[w]) { score += (idf[w] || 1) * 1.8; matched++; }
+                else if (e.termSet[w]) { score += (idf[w] || 1) * 0.55; matched++; }
+            }
+            if (!matched) continue;
+            score += (matched / unique.length) * 2.4;
+            if (matched === unique.length) score += 1.5;
+            if (e.q.toLowerCase().indexOf(lower) >= 0 && lower.length > 5) score += 2.2;
+            var topicWords = tokenize(e.t);
+            var fullTopic = topicWords.length > 0;
+            for (var k = 0; k < topicWords.length; k++) {
+                if (unique.indexOf(topicWords[k]) < 0) { fullTopic = false; break; }
+            }
+            if (fullTopic) score += 4.5;
+            if (score > bestScore) {
+                second = best; secondScore = bestScore;
+                best = e; bestScore = score;
+            } else if (score > secondScore) {
+                second = e; secondScore = score;
+            }
+        }
+        return { best: best, score: bestScore, second: second, secondScore: secondScore };
+    }
 
     function answerFor(input) {
         var text = String(input || '').trim();
@@ -197,32 +264,64 @@
         if (/what are gifts|what is a gift|tell me about gifts/.test(lower)) {
             return 'Daily Gifts are free Coin rewards claimed once a day from the Games page. The seven-day cycle pays 50, 75, 100, 150, 200, 300 and 500 Coins.';
         }
-        if (/\b(it|that|this|them)\b/.test(lower) && lastTopic) {
-            text = lastTopic + ' ' + text;
+        if (/get (more )?coins|earn coins|more coins|coins fast/.test(lower)) {
+            return 'Earn Coins by playing, completing runs, claiming the Daily Gift and keeping a daily streak. Longer active runs pay more.';
         }
+
+        var queryGame = detectGame(lower);
+        if (!queryGame && (/^(what|how) about\b/.test(lower) || /^and\b/.test(lower)) && lastGame) {
+            text = lastGame + ' ' + text;
+            queryGame = lastGame;
+        }
+        if (!queryGame && /\b(it|that|this|its|them)\b/.test(lower)) {
+            var contextName = lastGame || lastTopic;
+            if (contextName) {
+                text = contextName + ' ' + text;
+                queryGame = detectGame(String(contextName).toLowerCase());
+            }
+        }
+
         var tokens = tokenize(text);
         if (!tokens.length) return 'Try asking about a game, Coins, Daily Gifts, controls or the Store.';
         var unique = Array.from(new Set(tokens));
-        var best = null, bestScore = 0;
-        for (var i = 0; i < entries.length; i++) {
-            var e = entries[i];
-            var score = 0, matched = 0;
-            for (var j = 0; j < unique.length; j++) {
-                var w = unique[j];
-                if (e.topicSet[w]) { score += (idf[w] || 1) * 1.8; matched++; }
-                else if (e.termSet[w]) { score += (idf[w] || 1) * 0.55; matched++; }
+
+        var genericWords = unique.filter(function (w) {
+            return w === 'control' || w === 'tip' || w === 'play' || w === 'game' || w === 'guide';
+        });
+        if (!queryGame && genericWords.length === unique.length) {
+            return 'Which game? Beach Racer, Tunnel Rush, Cube Stack, Dead Coast, Funtutu Test, Snow Rush, Draw and Guess, Lucky Spin, Boeing Landing or Tranq Arena.';
+        }
+
+        if (queryGame && /multiplayer|online/.test(lower)) {
+            var hasMultiplayer = entries.some(function (e) {
+                return e.game === queryGame && /multiplayer|online/i.test(e.t);
+            });
+            if (!hasMultiplayer) {
+                lastGame = queryGame;
+                return queryGame + ' is single-player. Multiplayer is available in Beach Racer with room codes and in Tranq Arena through the public lobby.';
             }
-            if (!matched) continue;
-            score += (matched / unique.length) * 2.4;
-            if (matched === unique.length) score += 1.5;
-            if (e.q.toLowerCase().indexOf(lower) >= 0 && lower.length > 5) score += 2.2;
-            if (score > bestScore) { bestScore = score; best = e; }
         }
-        if (!best || bestScore < 2.0) {
-            return 'I am not sure about that one. Try a game name or a topic like Coins, Daily Gifts, controls, accounts, Store, Garage, friends, Boeing Landing or Tranq Arena.';
+
+        var pool = entries;
+        var siteTopic = unique.some(function (w) { return !!SITE_TOPIC[w]; });
+        if (queryGame && !siteTopic) {
+            var scoped = entries.filter(function (e) { return e.game === queryGame; });
+            if (scoped.length >= 20) pool = scoped;
         }
-        lastTopic = best.t;
-        return best.a;
+
+        var result = findBest(pool, unique, lower);
+        if ((!result.best || result.score < 2.2) && pool !== entries) {
+            var globalResult = findBest(entries, unique, lower);
+            if (globalResult.score > result.score) result = globalResult;
+        }
+
+        if (!result.best || result.score < 2.0) {
+            var hint = queryGame ? ' Try asking about its controls, release, tips, multiplayer or common problems.' : '';
+            return 'I am not sure about that one.' + hint + ' I can help with Coins, Daily Gifts, accounts, Store, Garage, friends, radio, settings, Boeing Landing or Tranq Arena.';
+        }
+        if (result.best.game) lastGame = result.best.game;
+        lastTopic = result.best.t;
+        return result.best.a;
     }
 
     var open = false;

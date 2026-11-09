@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="is-loading">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -10,9 +10,47 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261286">
+    <link rel="stylesheet" href="style.css?v=20261287">
 </head>
 <body>
+    <div id="siteLoader" class="site-loader" role="status" aria-live="polite" aria-label="Loading LessFun">
+        <div class="site-loader-aurora"></div>
+        <div class="site-loader-content">
+            <div class="site-loader-mark">
+                <span class="site-loader-ring"></span>
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M4.5 5.2 20 12 4.5 18.8V5.2Z" fill="white"/>
+                </svg>
+            </div>
+            <div class="site-loader-word">LessFun</div>
+            <div class="site-loader-track"><i></i></div>
+            <p class="site-loader-status">Warming up the arcade</p>
+        </div>
+    </div>
+    <script>
+    (function () {
+        var loader = document.getElementById('siteLoader');
+        if (!loader) return;
+        var started = (window.performance && performance.now) ? performance.now() : Date.now();
+        var hidden = false;
+        function hide() {
+            if (hidden) return;
+            hidden = true;
+            var now = (window.performance && performance.now) ? performance.now() : Date.now();
+            var wait = Math.max(0, 700 - (now - started));
+            setTimeout(function () {
+                loader.classList.add('is-hiding');
+                document.documentElement.classList.remove('is-loading');
+                setTimeout(function () { loader.style.display = 'none'; }, 520);
+            }, wait);
+        }
+        if (document.readyState === 'complete') hide();
+        else {
+            window.addEventListener('load', hide, { once: true });
+            setTimeout(hide, 6000);
+        }
+    })();
+    </script>
     <div id="updateShutdown" class="update-shutdown" style="display:none;">
         <div class="update-shutdown-card">
             <span class="update-shutdown-kicker">LESSFUN</span>
@@ -960,7 +998,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Public Beta 1.33.02</p>
+                            <p>LessFun Public Beta 1.33.03</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -1064,6 +1102,7 @@
                             <li><strong>1.33.00</strong> — The radio is visible again during games, keyboard hint bars are gone, and the AI now streams answers word by word.</li>
                             <li><strong>1.33.01</strong> — The assistant tolerates more typos, swapped letters and shorthand, and waits before it starts streaming an answer.</li>
                             <li><strong>1.33.02</strong> — The assistant knowledge base grows from 1,000 to 10,000 answer patterns.</li>
+                            <li><strong>1.33.03</strong> — New site loading splash with the LessFun mark, aurora glow and progress shimmer. The assistant also got game-aware context and follow-up handling.</li>
                         </ul>
                     </div>
                     <div class="info-card">
@@ -1387,11 +1426,11 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
-    <script src="games3d.js?v=20261286"></script>
-    <script src="landing.js?v=20261286"></script>
-    <script src="tranq.js?v=20261286"></script>
-    <script src="app.js?v=20261286"></script>
-    <script src="assistant-data.js?v=20261286"></script>
-    <script src="assistant.js?v=20261286"></script>
+    <script src="games3d.js?v=20261287"></script>
+    <script src="landing.js?v=20261287"></script>
+    <script src="tranq.js?v=20261287"></script>
+    <script src="app.js?v=20261287"></script>
+    <script src="assistant-data.js?v=20261287"></script>
+    <script src="assistant.js?v=20261287"></script>
 </body>
 </html>
