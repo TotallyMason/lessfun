@@ -169,8 +169,7 @@
         var raceMode = !!(ctx.options && ctx.options.raceMode);
         var raceAi = !!(ctx.options && ctx.options.raceAi);
         var giftMode = !!(ctx.options && ctx.options.giftMode);
-        var terrainName = (ctx.options && ctx.options.terrain) || 'coast';
-        if (terrainName !== 'desert' && terrainName !== 'snow' && terrainName !== 'night') terrainName = 'coast';
+        var terrainName = 'coast';
         var TERRAIN_PALETTES = {
             coast: {
                 bg: 0x9bd7f2, fog: 0xffe0bd, fogDensity: 0.0055, skyTint: 0xffffff,
@@ -214,8 +213,7 @@
             }
         };
         var terrainWaveScale = 1;
-        var elevationName = (ctx.options && ctx.options.elevation) || 'flat';
-        if (elevationName !== 'hills' && elevationName !== 'mountains' && elevationName !== 'canyon') elevationName = 'flat';
+        var elevationName = 'canyon';
         var roadElev = 0;
         function elevationAt(trackS) {
             if (elevationName === 'hills') {
@@ -3235,7 +3233,7 @@
                 var i = sparkCursor % SPARK_COUNT;
                 sparkCursor++;
                 sparkPositions[i * 3] = x + (Math.random() - 0.5) * 1.2;
-                sparkPositions[i * 3 + 1] = y + Math.random() * 0.6;
+                sparkPositions[i * 3 + 1] = y + worldElevation(z) + Math.random() * 0.6;
                 sparkPositions[i * 3 + 2] = z + (Math.random() - 0.5) * 1.2;
                 sparkVelocities[i * 3] = (Math.random() - 0.5) * 26;
                 sparkVelocities[i * 3 + 1] = 6 + Math.random() * 20;
@@ -3255,8 +3253,9 @@
                 sparkPositions[ix + 1] += sparkVelocities[ix + 1] * dt;
                 sparkPositions[ix + 2] += sparkVelocities[ix + 2] * dt + speed * dt;
                 sparkVelocities[ix + 1] -= 32 * dt;
-                if (sparkPositions[ix + 1] < 0.06) {
-                    sparkPositions[ix + 1] = 0.06;
+                var sparkFloor = 0.06 + worldElevation(sparkPositions[ix + 2]);
+                if (sparkPositions[ix + 1] < sparkFloor) {
+                    sparkPositions[ix + 1] = sparkFloor;
                     sparkVelocities[ix + 1] = Math.abs(sparkVelocities[ix + 1]) * 0.32;
                     sparkVelocities[ix] *= 0.6;
                     sparkVelocities[ix + 2] *= 0.6;
@@ -3271,7 +3270,7 @@
             for (var di = 0; di < crashDebris.length; di++) {
                 var d = crashDebris[di];
                 d.mesh.visible = true;
-                d.mesh.position.set(x + (Math.random() - 0.5) * 1.2, 0.7 + Math.random() * 0.5, z);
+                d.mesh.position.set(x + (Math.random() - 0.5) * 1.2, 0.7 + worldElevation(z) + Math.random() * 0.5, z);
                 d.mesh.scale.setScalar(1);
                 d.vx = (Math.random() - 0.5) * 16;
                 d.vy = 4 + Math.random() * 12;
@@ -3308,7 +3307,7 @@
                 entry.life = 0.9 + Math.random() * 0.4;
                 entry.maxLife = entry.life;
                 entry.baseScale = 1 + Math.random() * 0.8;
-                entry.sprite.position.set(x + (Math.random() - 0.5) * 1.8, 0.3 + Math.random() * 0.5, z + (Math.random() - 0.5) * 2);
+                entry.sprite.position.set(x + (Math.random() - 0.5) * 1.8, 0.3 + worldElevation(z) + Math.random() * 0.5, z + (Math.random() - 0.5) * 2);
                 entry.sprite.scale.set(entry.baseScale, entry.baseScale, 1);
             }
         }
@@ -3712,7 +3711,7 @@
             for (var i = 0; i < crashWreckBodies.length; i++) {
                 var entry = crashWreckBodies[i];
                 var b = entry.body;
-                entry.car.position.set(b.position.x, Math.max(0, b.position.y - 0.72), b.position.z);
+                entry.car.position.set(b.position.x, Math.max(0, b.position.y - 0.72) + worldElevation(b.position.z), b.position.z);
                 entry.car.quaternion.set(b.quaternion.x, b.quaternion.y, b.quaternion.z, b.quaternion.w);
             }
         }
@@ -3896,14 +3895,14 @@
                 syncExtraWrecks();
                 var pb = crashPlayerBody;
                 playerY = Math.max(0, pb.position.y - 0.72);
-                player.position.set(pb.position.x, playerY, pb.position.z);
+                player.position.set(pb.position.x, playerY + worldElevation(pb.position.z), pb.position.z);
                 player.quaternion.set(pb.quaternion.x, pb.quaternion.y, pb.quaternion.z, pb.quaternion.w);
                 speed = Math.max(0, speed - 40 * dt);
                 animateSuspension(player, dt, speed, distance, player.rotation.z, 1, suspensionImpulse);
                 suspensionImpulse *= Math.max(0, 1 - dt * 4);
                 if (crashCar) {
                     var ob = crashOtherBody;
-                    crashCar.position.set(ob.position.x, Math.max(0, ob.position.y - 0.72), ob.position.z);
+                    crashCar.position.set(ob.position.x, Math.max(0, ob.position.y - 0.72) + worldElevation(ob.position.z), ob.position.z);
                     crashCar.quaternion.set(ob.quaternion.x, ob.quaternion.y, ob.quaternion.z, ob.quaternion.w);
                 }
             } else {
@@ -4046,7 +4045,7 @@
             skidCursor++;
             mark.life = 3.4 + Math.random() * 1.6;
             mark.maxLife = mark.life;
-            mark.mesh.position.set(x, 0.06, z);
+            mark.mesh.position.set(x, 0.06 + worldElevation(z), z);
             mark.mesh.scale.set(0.26 + Math.random() * 0.06, 1.1 + Math.random() * 0.8, 1);
             mark.mesh.material.opacity = 0.38 + strength * 0.3;
             mark.mesh.visible = true;
@@ -4059,6 +4058,7 @@
                 mark.life -= dt;
                 if (mark.life <= 0) { mark.mesh.visible = false; continue; }
                 mark.mesh.position.z += speed * dt;
+                mark.mesh.position.y = 0.06 + worldElevation(mark.mesh.position.z);
                 mark.mesh.material.opacity = Math.max(0, mark.life / mark.maxLife) * 0.55;
             }
         }
@@ -4077,7 +4077,7 @@
                     entry.growth = 1.7;
                     entry.sprite.position.set(
                         player.position.x + (pn ? 0.7 : -0.7) + (Math.random() - 0.5) * 0.35,
-                        playerY + 0.35,
+                        roadElev + playerY + 0.35,
                         player.position.z + 1.7 + Math.random() * 0.5
                     );
                     entry.sprite.scale.set(entry.baseScale, entry.baseScale, 1);
@@ -4260,6 +4260,9 @@
 
                 entry.car.position.x = entry.displayX;
                 entry.car.position.z = player.position.z - (entry.displayDistance - distance);
+                entry.car.position.y = worldElevation(entry.car.position.z);
+                var remoteTrack = distance - (entry.car.position.z - player.position.z);
+                entry.car.rotation.x = Math.atan2(elevationAt(remoteTrack + 10) - elevationAt(remoteTrack - 10), 20);
                 entry.car.rotation.y -= entry.curveRot || 0;
                 entry.car.rotation.y = Math.max(-0.35, Math.min(0.35, -dx * 0.9));
                 entry.car.rotation.z = Math.max(-0.12, Math.min(0.12, dx * 0.45));
@@ -4734,7 +4737,8 @@
             if (!fsdGroup) return;
             fsdGroup.visible = fsdActive;
             if (!fsdActive) return;
-            fsdGroup.position.set(fsdSteerX, 0, player.position.z);
+            fsdGroup.position.set(fsdSteerX, roadElev, player.position.z);
+            fsdGroup.rotation.x = Math.atan2(elevationAt(distance + 10) - elevationAt(distance - 10), 20);
             if (elapsed - fsdPanelLast > (lowPowerDevice ? 0.18 : 0.12)) {
                 fsdPanelLast = elapsed;
                 drawFsdPanel();
@@ -5250,6 +5254,11 @@
             distance += speed * dt;
             if (distance < 0) distance = 0;
             roadElev = elevationAt(distance);
+            var roadSlope = Math.atan2(elevationAt(distance + 10) - elevationAt(distance - 10), 20);
+            if (!fsdActive && gearMode === 'D' && playerY < 0.25 && !rampPhysicsActive && Math.abs(speed) > 0.5) {
+                if (roadSlope > 0.002) speed = Math.max(0, speed - Math.sin(roadSlope) * 14 * dt);
+                else if (roadSlope < -0.002) speed = Math.min(perf.topSpeed * 1.2, speed + Math.sin(-roadSlope) * 12 * dt);
+            }
             if (raceMode) {
                 if (distance >= RACE_LOOP) {
                     distance -= RACE_LOOP;
@@ -5342,7 +5351,6 @@
             }
 
             player.rotation.z = Math.max(-rollLimit, Math.min(rollLimit, -vx * 0.022 * (driftIntent ? 1.7 : 1)));
-            var roadSlope = Math.atan2(elevationAt(distance + 10) - elevationAt(distance - 10), 20);
             player.rotation.x = (brakeCmd ? 0.035 : 0) + Math.max(-0.03, Math.min(0.03, -vx * 0.002)) + roadSlope * 0.7;
             if (player.userData.brakeMat) player.userData.brakeMat.color.setHex((input.brake || (fsdActive && brakeCmd)) ? 0xff2438 : 0x5a1018);
 
@@ -5601,6 +5609,8 @@
                 var prevZ = c.position.z;
                 c.position.z += (speed - u.cruiseSpeed) * dt;
                 c.position.y = worldElevation(c.position.z);
+                var carTrackS = distance - (c.position.z - player.position.z);
+                c.rotation.x = Math.atan2(elevationAt(carTrackS + 10) - elevationAt(carTrackS - 10), 20);
                 var tw = c.userData.wheels || [];
                 var wheelSpeed = Math.abs(speed - u.cruiseSpeed) + 8;
                 for (var twi = 0; twi < tw.length; twi++) tw[twi].rotation.x += wheelSpeed * dt * 1.2;

@@ -732,13 +732,7 @@ function renderGarageStats() {
         chip('Car', carName) +
         chip('Top', topMph + ' mph') +
         chip('Accel', (perf.accel || 1).toFixed(2) + 'x') +
-        chip('Grip', (perf.grip || 1).toFixed(2) + 'x') +
-        chip('Scenery', racerTerrainSetting.charAt(0).toUpperCase() + racerTerrainSetting.slice(1)) +
-        chip('Elevation', racerElevationSetting.charAt(0).toUpperCase() + racerElevationSetting.slice(1));
-    var terrainSelect = document.getElementById('g3dTerrainSelect');
-    if (terrainSelect) terrainSelect.value = racerTerrainSetting;
-    var elevationSelect = document.getElementById('g3dElevationSelect');
-    if (elevationSelect) elevationSelect.value = racerElevationSetting;
+        chip('Grip', (perf.grip || 1).toFixed(2) + 'x');
 }
 
 function startMenuSolo() {
@@ -773,24 +767,6 @@ function startRaceAi() {
 function startRaceMultiplayer() {
     closeRaceChoice();
     garageMultiplayer();
-}
-
-function setRacerTerrain(value) {
-    racerTerrainSetting = (value === 'desert' || value === 'snow' || value === 'night') ? value : 'coast';
-    try { localStorage.setItem('lessfun_racer_terrain', racerTerrainSetting); } catch (e) {}
-    if (window.Games3D && window.Games3D.setTerrain) window.Games3D.setTerrain(racerTerrainSetting);
-    var sel = document.getElementById('g3dTerrainSelect');
-    if (sel) sel.value = racerTerrainSetting;
-    showGameToast('Terrain · ' + racerTerrainSetting.charAt(0).toUpperCase() + racerTerrainSetting.slice(1));
-}
-
-function setRacerElevation(value) {
-    racerElevationSetting = (value === 'hills' || value === 'mountains' || value === 'canyon') ? value : 'flat';
-    try { localStorage.setItem('lessfun_racer_elevation', racerElevationSetting); } catch (e) {}
-    if (window.Games3D && window.Games3D.setElevation) window.Games3D.setElevation(racerElevationSetting);
-    var sel = document.getElementById('g3dElevationSelect');
-    if (sel) sel.value = racerElevationSetting;
-    showGameToast('Elevation · ' + racerElevationSetting.charAt(0).toUpperCase() + racerElevationSetting.slice(1));
 }
 
 function garageCity() {
@@ -1162,13 +1138,7 @@ let giftModeSetting = false;
 let raceAiSetting = false;
 let cityModeSetting = false;
 let racerTerrainSetting = 'coast';
-let racerElevationSetting = 'flat';
-try {
-    var savedTerrain = localStorage.getItem('lessfun_racer_terrain');
-    if (savedTerrain === 'desert' || savedTerrain === 'snow' || savedTerrain === 'night') racerTerrainSetting = savedTerrain;
-    var savedElevation = localStorage.getItem('lessfun_racer_elevation');
-    if (savedElevation === 'hills' || savedElevation === 'mountains' || savedElevation === 'canyon') racerElevationSetting = savedElevation;
-} catch (e) {}
+let racerElevationSetting = 'canyon';
 let garageSuppressed = false;
 let startMenuSuppressed = false;
 let mpRewardSessionClaimed = false;
@@ -1203,7 +1173,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261354'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261355'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1212,7 +1182,7 @@ function ensure3DEngine() {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261354').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261355').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1220,7 +1190,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261354').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261355').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1228,9 +1198,9 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261354')
-            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261354'); })
-            .then(function () { return loadScriptOnce('assistant.js?v=20261354'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261355')
+            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261355'); })
+            .then(function () { return loadScriptOnce('assistant.js?v=20261355'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1258,7 +1228,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261354').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261355').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1266,7 +1236,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261354').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261355').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1274,7 +1244,7 @@ function ensureLucky() {
 function ensureTycoon() {
     if (window.Tycoon) return Promise.resolve();
     if (!tycoonPromise) {
-        tycoonPromise = loadScriptOnce('tycoon.js?v=20261354').catch(function (error) { tycoonPromise = null; throw error; });
+        tycoonPromise = loadScriptOnce('tycoon.js?v=20261355').catch(function (error) { tycoonPromise = null; throw error; });
     }
     return tycoonPromise;
 }
@@ -1636,24 +1606,7 @@ function openGameNow(id) {
                         '<h2>Your ride</h2>' +
                         '<p class="game3d-garage-sub">Buy and drive cars from the Garage. No part customisation.</p>' +
                         '<div class="game3d-garage-stats" id="g3dGarageStats"></div>' +
-                        '<label class="game3d-terrain-picker">' +
-                            '<span>Scenery</span>' +
-                            '<select id="g3dTerrainSelect" onchange="setRacerTerrain(this.value)">' +
-                                '<option value="coast">Coast</option>' +
-                                '<option value="desert">Desert</option>' +
-                                '<option value="snow">Snow</option>' +
-                                '<option value="night">Night</option>' +
-                            '</select>' +
-                        '</label>' +
-                        '<label class="game3d-terrain-picker">' +
-                            '<span>Elevation</span>' +
-                            '<select id="g3dElevationSelect" onchange="setRacerElevation(this.value)">' +
-                                '<option value="flat">Flat</option>' +
-                                '<option value="hills">Rolling Hills</option>' +
-                                '<option value="mountains">Mountains</option>' +
-                                '<option value="canyon">Canyon</option>' +
-                            '</select>' +
-                        '</label>' +
+
                         '<div class="game3d-garage-actions">' +
                             '<button type="button" class="game3d-mp-primary" onclick="garagePlay()">Play</button>' +
                             '<button type="button" class="game3d-mp-secondary" onclick="openRaceChoice()">Race</button>' +
@@ -1784,8 +1737,8 @@ function openGameNow(id) {
             raceAi: raceAiSetting,
             giftMode: giftModeSetting,
             cityMode: cityModeSetting,
-            terrain: racerTerrainSetting,
-            elevation: racerElevationSetting,
+            terrain: 'coast',
+            elevation: 'canyon',
             zombieLoadout: getZombieLoadout(),
             snowStorm: snowStormMode,
             onScore: function (name, score) { saveScore(name, score); },
@@ -9265,8 +9218,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.70";
-const UPDATE_NOTES = "Beach Racer elevation is live: choose Flat, Rolling Hills, Mountains or Canyon in the Garage. The road, car, camera, traffic and props all follow the hills";
+const APP_VERSION = "LessFun Public Beta 1.33.71";
+const UPDATE_NOTES = "Beach Racer is always Canyon now. NPC cars pitch with the hills, skid marks/crash effects/FSD follow the road, and speed drops uphill and rises downhill";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
