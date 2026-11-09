@@ -169,6 +169,51 @@
         var raceMode = !!(ctx.options && ctx.options.raceMode);
         var raceAi = !!(ctx.options && ctx.options.raceAi);
         var giftMode = !!(ctx.options && ctx.options.giftMode);
+        var terrainName = (ctx.options && ctx.options.terrain) || 'coast';
+        if (terrainName !== 'desert' && terrainName !== 'snow' && terrainName !== 'night') terrainName = 'coast';
+        var TERRAIN_PALETTES = {
+            coast: {
+                bg: 0x9bd7f2, fog: 0xffe0bd, fogDensity: 0.0055, skyTint: 0xffffff,
+                sand: 0xffffff, wet: 0xb9915f, ocean: 0x1b87a8, oceanOpacity: 0.94,
+                glint: 0xffe6b0, glintOpacity: 0.13, foamOpacity: 0.68,
+                hemiSky: 0xaedcff, hemiGround: 0xffc58f, hemiIntensity: 0.46,
+                ambient: 0xffeeda, ambientIntensity: 0.3,
+                sun: 0xfff1d6, sunIntensity: 1.85, sunDisc: 0xfff4ca, sunGlow: 0xffd894, sunGlowOpacity: 0.24,
+                rim: 0xffb47a, rimIntensity: 0.62, fill: 0x7fd4ff, fillIntensity: 0.22,
+                cloudTint: 0xffffff, cloudOpacity: 0.78, waveScale: 1
+            },
+            desert: {
+                bg: 0xf3c88f, fog: 0xf0c388, fogDensity: 0.0065, skyTint: 0xffd2a0,
+                sand: 0xe7a95f, wet: 0xbf8147, ocean: 0xc48f52, oceanOpacity: 0.82,
+                glint: 0xffd38a, glintOpacity: 0.08, foamOpacity: 0.28,
+                hemiSky: 0xffd9a8, hemiGround: 0xc47a43, hemiIntensity: 0.62,
+                ambient: 0xffd6a6, ambientIntensity: 0.38,
+                sun: 0xffbf7a, sunIntensity: 2.05, sunDisc: 0xffe0a8, sunGlow: 0xffb060, sunGlowOpacity: 0.3,
+                rim: 0xff9b5e, rimIntensity: 0.55, fill: 0xffd6a0, fillIntensity: 0.14,
+                cloudTint: 0xffd8b0, cloudOpacity: 0.32, waveScale: 0.12
+            },
+            snow: {
+                bg: 0xcfe3f0, fog: 0xeaf4fb, fogDensity: 0.0085, skyTint: 0xdceeff,
+                sand: 0xf3f8fb, wet: 0xd9e7ef, ocean: 0x9cc4d5, oceanOpacity: 0.92,
+                glint: 0xffffff, glintOpacity: 0.22, foamOpacity: 0.7,
+                hemiSky: 0xeaf7ff, hemiGround: 0xcfe0ea, hemiIntensity: 0.55,
+                ambient: 0xeaf6ff, ambientIntensity: 0.4,
+                sun: 0xf0f8ff, sunIntensity: 1.35, sunDisc: 0xf6fbff, sunGlow: 0xcfe8ff, sunGlowOpacity: 0.2,
+                rim: 0xb9d8ea, rimIntensity: 0.45, fill: 0xb8dcff, fillIntensity: 0.3,
+                cloudTint: 0xf4fbff, cloudOpacity: 0.55, waveScale: 0.05
+            },
+            night: {
+                bg: 0x081322, fog: 0x0b1826, fogDensity: 0.0068, skyTint: 0x40557f,
+                sand: 0x455363, wet: 0x2e3c4a, ocean: 0x0d2a3a, oceanOpacity: 0.96,
+                glint: 0x9fc8ff, glintOpacity: 0.2, foamOpacity: 0.35,
+                hemiSky: 0x31527a, hemiGround: 0x171f28, hemiIntensity: 0.35,
+                ambient: 0x23364d, ambientIntensity: 0.24,
+                sun: 0xa9c7ff, sunIntensity: 0.75, sunDisc: 0xdbe8ff, sunGlow: 0x7fa8dd, sunGlowOpacity: 0.18,
+                rim: 0x5f8fc4, rimIntensity: 0.5, fill: 0x4a84c4, fillIntensity: 0.3,
+                cloudTint: 0x566b91, cloudOpacity: 0.22, waveScale: 0.6
+            }
+        };
+        var terrainWaveScale = 1;
         var GIFT_TARGET = 10, GIFT_TIME = 75;
         var giftTimer = giftMode ? GIFT_TIME : 0;
         var giftsDelivered = 0, giftScore = 0, giftRings = [];
@@ -751,10 +796,11 @@
             g.fillStyle = skyGrad;
             g.fillRect(0, 0, w, h);
         });
-        scene.add(new THREE.Mesh(
+        var skyDome2 = new THREE.Mesh(
             new THREE.SphereGeometry(480, 32, 20),
             new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide, depthWrite: false, fog: false })
-        ));
+        );
+        scene.add(skyDome2);
 
         // Sun, halo, and layered clouds.
         var sunDisc = new THREE.Mesh(new THREE.SphereGeometry(20, 24, 18), new THREE.MeshBasicMaterial({ color: 0xfff4ca, fog: false }));
@@ -775,8 +821,10 @@
             scene.add(cloud);
         }
 
-        scene.add(new THREE.HemisphereLight(0xaedcff, 0xffc58f, 0.46));
-        scene.add(new THREE.AmbientLight(0xffeeda, 0.3));
+        var hemiLight = new THREE.HemisphereLight(0xaedcff, 0xffc58f, 0.46);
+        scene.add(hemiLight);
+        var ambientLight = new THREE.AmbientLight(0xffeeda, 0.3);
+        scene.add(ambientLight);
         var sunLight = new THREE.DirectionalLight(0xfff1d6, 1.85);
         sunLight.position.set(18, 28, 12);
         sunLight.castShadow = true;
@@ -920,6 +968,44 @@
             foam.position.set(-16.5 - Math.random() * 12, -0.02, -Math.random() * 340);
             addScroller(foam, 340, 0.6);
         }
+
+        function applyTerrain(name) {
+            var key = (name === 'desert' || name === 'snow' || name === 'night') ? name : 'coast';
+            var p = TERRAIN_PALETTES[key];
+            terrainName = key;
+            terrainWaveScale = p.waveScale;
+            scene.background.setHex(p.bg);
+            scene.fog.color.setHex(p.fog);
+            scene.fog.density = p.fogDensity;
+            if (skyDome && skyDome.material) skyDome.material.color.setHex(p.skyTint);
+            if (skyDome2 && skyDome2.material) skyDome2.material.color.setHex(p.skyTint);
+            if (sand && sand.material) sand.material.color.setHex(p.sand);
+            if (wetSand && wetSand.material) wetSand.material.color.setHex(p.wet);
+            if (ocean && ocean.material) {
+                ocean.material.color.setHex(p.ocean);
+                ocean.material.opacity = p.oceanOpacity;
+            }
+            if (glintMat) { glintMat.color.setHex(p.glint); glintMat.opacity = p.glintOpacity; }
+            if (foamMat) foamMat.opacity = p.foamOpacity;
+            if (hemiLight) { hemiLight.color.setHex(p.hemiSky); hemiLight.groundColor.setHex(p.hemiGround); hemiLight.intensity = p.hemiIntensity; }
+            if (ambientLight) { ambientLight.color.setHex(p.ambient); ambientLight.intensity = p.ambientIntensity; }
+            if (sunLight) { sunLight.color.setHex(p.sun); sunLight.intensity = p.sunIntensity; }
+            if (rimLight) { rimLight.color.setHex(p.rim); rimLight.intensity = p.rimIntensity; }
+            if (fillLight) { fillLight.color.setHex(p.fill); fillLight.intensity = p.fillIntensity; }
+            if (sunDisc) sunDisc.material.color.setHex(p.sunDisc);
+            if (sunGlow) { sunGlow.material.color.setHex(p.sunGlow); sunGlow.material.opacity = p.sunGlowOpacity; }
+            if (typeof cloudMat !== 'undefined' && cloudMat) { cloudMat.color.setHex(p.cloudTint); cloudMat.opacity = p.cloudOpacity; }
+            for (var ti = 0; ti < cloudLayers.length; ti++) {
+                var cluster = cloudLayers[ti];
+                for (var ci = 0; ci < cluster.children.length; ci++) {
+                    var sprite = cluster.children[ci];
+                    if (sprite && sprite.material) {
+                        sprite.material.color.setHex(p.cloudTint);
+                    }
+                }
+            }
+        }
+        applyTerrain(terrainName);
 
         // Metal guardrail posts along both shoulders of the highway.
         [-1, 1].forEach(function (side) {
@@ -5300,7 +5386,7 @@
                 for (var vi = 0; vi < pos.count; vi++) {
                     var ox = oceanBase[vi * 3];
                     var oy = oceanBase[vi * 3 + 1];
-                    pos.array[vi * 3 + 2] = Math.sin((ox * 0.11 + elapsed * 1.6)) * 0.16 + Math.sin((oy * 0.16 - elapsed * 1.1)) * 0.1;
+                    pos.array[vi * 3 + 2] = (Math.sin((ox * 0.11 + elapsed * 1.6)) * 0.16 + Math.sin((oy * 0.16 - elapsed * 1.1)) * 0.1) * terrainWaveScale;
                 }
                 pos.needsUpdate = true;
             }
@@ -5698,6 +5784,7 @@
                 }
             },
             toggleFsd: function () { input.fsdToggle = true; },
+            setTerrain: applyTerrain,
             setRemotes: setRemoteRacers,
             setLocalName: setLocalRacerName,
             getState: function () {
@@ -7963,7 +8050,7 @@
             cityHudT -= dt;
             if (cityHudT <= 0) {
                 cityHudT = 0.1;
-                setPillText('g3dExtra', 'CITY · ' + Math.round(speed * 2.23694) + ' MPH');
+                setPillText('g3dExtra', 'CITY · ' + Math.round(speed * 2.23694 / 3) + ' MPH');
             }
             var throttleFill = document.getElementById('g3dThrottleFill');
             if (throttleFill) throttleFill.style.height = Math.round(throttleSmooth * 100) + '%';
@@ -8855,7 +8942,7 @@
                 var hEl = document.getElementById('dcHealth'); if (hEl) hEl.style.width = health + '%';
                 var partEl = document.getElementById('dcPart'); if (partEl) partEl.textContent = partLabel();
                 var zEl = document.getElementById('dcZombies'); if (zEl) zEl.textContent = 'ZOMBIES ' + zombiesHit;
-                setPillText('g3dExtra', 'DEAD COAST · ' + Math.round(Math.abs(speed) * 2.23694) + ' MPH' + (speed < -0.3 ? ' · R' : ''));
+                setPillText('g3dExtra', 'DEAD COAST · ' + Math.round(Math.abs(speed) * 2.23694 / 3) + ' MPH' + (speed < -0.3 ? ' · R' : ''));
             }
             if (toastT > 0) {
                 toastT -= dt;
@@ -9771,7 +9858,7 @@
         // arcade display scale again so numbers stay readable.
         return unitSystem === 'kmh'
             ? Math.round(Math.abs(mps) * 3.6 / 3) + ' km/h'
-            : Math.round(Math.abs(mps) * 2.23694) + ' mph';
+            : Math.round(Math.abs(mps) * 2.23694 / 3) + ' mph';
     }
     function setPaused(on) {
         paused = !!on;
@@ -9854,6 +9941,9 @@
     function toggleFsd() {
         if (active && active.toggleFsd) active.toggleFsd();
     }
+    function setTerrain(name) {
+        if (active && active.setTerrain) active.setTerrain(name);
+    }
     function toggleShadowHelper(on) {
         if (active && active.toggleShadowHelper) active.toggleShadowHelper(on);
     }
@@ -9897,6 +9987,7 @@
         setGarageMode: setGarageMode,
         setGearMode: setGearMode,
         toggleFsd: toggleFsd,
+        setTerrain: setTerrain,
         toggleShadowHelper: toggleShadowHelper,
         getCurrentScore: getCurrentScore,
         lockPointer: lockPointer,

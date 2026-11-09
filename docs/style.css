@@ -13025,3 +13025,36 @@ body.low-power .site-snow { opacity: 0.55; }
     content-visibility: auto;
     contain-intrinsic-size: auto 180px;
 }
+
+/* Beach Racer terrain picker */
+.game3d-terrain-picker {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 10px 0 2px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(8, 16, 22, 0.62);
+    color: rgba(220, 240, 250, 0.55);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+.game3d-terrain-picker select {
+    min-width: 110px;
+    height: 30px;
+    padding: 0 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(95, 231, 255, 0.25);
+    background: #0c171f;
+    color: #dff6ff;
+    font: inherit;
+    font-size: 9px;
+    font-weight: 800;
+    outline: none;
+    cursor: pointer;
+}
+.game3d-terrain-picker select option { background: #0b1218; color: #dff6ff; }
