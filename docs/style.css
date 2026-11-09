@@ -12076,3 +12076,236 @@ body.in-game .xmas-snowman { display: none; }
     border-color: rgba(255, 209, 102, 0.2);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
+
+/* ============================================================
+   Arcade Tycoon
+   ============================================================ */
+.tycoon-root {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    padding: 26px clamp(14px, 3vw, 40px) 50px;
+    background:
+        radial-gradient(circle at 18% 0%, rgba(255, 209, 102, 0.14), transparent 34%),
+        radial-gradient(circle at 86% 12%, rgba(80, 220, 180, 0.12), transparent 32%),
+        radial-gradient(circle at 50% 120%, rgba(120, 100, 255, 0.12), transparent 45%),
+        linear-gradient(160deg, #07111a, #050a10 62%, #080613);
+    color: #eaf6ff;
+    -webkit-overflow-scrolling: touch;
+}
+.tycoon-wrap { width: min(1120px, 100%); margin: 0 auto; }
+.tycoon-loading {
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(220, 240, 250, 0.55);
+    font-size: 13px;
+    letter-spacing: 0.08em;
+}
+.tycoon-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 18px;
+}
+.tycoon-kicker {
+    color: rgba(255, 209, 102, 0.62);
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+}
+.tycoon-title h2 {
+    margin: 5px 0 4px;
+    font-size: clamp(28px, 4vw, 46px);
+    letter-spacing: -0.035em;
+    color: #f2fbff;
+}
+.tycoon-title p {
+    margin: 0;
+    color: rgba(220, 240, 250, 0.5);
+    font-size: 11px;
+}
+.tycoon-cash {
+    min-width: 190px;
+    padding: 14px 18px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 209, 102, 0.28);
+    background: linear-gradient(150deg, rgba(255, 209, 102, 0.1), rgba(255, 255, 255, 0.025));
+    text-align: right;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.tycoon-cash small {
+    display: block;
+    color: rgba(255, 209, 102, 0.55);
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+}
+.tycoon-cash strong {
+    display: block;
+    margin: 2px 0;
+    color: #ffe2a0;
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+}
+.tycoon-cash span { color: #8affd0; font-size: 10px; font-weight: 800; }
+.tycoon-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 22px;
+}
+.tycoon-stats > div {
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    background: rgba(255, 255, 255, 0.035);
+}
+.tycoon-stats small { display: block; color: rgba(220, 240, 250, 0.42); font-size: 8px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.tycoon-stats strong { display: block; margin-top: 3px; font-size: 16px; color: #eafaff; }
+.tycoon-section-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 14px;
+    margin: 22px 0 10px;
+}
+.tycoon-section-head h3 { margin: 0; font-size: 17px; color: #eafaff; }
+.tycoon-section-head p { margin: 3px 0 0; color: rgba(220, 240, 250, 0.4); font-size: 9px; }
+.tycoon-expand {
+    min-height: 36px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(138, 255, 208, 0.35);
+    background: rgba(138, 255, 208, 0.08);
+    color: #8affd0;
+    font: inherit;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.tycoon-expand:hover { background: rgba(138, 255, 208, 0.16); }
+.tycoon-full { color: rgba(138, 255, 208, 0.45); font-size: 9px; font-weight: 800; }
+.tycoon-slots {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+.tycoon-slot {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    min-height: 132px;
+    padding: 13px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: linear-gradient(155deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.015));
+    overflow: hidden;
+}
+.tycoon-slot.is-filled { border-color: color-mix(in srgb, var(--cab) 45%, transparent); }
+.tycoon-slot.is-filled::after {
+    content: '';
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 3px;
+    background: var(--cab);
+    opacity: 0.7;
+}
+.tycoon-cab-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: color-mix(in srgb, var(--cab, #8affd0) 16%, rgba(255, 255, 255, 0.03));
+}
+.tycoon-cab-icon svg { width: 22px; height: 22px; }
+.tycoon-slot strong { font-size: 11px; color: #f2fbff; }
+.tycoon-slot > span { font-size: 8.5px; color: rgba(220, 240, 250, 0.48); }
+.tycoon-slot-btn, .tycoon-buy {
+    margin-top: auto;
+    width: 100%;
+    min-height: 30px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 209, 102, 0.34);
+    background: rgba(255, 209, 102, 0.1);
+    color: #ffe2a0;
+    font: inherit;
+    font-size: 8.5px;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+}
+.tycoon-slot-btn:hover, .tycoon-buy:hover { background: rgba(255, 209, 102, 0.2); }
+.tycoon-maxed { margin-top: auto; color: #8affd0; font-size: 8px; font-style: normal; font-weight: 900; letter-spacing: 0.08em; }
+.tycoon-slot.is-empty { align-items: center; justify-content: center; text-align: center; border-style: dashed; opacity: 0.7; }
+.tycoon-empty-plus { font-size: 26px; line-height: 1; color: rgba(220, 240, 250, 0.25); }
+.tycoon-slot.is-empty strong { color: rgba(220, 240, 250, 0.42); }
+.tycoon-slot.is-empty small { color: rgba(220, 240, 250, 0.28); font-size: 8px; }
+.tycoon-shop-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+.tycoon-shop-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    background: linear-gradient(155deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015));
+}
+.tycoon-shop-top { display: flex; align-items: center; gap: 9px; }
+.tycoon-shop-top strong { display: block; font-size: 10.5px; color: #eafaff; }
+.tycoon-shop-top span { display: block; margin-top: 2px; color: rgba(220, 240, 250, 0.42); font-size: 8px; }
+.tycoon-shop-cost { color: #ffe2a0; font-size: 15px; font-weight: 900; }
+.tycoon-shop-cost small { color: rgba(255, 209, 102, 0.5); font-size: 8px; font-weight: 700; }
+.tycoon-buy.is-disabled { opacity: 0.42; cursor: default; }
+.tycoon-milestones {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+.tycoon-milestone {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 9px 11px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(255, 255, 255, 0.025);
+    opacity: 0.72;
+}
+.tycoon-milestone.is-done { border-color: rgba(138, 255, 208, 0.22); background: rgba(138, 255, 208, 0.06); opacity: 1; }
+.tycoon-milestone > span { color: rgba(220, 240, 250, 0.35); font-size: 11px; line-height: 1.3; }
+.tycoon-milestone.is-done > span { color: #8affd0; }
+.tycoon-milestone strong { display: block; font-size: 9.5px; color: #eafaff; }
+.tycoon-milestone small { display: block; margin-top: 1px; color: rgba(255, 209, 102, 0.55); font-size: 8px; }
+.tycoon-note { margin: 22px 0 0; color: rgba(220, 240, 250, 0.3); font-size: 8.5px; line-height: 1.5; text-align: center; }
+@media (max-width: 760px) {
+    .tycoon-root { padding: 16px 12px 42px; }
+    .tycoon-head { flex-direction: column; align-items: stretch; gap: 12px; }
+    .tycoon-cash { text-align: left; }
+    .tycoon-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .tycoon-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .tycoon-shop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .tycoon-milestones { grid-template-columns: 1fr; }
+}
+
+/* Keep the tycoon cash card clear of the fullscreen and close buttons. */
+@media (min-width: 761px) {
+    .tycoon-head { padding-right: 100px; }
+}
+@media (max-width: 760px) {
+    .tycoon-head { padding-right: 76px; }
+}

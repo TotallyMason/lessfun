@@ -15,7 +15,8 @@ const games = [
     { id: 8, name: "Draw & Guess", description: "Draw the word, guess your friends' drawings, and race to the top", icon: "draw", controls: "Draw with mouse / touch · type guesses in the box" },
     { id: 9, name: "Lucky Spin", description: "Virtual-coin slot machine — pick a bet and chase the jackpot", icon: "dice", controls: "Pick a bet and spin · virtual Coins only" },
     { id: 13, name: "Boeing Landing", description: "Side-view 737 landing sim with flaps, spoilers and live suspension", icon: "plane", controls: "W/S pitch · A/D throttle · Space brakes · F flaps · G gear" },
-    { id: 14, name: "Tranq Arena", description: "Top-down tranquilizer showdown — put rivals to sleep, spend energy to revive, reach the final two", icon: "dart", controls: "WASD move · mouse aim · click / Space shoot · one revive costs 1 energy" }
+    { id: 14, name: "Tranq Arena", description: "Top-down tranquilizer showdown — put rivals to sleep, spend energy to revive, reach the final two", icon: "dart", controls: "WASD move · mouse aim · click / Space shoot · one revive costs 1 energy" },
+    { id: 15, name: "Arcade Tycoon", description: "Build your own LessFun arcade, fill it with cabinets and grow the takings", icon: "tycoon", controls: "Click to build, upgrade and expand · earnings continue while away" }
 ];
 
 let currentUser = null;
@@ -456,6 +457,7 @@ function getIcon(name) {
         "plane": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 13.5 21 4l-4.5 9.5L21 20l-4 .5-4-5-3.5 3.5.5 3-2 .5-2-4.5-4.5-2 .5-2 3 .5L9 9l-7-1 .5-2.5Z"/></svg>',
         "dart": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m14 10 6-6M16 2l6 6M12 8l4 4"/><path d="m4 20 8-8"/><path d="m2 18 2-2 4 4-2 2-4-4Z"/><path d="M13 11l-2 2"/></svg>',
         "paw": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"><ellipse cx="12" cy="15.5" rx="4.6" ry="4"/><circle cx="5.5" cy="10" r="2.1"/><circle cx="9.5" cy="6.3" r="2.1"/><circle cx="14.5" cy="6.3" r="2.1"/><circle cx="18.5" cy="10" r="2.1"/></svg>',
+        "tycoon": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8v5H8z"/><circle cx="10" cy="16" r="1" fill="white"/><circle cx="14" cy="16" r="1" fill="white"/><path d="M9 21v-2M15 21v-2"/></svg>',
     };
     return icons[name] || '';
 }
@@ -1110,6 +1112,7 @@ let tranqPromise = null;
 let assistantPromise = null;
 let drawGuessPromise = null;
 let luckyPromise = null;
+let tycoonPromise = null;
 let gameOpenToken = 0;
 
 function ensure3DEngine() {
@@ -1117,7 +1120,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261301'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261302'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1126,7 +1129,7 @@ function ensure3DEngine() {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261301').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261302').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1134,7 +1137,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261301').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261302').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1142,8 +1145,8 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261301')
-            .then(function () { return loadScriptOnce('assistant.js?v=20261301'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261302')
+            .then(function () { return loadScriptOnce('assistant.js?v=20261302'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1159,7 +1162,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261301').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261302').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1167,9 +1170,17 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261301').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261302').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
+}
+
+function ensureTycoon() {
+    if (window.Tycoon) return Promise.resolve();
+    if (!tycoonPromise) {
+        tycoonPromise = loadScriptOnce('tycoon.js?v=20261302').catch(function (error) { tycoonPromise = null; throw error; });
+    }
+    return tycoonPromise;
 }
 
 let preloadGameTimer = 0;
@@ -1194,6 +1205,7 @@ function preloadGame(id) {
     if (id === 14) { ensureTranq().catch(function () {}); return; }
     if (id === 8) { ensureDrawGuess().catch(function () {}); return; }
     if (id === 9) { ensureLucky().catch(function () {}); return; }
+    if (id === 15) { ensureTycoon().catch(function () {}); return; }
     if (id === 6) return;
     ensure3DEngine().catch(function () {});
 }
@@ -1206,6 +1218,7 @@ function startSnowStorm() {
 function openGame(id) {
     const game = games.find(g => g.id === id);
     if (!game) return;
+    if (window.Tycoon && currentGameId === 15 && id !== 15) window.Tycoon.close();
     const token = ++gameOpenToken;
     if (id === 6) { openGameNow(id); return; }
     if (id === 8) {
@@ -1240,6 +1253,14 @@ function openGame(id) {
         });
         return;
     }
+    if (id === 15) {
+        showViewLoader('Loading ' + game.name + '…');
+        ensureTycoon().then(function () { if (token === gameOpenToken) { openGameNow(id); hideViewLoader(); } }).catch(function () {
+            hideViewLoader();
+            alert('Could not load ' + game.name + '. Check your connection and try again.');
+        });
+        return;
+    }
     showViewLoader('Loading ' + game.name + '…');
     ensure3DEngine().then(function () {
         if (token === gameOpenToken) { openGameNow(id); hideViewLoader(); }
@@ -1263,6 +1284,7 @@ function openGameNow(id) {
     if (id === 9) { openLuckySpinGame(); return; }
     if (id === 13) { openLandingSim(); return; }
     if (id === 14) { openTranqGame(); return; }
+    if (id === 15) { openTycoonGame(); return; }
     currentGameId = id;
     trackRecentGame(id);
     if (id === 4) startMenuSuppressed = false;
@@ -1695,6 +1717,7 @@ function toggleGameFullscreen() {
 }
 
 function closeGame() {
+    if (window.Tycoon) window.Tycoon.close();
     giftModeSetting = false;
     snowStormMode = false;
     closeRacerMpPanel(true);
@@ -6992,7 +7015,8 @@ function walletSyncExtras(w) {
         stats: (w.stats && typeof w.stats === 'object') ? w.stats : {},
         zombie: (w.zombie && typeof w.zombie === 'object') ? w.zombie : null,
         gift: (w.gift && typeof w.gift === 'object') ? w.gift : null,
-        advent: (w.advent && typeof w.advent === 'object') ? w.advent : null
+        advent: (w.advent && typeof w.advent === 'object') ? w.advent : null,
+        arcade: (w.arcade && typeof w.arcade === 'object') ? w.arcade : null
     };
 }
 
@@ -7000,6 +7024,30 @@ function walletEquippedForDb(w) {
     var equipped = Object.assign({}, (w && w.equipped) || {});
     equipped._purchases = walletSyncExtras(w || {});
     return equipped;
+}
+
+function normalizeArcade(raw) {
+    var a = (raw && typeof raw === 'object') ? raw : {};
+    var slots = Math.max(6, Math.min(12, Math.floor(Number(a.slots)) || 6));
+    var cabinets = Array.isArray(a.cabinets) ? a.cabinets.filter(function (c) {
+        return c && typeof c.t === 'string' && c.t.length > 0;
+    }).slice(0, slots).map(function (c) {
+        return { t: c.t.slice(0, 24), l: Math.max(1, Math.min(5, Math.floor(Number(c.l) || 1))) };
+    }) : [];
+    function num(value, fallback) {
+        var n = Number(value);
+        return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : fallback;
+    }
+    return {
+        cash: num(a.cash, 500),
+        slots: slots,
+        cabinets: cabinets,
+        reputation: num(a.reputation, 0),
+        totalEarned: num(a.totalEarned, 0),
+        milestones: Array.isArray(a.milestones) ? a.milestones.filter(function (m) { return typeof m === 'string'; }).slice(0, 40) : [],
+        lastSeen: Number.isFinite(Number(a.lastSeen)) && Number(a.lastSeen) > 0 ? Number(a.lastSeen) : Date.now(),
+        updatedAt: Number.isFinite(Number(a.updatedAt)) ? Number(a.updatedAt) : 0
+    };
 }
 
 function normalizeWallet(raw, username) {
@@ -7053,6 +7101,7 @@ function normalizeWallet(raw, username) {
     var adventSource = (w.advent && typeof w.advent === 'object') ? w.advent : ((extras.advent && typeof extras.advent === 'object') ? extras.advent : {});
     var adventYear = Number.isFinite(adventSource.year) ? Math.floor(adventSource.year) : 0;
     var adventDays = Array.isArray(adventSource.days) ? adventSource.days.filter(function (d) { return Number.isFinite(d) && d >= 1 && d <= 24; }).map(function (d) { return Math.floor(d); }) : [];
+    var arcadeSource = (w.arcade && typeof w.arcade === 'object') ? w.arcade : ((extras.arcade && typeof extras.arcade === 'object') ? extras.arcade : null);
 
     return {
         username: username,
@@ -7067,6 +7116,7 @@ function normalizeWallet(raw, username) {
         zombie: zombieSource,
         gift: { lastClaim: giftClaim, streak: giftStreak },
         advent: { year: adventYear, days: adventDays },
+        arcade: normalizeArcade(arcadeSource),
         streak: Number.isFinite(w.streak) ? Math.max(0, Math.floor(w.streak)) : 0,
         lastPlayDay: typeof w.lastPlayDay === 'string' ? w.lastPlayDay : (typeof w.last_play_day === 'string' ? w.last_play_day : null),
         streakRewards: Array.isArray(w.streakRewards) ? w.streakRewards : (Array.isArray(w.streak_rewards) ? w.streak_rewards : []),
@@ -7133,6 +7183,11 @@ async function loadWallet() {
             });
             remote.stats = mergedStats;
             if (!remote.zombie && local.zombie) { remote.zombie = local.zombie; changed = true; }
+            if (local.arcade && (!remote.arcade || (local.arcade.updatedAt || 0) > (remote.arcade.updatedAt || 0))) {
+                remote.arcade = local.arcade;
+                changed = true;
+            }
+            local.arcade = remote.arcade;
             if ((local.gift.lastClaim || '') > (remote.gift.lastClaim || '') ||
                 ((local.gift.lastClaim || '') === (remote.gift.lastClaim || '') && (local.gift.streak || 0) > (remote.gift.streak || 0))) {
                 remote.gift = local.gift;
@@ -8865,8 +8920,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.17";
-const UPDATE_NOTES = "Gift Run is live in Beach Racer: fly Santa's Sleigh through gift rings, deliver 10 presents and beat the clock. Plus 12 Christmas cosmetics and a holiday garage";
+const APP_VERSION = "LessFun Public Beta 1.33.18";
+const UPDATE_NOTES = "Arcade Tycoon is live: build cabinets, upgrade them, expand your floor and collect Arcade Cash even while you are away";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

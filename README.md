@@ -34,6 +34,13 @@ Supabase tables below are created.
 
 The **AI** button in the top bar opens a local assistant with a 10,000-pattern knowledge base covering every game, controls, Coins, Daily Gifts, accounts, cloud sync, the Store, Garage, Showroom, friends, radio, settings and troubleshooting. It handles small talk and common typos, runs entirely in the browser, and does not send questions to an external service.
 
+## Arcade Tycoon
+
+**Arcade Tycoon** is a persistent management game. Buy cabinets based on the
+games in the arcade, upgrade them, expand the floor, and earn Arcade Cash while
+you are away (up to 8 hours). Arcade Cash is separate from Coins; milestones
+pay real LessFun Coins. Progress syncs through the wallet save.
+
 ## Christmas music
 
 The holiday event plays **“Christmas” by Tunetank** as a no-ads background
