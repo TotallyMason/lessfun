@@ -13008,3 +13008,20 @@ body.low-power .site-snow { opacity: 0.55; }
     .g3d-cluster-status { font-size: 5.5px; }
     .g3d-cluster-meta b { font-size: 6.5px; }
 }
+
+/* Keep long lists cheap to paint when they are off-screen. */
+.store-card,
+.showroom-card {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 340px;
+}
+.community-post {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 260px;
+}
+.game-card,
+.notif-row,
+.debug-user-row {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 180px;
+}

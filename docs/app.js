@@ -636,7 +636,12 @@ async function renderSnowLeaderboard() {
 function initSnowEvent() {
     updateSnowCountdown();
     setInterval(updateSnowCountdown, 60000);
-    renderSnowLeaderboard();
+    // Keep the first paint and main content responsive; fill the leaderboard in idle time.
+    if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(function () { renderSnowLeaderboard(); }, { timeout: 2500 });
+    } else {
+        setTimeout(renderSnowLeaderboard, 1200);
+    }
 }
 
 function trackRecentGame(id) {
@@ -1166,7 +1171,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261346'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261347'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1175,7 +1180,7 @@ function ensure3DEngine() {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261346').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261347').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1183,7 +1188,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261346').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261347').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1191,9 +1196,9 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261346')
-            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261346'); })
-            .then(function () { return loadScriptOnce('assistant.js?v=20261346'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261347')
+            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261347'); })
+            .then(function () { return loadScriptOnce('assistant.js?v=20261347'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1221,7 +1226,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261346').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261347').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1229,7 +1234,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261346').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261347').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1237,7 +1242,7 @@ function ensureLucky() {
 function ensureTycoon() {
     if (window.Tycoon) return Promise.resolve();
     if (!tycoonPromise) {
-        tycoonPromise = loadScriptOnce('tycoon.js?v=20261346').catch(function (error) { tycoonPromise = null; throw error; });
+        tycoonPromise = loadScriptOnce('tycoon.js?v=20261347').catch(function (error) { tycoonPromise = null; throw error; });
     }
     return tycoonPromise;
 }
@@ -9208,8 +9213,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.62";
-const UPDATE_NOTES = "Private messages now play a ding and show a notification that opens Messages. The arcade km/h scale is back to divided-by-3";
+const APP_VERSION = "LessFun Public Beta 1.33.63";
+const UPDATE_NOTES = "Whole-site speed pass: version checks every 10 seconds, deferred background startup work, lighter snow resolution and content-visibility for off-screen cards";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -9310,7 +9315,7 @@ function initSiteSnow() {
     var flakes = [];
     var w = 0, h = 0, dpr = 1;
     function resizeSnow() {
-        dpr = Math.min(isLowPowerDevice ? 1 : 2, window.devicePixelRatio || 1);
+        dpr = Math.min(isLowPowerDevice ? 1 : 1.5, window.devicePixelRatio || 1);
         w = window.innerWidth;
         h = window.innerHeight;
         canvas.width = Math.round(w * dpr);
