@@ -1,23 +1,30 @@
 /* ============================================================
-   LessFun Christmas Jingle — upbeat synthesized Jingle Bells
+   LessFun Christmas Jingle
+   "Christmas" by Tunetank — Pixabay Content License
+   https://pixabay.com/music/christmas-christmas-347469/
+   Plays as a no-ads background loop, with a synthesized
+   Jingle Bells fallback if the MP3 cannot load.
    ============================================================ */
 (function () {
     'use strict';
 
+    var TRACK_URL = 'audio/tunetank-christmas.mp3';
     var enabled = true;
     try { enabled = localStorage.getItem('lessfun_jingle') !== '0'; } catch (e) {}
     var soundOn = true;
+    var unlocked = false;
+    var playing = false;
+    var audio = null;
+    var audioBroken = false;
+    var retryQueued = false;
+
+    // ---- Synthesized fallback (public-domain Jingle Bells) ----
     var context = null;
     var master = null;
     var timer = 0;
-    var playing = false;
-    var unlocked = false;
     var noiseBuffer = null;
-
     var BPM = 140;
     var BEAT = 60 / BPM;
-
-    // Jingle Bells chorus, four bars + two-bar tag. Public-domain melody.
     var MELODY = [
         [76, 1], [76, 1], [76, 1], [76, 1],
         [76, 1], [79, 1], [72, 1], [74, 1],
@@ -100,11 +107,10 @@
     }
 
     function chime(time, note, volume) {
-        var freq = midi(note + 12);
         var osc = context.createOscillator();
         var gain = context.createGain();
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, time);
+        osc.frequency.setValueAtTime(midi(note + 12), time);
         gain.gain.setValueAtTime(0.0001, time);
         gain.gain.exponentialRampToValueAtTime(volume || 0.045, time + 0.006);
         gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.36);
@@ -190,7 +196,6 @@
         if (!context || !master || !playing) return;
         var start = context.currentTime + 0.06;
         var beatCursor = 0;
-        var bar = 0;
 
         for (var i = 0; i < MELODY.length; i++) {
             var note = MELODY[i];
@@ -198,7 +203,6 @@
             brass(t, note[0], note[1] * BEAT * 0.92, i % 4 === 0 ? 0.18 : 0.14);
             chime(t, note[0], 0.045);
             beatCursor += note[1];
-            if (beatCursor % 4 === 0) bar++;
         }
 
         for (var b = 0; b < BASS.length; b++) {
@@ -216,18 +220,94 @@
         timer = setTimeout(scheduleLoop, LOOP_BEATS * BEAT * 1000 - 90);
     }
 
+    // ---- MP3 track ----
+    function ensureAudio() {
+        if (audio) return audio;
+        if (typeof Audio !== 'function') return null;
+        audio = new Audio();
+        audio.src = TRACK_URL;
+        audio.loop = true;
+        audio.preload = 'none';
+        audio.volume = 0.65;
+        audio.setAttribute('playsinline', '');
+        audio.addEventListener('error', function () {
+            audioBroken = true;
+            if (playing) startSynth();
+        });
+        return audio;
+    }
+
+    function startSynth() {
+        if (!ensureContext()) return;
+        if (context.state === 'suspended') {
+            try { context.resume(); } catch (e) {}
+        }
+        if (master) master.gain.value = 0.2;
+        if (timer) { clearTimeout(timer); timer = 0; }
+        scheduleLoop();
+    }
+
+    function playTrack() {
+        var el = ensureAudio();
+        if (!el) { audioBroken = true; return; }
+        audioBroken = false;
+        var attempt;
+        try { attempt = el.play(); } catch (e) { audioBroken = true; return; }
+        if (!attempt || typeof attempt.then !== 'function') {
+            playing = true;
+            updateButton();
+            return;
+        }
+        attempt.then(function () {
+            playing = true;
+            updateButton();
+        }).catch(function (err) {
+            playing = false;
+            updateButton();
+            var name = err && err.name;
+            if (name === 'NotSupportedError' || name === 'NotReadableError') {
+                audioBroken = true;
+                playing = true;
+                startSynth();
+                updateButton();
+            } else {
+                queueRetry();
+            }
+        });
+    }
+
+    function queueRetry() {
+        if (retryQueued) return;
+        retryQueued = true;
+        var retry = function () {
+            retryQueued = false;
+            document.removeEventListener('pointerdown', retry);
+            document.removeEventListener('keydown', retry);
+            if (enabled && soundOn && isHoliday() && !playing) start();
+        };
+        document.addEventListener('pointerdown', retry, { passive: true });
+        document.addEventListener('keydown', retry);
+    }
+
     function start() {
         if (!enabled || !soundOn || !isHoliday() || playing) return;
-        if (!unlocked || !ensureContext()) return;
-        if (context.state === 'suspended') context.resume();
-        playing = true;
-        updateButton();
-        scheduleLoop();
+        if (!unlocked) return;
+        if (audioBroken) {
+            startSynth();
+            playing = true;
+            updateButton();
+            return;
+        }
+        playTrack();
     }
 
     function stop() {
         playing = false;
+        if (audio) {
+            try { audio.pause(); } catch (e) {}
+        }
         if (timer) { clearTimeout(timer); timer = 0; }
+        if (master) master.gain.value = 0.0001;
         updateButton();
     }
 
@@ -241,8 +321,12 @@
     function toggle() {
         enabled = !enabled;
         try { localStorage.setItem('lessfun_jingle', enabled ? '1' : '0'); } catch (e) {}
-        if (enabled) { unlocked = true; start(); }
-        else stop();
+        if (enabled) {
+            unlocked = true;
+            start();
+        } else {
+            stop();
+        }
         updateButton();
     }
 
@@ -253,8 +337,11 @@
 
     function setSoundEnabled(on) {
         soundOn = !!on;
-        if (!soundOn) stop();
-        else if (unlocked) start();
+        if (!soundOn) {
+            stop();
+        } else if (unlocked) {
+            start();
+        }
     }
 
     function init() {
@@ -264,16 +351,28 @@
             updateButton();
         }
         if (!isHoliday()) return;
+        // Browsers only allow audible autoplay after a gesture.
         document.addEventListener('pointerdown', unlock, { once: true, passive: true });
         document.addEventListener('keydown', unlock, { once: true });
-        // Keep the jingle running when the tab is in the background.
+        // The MP3 keeps playing while the tab is hidden; restart if the
+        // browser suspended it for any reason when we return.
         document.addEventListener('visibilitychange', function () {
             if (!document.hidden && enabled && soundOn && unlocked && !playing) start();
         });
         if (typeof soundSetting !== 'undefined') soundOn = !!soundSetting;
     }
 
-    window.LessFunJingle = { toggle: toggle, start: start, stop: stop, setSoundEnabled: setSoundEnabled };
+    function status() {
+        return {
+            enabled: enabled,
+            soundOn: soundOn,
+            playing: playing,
+            source: audioBroken ? 'synth' : 'mp3',
+            time: audio ? audio.currentTime : 0
+        };
+    }
+
+    window.LessFunJingle = { toggle: toggle, start: start, stop: stop, setSoundEnabled: setSoundEnabled, status: status };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
     else init();
 })();

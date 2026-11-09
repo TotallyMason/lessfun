@@ -34,6 +34,19 @@ Supabase tables below are created.
 
 The **AI** button in the top bar opens a local assistant with a 10,000-pattern knowledge base covering every game, controls, Coins, Daily Gifts, accounts, cloud sync, the Store, Garage, Showroom, friends, radio, settings and troubleshooting. It handles small talk and common typos, runs entirely in the browser, and does not send questions to an external service.
 
+## Christmas music
+
+The holiday event plays **“Christmas” by Tunetank** as a no-ads background
+loop, starting after the visitor's first interaction. The track is used under
+the [Pixabay Content License](https://pixabay.com/service/license-summary/):
+
+- Source: https://pixabay.com/music/christmas-christmas-347469/
+- Local file: `docs/audio/tunetank-christmas.mp3`
+
+The **Jingle** button in the Snow Rush banner turns it off or on, and the site
+Sound setting also silences it. If the MP3 cannot load, an original synthesized
+Jingle Bells arrangement plays instead.
+
 ## Run locally
 
 The web version lives in [`docs/`](docs) and uses no build step, no bundler, and

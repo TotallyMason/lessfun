@@ -11751,3 +11751,10 @@ body.in-game .site-snow { display: none !important; }
     .site-snow { display: none !important; }
 }
 #jingleBtn { margin-top: 0; }
+
+.christmas-credit {
+    margin: 10px 0 0;
+    color: rgba(220, 240, 250, 0.34);
+    font-size: 8px;
+    letter-spacing: 0.02em;
+}
