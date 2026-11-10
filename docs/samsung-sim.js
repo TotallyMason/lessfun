@@ -26,8 +26,8 @@
 .ss-demo-badge{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid rgba(142,162,255,.35);border-radius:999px;background:rgba(142,162,255,.08);color:#c3cfff;font-size:9px;font-weight:800;letter-spacing:.14em}
 .ss-demo-badge i{width:6px;height:6px;border-radius:50%;background:#93a7ff;box-shadow:0 0 9px #93a7ff}
 .ss-phone{position:relative;z-index:2;height:min(82vh,800px);max-height:800px;aspect-ratio:388/844;flex:0 0 auto;filter:drop-shadow(0 40px 80px rgba(0,0,0,.65))}
-.ss-frame{position:absolute;inset:0;border-radius:46px;padding:7px;background:linear-gradient(150deg,#e3e6f2 0%,#8f94ab 9%,#2a2c34 30%,#c9cde0 48%,#3a3d48 72%,#a9adbf 94%,#5f6270 100%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.35),inset 0 0 0 3px rgba(0,0,0,.55),0 0 0 1px rgba(0,0,0,.9)}
-.ss-screen{position:relative;width:100%;height:100%;border-radius:40px;overflow:hidden;background:#000;box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
+.ss-frame{position:absolute;inset:0;border-radius:10.5%;padding:1.6%;background:linear-gradient(150deg,#e3e6f2 0%,#8f94ab 9%,#2a2c34 30%,#c9cde0 48%,#3a3d48 72%,#a9adbf 94%,#5f6270 100%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.35),inset 0 0 0 3px rgba(0,0,0,.55),0 0 0 1px rgba(0,0,0,.9)}
+.ss-screen{position:relative;width:100%;height:100%;border-radius:8.6%;overflow:hidden;background:#000;box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
 .ss-side{position:absolute;z-index:4;width:3px;border-radius:2px;background:linear-gradient(to bottom,rgba(230,232,242,.95),rgba(70,72,84,.85));cursor:pointer}.ss-side.ps{right:-4px;top:168px;height:96px}.ss-side.up{left:-4px;top:158px;height:40px}.ss-side.down{left:-4px;top:206px;height:40px}
 /* wallpaper — purple/pink flow */
 .ss-wallpaper{position:absolute;inset:0;background:linear-gradient(178deg,#8e6bc8 0%,#a06fca 22%,#b77fd6 42%,#8f63c6 66%,#5d47b4 84%,#3f33a0 100%)}
@@ -55,7 +55,15 @@
 .ss-android:after{content:"";position:absolute;top:-9px;right:6px;width:6px;height:11px;background:#3ddc84;border-radius:8px 8px 0 0;transform:rotate(24deg);transform-origin:bottom left}
 .ss-android i,.ss-android b{position:absolute;top:6px;width:3px;height:3px;border-radius:50%;background:#0b0f14}
 .ss-android i{left:8px}.ss-android b{right:8px}
-.ss-boot-stage{display:none}.ss-boot-stage.is-active{display:flex;align-items:center;flex-direction:column;gap:12px}
+@keyframes ssGalaxyIn{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}
+.ss-galaxy{animation:ssGalaxyIn .9s ease .25s both;align-self:flex-end;margin-right:8px;margin-top:2px}
+.ss-boot-stage{display:none}.ss-boot-stage.is-active{display:flex;align-items:center;flex-direction:column;gap:4px}
+/* always-on display */
+.ss-aod{position:absolute;inset:0;z-index:9;background:linear-gradient(178deg,rgba(9,5,24,.95) 0%,rgba(15,7,30,.93) 60%,rgba(26,12,48,.92) 100%);display:none;flex-direction:column;align-items:center;justify-content:center;cursor:pointer}
+.ss-aod.is-visible{display:flex}
+.ss-aod-clock{color:rgba(226,214,255,.85);font-weight:200;letter-spacing:.05em;line-height:.92;font-size:56px}
+.ss-aod-when{color:rgba(226,214,255,.6);font-size:13px;margin-top:10px}
+.ss-aod .ss-brief-pill{position:absolute;bottom:46px;margin:0}
 /* lock */
 .ss-lock{position:absolute;inset:0;z-index:8;cursor:pointer;transition:opacity .3s}
 .ss-lock.is-hidden{opacity:0;pointer-events:none}
@@ -245,7 +253,12 @@
         var d = root.querySelector('[data-ss-date]');
         if (d) d.textContent = dateText();
         var w = root.querySelector('[data-ss-when]');
-        if (w) w.textContent = dayShort() + ', ' + monthShort() + ' ' + new Date().getDate();
+        if (w) w.textContent = dayShort() + ' ' + new Date().getDate() + ' ' + monthShort();
+        var big = root.querySelector('[data-ss-clock-large]');
+        if (big) {
+            var dd = new Date();
+            big.innerHTML = pad(dd.getHours()) + '<br>' + pad(dd.getMinutes());
+        }
     }
 
     function showBootStage(n) {
@@ -337,6 +350,29 @@
         if (overlay && overlay.classList.contains('is-visible')) { hideRecents(); return; }
         closeApp();
         hideQuick();
+    }
+    function showAOD() {
+        if (!root) return;
+        updateClock();
+        var a = root.querySelector('#ssAOD');
+        if (a) a.classList.add('is-visible');
+        state.aod = true;
+    }
+    function hideAOD() {
+        if (!root) return;
+        var a = root.querySelector('#ssAOD');
+        if (a) a.classList.remove('is-visible');
+        state.aod = false;
+    }
+    function sideKey() {
+        // Real behavior: side key sleeps/wakes the screen.
+        if (!root) return;
+        if (state.unlocked) { lockNow(); showAOD(); }
+        else {
+            var a = root.querySelector('#ssAOD');
+            if (a && a.classList.contains('is-visible')) { hideAOD(); }
+            else showAOD();
+        }
     }
     function lockNow() {
         if (!root) return;
@@ -462,10 +498,11 @@
             var sideBtn = e.target.closest('[data-ssside]');
             if (sideBtn) {
                 var side = sideBtn.getAttribute('data-ssside');
-                if (side === 'power') { if (state.unlocked) lockNow(); }
+                if (side === 'power') sideKey();
                 else volumeChange(side === 'volup' ? +10 : -10);
                 return;
             }
+            if (e.target.closest('#ssAOD')) { hideAOD(); return; }
             var recent = e.target.closest('[data-recent]');
             if (recent) { openApp(recent.getAttribute('data-recent')); return; }
             if (e.target.closest('[data-ssclear]')) { state.recents = []; var list2 = root.querySelector('#ssRecentsList'); if (list2) list2.innerHTML = '<div class="ss-recents-empty">No recent apps yet.</div>'; return; }
@@ -524,15 +561,16 @@
         /* boot */
                         '<div class="ss-boot" id="ssBoot">' +
                             '<div class="ss-boot-stage is-active" data-boot="1"><div class="ss-fit">Samsung</div></div>' +
-                            '<div class="ss-boot-stage" data-boot="2"><div class="ss-fit-2"><span class="ss-word">Samsung</span><span class="ss-android"><i></i><b></b></span><span class="ss-glyph">Galaxy</span></div></div>' +
+                            '<div class="ss-boot-stage" data-boot="2"><div class="ss-fit-2"><span class="ss-word">Samsung</span><span class="ss-android"><i></i><b></b></span></div><div class="ss-galaxy"><span class="ss-glyph">Galaxy</span></div></div>' +
                         '</div>' +
+                        /* always-on display */
+                        '<div class="ss-aod" id="ssAOD"><div class="ss-aod-clock" data-ss-clock-large>00<br>41</div><div class="ss-aod-when" data-ss-when>Tue 7 April</div><button class="ss-brief-pill" id="ssBriefPill" type="button"><i>⛅</i> Now brief</button></div>' +
                         /* lock */
                         '<div class="ss-lock" id="ssLock">' +
                             '<div class="ss-lock-pad">🔓</div>' +
                             '<div class="ss-lock-top-right"><div class="ss-lock-when" data-ss-when>Mon, Dec 1 · ☂ 4°</div><div class="ss-lock-time" data-ss-clock>09:42</div></div>' +
                             '<div class="ss-shine"><strong>Time to shine</strong><p>Windy with light rain in the afternoon. Highs 6 to 8°C and lows 4 to 6°C.</p></div>' +
                             '<button class="ss-brief-pill" id="ssBriefPill" type="button"><i>⛅</i> Morning brief</button>' +
-                            '<div class="ss-unlock-hint">Tap the screen to unlock · pull down the top bar for quick settings</div>' +
                         '</div>' +
                         /* home */
                         '<div class="ss-home" id="ssHome">' +
@@ -551,6 +589,8 @@
                                 '<button class="ss-app" data-app="phoneg" type="button"><span class="ss-app-icon"><span style="color:#fff">☎</span></span><span>Phone</span></button><button class="ss-app" data-app="msgd" type="button"><span class="ss-app-icon"><img class="ss-img" src="https://cdn.simpleicons.org/googlemessages" alt=""></span><span>Messages</span></button><button class="ss-app" data-app="chrome" type="button"><span class="ss-app-icon"><img class="ss-img" src="https://cdn.simpleicons.org/googlechrome" alt=""></span><span>Chrome</span></button><button class="ss-app" data-app="camera" type="button"><span class="ss-app-icon"><span class="ss-lens"></span></span><span>Camera</span></button>' +
                             '</div>' +
                             '</div>' +
+                            '<div class="ss-recents" id="ssRecents"><div class="ss-recents-head"><strong>Recent apps</strong><button type="button" data-ssclear>CLEAR ALL</button></div><div id="ssRecentsList"></div></div>' +
+                            '<div class="ss-volume" id="ssVolume"><b>◉</b><i></i><b data-ssvol>60</b></div>' +
                         '<div class="ss-appview" id="ssAppView">' +
                             '<div class="ss-app-head"><button class="ss-app-back" type="button" data-close-appss>‹</button><div><strong id="ssAppTitle">App</strong><small id="ssAppSub">GALAXY S26 ULTRA · DEMO</small></div></div>' +
                             '<div class="ss-app-body" id="ssAppBody"></div>' +
@@ -558,7 +598,6 @@
                         '<div class="ss-nav"><button type="button" data-ssnav="recents" aria-label="Recents">|||</button><button type="button" data-ssnav="home" aria-label="Home">○</button><button type="button" data-ssnav="back" aria-label="Back">‹</button></div>' +
                     '</div></div>' +
                 '</div>' +
-                '<div class="ss-note">Boot plays like a real Galaxy · then tap the lock screen · pull the status bar down for quick settings</div>' +
             '</div>';
         root = el.querySelector('.ss-stage');
         bind();
@@ -566,7 +605,7 @@
         clockTimer = setInterval(updateClock, 30000);
         bootTimers = [
             setTimeout(function () { showBootStage(2); }, 1900),
-            setTimeout(function () { endBoot(); }, 4200)
+            setTimeout(function () { endBoot(); showAOD(); }, 4300)
         ];
         [300, 1400, 2600, 4200, 6000, 9000].forEach(function (ms) {
             bootTimers.push(setTimeout(fitHome, ms));
@@ -581,7 +620,7 @@
         if (container) { try { container.innerHTML = ''; } catch (e) {} }
         container = null;
         root = null;
-        state = { unlocked: false, app: '', playing: false, toggles: {}, volume: 0.6, recents: [], quickOpen: false, bright: 76 };
+        state = { unlocked: false, app: '', playing: false, toggles: {}, volume: 0.6, recents: [], quickOpen: false, bright: 76, aod: false };
         navState = 'home';
     }
 
