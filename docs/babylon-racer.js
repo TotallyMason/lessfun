@@ -2153,10 +2153,6 @@
             spoke.material = aluminium;
             spoke.parent = interiorSteeringWheel;
         });
-        var spokeV = BABYLON.MeshBuilder.CreateBox('interiorSpokeV', { width: 0.022, height: 0.075, depth: 0.025 }, scene);
-        spokeV.position.set(0, -0.035, 0.01);
-        spokeV.material = aluminium;
-        spokeV.parent = interiorSteeringWheel;
         var wheelMarker = BABYLON.MeshBuilder.CreateBox('interiorWheelMarker', { width: 0.05, height: 0.016, depth: 0.018 }, scene);
         wheelMarker.position.set(0, 0.145, 0.01);
         wheelMarker.material = trimMat;
