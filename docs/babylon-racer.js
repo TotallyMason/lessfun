@@ -19,6 +19,7 @@
     var sun = null, shadow = null, sky = null, exhaustSmoke = null, exhaustEmitter = null;
     var impactSparks = null, impactSmoke = null, impactSparkTimer = 0, crashShake = 0, wallImpactCool = 0;
     var motionBlurPost = null, motionBlurStrength = 0.02;
+    var vhsPost = null, glowLayer = null;
     var realCarRoot = null, realCarLoading = false, carPaintHex = 0xc2280b;
     var proceduralLampMeshes = [];
     var vehicleModelLibrary = null, vehicleModelsLoading = false;
@@ -396,10 +397,13 @@
                     'precision highp float;varying vec3 vDir;' +
                     'void main(void){' +
                     'vec3 d=normalize(vDir);float h=clamp(d.y*0.5+0.5,0.0,1.0);' +
-                    'vec3 low=vec3(0.96,0.54,0.33);vec3 mid=vec3(0.34,0.55,0.72);vec3 top=vec3(0.055,0.14,0.29);' +
-                    'vec3 col=mix(low,mid,smoothstep(0.42,0.62,h));col=mix(col,top,smoothstep(0.58,0.94,h));' +
-                    'float sun=smoothstep(0.99955,0.99985,dot(d,normalize(vec3(-0.38,0.22,0.90))));' +
-                    'col+=vec3(1.0,0.72,0.35)*sun*0.9;' +
+                    'vec3 low=vec3(0.045,0.085,0.15);vec3 mid=vec3(0.015,0.035,0.075);vec3 top=vec3(0.003,0.007,0.022);' +
+                    'vec3 col=mix(low,mid,smoothstep(0.35,0.62,h));col=mix(col,top,smoothstep(0.58,0.97,h));' +
+                    'float hash=fract(sin(dot(d.xz,vec2(127.1,311.7)))*43758.5453);' +
+                    'float stars=step(0.9972,hash)*smoothstep(0.10,0.58,h);' +
+                    'col+=vec3(0.72,0.82,1.0)*stars*0.8;' +
+                    'float moon=smoothstep(0.99955,0.99985,dot(d,normalize(vec3(0.42,0.30,-0.86))));' +
+                    'col+=vec3(0.72,0.82,1.0)*moon*1.15;' +
                     'gl_FragColor=vec4(col,1.0);}';
             }
             var mat = new BABYLON.ShaderMaterial('lessfunSky', scene, {
@@ -525,31 +529,31 @@
 
     function createEnvironment() {
         var low = isLowPower();
-        scene.clearColor = new BABYLON.Color4(0.06, 0.11, 0.18, 1);
-        scene.ambientColor = new BABYLON.Color3(0.28, 0.31, 0.38);
+        scene.clearColor = new BABYLON.Color4(0.008, 0.014, 0.035, 1);
+        scene.ambientColor = new BABYLON.Color3(0.045, 0.055, 0.09);
         scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
-        scene.fogDensity = 0.00135;
-        scene.fogColor = new BABYLON.Color3(0.54, 0.48, 0.44);
+        scene.fogDensity = 0.0016;
+        scene.fogColor = new BABYLON.Color3(0.025, 0.035, 0.065);
 
         try {
             var env = BABYLON.CubeTexture.CreateFromPrefilteredData(HDR_URL, scene);
             env.name = 'hdrEnvironment';
             scene.environmentTexture = env;
-            scene.environmentIntensity = 0.72;
+            scene.environmentIntensity = 0.16;
         } catch (e) { /* baked lighting + analytic lights still work */ }
 
         createSky();
 
         var hemi = new BABYLON.HemisphericLight('skyFill', new BABYLON.Vector3(0, 1, 0), scene);
-        hemi.intensity = 0.46;
-        hemi.diffuse = new BABYLON.Color3(0.55, 0.72, 1.0);
-        hemi.groundColor = new BABYLON.Color3(0.28, 0.22, 0.16);
+        hemi.intensity = 0.13;
+        hemi.diffuse = new BABYLON.Color3(0.34, 0.48, 0.78);
+        hemi.groundColor = new BABYLON.Color3(0.018, 0.022, 0.04);
 
         sun = new BABYLON.DirectionalLight('sun', new BABYLON.Vector3(-0.36, -1.0, 0.58), scene);
         sun.position = new BABYLON.Vector3(60, 90, -90);
-        sun.intensity = 2.25;
-        sun.diffuse = new BABYLON.Color3(1.0, 0.77, 0.52);
-        sun.specular = new BABYLON.Color3(1.0, 0.88, 0.70);
+        sun.intensity = 0.62;
+        sun.diffuse = new BABYLON.Color3(0.52, 0.66, 1.0);
+        sun.specular = new BABYLON.Color3(0.62, 0.76, 1.0);
         sun.shadowMinZ = 1;
         sun.shadowMaxZ = 220;
         sun.autoUpdateExtends = false;
@@ -658,7 +662,7 @@
                 var b = bulb.createInstance('lampBulb' + side + '_' + i);
                 b.position.set(x - side * 2.0, 7.33, z);
                 b.freezeWorldMatrix();
-                proceduralLampMeshes.push(p, a, b);
+                proceduralLampMeshes.push(p, a);
             }
         }
     }
@@ -1638,6 +1642,40 @@
         };
     }
 
+    function createVhs() {
+        if (!BABYLON.Effect.ShadersStore['lessfunVhsFragmentShader']) {
+            BABYLON.Effect.ShadersStore['lessfunVhsFragmentShader'] =
+                'precision highp float;' +
+                'varying vec2 vUV;' +
+                'uniform sampler2D textureSampler;' +
+                'uniform float time;' +
+                'uniform float strength;' +
+                'void main(void){' +
+                '  vec2 uv = vUV;' +
+                '  uv.x += sin(uv.y * 92.0 + time * 4.5) * 0.00075 * strength;' +
+                '  float band = smoothstep(0.0, 0.018, abs(fract(uv.y * 0.35 - time * 0.055) - 0.5));' +
+                '  uv.x += (1.0 - band) * 0.0015 * strength;' +
+                '  float ca = 0.0014 * strength;' +
+                '  float r = texture2D(textureSampler, clamp(uv + vec2(ca, 0.0), 0.0, 1.0)).r;' +
+                '  float g = texture2D(textureSampler, uv).g;' +
+                '  float b = texture2D(textureSampler, clamp(uv - vec2(ca, 0.0), 0.0, 1.0)).b;' +
+                '  vec3 col = vec3(r, g, b);' +
+                '  float scan = 0.5 + 0.5 * sin(uv.y * 1200.0);' +
+                '  col *= 0.94 + scan * 0.06;' +
+                '  float noise = fract(sin(dot(uv * vec2(1.0, 0.73) + time, vec2(12.9898, 78.233))) * 43758.5453);' +
+                '  col += (noise - 0.5) * 0.045 * strength;' +
+                '  float vig = smoothstep(0.92, 0.28, length((vUV - 0.5) * vec2(1.0, 1.08)));' +
+                '  col *= mix(0.72, 1.0, vig);' +
+                '  gl_FragColor = vec4(col, 1.0);' +
+                '}';
+        }
+        vhsPost = new BABYLON.PostProcess('lessfunVhs', 'lessfunVhs', ['time', 'strength'], null, 1.0, camera, BABYLON.Texture.BILINEAR_SAMPLINGMODE, engine, false);
+        vhsPost.onApply = function (effect) {
+            effect.setFloat('time', performance.now() * 0.001);
+            effect.setFloat('strength', 1.0);
+        };
+    }
+
     function createScene() {
         engine = new BABYLON.Engine(canvas, true, {
             preserveDrawingBuffer: true,
@@ -1675,14 +1713,19 @@
         try {
             var pipeline = new BABYLON.DefaultRenderingPipeline('racerPipeline', true, scene, [camera]);
             pipeline.fxaaEnabled = true;
-            pipeline.bloomEnabled = !isLowPower();
-            pipeline.bloomThreshold = 0.87;
-            pipeline.bloomWeight = 0.16;
-            pipeline.bloomKernel = 32;
+            pipeline.bloomEnabled = true;
+            pipeline.bloomThreshold = 0.52;
+            pipeline.bloomWeight = 0.58;
+            pipeline.bloomKernel = isLowPower() ? 24 : 64;
             pipeline.imageProcessingEnabled = true;
         } catch (e) {}
 
+        try {
+            glowLayer = new BABYLON.GlowLayer('racerGlow', scene, { mainTextureRatio: isLowPower() ? 0.35 : 0.5 });
+            glowLayer.intensity = 0.72;
+        } catch (e) {}
         createMotionBlur();
+        createVhs();
         camPos = new BABYLON.Vector3(0, 4.2, -11);
         camTarget = new BABYLON.Vector3(0, 1.0, 4);
         resetCamera(true);
@@ -1753,7 +1796,6 @@
             pendingGear = null;
             pendingGearIndex = null;
             playGearSound();
-            showToast('GEAR ' + currentGear);
         } else if (pendingGearIndex !== null) {
             gearIndex = clamp(pendingGearIndex, 1, 8);
             gearLabel = String(gearIndex);
@@ -2529,6 +2571,8 @@
         crashShake = 0;
         wallImpactCool = 0;
         motionBlurPost = null;
+        vhsPost = null;
+        glowLayer = null;
         powerShakeLevel = 0;
         camPos = null;
         camTarget = null;
@@ -2570,7 +2614,6 @@
         pendingGearIndex = null;
         gearShiftTimer = 0.55;
         playGearSound();
-        showToast('SHIFTING TO ' + mode);
     }
 
     function shiftGear(direction) {
