@@ -17,6 +17,7 @@
     var engine = null, scene = null, camera = null, canvas = null, container = null;
     var carRoot = null, carVisuals = [], wheelPivots = [], wheelSpins = [], contactShadow = null;
     var sun = null, shadow = null, sky = null, exhaustSmoke = null, exhaustEmitter = null;
+    var impactSparks = null, impactSparkTimer = 0, crashShake = 0;
     var resizeObs = null, active = false, failed = false;
     var rapier = null, world = null, chassis = null, vehicle = null;
     var rapierPromise = null, ready = false, starting = false;
@@ -926,6 +927,15 @@
         return { root: root, spec: spec, style: style, wheels: wheels, speed: 18, lane: 2, cool: 0, paint: paint };
     }
 
+    function createTrafficBody(car) {
+        if (!car || !world || !rapier || car.body) return;
+        var spec = car.spec || TRAFFIC_SPECS.sedan;
+        car.body = world.createRigidBody(rapier.RigidBodyDesc.kinematicPositionBased()
+            .setTranslation(car.root.position.x, 0.62, car.root.position.z));
+        car.collider = world.createCollider(rapier.ColliderDesc.cuboid(spec.w / 2, 0.42, spec.l / 2)
+            .setFriction(0.5), car.body);
+    }
+
     function placeTrafficCar(car, pz, offset) {
         car.lane = Math.floor(Math.random() * laneCenters.length);
         car.root.position.set(laneCenters[car.lane], 0, pz + offset + Math.random() * 35);
@@ -968,6 +978,7 @@
         var pz = spawnZ;
         for (var t = 0; t < traffic.length; t++) {
             placeTrafficCar(traffic[t], pz, 30 + t * (initial ? 46 : 38));
+            createTrafficBody(traffic[t]);
         }
     }
 
@@ -1075,6 +1086,16 @@
         rr.labelTexture.update(false);
     }
 
+    function createRemoteBody(rr) {
+        if (!rr || !world || !rapier || rr.body) return;
+        var spec = rr.spec || TRAFFIC_SPECS.sport;
+        rr.body = world.createRigidBody(rapier.RigidBodyDesc.kinematicPositionBased()
+            .setTranslation(rr.root.position.x, 0.62, rr.root.position.z));
+        rr.collider = world.createCollider(rapier.ColliderDesc.cuboid(spec.w / 2, 0.42, spec.l / 2)
+            .setFriction(0.55), rr.body);
+        rr.bumpCool = 0;
+    }
+
     function createRemoteRacer(entry) {
         var style = entry && TRAFFIC_SPECS[entry.body] ? entry.body : 'sport';
         var car = makeTrafficCar(style, entry && entry.paint != null ? entry.paint : 0xef476f);
@@ -1101,13 +1122,19 @@
         car.targetX = 0;
         car.targetDistance = 0;
         car.remoteSpeed = 0;
-        car.lastX = 0;
+        car.bumpCool = 0;
         drawRemoteName(car);
+        createRemoteBody(car);
         return car;
     }
 
     function disposeRemoteRacer(rr) {
         if (!rr) return;
+        if (rr.body && world) {
+            try { world.removeRigidBody(rr.body); } catch (e) {}
+            rr.body = null;
+            rr.collider = null;
+        }
         try { if (rr.labelTexture) rr.labelTexture.dispose(); } catch (e) {}
         try { if (rr.labelPlane) rr.labelPlane.dispose(); } catch (e) {}
         try { if (rr.root) rr.root.dispose(false, false); } catch (e) {}
@@ -1146,9 +1173,23 @@
         });
     }
 
+    function multiplayerPlace() {
+        var ids = Object.keys(remoteRacers);
+        if (!localRacerName || !ids.length) return null;
+        var list = [{ distance: distance, local: true }];
+        for (var i = 0; i < ids.length; i++) {
+            list.push({ distance: remoteRacers[ids[i]].targetDistance || 0, local: false });
+        }
+        list.sort(function (a, b) { return b.distance - a.distance; });
+        var place = 1;
+        for (var j = 0; j < list.length; j++) if (list[j].local) { place = j + 1; break; }
+        return { place: place, total: list.length };
+    }
+
     function updateRemoteRacers(dt) {
         if (!chassis) return;
-        var pz = chassis.translation().z;
+        var p = chassis.translation();
+        var pz = p.z;
         Object.keys(remoteRacers).forEach(function (id) {
             var rr = remoteRacers[id];
             var targetZ = spawnZ + rr.targetDistance;
@@ -1156,8 +1197,33 @@
             rr.root.position.x += dx * Math.min(1, dt * 7.5);
             rr.root.position.z += (targetZ - rr.root.position.z) * Math.min(1, dt * 10);
             rr.root.rotation.y = clamp(dx * 0.18, -0.38, 0.38);
+            rr.bumpCool = Math.max(0, (rr.bumpCool || 0) - dt);
             for (var w = 0; w < rr.wheels.length; w++) rr.wheels[w].rotation.x += rr.remoteSpeed * dt * 3.2;
-            rr.root.setEnabled(Math.abs(targetZ - pz) < 1500);
+            var visible = Math.abs(targetZ - pz) < 1500;
+            rr.root.setEnabled(visible);
+            if (rr.body) {
+                var yaw = rr.root.rotation.y;
+                rr.body.setNextKinematicTranslation({ x: rr.root.position.x, y: 0.62, z: rr.root.position.z });
+                rr.body.setNextKinematicRotation({ x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) });
+            }
+            // Solid remote car. Rapier handles contact, with an arcade bounce
+            // fallback so fast players cannot tunnel through each other.
+            if (!garage && !runOver && !paused && rr.bumpCool <= 0) {
+                var rdx = Math.abs(p.x - rr.root.position.x);
+                var rdz = Math.abs(pz - rr.root.position.z);
+                if (rdx < 0.92 + rr.spec.w / 2 && rdz < 2.15 + rr.spec.l / 2) {
+                    rr.bumpCool = 0.7;
+                    var v = chassis.linvel();
+                    var side = p.x >= rr.root.position.x ? 1 : -1;
+                    chassis.setLinvel({
+                        x: v.x + side * Math.min(14, 4 + Math.abs(v.z) * 0.12),
+                        y: Math.max(v.y, 0.8),
+                        z: v.z * 0.72
+                    }, true);
+                    triggerImpactFx((p.x + rr.root.position.x) * 0.5, (pz + rr.root.position.z) * 0.5, Math.abs(v.z));
+                    playTone(180, 0.13, 'square', 0.055, 80);
+                }
+            }
         });
     }
 
@@ -1174,6 +1240,10 @@
             if (car.root.position.z < pz - 100 || car.root.position.z > pz + 1050 || car.root.position.z > ROAD_LENGTH - 80) {
                 placeTrafficCar(car, pz, 520 + Math.random() * 280);
             }
+            if (car.body) {
+                car.body.setNextKinematicTranslation({ x: car.root.position.x, y: 0.62, z: car.root.position.z });
+                car.body.setNextKinematicRotation({ x: 0, y: 0, z: 0, w: 1 });
+            }
             if (runOver || garage || paused) continue;
             var dx = Math.abs(p.x - car.root.position.x);
             var dz = Math.abs(pz - car.root.position.z);
@@ -1188,7 +1258,7 @@
                 var forwardKeep = Math.max(0.58, 1 - Math.min(0.32, 0.10 + closing * 0.004));
                 chassis.setLinvel({
                     x: v.x + dirX * lateralKick,
-                    y: Math.max(v.y, 1.4 + Math.min(2.8, closing * 0.055)),
+                    y: Math.max(v.y, 0.65 + Math.min(1.1, closing * 0.028)),
                     z: v.z * forwardKeep
                 }, true);
                 chassis.setAngvel({ x: 0, y: (Math.random() - 0.5) * 1.2, z: 0 }, true);
@@ -1200,6 +1270,7 @@
                     flash.classList.add('is-active');
                     setTimeout(function () { flash.classList.remove('is-active'); }, 140);
                 }
+                triggerImpactFx((p.x + car.root.position.x) * 0.5, (pz + car.root.position.z) * 0.5, closing);
                 playTone(150, 0.18, 'square', 0.075, 65);
                 playTone(260, 0.10, 'sawtooth', 0.045, 120);
             }
@@ -1228,6 +1299,49 @@
         }
     }
 
+    function createImpactFx() {
+        var tex = new BABYLON.DynamicTexture('impactSparkTexture', { width: 32, height: 32 }, scene, false);
+        var ctx = tex.getContext();
+        ctx.clearRect(0, 0, 32, 32);
+        var g = ctx.createRadialGradient(16, 16, 1, 16, 16, 15);
+        g.addColorStop(0, 'rgba(255,245,190,1)');
+        g.addColorStop(0.35, 'rgba(255,190,70,0.9)');
+        g.addColorStop(1, 'rgba(255,90,10,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, 32, 32);
+        tex.update(false);
+        tex.hasAlpha = true;
+        var ps = new BABYLON.ParticleSystem('impactSparks', isLowPower() ? 50 : 100, scene);
+        ps.particleTexture = tex;
+        ps.emitter = new BABYLON.Vector3(0, 0.8, 0);
+        ps.minEmitBox = new BABYLON.Vector3(-0.3, -0.2, -0.3);
+        ps.maxEmitBox = new BABYLON.Vector3(0.3, 0.2, 0.3);
+        ps.color1 = new BABYLON.Color4(1, 0.86, 0.38, 1);
+        ps.color2 = new BABYLON.Color4(1, 0.35, 0.05, 1);
+        ps.colorDead = new BABYLON.Color4(0.4, 0.06, 0, 0);
+        ps.minSize = 0.07;
+        ps.maxSize = 0.22;
+        ps.minLifeTime = 0.22;
+        ps.maxLifeTime = 0.65;
+        ps.emitRate = 0;
+        ps.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
+        ps.direction1 = new BABYLON.Vector3(-2.2, 0.6, -2.6);
+        ps.direction2 = new BABYLON.Vector3(2.2, 3.0, 0.6);
+        ps.minEmitPower = 1.5;
+        ps.maxEmitPower = 5.2;
+        ps.gravity = new BABYLON.Vector3(0, -9.81, 0);
+        ps.start();
+        impactSparks = ps;
+    }
+
+    function triggerImpactFx(x, z, intensity) {
+        if (!impactSparks) return;
+        impactSparks.emitter = new BABYLON.Vector3(x, 0.82, z);
+        impactSparks.emitRate = 120 + Math.min(260, (intensity || 0) * 8);
+        impactSparkTimer = 0.16;
+        crashShake = Math.min(0.65, 0.16 + (intensity || 0) * 0.007);
+    }
+
     function createExhaustSmoke() {
         var tex = new BABYLON.DynamicTexture('exhaustSmokeTexture', { width: 96, height: 96 }, scene, false);
         var ctx = tex.getContext();
@@ -1245,7 +1359,7 @@
         exhaustEmitter = new BABYLON.TransformNode('exhaustSmokeEmitter', scene);
         exhaustEmitter.parent = carRoot;
         exhaustEmitter.position.set(0, -0.02, -2.28);
-        var ps = new BABYLON.ParticleSystem('exhaustSmoke', isLowPower() ? 70 : 130, scene);
+        var ps = new BABYLON.ParticleSystem('exhaustSmoke', isLowPower() ? 110 : 210, scene);
         ps.particleTexture = tex;
         ps.emitter = exhaustEmitter;
         ps.minEmitBox = new BABYLON.Vector3(-0.38, -0.05, -0.10);
@@ -1253,18 +1367,19 @@
         ps.color1 = new BABYLON.Color4(0.62, 0.63, 0.66, 0.42);
         ps.color2 = new BABYLON.Color4(0.34, 0.35, 0.38, 0.28);
         ps.colorDead = new BABYLON.Color4(0.12, 0.12, 0.14, 0);
-        ps.minSize = 0.32;
-        ps.maxSize = 1.35;
-        ps.minLifeTime = 1.05;
-        ps.maxLifeTime = 2.15;
+        ps.minSize = 0.45;
+        ps.maxSize = 2.15;
+        ps.minLifeTime = 1.8;
+        ps.maxLifeTime = 3.4;
         ps.emitRate = 0;
         ps.blendMode = BABYLON.ParticleSystem.BLENDMODE_STANDARD;
-        ps.direction1 = new BABYLON.Vector3(-0.65, 0.75, -1.8);
-        ps.direction2 = new BABYLON.Vector3(0.65, 1.55, -0.15);
-        ps.minEmitPower = 0.45;
-        ps.maxEmitPower = 1.45;
-        ps.updateSpeed = 0.024;
-        ps.gravity = new BABYLON.Vector3(0, 0.65, 0);
+        // Exhaust leaves the pipes and climbs upward instead of hanging low.
+        ps.direction1 = new BABYLON.Vector3(-0.38, 2.5, -0.9);
+        ps.direction2 = new BABYLON.Vector3(0.38, 3.5, -0.15);
+        ps.minEmitPower = 1.15;
+        ps.maxEmitPower = 2.55;
+        ps.updateSpeed = 0.02;
+        ps.gravity = new BABYLON.Vector3(0, 1.45, 0);
         ps.minAngularSpeed = -0.8;
         ps.maxAngularSpeed = 0.8;
         ps.start();
@@ -1299,6 +1414,7 @@
         createContactShadow();
         createCar();
         createExhaustSmoke();
+        createImpactFx();
 
         // Subtle cinematic pass: ACES, bloom, FXAA. Skip bloom on low-power GPUs.
         try {
@@ -1336,7 +1452,7 @@
         chassis = world.createRigidBody(rapier.RigidBodyDesc.dynamic()
             .setTranslation(0, 0.92, spawnZ)
             .setLinearDamping(0.13)
-            .setAngularDamping(0.55)
+            .setAngularDamping(0.92)
             .setCanSleep(false)
             .setCcdEnabled(true));
         world.createCollider(rapier.ColliderDesc.cuboid(0.91, 0.29, 2.10).setMass(980).setFriction(0.7), chassis);
@@ -1366,6 +1482,7 @@
             vehicle.setWheelSideFrictionStiffness(i, 1.0);
         }
         ready = true;
+        Object.keys(remoteRacers).forEach(function (id) { createRemoteBody(remoteRacers[id]); });
         syncCarVisual(0);
         resetRunWorld();
         setText('g3dGaugeStatus', 'BABYLON + RAPIER · HDR READY');
@@ -1417,6 +1534,18 @@
             if (!boosting) nitro = Math.min(100, nitro + dt * 7.5);
             revLevel = clamp(0.10 + Math.min(1, forwardSpeed / Math.max(1, driveMaxSpeed * GEAR_TOPS[gearIndex - 1])) * 0.82 + (throttle ? 0.08 : 0), 0, 1);
             if (brake) brakeForce = 33;
+        }
+
+        // Anti-wheelie pitch control: the rear-drive launch is strong enough
+        // to lift the nose, so add a small stabilising torque and trim torque
+        // while the front is still lifting.
+        var qNow = chassis.rotation();
+        var forwardLift = 2 * (qNow.y * qNow.z - qNow.x * qNow.w);
+        var carY = chassis.translation().y;
+        if (forwardLift > 0.045 && carY < 1.6) {
+            var antiWheelie = clamp((forwardLift - 0.045) * 2.8, 0, 1);
+            engineForce *= 1 - antiWheelie * 0.58;
+            chassis.applyTorqueImpulse({ x: 26000 * antiWheelie * dt, y: 0, z: 0 }, true);
         }
 
         var steerMax = 0.46 - Math.min(0.36, forwardSpeed / 150);
@@ -1558,6 +1687,12 @@
         var desired = carPos.subtract(forward.scale(back)).add(new BABYLON.Vector3(0, height, 0));
         desired = desired.add(right.scale(Math.sin(performance.now() * 0.031) * shake));
         desired.y += Math.sin(performance.now() * 0.047) * shake;
+        if (crashShake > 0.001) {
+            crashShake = Math.max(0, crashShake - dt * 2.1);
+            desired.x += (Math.random() - 0.5) * crashShake;
+            desired.y += (Math.random() - 0.5) * crashShake * 0.7;
+            desired.z += (Math.random() - 0.5) * crashShake;
+        }
 
         var posLerp = 1 - Math.pow(0.0009, dt);
         var targetLerp = 1 - Math.pow(0.0005, dt);
@@ -1648,6 +1783,12 @@
                 else if (garage) setText('g3dGaugeStatus', 'GARAGE · PRESS PLAY TO DRIVE');
                 else if (runOver) setText('g3dGaugeStatus', 'CRASHED · PRESS PLAY AGAIN');
                 else if (paused) setText('g3dGaugeStatus', 'PAUSED');
+                else if (localRacerName) {
+                    var mp = multiplayerPlace();
+                    setText('g3dGaugeStatus', mp
+                        ? 'MP P' + mp.place + '/' + mp.total + ' · AUTO ' + gearIndex + '/8 · ' + coinsCollected + ' COINS'
+                        : 'MULTIPLAYER · WAITING FOR RACERS · ' + coinsCollected + ' COINS');
+                }
                 else if (input.nitro && nitro > 0 && currentGear === 'D') setText('g3dGaugeStatus', 'NITROUS ACTIVE · ' + coinsCollected + ' COINS');
                 else if (currentGear === 'N' || currentGear === 'P') setText('g3dGaugeStatus', 'REV WITH W · Q/E P R N D · ' + coinsCollected + ' COINS');
                 else if (currentGear === 'R') setText('g3dGaugeStatus', 'REVERSE · Q/E P R N D · ' + coinsCollected + ' COINS');
@@ -1673,7 +1814,11 @@
         }
         if (exhaustSmoke) {
             var revvingN = (currentGear === 'N' || currentGear === 'P') && revLevel > 0.10 && !garage && !runOver;
-            exhaustSmoke.emitRate = revvingN ? 22 + revLevel * 58 : 0;
+            exhaustSmoke.emitRate = revvingN ? 45 + revLevel * 105 : 0;
+        }
+        if (impactSparks) {
+            impactSparkTimer = Math.max(0, impactSparkTimer - dt);
+            if (impactSparkTimer <= 0) impactSparks.emitRate = 0;
         }
         updateRemoteRacers(dt);
         syncCarVisual(dt);
@@ -1960,6 +2105,9 @@
         sky = null;
         exhaustSmoke = null;
         exhaustEmitter = null;
+        impactSparks = null;
+        impactSparkTimer = 0;
+        crashShake = 0;
         camPos = null;
         camTarget = null;
     }
@@ -2062,7 +2210,9 @@
             fsd: fsdActive,
             traffic: traffic.length,
             gear: currentGear === 'D' ? gearIndex : currentGear,
+            pitch: chassis ? Math.round((2 * (chassis.rotation().y * chassis.rotation().z - chassis.rotation().x * chassis.rotation().w)) * 100) / 100 : 0,
             remotes: Object.keys(remoteRacers).length,
+            remoteBodies: Object.keys(remoteRacers).filter(function (id) { return !!remoteRacers[id].body; }).length,
             maxMph: Math.round(driveMaxSpeed * 2.23694),
             nitro: Math.round(nitro),
             audio: !!(audioCtx && audioCtx.state === 'running'),
