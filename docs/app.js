@@ -1181,7 +1181,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261363'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261364'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1190,7 +1190,7 @@ function ensure3DEngine() {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261363').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261364').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1198,7 +1198,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261363').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261364').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1206,9 +1206,9 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261363')
-            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261363'); })
-            .then(function () { return loadScriptOnce('assistant.js?v=20261363'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261364')
+            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261364'); })
+            .then(function () { return loadScriptOnce('assistant.js?v=20261364'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1236,7 +1236,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261363').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261364').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1244,7 +1244,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261363').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261364').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1252,7 +1252,7 @@ function ensureLucky() {
 function ensureTycoon() {
     if (window.Tycoon) return Promise.resolve();
     if (!tycoonPromise) {
-        tycoonPromise = loadScriptOnce('tycoon.js?v=20261363').catch(function (error) { tycoonPromise = null; throw error; });
+        tycoonPromise = loadScriptOnce('tycoon.js?v=20261364').catch(function (error) { tycoonPromise = null; throw error; });
     }
     return tycoonPromise;
 }
@@ -6354,7 +6354,7 @@ async function signUp(){
         if (result.error) { alert(result.error.message); return; }
         if (result.data && result.data.user) await insertAuthProfile(result.data.user, username);
         if (!result.data || !result.data.session) {
-            alert('Account created, but Supabase email confirmation is enabled. Disable email confirmation for username accounts, then sign in.');
+            alert('Account created for ' + email + ', but Supabase returned no session.\n\nDisable Confirm email in Authentication → Providers → Email, delete the unconfirmed user in Authentication → Users, then sign in again.');
             return;
         }
         await applyAuthSession(result.data.session);
@@ -6399,7 +6399,14 @@ async function signIn(){
         if (!session) {
             const retry = await supabaseClient.auth.signInWithPassword({ email: email, password: password });
             if (retry.error) {
-                alert('Supabase Auth migration needs email confirmation disabled or a manual reset in the Supabase dashboard. ' + (retry.error.message || ''));
+                alert(
+                    'Supabase Auth migration failed for ' + email + '.\n\n' +
+                    '1. Disable Confirm email in Supabase → Authentication → Providers → Email.\n' +
+                    '2. If that email already exists in Authentication → Users, delete it there.\n' +
+                    '3. Sign in again with the same username and password.\n\n' +
+                    (retry.error.message || '') +
+                    (created.error ? ' | ' + created.error.message : '')
+                );
                 return;
             }
             session = retry.data.session;
@@ -9349,8 +9356,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.79";
-const UPDATE_NOTES = "Accounts now use Supabase Auth with automatic migration for existing username/password accounts. Run supabase/supabase_auth.sql and disable email confirmation";
+const APP_VERSION = "LessFun Public Beta 1.33.80";
+const UPDATE_NOTES = "Supabase Auth migration errors now explain exactly what to fix: disable Confirm email or delete the existing Auth user, then sign in again";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
