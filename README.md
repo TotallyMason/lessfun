@@ -310,16 +310,19 @@ handling real user data or payments.
 - Only scores and the offline wallet fallback are cached locally. The rest of
   the site is served with cache-busting query parameters.
 
-## Samsung Simulator
+## iPhone Simulator
 
-Interactive **Galaxy S26 Ultra** concept demo built around Samsung's One UI design
-language. It is a fan concept and is not affiliated with Samsung.
+Interactive **iPhone 11 Pro Max** concept demo running Android-style? No — a pure
+CSS/JS take on **iOS 27.2**, complete with a liquid-glass lock screen in gold and
+taupe. It is a fan concept and is not affiliated with Apple.
 
-- One UI&#8209;style lock screen with a large left-aligned clock and a notification card
-- Home screen with the Good evening brief widget, weather widget, Google search pill
-  and app grid plus dock
-- Working demo apps: Phone dialer, Messages, Camera, Gallery, Clock, Weather,
-  Settings, Play Store placeholder and Galaxy Store placeholder
-- Three-button Android navigation bar (recents, home, back) that closes apps
-- 50 MP / Single Take&#8209;style camera demo with zoom hints
-- Clearly labelled as a demo build, not affiliated with Samsung
+- Liquid-glass lock screen: giant gold digits, Tue 10 Nov date, flashlight and camera circles
+- Boot animation with the Apple logo, then a fade to the lock screen
+- Real side buttons: right side key sleeps/wakes, left volume up/down shows the volume HUD
+- Control Centre pulled from the top-right corner: connectivity toggles, music tile,
+  brightness and volume sliders and torch/timer/calculator/camera shortcuts
+- Home screen with widgets, real online app icons and a dock
+- Demo apps: Phone dialer, Safari, Messages, Music, Camera, Photos, Clock, Weather,
+  Settings and Maps (plus Google and Chrome from online icons)
+- Recents overlay, home indicator that goes home, and an app-back button
+- Clearly labelled as a fan concept demo, not affiliated with Apple
