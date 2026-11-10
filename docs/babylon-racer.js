@@ -25,6 +25,8 @@
     var distance = 0, displaySpeed = 0, unit = 'mph', sound = true;
     var nitro = 100, driftScore = 0, steerVisual = 0;
     var currentGear = 'D', gearLabel = 'D';
+    var gearIndex = 1, manualGearTimer = 0, revLevel = 0;
+    var GEAR_TOPS = [0.14, 0.24, 0.35, 0.47, 0.60, 0.73, 0.86, 1.0];
     var camPos = null, camTarget = null;
     var resetClock = 0, flipTime = 0, toastTimer = 0;
     var opts = {};
@@ -313,7 +315,10 @@
             var now = audioCtx.currentTime;
             var speed = displaySpeed || 0;
             var running = active && ready && !runOver && !paused;
-            var rev = clamp(speed / Math.max(18, driveMaxSpeed) + (input.throttle ? 0.14 : 0) + (input.nitro && nitro > 0 ? 0.18 : 0), 0, 1);
+            var freeRev = currentGear === 'P' || currentGear === 'N';
+            var rev = freeRev
+                ? revLevel
+                : clamp(speed / Math.max(18, driveMaxSpeed) + (input.throttle ? 0.14 : 0) + (input.nitro && nitro > 0 ? 0.18 : 0), 0, 1);
             if (garage) { running = true; rev = 0.06; }
             var hasEngine = !!(audioLoops.engineLow && audioLoops.engineHigh);
             var hasWind = !!(audioLoops.windLow && audioLoops.windHigh);
@@ -980,6 +985,9 @@
         coinsCollected = 0;
         coinsAwarded = false;
         scoreSubmitted = false;
+        gearIndex = 1;
+        manualGearTimer = 0;
+        revLevel = 0;
         fsdActive = false;
         fsdThink = 0;
         setRunCoins(0);
@@ -1205,18 +1213,11 @@
         var engineForce = 0;
         var brakeForce = 0;
         var nitroMax = driveMaxSpeed * 1.30;
-        var maxSpeed = input.nitro && nitro > 0 ? nitroMax : driveMaxSpeed;
         var throttle = input.throttle;
         var brake = input.brake;
 
-        if (fsdActive && !garage && !runOver) {
-            if (currentGear !== 'D') setGearMode('D');
-            updateFsd(dt, forwardSpeed);
-            throttle = fsdThrottle;
-            brake = fsdBrake;
-        }
-
         if (garage || runOver) {
+            revLevel = Math.max(0, revLevel - dt * 2.5);
             vehicle.setWheelSteering(0, 0);
             vehicle.setWheelSteering(1, 0);
             for (var g = 0; g < 4; g++) {
@@ -1226,23 +1227,36 @@
             return;
         }
 
-        if (currentGear === 'P') {
-            brakeForce = 34;
+        if (currentGear === 'P' || currentGear === 'N') {
+            revLevel += (throttle ? 1 : -1) * dt * (throttle ? 2.9 : 2.1);
+            revLevel = clamp(revLevel, 0, 1);
         } else if (currentGear === 'R') {
+            revLevel += (throttle ? 1 : -1) * dt * (throttle ? 2.4 : 2.0);
+            revLevel = clamp(revLevel, 0, 1);
             if (throttle) engineForce = -1450 * driveAccel;
             if (brake) brakeForce = 26;
-        } else if (currentGear === 'N') {
-            brakeForce = brake ? 20 : 1.2;
         } else {
+            if (manualGearTimer > 0) {
+                manualGearTimer = Math.max(0, manualGearTimer - dt);
+            } else {
+                while (gearIndex < 8 && forwardSpeed > driveMaxSpeed * GEAR_TOPS[gearIndex - 1] * 0.97) gearIndex++;
+                while (gearIndex > 1 && forwardSpeed < driveMaxSpeed * GEAR_TOPS[gearIndex - 2] * 0.70) gearIndex--;
+            }
+            gearLabel = String(gearIndex);
+            var gearPull = 1.45 - (gearIndex - 1) * 0.10;
+            var boosting = input.nitro && nitro > 0 && throttle;
+            var maxSpeed = boosting ? nitroMax : driveMaxSpeed;
             if (throttle && forwardSpeed < maxSpeed) {
                 var falloff = 1 - (forwardSpeed / maxSpeed) * 0.88;
-                engineForce = 4800 * driveAccel * falloff;
-                if (input.nitro && nitro > 0 && !fsdActive) engineForce += 3200 * driveAccel;
-                nitro = Math.max(0, nitro - dt * 26);
-            } else {
-                nitro = Math.min(100, nitro + dt * 7.5);
+                engineForce = 4800 * driveAccel * gearPull * falloff;
+                if (boosting) {
+                    engineForce += 3200 * driveAccel;
+                    nitro = Math.max(0, nitro - dt * 26);
+                }
             }
-            if (brake) brakeForce = fsdBrake ? 42 : 33;
+            if (!boosting) nitro = Math.min(100, nitro + dt * 7.5);
+            revLevel = clamp(0.10 + Math.min(1, forwardSpeed / Math.max(1, driveMaxSpeed * GEAR_TOPS[gearIndex - 1])) * 0.82 + (throttle ? 0.08 : 0), 0, 1);
+            if (brake) brakeForce = 33;
         }
 
         var steerMax = 0.46 - Math.min(0.36, forwardSpeed / 150);
@@ -1250,8 +1264,7 @@
         if (input.left) steerTarget += 1;
         if (input.right) steerTarget -= 1;
         if (input.pointerActive) steerTarget += input.pointerSteer;
-        if (fsdActive) steerTarget = fsdSteerTarget;
-        steerVisual += (steerTarget - steerVisual) * Math.min(1, dt * (fsdActive ? 7 : 10));
+        steerVisual += (steerTarget - steerVisual) * Math.min(1, dt * 10);
         var steerAngle = steerVisual * steerMax;
         vehicle.setWheelSteering(0, steerAngle);
         vehicle.setWheelSteering(1, steerAngle);
@@ -1259,15 +1272,15 @@
         vehicle.setWheelSteering(3, 0);
 
         // Rear-drive, front steering. Nitrous also feeds the front axle.
-        vehicle.setWheelEngineForce(0, input.nitro && nitro > 0 && !fsdActive ? engineForce * 0.16 : 0);
-        vehicle.setWheelEngineForce(1, input.nitro && nitro > 0 && !fsdActive ? engineForce * 0.16 : 0);
+        vehicle.setWheelEngineForce(0, input.nitro && nitro > 0 ? engineForce * 0.16 : 0);
+        vehicle.setWheelEngineForce(1, input.nitro && nitro > 0 ? engineForce * 0.16 : 0);
         vehicle.setWheelEngineForce(2, engineForce * 0.5);
         vehicle.setWheelEngineForce(3, engineForce * 0.5);
 
         for (var i = 0; i < 4; i++) {
             vehicle.setWheelBrake(i, brakeForce);
             var rear = i >= 2;
-            vehicle.setWheelFrictionSlip(i, input.drift && rear && !fsdActive ? 1.35 : driveGrip);
+            vehicle.setWheelFrictionSlip(i, input.drift && rear ? 1.35 : driveGrip);
         }
 
         // Light aerodynamic drag; keeps the car from coasting forever.
@@ -1435,10 +1448,19 @@
         var raw = displaySpeed;
         var scale = unit === 'kmh' ? 3.6 : 2.23694;
         var shown = Math.round(raw * scale / SPEED_SCALE);
-        var gear = gearLabel;
-        if (currentGear === 'D' && raw < 0.4 && !input.throttle) gear = 'N';
-        var rpm = 900 + Math.min(1, (raw % 42) / 42) * 6400 + (input.nitro && nitro > 0 ? 900 : 0);
-        if (raw < 0.2) rpm = input.throttle ? 1600 : 850;
+        var gear = currentGear === 'D' ? String(gearIndex) : gearLabel;
+        var rpm;
+        if (currentGear === 'P' || currentGear === 'N') {
+            rpm = 850 + revLevel * 6800;
+        } else if (currentGear === 'R') {
+            rpm = 900 + revLevel * 5400;
+        } else {
+            var gearTop = driveMaxSpeed * GEAR_TOPS[gearIndex - 1];
+            var gearBottom = gearIndex > 1 ? driveMaxSpeed * GEAR_TOPS[gearIndex - 2] : 0;
+            var within = clamp((raw - gearBottom) / Math.max(1, gearTop - gearBottom), 0, 1);
+            rpm = 900 + within * 6300 + (input.nitro && nitro > 0 ? 700 : 0);
+            if (raw < 0.2) rpm = input.throttle ? 1250 : 850;
+        }
 
         if (hudTimer > 0.075) {
             hudTimer = 0;
@@ -1466,15 +1488,14 @@
                 else if (garage) setText('g3dGaugeStatus', 'GARAGE · PRESS PLAY TO DRIVE');
                 else if (runOver) setText('g3dGaugeStatus', 'CRASHED · PRESS PLAY AGAIN');
                 else if (paused) setText('g3dGaugeStatus', 'PAUSED');
-                else if (fsdActive) setText('g3dGaugeStatus', 'FSD · AUTOPILOT · ' + coinsCollected + ' COINS');
-                else if (input.nitro && nitro > 0) setText('g3dGaugeStatus', 'NITROUS ACTIVE · ' + coinsCollected + ' COINS');
-                else if (displaySpeed < 0.4) setText('g3dGaugeStatus', 'HOLD W TO START · F FOR FSD');
-                else setText('g3dGaugeStatus', 'BABYLON.JS + RAPIER · ' + coinsCollected + ' COINS');
+                else if (input.nitro && nitro > 0 && currentGear === 'D') setText('g3dGaugeStatus', 'NITROUS ACTIVE · ' + coinsCollected + ' COINS');
+                else if (currentGear === 'N' || currentGear === 'P') setText('g3dGaugeStatus', 'REV WITH W · Q/E TO SHIFT · ' + coinsCollected + ' COINS');
+                else if (currentGear === 'R') setText('g3dGaugeStatus', 'REVERSE · Q/E TO SHIFT · ' + coinsCollected + ' COINS');
+                else if (displaySpeed < 0.4) setText('g3dGaugeStatus', 'HOLD W TO START · Q/E SHIFT · ' + coinsCollected + ' COINS');
+                else setText('g3dGaugeStatus', 'GEAR ' + gearIndex + '/8 · ' + coinsCollected + ' COINS');
             }
             var brake = document.querySelector('.g3d-warn[data-warn="brake"]');
             if (brake) brake.classList.toggle('is-on', !!input.brake);
-            var fsdBtn = $('g3dFsdToggle');
-            if (fsdBtn) fsdBtn.classList.toggle('is-active', !!fsdActive);
         }
     }
 
@@ -1516,11 +1537,17 @@
                 else if (k === ' ') { input.brake = true; e.preventDefault(); }
                 else if (k === 'shift') { input.nitro = true; e.preventDefault(); }
                 else if (k === 'x') { input.drift = true; e.preventDefault(); }
-                else if (k === 'f') { toggleFsd(); e.preventDefault(); }
+                else if (k === 'q') { shiftGear(-1); e.preventDefault(); }
+                else if (k === 'e') { shiftGear(1); e.preventDefault(); }
                 else if (k === 'r') { resetCar(true); e.preventDefault(); }
                 else if (k === 'c') { cameraMode = (cameraMode + 1) % 2; showToast(cameraMode ? 'CAMERA · FAR' : 'CAMERA · CHASE'); }
-                else if (k >= '1' && k <= '4') {
-                    setGearMode(['P', 'R', 'N', 'D'][Number(k) - 1]);
+                else if (k >= '1' && k <= '8') {
+                    if (currentGear !== 'D') setGearMode('D');
+                    gearIndex = Number(k);
+                    gearLabel = String(gearIndex);
+                    manualGearTimer = 5;
+                    playGearSound();
+                    showToast('GEAR ' + gearIndex + '/8');
                     e.preventDefault();
                 }
             },
@@ -1626,7 +1653,10 @@
         garage = false;
         unit = (global.localStorage && localStorage.getItem('lessfun_units')) === 'kmh' ? 'kmh' : 'mph';
         currentGear = 'D';
-        gearLabel = 'D';
+        gearLabel = '1';
+        gearIndex = 1;
+        manualGearTimer = 0;
+        revLevel = 0;
         distance = 0;
         displaySpeed = 0;
         nitro = 100;
@@ -1639,8 +1669,8 @@
         // arcade scale. A 200 mph car now reads 200 on the gauge.
         var perfTop = num(perf.topSpeed, 1) || 1;
         var baseTopFactor = selectedCar ? clamp((selectedCar.topSpeed || 170) / 170, 0.52, 1.9) : 1;
-        var upgradeTop = selectedCar ? clamp(perfTop / baseTopFactor, 0.88, 1.4) : clamp(perfTop, 0.75, 1.6);
-        var topMph = (selectedCar ? (selectedCar.topSpeed || 192) : 192) * upgradeTop;
+        var upgradeTop = selectedCar ? clamp(perfTop / baseTopFactor, 0.88, 1.4) : clamp(perfTop, 1.0, 1.6);
+        var topMph = (selectedCar ? (selectedCar.topSpeed || 192) : 200) * upgradeTop;
         driveMaxSpeed = clamp(topMph / 2.23694, 32, 145);
         driveAccel = clamp(num(perf.accel, 1) || 1, 0.55, 2.4);
         driveGrip = clamp(3.25 * (num(perf.grip, 1) || 1), 2.2, 5.3);
@@ -1805,16 +1835,23 @@
         mode = String(mode || '').toUpperCase();
         if (mode !== 'P' && mode !== 'R' && mode !== 'N' && mode !== 'D') mode = 'D';
         currentGear = mode;
-        gearLabel = mode;
+        gearLabel = mode === 'D' ? '1' : mode;
+        if (mode === 'D') { gearIndex = 1; manualGearTimer = 0; }
+        else revLevel = 0;
         playGearSound();
-        showToast('GEAR ' + mode);
+        showToast(mode === 'D' ? 'GEAR D · 1/8' : 'GEAR ' + mode);
     }
 
     function shiftGear(direction) {
-        var order = ['P', 'R', 'N', 'D'];
-        var idx = order.indexOf(currentGear);
-        idx = clamp(idx + (direction > 0 ? 1 : -1), 0, order.length - 1);
-        setGearMode(order[idx]);
+        if (!ready || garage || runOver) return;
+        if (currentGear !== 'D') setGearMode('D');
+        var next = clamp(gearIndex + (direction > 0 ? 1 : -1), 1, 8);
+        if (next === gearIndex) { showToast('GEAR ' + gearIndex + '/8'); return; }
+        gearIndex = next;
+        gearLabel = String(gearIndex);
+        manualGearTimer = 4.5;
+        playGearSound();
+        showToast('GEAR ' + gearIndex + '/8');
     }
 
     function setGear(mode) { setGearMode(mode); }
@@ -1835,26 +1872,7 @@
     function setGraphicsPreset() {}
     function setRenderScale() {}
     function setShowFps() {}
-    function toggleFsd() {
-        if (!ready || garage || runOver) return;
-        fsdActive = !fsdActive;
-        if (fsdActive) {
-            if (currentGear !== 'D') setGearMode('D');
-            var t = chassis ? chassis.translation() : { x: 0 };
-            var best = 0;
-            for (var l = 0; l < laneCenters.length; l++) if (Math.abs(laneCenters[l] - t.x) < Math.abs(laneCenters[best] - t.x)) best = l;
-            fsdLane = best;
-            fsdThink = 0;
-            input.throttle = true;
-            playTone(520, 0.14, 'sine', 0.05, 900);
-            showToast('FSD ON · AUTOPILOT');
-        } else {
-            fsdBrake = false;
-            fsdThrottle = false;
-            playTone(280, 0.11, 'sine', 0.04, 210);
-            showToast('FSD OFF · MANUAL');
-        }
-    }
+    function toggleFsd() {}
     function setLocalRacerName() {}
     function setRemoteRacers() {}
     function setTerrain() {}
@@ -1877,6 +1895,9 @@
             coins: coinsCollected,
             fsd: fsdActive,
             traffic: traffic.length,
+            gear: currentGear === 'D' ? gearIndex : currentGear,
+            maxMph: Math.round(driveMaxSpeed * 2.23694),
+            nitro: Math.round(nitro),
             audio: !!(audioCtx && audioCtx.state === 'running'),
             audioLoops: Object.keys(audioLoops).length
         };
