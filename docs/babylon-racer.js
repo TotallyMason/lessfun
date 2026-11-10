@@ -12,12 +12,16 @@
     var START_Z = 200;
     var ROAD_LENGTH = 24000;
     var ROAD_WIDTH = 22;
-    var SPEED_SCALE = 1;
+    var SPEED_SCALE = 2;
 
     var engine = null, scene = null, camera = null, canvas = null, container = null;
     var carRoot = null, carVisuals = [], wheelPivots = [], wheelSpins = [], contactShadow = null;
     var sun = null, shadow = null, sky = null, exhaustSmoke = null, exhaustEmitter = null;
     var impactSparks = null, impactSparkTimer = 0, crashShake = 0;
+    var motionBlurPost = null, motionBlurStrength = 0.02;
+    var realCarRoot = null, realCarLoading = false, carPaintHex = 0xc2280b;
+    var smokeTexture = null, driftSmoke = null, driftEmitter = null;
+    var isSanta = false, flyTime = 0, flyCooldown = 0;
     var resizeObs = null, active = false, failed = false;
     var rapier = null, world = null, chassis = null, vehicle = null;
     var rapierPromise = null, ready = false, starting = false;
@@ -711,6 +715,8 @@
         var paintHex = selectedCar && selectedCar.threeColor != null
             ? selectedCar.threeColor
             : (carCosmetics && carCosmetics.paint != null ? carCosmetics.paint : 0xc2280b);
+        carPaintHex = paintHex;
+        isSanta = !!(selectedCar && selectedCar.id === 'car_santa');
         var longScale = style === 'limo' || style === 'bus' ? 1.16 : (style === 'truck' || style === 'suv' || style === 'van' ? 1.06 : 1);
         var wideScale = style === 'truck' || style === 'suv' || style === 'bus' ? 1.06 : 1;
         carRoot.scaling.set(wideScale, 1, longScale);
@@ -838,6 +844,19 @@
         wheel('frontRight', 0.93, 1.36, true);
         wheel('rearLeft', -0.97, -1.38, false);
         wheel('rearRight', 0.97, -1.38, false);
+
+        if (isSanta) {
+            var gold = new BABYLON.PBRMaterial('sleighGold', scene);
+            gold.albedoColor = new BABYLON.Color3(0.95, 0.63, 0.12);
+            gold.metallic = 0.9;
+            gold.roughness = 0.18;
+            box('sleighRunnerL', 0.12, 0.10, 4.15, -0.88, -0.46, 0.10, gold);
+            box('sleighRunnerR', 0.12, 0.10, 4.15, 0.88, -0.46, 0.10, gold);
+            box('sleighSkidL', 0.16, 0.22, 0.52, -0.88, -0.34, 2.16, gold);
+            box('sleighSkidR', 0.16, 0.22, 0.52, 0.88, -0.34, 2.16, gold);
+            box('sleighSeatBack', 1.32, 0.32, 0.18, 0, 0.62, -1.02, gold);
+            wheelPivots.forEach(function (wp) { wp.node.setEnabled(false); });
+        }
     }
 
     function ensureTrafficShared() {
@@ -1299,6 +1318,46 @@
         }
     }
 
+    function loadRealCarModel() {
+        if (isSanta || !selectedCar || realCarLoading || !BABYLON.SceneLoader || !BABYLON.SceneLoader.ImportMeshAsync) return;
+        var skipStyles = { truck: 1, bus: 1, van: 1, limo: 1, monster: 1, offroad: 1 };
+        if (skipStyles[selectedCar.style]) return;
+        realCarLoading = true;
+        try {
+            BABYLON.DracoCompression.Configuration.decoder = {
+                wasmUrl: 'https://cdn.babylonjs.com/draco_wasm_wrapper_gltf.js',
+                wasmBinaryUrl: 'https://cdn.babylonjs.com/draco_decoder_gltf.wasm',
+                fallbackUrl: 'https://cdn.babylonjs.com/draco_decoder_gltf.js'
+            };
+        } catch (e) {}
+        BABYLON.SceneLoader.ImportMeshAsync('', 'models/', 'ferrari.glb', scene).then(function (res) {
+            if (!active || !carRoot || isSanta) return;
+            var root = res.meshes[0];
+            if (!root) return;
+            root.parent = carRoot;
+            root.rotation.y = Math.PI;
+            root.position.y = -0.78;
+            var bodyMat = null;
+            res.meshes.forEach(function (m) {
+                if (!m.getTotalVertices) return;
+                if (m.material && m.material.name === 'Body_Color') bodyMat = m.material;
+                m.receiveShadows = true;
+                if (shadow && (m.name === 'body' || m.name === 'glass' || m.name.indexOf('wheel') === 0 || m.name.indexOf('tire') === 0)) {
+                    shadow.addShadowCaster(m, true);
+                }
+            });
+            if (bodyMat) {
+                if (bodyMat.albedoColor) bodyMat.albedoColor = color3(carPaintHex);
+                else if (bodyMat.diffuseColor) bodyMat.diffuseColor = color3(carPaintHex);
+            }
+            carVisuals.forEach(function (m) { m.setEnabled(false); });
+            wheelPivots.forEach(function (wp) { wp.node.setEnabled(false); });
+            realCarRoot = root;
+        }).catch(function () {
+            // Keep the procedural car if the online model cannot load.
+        });
+    }
+
     function createImpactFx() {
         var tex = new BABYLON.DynamicTexture('impactSparkTexture', { width: 32, height: 32 }, scene, false);
         var ctx = tex.getContext();
@@ -1355,6 +1414,7 @@
         ctx.fillRect(0, 0, 96, 96);
         tex.update(false);
         tex.hasAlpha = true;
+        smokeTexture = tex;
 
         exhaustEmitter = new BABYLON.TransformNode('exhaustSmokeEmitter', scene);
         exhaustEmitter.parent = carRoot;
@@ -1386,6 +1446,63 @@
         exhaustSmoke = ps;
     }
 
+    function createDriftSmoke() {
+        if (!smokeTexture) return;
+        driftEmitter = new BABYLON.TransformNode('driftSmokeEmitter', scene);
+        driftEmitter.parent = carRoot;
+        driftEmitter.position.set(0, -0.38, -1.35);
+        var ps = new BABYLON.ParticleSystem('driftSmoke', isLowPower() ? 90 : 160, scene);
+        ps.particleTexture = smokeTexture;
+        ps.emitter = driftEmitter;
+        ps.minEmitBox = new BABYLON.Vector3(-0.95, -0.12, -0.35);
+        ps.maxEmitBox = new BABYLON.Vector3(0.95, 0.18, 0.35);
+        ps.color1 = new BABYLON.Color4(0.78, 0.78, 0.80, 0.38);
+        ps.color2 = new BABYLON.Color4(0.46, 0.46, 0.49, 0.24);
+        ps.colorDead = new BABYLON.Color4(0.18, 0.18, 0.20, 0);
+        ps.minSize = 0.38;
+        ps.maxSize = 1.35;
+        ps.minLifeTime = 0.55;
+        ps.maxLifeTime = 1.35;
+        ps.emitRate = 0;
+        ps.blendMode = BABYLON.ParticleSystem.BLENDMODE_STANDARD;
+        ps.direction1 = new BABYLON.Vector3(-1.7, 0.35, -1.1);
+        ps.direction2 = new BABYLON.Vector3(1.7, 1.15, 0.5);
+        ps.minEmitPower = 0.45;
+        ps.maxEmitPower = 1.8;
+        ps.updateSpeed = 0.02;
+        ps.gravity = new BABYLON.Vector3(0, 0.55, 0);
+        ps.minAngularSpeed = -1.2;
+        ps.maxAngularSpeed = 1.2;
+        ps.start();
+        driftSmoke = ps;
+    }
+
+    function createMotionBlur() {
+        if (!BABYLON.Effect.ShadersStore['lessfunMotionBlurFragmentShader']) {
+            BABYLON.Effect.ShadersStore['lessfunMotionBlurFragmentShader'] =
+                'precision highp float;' +
+                'varying vec2 vUV;' +
+                'uniform sampler2D textureSampler;' +
+                'uniform float strength;' +
+                'void main(void){' +
+                '  vec2 dir = vUV - vec2(0.5);' +
+                '  float amount = strength * (0.35 + length(dir) * 1.8);' +
+                '  vec4 sum = vec4(0.0); float weights = 0.0;' +
+                '  for (int i = 0; i < 6; i++) {' +
+                '    float t = float(i) / 5.0;' +
+                '    float w = 1.0 - t * 0.45;' +
+                '    sum += texture2D(textureSampler, vUV - dir * amount * t) * w;' +
+                '    weights += w;' +
+                '  }' +
+                '  gl_FragColor = sum / weights;' +
+                '}';
+        }
+        motionBlurPost = new BABYLON.PostProcess('lessfunMotionBlur', 'lessfunMotionBlur', ['strength'], null, 1.0, camera, BABYLON.Texture.BILINEAR_SAMPLINGMODE, engine, false);
+        motionBlurPost.onApply = function (effect) {
+            effect.setFloat('strength', motionBlurStrength);
+        };
+    }
+
     function createScene() {
         engine = new BABYLON.Engine(canvas, true, {
             preserveDrawingBuffer: true,
@@ -1414,7 +1531,9 @@
         createContactShadow();
         createCar();
         createExhaustSmoke();
+        createDriftSmoke();
         createImpactFx();
+        loadRealCarModel();
 
         // Subtle cinematic pass: ACES, bloom, FXAA. Skip bloom on low-power GPUs.
         try {
@@ -1427,6 +1546,7 @@
             pipeline.imageProcessingEnabled = true;
         } catch (e) {}
 
+        createMotionBlur();
         camPos = new BABYLON.Vector3(0, 4.2, -11);
         camTarget = new BABYLON.Vector3(0, 1.0, 4);
         resetCamera(true);
@@ -1496,6 +1616,23 @@
         var nitroMax = driveMaxSpeed * 1.30;
         var throttle = input.throttle;
         var brake = input.brake;
+
+        if (isSanta) {
+            if (flyTime > 0) {
+                flyTime = Math.max(0, flyTime - dt);
+                chassis.setGravityScale(0.06, true);
+                var fv = chassis.linvel();
+                chassis.setLinvel({ x: fv.x, y: Math.max(fv.y, 1.4), z: fv.z }, true);
+                if (flyTime <= 0) {
+                    flyCooldown = 5;
+                    chassis.setGravityScale(1, true);
+                    showToast('SANTA LANDED · FLY CD 5s');
+                }
+            } else {
+                if (flyCooldown > 0) flyCooldown = Math.max(0, flyCooldown - dt);
+                chassis.setGravityScale(1, true);
+            }
+        }
 
         if (garage || runOver) {
             revLevel = Math.max(0, revLevel - dt * 2.5);
@@ -1582,7 +1719,7 @@
         for (var i = 0; i < 4; i++) {
             vehicle.setWheelBrake(i, brakeForce);
             var rear = i >= 2;
-            vehicle.setWheelFrictionSlip(i, input.drift && rear ? 1.35 : driveGrip);
+            vehicle.setWheelFrictionSlip(i, input.drift && rear ? 0.95 : driveGrip);
         }
 
         // Light aerodynamic drag; keeps the car from coasting forever.
@@ -1590,7 +1727,10 @@
         var drag = 0.020 * forwardSpeed;
         chassis.applyImpulse({ x: -v.x * drag * dt, y: 0, z: -v.z * drag * dt }, true);
 
-        if (input.drift && forwardSpeed > 8) driftScore += forwardSpeed * dt * 0.38;
+        if (input.drift && forwardSpeed > 8) {
+            driftScore += forwardSpeed * dt * 0.38;
+            chassis.applyTorqueImpulse({ x: 0, y: steerVisual * 190 * dt, z: 0 }, true);
+        }
         if (!input.drift && driftScore > 0) driftScore = Math.max(0, driftScore - dt * 12);
     }
 
@@ -1644,6 +1784,9 @@
         accumulator = 0;
         flipTime = 0;
         nitro = 100;
+        flyTime = 0;
+        flyCooldown = 0;
+        if (chassis) chassis.setGravityScale(1, true);
         resetCamera(true);
         if (!silent) showToast('RESET · BEACH RACER');
     }
@@ -1815,17 +1958,23 @@
                 else if (garage) setText('g3dGaugeStatus', 'GARAGE · PRESS PLAY TO DRIVE');
                 else if (runOver) setText('g3dGaugeStatus', 'CRASHED · PRESS PLAY AGAIN');
                 else if (paused) setText('g3dGaugeStatus', 'PAUSED');
+                else if (input.drift && displaySpeed > 9) setText('g3dGaugeStatus', 'DRIFT · ' + Math.round(driftScore) + ' · ' + coinsCollected + ' COINS');
+                else if (isSanta) {
+                    if (flyTime > 0) setText('g3dGaugeStatus', 'SANTA FLYING · ' + flyTime.toFixed(1) + 's');
+                    else if (flyCooldown > 0) setText('g3dGaugeStatus', 'FLY READY IN ' + Math.ceil(flyCooldown) + 's');
+                    else setText('g3dGaugeStatus', 'SPACE TO FLY · ' + coinsCollected + ' COINS');
+                }
                 else if (localRacerName) {
                     var mp = multiplayerPlace();
                     setText('g3dGaugeStatus', mp
-                        ? 'MP P' + mp.place + '/' + mp.total + ' · AUTO ' + gearIndex + '/8 · ' + coinsCollected + ' COINS'
+                        ? 'MP P' + mp.place + '/' + mp.total + ' · ' + coinsCollected + ' COINS'
                         : 'MULTIPLAYER · WAITING FOR RACERS · ' + coinsCollected + ' COINS');
                 }
                 else if (input.nitro && nitro > 0 && currentGear === 'D') setText('g3dGaugeStatus', 'NITROUS ACTIVE · ' + coinsCollected + ' COINS');
                 else if (currentGear === 'N' || currentGear === 'P') setText('g3dGaugeStatus', 'REV WITH W · Q/E P R N D · ' + coinsCollected + ' COINS');
                 else if (currentGear === 'R') setText('g3dGaugeStatus', 'REVERSE · Q/E P R N D · ' + coinsCollected + ' COINS');
                 else if (displaySpeed < 0.4) setText('g3dGaugeStatus', 'HOLD W TO START · Q/E P R N D · ' + coinsCollected + ' COINS');
-                else setText('g3dGaugeStatus', 'AUTO ' + gearIndex + '/8 · ' + coinsCollected + ' COINS');
+                else setText('g3dGaugeStatus', 'BABYLON.JS + RAPIER · ' + coinsCollected + ' COINS');
             }
             var brake = document.querySelector('.g3d-warn[data-warn="brake"]');
             if (brake) brake.classList.toggle('is-on', !!input.brake);
@@ -1848,10 +1997,15 @@
             var revvingN = (currentGear === 'N' || currentGear === 'P') && revLevel > 0.10 && !garage && !runOver;
             exhaustSmoke.emitRate = revvingN ? 60 + revLevel * 125 : 0;
         }
+        if (driftSmoke) {
+            driftSmoke.emitRate = (input.drift && displaySpeed > 9 && !garage && !runOver) ? 50 + Math.min(120, displaySpeed * 0.7) : 0;
+        }
         if (impactSparks) {
             impactSparkTimer = Math.max(0, impactSparkTimer - dt);
             if (impactSparkTimer <= 0) impactSparks.emitRate = 0;
         }
+        var speedFrac = clamp(displaySpeed / Math.max(1, driveMaxSpeed), 0, 1);
+        motionBlurStrength = 0.012 + speedFrac * 0.070 + (input.nitro && nitro > 0 ? 0.022 : 0);
         updateRemoteRacers(dt);
         syncCarVisual(dt);
         updateAudio();
@@ -1876,7 +2030,11 @@
                 else if (k === 's' || k === 'arrowdown') { input.brake = true; e.preventDefault(); }
                 else if (k === 'a' || k === 'arrowleft') { input.left = true; e.preventDefault(); }
                 else if (k === 'd' || k === 'arrowright') { input.right = true; e.preventDefault(); }
-                else if (k === ' ') { input.brake = true; e.preventDefault(); }
+                else if (k === ' ') {
+                    if (isSanta) { if (!e.repeat) startFly(); }
+                    else input.brake = true;
+                    e.preventDefault();
+                }
                 else if (k === 'shift') { input.nitro = true; e.preventDefault(); }
                 else if (k === 'x') { input.drift = true; e.preventDefault(); }
                 else if (k === 'q') { shiftGear(-1); e.preventDefault(); }
@@ -1997,6 +2155,11 @@
         steerVisual = 0;
         selectedCar = opts.car || null;
         carCosmetics = opts.cosmetics || null;
+        isSanta = !!(selectedCar && selectedCar.id === 'car_santa');
+        flyTime = 0;
+        flyCooldown = 0;
+        realCarRoot = null;
+        realCarLoading = false;
         remoteRacers = {};
         localRacerName = '';
         var perf = carCosmetics && carCosmetics.performance ? carCosmetics.performance : {};
@@ -2006,7 +2169,7 @@
         var baseTopFactor = selectedCar ? clamp((selectedCar.topSpeed || 170) / 170, 0.52, 1.9) : 1;
         var upgradeTop = selectedCar ? clamp(perfTop / baseTopFactor, 0.88, 1.4) : clamp(perfTop, 1.0, 1.6);
         var topMph = (selectedCar ? (selectedCar.topSpeed || 192) : 200) * upgradeTop;
-        driveMaxSpeed = clamp(topMph / 2.23694, 32, 145);
+        driveMaxSpeed = clamp(topMph / 2.23694, 32, 145) * 2;
         driveAccel = clamp(num(perf.accel, 1) || 1, 0.55, 2.4);
         driveGrip = clamp(3.25 * (num(perf.grip, 1) || 1), 2.2, 5.3);
         traffic = [];
@@ -2137,9 +2300,15 @@
         sky = null;
         exhaustSmoke = null;
         exhaustEmitter = null;
+        driftSmoke = null;
+        driftEmitter = null;
+        smokeTexture = null;
+        realCarRoot = null;
+        realCarLoading = false;
         impactSparks = null;
         impactSparkTimer = 0;
         crashShake = 0;
+        motionBlurPost = null;
         camPos = null;
         camTarget = null;
     }
@@ -2180,7 +2349,7 @@
         if (mode === 'D') { gearIndex = 1; manualGearTimer = 0; }
         else revLevel = 0;
         playGearSound();
-        showToast(mode === 'D' ? 'GEAR D · AUTO 1/8' : 'GEAR ' + mode);
+        showToast('GEAR ' + mode);
     }
 
     function shiftGear(direction) {
@@ -2209,6 +2378,18 @@
     function setGraphicsPreset() {}
     function setRenderScale() {}
     function setShowFps() {}
+    function startFly() {
+        if (!isSanta || !ready || garage || runOver) return;
+        if (flyTime > 0 || flyCooldown > 0) return;
+        if (currentGear !== 'D') setGearMode('D');
+        flyTime = 2.0;
+        chassis.setGravityScale(0.06, true);
+        var v = chassis.linvel();
+        chassis.setLinvel({ x: v.x, y: Math.max(v.y, 3.6), z: v.z }, true);
+        playTone(660, 0.18, 'triangle', 0.06, 1180);
+        showToast('SANTA FLY · 2s');
+    }
+
     function toggleFsd() {}
     function setLocalRacerName(name) { localRacerName = String(name || '').slice(0, 16); }
     function setTerrain() {}
@@ -2244,6 +2425,9 @@
             gear: currentGear === 'D' ? gearIndex : currentGear,
             pitch: chassis ? Math.round((2 * (chassis.rotation().y * chassis.rotation().z - chassis.rotation().x * chassis.rotation().w)) * 100) / 100 : 0,
             remotes: Object.keys(remoteRacers).length,
+            fly: flyTime > 0 ? flyTime : 0,
+            flyCooldown: flyCooldown,
+            santa: isSanta,
             remoteBodies: Object.keys(remoteRacers).filter(function (id) { return !!remoteRacers[id].body; }).length,
             maxMph: Math.round(driveMaxSpeed * 2.23694),
             nitro: Math.round(nitro),
