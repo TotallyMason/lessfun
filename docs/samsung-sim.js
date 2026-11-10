@@ -26,8 +26,7 @@
 .ss-demo-badge{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid rgba(142,162,255,.35);border-radius:999px;background:rgba(142,162,255,.08);color:#c3cfff;font-size:9px;font-weight:800;letter-spacing:.14em}
 .ss-demo-badge i{width:6px;height:6px;border-radius:50%;background:#93a7ff;box-shadow:0 0 9px #93a7ff}
 .ss-phone{position:relative;z-index:2;height:min(82vh,800px);max-height:800px;aspect-ratio:388/844;flex:0 0 auto;filter:drop-shadow(0 40px 80px rgba(0,0,0,.65))}
-.ss-frame{position:absolute;inset:0;border-radius:46px;padding:7px;background:linear-gradient(150deg,#e3e6f2 0%,#8f94ab 9%,#2a2c34 30%,#c9cde0 48%,#3a3d48 72%,#a9adbf 94%,#5f6270 100%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.35),inset 0 0 0 3px rgba(0,0,0,.55),0 0 0 1px rgba(0,0,0,.9);animation:ssHover 7s ease-in-out infinite}
-@keyframes ssHover{0%,100%{transform:rotate(-1deg) translateY(0)}50%{transform:rotate(1deg) translateY(-6px)}}
+.ss-frame{position:absolute;inset:0;border-radius:46px;padding:7px;background:linear-gradient(150deg,#e3e6f2 0%,#8f94ab 9%,#2a2c34 30%,#c9cde0 48%,#3a3d48 72%,#a9adbf 94%,#5f6270 100%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.35),inset 0 0 0 3px rgba(0,0,0,.55),0 0 0 1px rgba(0,0,0,.9)}
 .ss-screen{position:relative;width:100%;height:100%;border-radius:40px;overflow:hidden;background:#000;box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
 .ss-side{position:absolute;z-index:4;width:3px;border-radius:2px;background:linear-gradient(to bottom,rgba(230,232,242,.95),rgba(70,72,84,.85));cursor:pointer}.ss-side.ps{right:-4px;top:168px;height:96px}.ss-side.up{left:-4px;top:158px;height:40px}.ss-side.down{left:-4px;top:206px;height:40px}
 /* wallpaper — purple/pink flow */
@@ -47,15 +46,15 @@
 /* boot */
 .ss-boot{position:absolute;inset:0;z-index:90;background:#000;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;transition:opacity .5s}
 .ss-boot.is-done{opacity:0;pointer-events:none;visibility:hidden;transition:opacity .5s,visibility 0s .5s}
-.ss-fit{color:#fff;font-weight:900;letter-spacing:.34em;font-size:30px;text-transform:uppercase;white-space:nowrap}
-.ss-boot .ss-fit-2{display:flex;align-items:center;gap:10px}
-.ss-boot .ss-word{color:#fff;font-weight:900;letter-spacing:.24em;font-size:26px;text-transform:uppercase}
-.ss-boot .ss-glyph{color:#fff;font-weight:600;font-size:30px;letter-spacing:.08em}
-.ss-android{width:44px;height:23px;border-radius:24px 24px 4px 4px;background:#3ddc84;position:relative;align-self:center}
-.ss-android:before{content:"";position:absolute;top:-13px;left:9px;width:9px;height:16px;background:#3ddc84;border-radius:8px 8px 0 0;transform:rotate(-24deg);transform-origin:bottom right}
-.ss-android:after{content:"";position:absolute;top:-13px;right:9px;width:9px;height:16px;background:#3ddc84;border-radius:8px 8px 0 0;transform:rotate(24deg);transform-origin:bottom left}
-.ss-android i,.ss-android b{position:absolute;top:9px;width:4px;height:4px;border-radius:50%;background:#0b0f14}
-.ss-android i{left:12px}.ss-android b{right:12px}
+.ss-fit{color:#fff;font-weight:900;letter-spacing:.3em;font-size:24px;text-transform:uppercase;white-space:nowrap}
+.ss-boot .ss-fit-2{display:flex;align-items:center;gap:8px;justify-content:center;max-width:100%;overflow:hidden}
+.ss-boot .ss-word{color:#fff;font-weight:900;letter-spacing:.16em;font-size:17px;text-transform:uppercase;white-space:nowrap}
+.ss-boot .ss-glyph{color:#fff;font-weight:600;font-size:20px;letter-spacing:.04em;white-space:nowrap}
+.ss-android{width:30px;height:16px;border-radius:24px 24px 4px 4px;background:#3ddc84;position:relative;align-self:center}
+.ss-android:before{content:"";position:absolute;top:-9px;left:6px;width:6px;height:11px;background:#3ddc84;border-radius:8px 8px 0 0;transform:rotate(-24deg);transform-origin:bottom right}
+.ss-android:after{content:"";position:absolute;top:-9px;right:6px;width:6px;height:11px;background:#3ddc84;border-radius:8px 8px 0 0;transform:rotate(24deg);transform-origin:bottom left}
+.ss-android i,.ss-android b{position:absolute;top:6px;width:3px;height:3px;border-radius:50%;background:#0b0f14}
+.ss-android i{left:8px}.ss-android b{right:8px}
 .ss-boot-stage{display:none}.ss-boot-stage.is-active{display:flex;align-items:center;flex-direction:column;gap:12px}
 /* lock */
 .ss-lock{position:absolute;inset:0;z-index:8;cursor:pointer;transition:opacity .3s}
@@ -505,7 +504,7 @@
                         '<div class="ss-punch"></div>' +
                         '<div class="ss-pull" id="ssPull" title="Pull down for quick settings"></div>' +
                         '<div class="ss-status"><span data-ss-time>8:42</span><span class="ss-status-right"><span class="ss-status-icons">‹ ▲ ◉</span><span class="ss-signal"><i></i><i></i><i></i><i></i></span><span class="ss-batt">86%</span></span></div>' +
-                        /* boot */
+        /* boot */
                         '<div class="ss-boot" id="ssBoot">' +
                             '<div class="ss-boot-stage is-active" data-boot="1"><div class="ss-fit">Samsung</div></div>' +
                             '<div class="ss-boot-stage" data-boot="2"><div class="ss-fit-2"><span class="ss-word">Samsung</span><span class="ss-android"><i></i><b></b></span><span class="ss-glyph">Galaxy</span></div></div>' +
