@@ -21,6 +21,7 @@
     var motionBlurPost = null, motionBlurStrength = 0.02;
     var realCarRoot = null, realCarLoading = false, carPaintHex = 0xc2280b;
     var proceduralLampMeshes = [];
+    var vehicleModelLibrary = null, vehicleModelsLoading = false;
     var smokeTexture = null, driftSmoke = null, driftEmitter = null;
     var isSanta = false, flyTime = 0, flyCooldown = 0;
     var powerShakeLevel = 0;
@@ -55,6 +56,11 @@
     var trafficPaintCache = {};
     var trafficShared = null;
     var coinMaterial = null;
+
+    var VEHICLE_MODEL_FILES = {
+        sedan: 'town', sport: 'wedge', suv: 'suv', van: 'minivan',
+        truck: 'truck', bus: 'bus', taxi: 'taxi', muscle: 'muscle'
+    };
 
     var TRAFFIC_SPECS = {
         sedan: { w: 1.82, l: 4.3, bodyH: 0.42, cabinH: 0.38, cabinL: 1.75, cabinZ: -0.10, y: 0.60 },
@@ -927,6 +933,60 @@
         trafficShared = { glass: glass, tire: tire, head: head, tail: tail, trim: trim };
     }
 
+    function attachVehicleModel(car) {
+        if (!car || car.modelClone || !vehicleModelLibrary) return;
+        var asset = vehicleModelLibrary[car.style] || vehicleModelLibrary.sedan;
+        if (!asset || !asset.mesh) return;
+        var clone = asset.mesh.clone('vehicleModel_' + car.style);
+        clone.parent = car.root;
+        clone.position.set(0, asset.offsetY, 0);
+        clone.rotation.y = asset.yaw;
+        clone.scaling.setAll(asset.scale);
+        clone.isVisible = true;
+        clone.setEnabled(true);
+        clone.isPickable = false;
+        car.root.getChildMeshes().forEach(function (m) {
+            if (m !== clone && m.name.indexOf('remoteNamePlane') !== 0) m.setEnabled(false);
+        });
+        car.modelClone = clone;
+    }
+
+    function loadVehicleModelLibrary() {
+        if (vehicleModelsLoading || vehicleModelLibrary) return;
+        vehicleModelsLoading = true;
+        var styles = Object.keys(VEHICLE_MODEL_FILES);
+        Promise.all(styles.map(function (style) {
+            return BABYLON.SceneLoader.ImportMeshAsync('', 'models/traffic/', VEHICLE_MODEL_FILES[style] + '.glb', scene).then(function (res) {
+                var parts = res.meshes.filter(function (m) { return m.getTotalVertices && m.getTotalVertices() > 0; });
+                if (!parts.length) return null;
+                var merged = BABYLON.Mesh.MergeMeshes(parts, true, true, undefined, false, true);
+                if (!merged) return null;
+                merged.computeWorldMatrix(true);
+                var mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
+                parts.forEach(function (m) {
+                    m.computeWorldMatrix(true);
+                    var b = m.getBoundingInfo().boundingBox;
+                    var a = b.minimumWorld, c = b.maximumWorld;
+                    mn = [Math.min(mn[0], a.x), Math.min(mn[1], a.y), Math.min(mn[2], a.z)];
+                    mx = [Math.max(mx[0], c.x), Math.max(mx[1], c.y), Math.max(mx[2], c.z)];
+                });
+                var dx = mx[0] - mn[0], dz = mx[2] - mn[2];
+                var spec = TRAFFIC_SPECS[style] || TRAFFIC_SPECS.sedan;
+                var length = Math.max(dx, dz);
+                var scale = spec.l / Math.max(0.1, length);
+                merged.isVisible = false;
+                merged.isPickable = false;
+                return { style: style, mesh: merged, scale: scale, offsetY: -mn[1] * scale, yaw: dx > dz ? Math.PI / 2 : 0 };
+            }).catch(function () { return null; });
+        })).then(function (assets) {
+            if (!active) return;
+            vehicleModelLibrary = {};
+            assets.forEach(function (asset) { if (asset) vehicleModelLibrary[asset.style] = asset; });
+            traffic.forEach(attachVehicleModel);
+            Object.keys(remoteRacers).forEach(function (id) { attachVehicleModel(remoteRacers[id]); });
+        }).catch(function () {}).then(function () { vehicleModelsLoading = false; });
+    }
+
     function makeTrafficCar(style, colorHex) {
         ensureTrafficShared();
         var spec = TRAFFIC_SPECS[style] || TRAFFIC_SPECS.sedan;
@@ -1039,6 +1099,7 @@
         for (var t = 0; t < traffic.length; t++) {
             placeTrafficCar(traffic[t], pz, 30 + t * (initial ? 46 : 38));
             createTrafficBody(traffic[t]);
+            attachVehicleModel(traffic[t]);
         }
     }
 
@@ -1189,6 +1250,7 @@
         car.bumpCool = 0;
         drawRemoteName(car);
         createRemoteBody(car);
+        attachVehicleModel(car);
         return car;
     }
 
@@ -1603,6 +1665,7 @@
         createEnvironment();
         createContactShadow();
         createCar();
+        loadVehicleModelLibrary();
         createExhaustSmoke();
         createDriftSmoke();
         createImpactFx();
@@ -2310,6 +2373,8 @@
         flyCooldown = 0;
         realCarRoot = null;
         realCarLoading = false;
+        vehicleModelLibrary = null;
+        vehicleModelsLoading = false;
         remoteRacers = {};
         localRacerName = '';
         var perf = carCosmetics && carCosmetics.performance ? carCosmetics.performance : {};
@@ -2455,6 +2520,8 @@
         smokeTexture = null;
         realCarRoot = null;
         realCarLoading = false;
+        vehicleModelLibrary = null;
+        vehicleModelsLoading = false;
         proceduralLampMeshes = [];
         impactSparks = null;
         impactSmoke = null;
