@@ -604,66 +604,6 @@ function showView(view) {
         debugData = { users: [], posts: [], replies: [], postReactions: [], replyReactions: [], wallets: [], scores: [], presence: [], friendships: [] };
     }
     touchPresence();
-    if (currentGameId == null) appBrowserSetHash(view);
-}
-
-var APP_BROWSER_VIEWS = { games: 1, store: 1, garage: 1, settings: 1, community: 1, users: 1 };
-
-function appBrowserUpdateUrl() {
-    var input = document.getElementById('appBrowserUrl');
-    if (input && document.activeElement !== input) input.value = location.href;
-}
-
-function appBrowserSetHash(view) {
-    if (currentGameId != null) return;
-    var hash = view && view !== 'games' ? '#' + view : '';
-    try { history.replaceState(history.state, '', location.pathname + location.search + hash); } catch (e) {}
-    appBrowserUpdateUrl();
-}
-
-function appBrowserBack() { try { history.back(); } catch (e) {} }
-function appBrowserForward() { try { history.forward(); } catch (e) {} }
-function appBrowserReload() { location.reload(); }
-
-function appBrowserNewTab() {
-    try { window.open(location.href, '_blank', 'noopener'); } catch (e) {}
-}
-
-function appBrowserGo(event) {
-    if (event) event.preventDefault();
-    var input = document.getElementById('appBrowserUrl');
-    if (!input) return;
-    var value = String(input.value || '').trim();
-    if (!value) return;
-    var page = value.replace(/^#/, '').replace(/^\/+/, '').toLowerCase();
-    if (page === 'friends') page = 'users';
-    if (APP_BROWSER_VIEWS[page]) { showView(page); return; }
-    if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(value) && value.charAt(0) !== '/' && value.charAt(0) !== '#') {
-        value = 'https://' + value;
-    }
-    var url;
-    try { url = new URL(value, location.href); } catch (e) {
-        input.value = location.href;
-        return;
-    }
-    if (url.origin === location.origin) {
-        var hashPage = url.hash.replace('#', '').toLowerCase();
-        if (APP_BROWSER_VIEWS[hashPage]) {
-            showView(hashPage);
-            return;
-        }
-        location.href = url.href;
-        return;
-    }
-    try { window.open(url.href, '_blank', 'noopener'); } catch (e) {}
-    input.value = location.href;
-    if (typeof showGameToast === 'function') showGameToast('Opened in a new tab');
-}
-
-function appBrowserRouteHash() {
-    var hash = location.hash.replace('#', '').toLowerCase();
-    if (hash === 'friends') hash = 'users';
-    if (APP_BROWSER_VIEWS[hash] && currentView !== hash) showView(hash);
 }
 
 function updateSnowCountdown() {
@@ -1241,7 +1181,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261365'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261366'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1250,7 +1190,7 @@ function ensure3DEngine() {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261365').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261366').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1258,7 +1198,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261365').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261366').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1266,9 +1206,9 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261365')
-            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261365'); })
-            .then(function () { return loadScriptOnce('assistant.js?v=20261365'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261366')
+            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261366'); })
+            .then(function () { return loadScriptOnce('assistant.js?v=20261366'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1296,7 +1236,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261365').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261366').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1304,7 +1244,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261365').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261366').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1312,7 +1252,7 @@ function ensureLucky() {
 function ensureTycoon() {
     if (window.Tycoon) return Promise.resolve();
     if (!tycoonPromise) {
-        tycoonPromise = loadScriptOnce('tycoon.js?v=20261365').catch(function (error) { tycoonPromise = null; throw error; });
+        tycoonPromise = loadScriptOnce('tycoon.js?v=20261366').catch(function (error) { tycoonPromise = null; throw error; });
     }
     return tycoonPromise;
 }
@@ -1419,7 +1359,7 @@ function openGameNow(id) {
         return;
     }
     if (!gameHistoryPushed) {
-        try { history.pushState({ lessfunGame: id }, '', '#game-' + id); gameHistoryPushed = true; } catch (e) {}
+        try { history.pushState({ lessfunGame: id }, ''); gameHistoryPushed = true; } catch (e) {}
     }
     if (id === 8) { openDrawGuessGame(); return; }
     if (id === 9) { openLuckySpinGame(); return; }
@@ -1939,8 +1879,6 @@ function closeGame(fromHistory) {
     currentGameId = null;
     if (shouldGoBack) {
         try { history.back(); } catch (e) {}
-    } else {
-        appBrowserSetHash(currentView);
     }
 }
 
@@ -9418,8 +9356,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.81";
-const UPDATE_NOTES = "Added an in-app browser address bar with Back, Forward, Reload, a link field and Open in new tab. It shows the current LessFun page link";
+const APP_VERSION = "LessFun Public Beta 1.33.82";
+const UPDATE_NOTES = "Removed the in-app address bar. The normal LessFun layout is back";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -9589,8 +9527,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
     radioInit();
     initSnowEvent();
     initSiteSnow();
-    appBrowserUpdateUrl();
-    appBrowserRouteHash();
     if ('serviceWorker' in navigator && location.protocol !== 'file:') {
         navigator.serviceWorker.register('sw.js').then(function (registration) {
             if (registration && registration.update) registration.update().catch(function () {});
@@ -9607,10 +9543,7 @@ window.addEventListener('popstate', function () {
         gameHistoryPushed = false;
         closeGame(true);
     }
-    appBrowserUpdateUrl();
 });
-
-window.addEventListener('hashchange', appBrowserUpdateUrl);
 
 document.addEventListener('visibilitychange', function () {
     if (!document.hidden) {

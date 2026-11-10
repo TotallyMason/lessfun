@@ -11,8 +11,8 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261365">
-    <link rel="preload" href="app.js?v=20261365" as="script">
+    <link rel="stylesheet" href="style.css?v=20261366">
+    <link rel="preload" href="app.js?v=20261366" as="script">
 </head>
 <body>
     <div id="siteLoader" class="site-loader" role="status" aria-live="polite" aria-label="Loading LessFun">
@@ -47,19 +47,6 @@
             <p class="focus-mode-hint">Press Esc or click Resume to return.</p>
             <button type="button" class="focus-mode-resume" onclick="leaveFocusMode()">Resume</button>
         </div>
-    </div>
-    <div class="app-browser-bar" id="appBrowserBar" aria-label="LessFun address bar">
-        <div class="app-browser-controls">
-            <button type="button" class="app-browser-btn" id="appBrowserBack" title="Back" aria-label="Back" onclick="appBrowserBack()">‹</button>
-            <button type="button" class="app-browser-btn" id="appBrowserForward" title="Forward" aria-label="Forward" onclick="appBrowserForward()">›</button>
-            <button type="button" class="app-browser-btn" id="appBrowserReload" title="Reload" aria-label="Reload" onclick="appBrowserReload()">⟳</button>
-        </div>
-        <form class="app-browser-field" onsubmit="appBrowserGo(event)">
-            <span class="app-browser-lock" aria-hidden="true">⌂</span>
-            <input id="appBrowserUrl" type="text" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="Enter a link or LessFun page" aria-label="Enter a link or LessFun page" onfocus="this.select()">
-            <button type="submit" class="app-browser-go">Go</button>
-        </form>
-        <button type="button" class="app-browser-btn app-browser-newtab" title="Open in new tab" aria-label="Open in new tab" onclick="appBrowserNewTab()">↗</button>
     </div>
     <script>
     (function () {
@@ -1085,7 +1072,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Public Beta 1.33.81</p>
+                            <p>LessFun Public Beta 1.33.82</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -1268,6 +1255,7 @@
                             <li><strong>1.33.79</strong> — Accounts now use Supabase Auth. Usernames map to stable synthetic emails, sessions restore on reload, and legacy username/password accounts migrate automatically on their next sign-in. Run supabase/supabase_auth.sql and disable email confirmation.</li>
                             <li><strong>1.33.80</strong> — Clearer Supabase Auth migration errors: the message now shows the synthetic email and tells you to disable Confirm email or delete the existing Auth user before retrying.</li>
                             <li><strong>1.33.81</strong> — Added an in-app browser-style address bar with Back, Forward, Reload, URL field and Open in new tab. It shows the current LessFun page link and accepts links or page names like #store or #garage.</li>
+                            <li><strong>1.33.82</strong> — Removed the in-app address bar. LessFun is back to the normal site layout.</li>
                         </ul>
                     </div>
                     <div class="info-card">
@@ -1611,8 +1599,8 @@
     <div id="globalToast" class="global-toast"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=20261365"></script>
-    <script src="christmas.js?v=20261365"></script>
-    <script src="easter.js?v=20261365"></script>
+    <script src="app.js?v=20261366"></script>
+    <script src="christmas.js?v=20261366"></script>
+    <script src="easter.js?v=20261366"></script>
 </body>
 </html>
