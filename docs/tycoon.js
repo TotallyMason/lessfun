@@ -5,7 +5,7 @@
     'use strict';
 
     var CABINETS = {
-        beach:  { name: 'Beach Racer',   icon: 'beach',  cost: 150,  income: 8,  rep: 1,  color: '#ef476f' },
+        beach:  { name: 'Redline GT',   icon: 'beach',  cost: 150,  income: 8,  rep: 1,  color: '#ef476f' },
         tunnel: { name: 'Tunnel Rush',   icon: 'tunnel', cost: 240,  income: 12, rep: 2,  color: '#9b5de5' },
         stack:  { name: 'Cube Stack',    icon: 'blocks', cost: 360,  income: 17, rep: 3,  color: '#ffd166' },
         snow:   { name: 'Snow Rush',     icon: 'snow',   cost: 520,  income: 24, rep: 4,  color: '#8fdcff' },

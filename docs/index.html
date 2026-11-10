@@ -11,8 +11,8 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LessFun</title>
-    <link rel="stylesheet" href="style.css?v=20261381">
-    <link rel="preload" href="app.js?v=20261381" as="script">
+    <link rel="stylesheet" href="style.css?v=20261382">
+    <link rel="preload" href="app.js?v=20261382" as="script">
 </head>
 <body>
     <div id="siteLoader" class="site-loader" role="status" aria-live="polite" aria-label="Loading LessFun">
@@ -246,7 +246,7 @@
                     <div class="store-balance-label">Your Coins</div>
                     <div class="store-balance-value" id="storeCoins">100</div>
                 </div>
-                <p class="store-balance-hint">Themes and avatar frames work across the whole app · Beach Racer car parts are in the Garage</p>
+                <p class="store-balance-hint">Themes and avatar frames work across the whole app · Redline GT car parts are in the Garage</p>
             </div>
             <div class="cookie-shop" id="cookieShop">
                 <div class="cookie-shop-head">
@@ -269,12 +269,12 @@
         </div>
     </div>
 
-    <!-- Garage View (Beach Racer parts only) -->
+    <!-- Garage View (Redline GT parts only) -->
     <div id="garageView" class="view" style="display: none;">
         <div class="container">
             <header>
                 <h1>Garage</h1>
-                <p class="subtitle">Beach Racer parts, body kits, and car cosmetics</p>
+                <p class="subtitle">Redline GT parts, body kits, and car cosmetics</p>
             </header>
             <div class="store-balance">
                 <div class="store-balance-icon">
@@ -287,7 +287,7 @@
                     <div class="store-balance-label">Your Coins</div>
                     <div class="store-balance-value" id="garageCoins">100</div>
                 </div>
-                <p class="store-balance-hint">Beach Racer car parts change real speed, acceleration, grip, and looks. Global themes and frames live in the Store.</p>
+                <p class="store-balance-hint">Redline GT car parts change real speed, acceleration, grip, and looks. Global themes and frames live in the Store.</p>
             </div>
             <p class="store-guest-note" id="garageGuestNote" style="display:none;">Playing as a guest — Coins are saved on this device only. <button type="button" onclick="openAuthModal()">Sign in</button> to keep them across devices.</p>
             <div class="store-status" id="garageStatus" role="status"></div>
@@ -1022,7 +1022,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Speed Units</h3>
-                            <p>Show Beach Racer and arcade speeds in mph or km/h</p>
+                            <p>Show Redline GT and arcade speeds in mph or km/h</p>
                         </div>
                         <select id="unitSelect" class="settings-select" onchange="setUnitSetting(this.value)">
                             <option value="mph">mph</option>
@@ -1063,7 +1063,7 @@
                             <li><span>❄</span><div><b>Click the LessFun logo 5 times</b><small>A snowstorm burst and another sleigh flyby.</small></div></li>
                             <li><span>🎁</span><div><b>Double-click the “❄ Snow Rush” heading</b><small>A shower of gifts and confetti.</small></div></li>
                             <li><span>☃</span><div><b>Find the tiny snowman</b><small>Hidden in the bottom-left corner of the site. Click it for a snow day.</small></div></li>
-                            <li><span>🛷</span><div><b>Fly Santa’s Sleigh</b><small>Press Space in Beach Racer to fly for 2 seconds. It needs a 10-second cooldown.</small></div></li>
+                            <li><span>🛷</span><div><b>Fly Santa’s Sleigh</b><small>Press Space in Redline GT to fly for 2 seconds. It needs a 5-second cooldown.</small></div></li>
                             <li><span>✨</span><div><b>Keep watching</b><small>Snow gusts, gift sparkles and a soft aurora appear randomly during the holiday event.</small></div></li>
                         </ul>
                         <p class="secrets-note">Christmas touches also appear in the games: Santa’s Sleigh, red-and-green tunnel rings, holiday cube colours, Tranq trees, runway lights, Draw &amp; Guess words, Lucky Spin symbols and falling snow.</p>
@@ -1072,7 +1072,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Public Beta 1.33.97</p>
+                            <p>LessFun Public Beta 1.33.98</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -1269,8 +1269,9 @@
                             <li><strong>1.33.93</strong> — Throttle camera shake now ramps in gradually and eases off smoothly when you lift.</li>
                             <li><strong>1.33.94</strong> — Traffic now cruises at 50–70 km/h, and throttle camera shake is reduced to a subtler rumble.</li>
                             <li><strong>1.33.95</strong> — NPC traffic is twice as fast, cruising at 100–140 km/h.</li>
-                            <li><strong>1.33.96</strong> — The chase camera pulls back slightly while you are accelerating and settles back back in when you lift.</li>
+                            <li><strong>1.33.96</strong> — The chase camera pulls back slightly while you are accelerating and settles back in when you lift.</li>
                             <li><strong>1.33.97</strong> — Highway lamps now use a real CC0 GLB street-lamp model, gear changes P/R/N/D and automatic 1–8 take a short delay, acceleration pulls the camera back further, and impacts throw sparks and smoke.</li>
+                            <li><strong>1.33.98</strong> — Beach Racer is now <strong>Redline GT</strong>. Game cards, Garage, Showroom, multiplayer, scores, the assistant and the Tycoon cabinet use the new name.</li>
                         </ul>
                     </div>
                     <div class="info-card">
@@ -1614,8 +1615,8 @@
     <div id="globalToast" class="global-toast"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=20261381"></script>
-    <script src="christmas.js?v=20261381"></script>
-    <script src="easter.js?v=20261381"></script>
+    <script src="app.js?v=20261382"></script>
+    <script src="christmas.js?v=20261382"></script>
+    <script src="easter.js?v=20261382"></script>
 </body>
 </html>

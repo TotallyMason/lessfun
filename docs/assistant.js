@@ -53,7 +53,8 @@
         [/sign[\s-]?up/g, 'signup'],
         [/daily\s+gift/g, 'daily gift'],
         [/dead\s+coast/g, 'dead coast'],
-        [/beach\s+racer/g, 'beach racer'],
+        [/redline\s+gt/g, 'redline gt'],
+        [/beach\s+racer/g, 'redline gt'],
         [/tunnel\s+rush/g, 'tunnel rush'],
         [/cube\s+stack/g, 'cube stack'],
         [/snow\s+rush/g, 'snow rush'],
@@ -84,9 +85,9 @@
         return out;
     }
 
-    var GAME_NAMES = ['Beach Racer', 'Tunnel Rush', 'Cube Stack', 'Dead Coast', 'Funtutu Test', 'Snow Rush', 'Draw and Guess', 'Lucky Spin', 'Boeing Landing', 'Tranq Arena'];
+    var GAME_NAMES = ['Redline GT', 'Tunnel Rush', 'Cube Stack', 'Dead Coast', 'Funtutu Test', 'Snow Rush', 'Draw and Guess', 'Lucky Spin', 'Boeing Landing', 'Tranq Arena'];
     var GAME_ALIASES = [
-        ['beach racer', 'Beach Racer'], ['beach', 'Beach Racer'],
+        ['redline gt', 'Redline GT'], ['redline', 'Redline GT'], ['beach racer', 'Redline GT'], ['beach', 'Redline GT'],
         ['tunnel rush', 'Tunnel Rush'], ['tunnel', 'Tunnel Rush'],
         ['cube stack', 'Cube Stack'], ['cube', 'Cube Stack'],
         ['dead coast', 'Dead Coast'],
@@ -249,7 +250,7 @@
     var lastTopic = '';
     var lastGame = '';
     var lastAnswer = '';
-    var GAME_BY_ID = { 1: 'Beach Racer', 2: 'Tunnel Rush', 3: 'Cube Stack', 4: 'Dead Coast', 6: 'Funtutu Test', 7: 'Snow Rush', 8: 'Draw & Guess', 9: 'Lucky Spin', 13: 'Boeing Landing', 14: 'Tranq Arena', 15: 'Arcade Tycoon' };
+    var GAME_BY_ID = { 1: 'Redline GT', 2: 'Tunnel Rush', 3: 'Cube Stack', 4: 'Dead Coast', 6: 'Funtutu Test', 7: 'Snow Rush', 8: 'Draw & Guess', 9: 'Lucky Spin', 13: 'Boeing Landing', 14: 'Tranq Arena', 15: 'Arcade Tycoon' };
 
     function currentGameName() {
         try {
@@ -505,7 +506,7 @@
         }
         if (/best car|fastest car|which car|what car/.test(lower)) {
             lastTopic = 'choosing a car';
-            return 'There is no single best car. Every Beach Racer car has unique handling, so test favourites in the Garage and use the Showroom filters. Engine, aero and tyre parts usually matter more than the body.';
+            return 'There is no single best car. Every Redline GT car has unique handling, so test favourites in the Garage and use the Showroom filters. Engine, aero and tyre parts usually matter more than the body.';
         }
         if (/christmas event|holiday event|christmas update/.test(lower)) {
             lastTopic = 'the Christmas event';
@@ -551,7 +552,7 @@
             return w === 'control' || w === 'tip' || w === 'play' || w === 'game' || w === 'guide';
         });
         if (!queryGame && genericWords.length === unique.length) {
-            return 'Which game? Beach Racer, Tunnel Rush, Cube Stack, Dead Coast, Funtutu Test, Snow Rush, Draw and Guess, Lucky Spin, Boeing Landing or Tranq Arena.';
+            return 'Which game? Redline GT, Tunnel Rush, Cube Stack, Dead Coast, Funtutu Test, Snow Rush, Draw and Guess, Lucky Spin, Boeing Landing or Tranq Arena.';
         }
 
         var siteContext = unique.some(function (w) { return !!SITE_TOPIC[w] || !!CHAT_SITE_WORDS[w]; });
@@ -566,7 +567,7 @@
             });
             if (!hasMultiplayer) {
                 lastGame = queryGame;
-                return queryGame + ' is single-player. Multiplayer is available in Beach Racer with room codes and in Tranq Arena through the public lobby.';
+                return queryGame + ' is single-player. Multiplayer is available in Redline GT with room codes and in Tranq Arena through the public lobby.';
             }
         }
 

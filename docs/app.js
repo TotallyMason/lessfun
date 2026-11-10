@@ -6,7 +6,7 @@ const supabaseClient = (typeof window !== 'undefined' && window.supabase) ? wind
 const IS_HOLIDAY_UI = document.documentElement.classList.contains('is-holiday');
 
 const games = [
-    { id: 1, name: "Beach Racer", description: "Collect Coins and weave through traffic on a six-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · A D / ← → steer · Q/E P R N D · Shift/N nitrous · X drift · C camera · Space fly in Santa's Sleigh" },
+    { id: 1, name: "Redline GT", description: "Weave through highway traffic in a coastal supercar run", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · A D / ← → steer · Q/E P R N D · Shift/N nitrous · X drift · C camera · Space fly in Santa's Sleigh" },
     { id: 2, name: "Tunnel Rush", description: "Thread the neon tunnel at warp speed", icon: "tunnel", controls: "Left / Right or drag to rotate" },
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
     { id: 4, name: "Dead Coast", description: "Drive 10 km through the dead coast, scavenging food, water, fuel, and car parts", icon: "skull", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · A D / ← → steer · C camera · drag to steer on mobile · survive 10 km" },
@@ -1179,7 +1179,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261381'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261382'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1193,7 +1193,7 @@ function ensureBabylonRacer() {
             .then(function () {
                 return loadScriptOnce('https://cdn.jsdelivr.net/npm/babylonjs-loaders@7.54.0/babylonjs.loaders.min.js').catch(function () {});
             })
-            .then(function () { return loadScriptOnce('babylon-racer.js?v=20261381'); })
+            .then(function () { return loadScriptOnce('babylon-racer.js?v=20261382'); })
             .catch(function (error) {
                 babylonRacerPromise = null;
                 babylonRacerUnavailable = true;
@@ -1258,7 +1258,7 @@ window.LessFunBabylonFallback = function () {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261381').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261382').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1266,7 +1266,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261381').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261382').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1274,9 +1274,9 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261381')
-            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261381'); })
-            .then(function () { return loadScriptOnce('assistant.js?v=20261381'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261382')
+            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261382'); })
+            .then(function () { return loadScriptOnce('assistant.js?v=20261382'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1304,7 +1304,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261381').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261382').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1312,7 +1312,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261381').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261382').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1320,7 +1320,7 @@ function ensureLucky() {
 function ensureTycoon() {
     if (window.Tycoon) return Promise.resolve();
     if (!tycoonPromise) {
-        tycoonPromise = loadScriptOnce('tycoon.js?v=20261381').catch(function (error) { tycoonPromise = null; throw error; });
+        tycoonPromise = loadScriptOnce('tycoon.js?v=20261382').catch(function (error) { tycoonPromise = null; throw error; });
     }
     return tycoonPromise;
 }
@@ -1591,7 +1591,7 @@ function openGameNow(id) {
                 '<div class="game3d-mp" id="g3dMpPanel" style="display:none;">' +
                     '<div class="game3d-mp-card">' +
                         '<div class="game3d-mp-head">' +
-                            '<h3>Beach Racer Multiplayer</h3>' +
+                            '<h3>Redline GT Multiplayer</h3>' +
                             '<button type="button" class="game3d-mp-x" onclick="closeRacerMpPanel()">×</button>' +
                         '</div>' +
                         '<p class="game3d-mp-sub">2–3 players · share a room code · cars pass through each other</p>' +
@@ -1693,7 +1693,7 @@ function openGameNow(id) {
             (game.id === 1 ?
                 '<div class="game3d-garage" id="g3dGarage">' +
                     '<div class="game3d-garage-card">' +
-                        '<span class="game3d-garage-kicker">BEACH RACER · ' + (IS_HOLIDAY_UI ? 'HOLIDAY GARAGE' : 'GARAGE') + '</span>' +
+                        '<span class="game3d-garage-kicker">REDLINE GT · ' + (IS_HOLIDAY_UI ? 'HOLIDAY GARAGE' : 'GARAGE') + '</span>' +
                         '<h2>Your ride</h2>' +
                         '<p class="game3d-garage-sub">Buy and drive cars from the Garage. No part customisation.</p>' +
                         '<div class="game3d-garage-stats" id="g3dGarageStats"></div>' +
@@ -1707,7 +1707,7 @@ function openGameNow(id) {
                     '</div>' +
                     '<div class="game3d-race-choice" id="g3dRaceChoice" style="display:none;">' +
                         '<div class="game3d-race-choice-card">' +
-                            '<span class="game3d-garage-kicker">BEACH RACER · RACE</span>' +
+                            '<span class="game3d-garage-kicker">REDLINE GT · RACE</span>' +
                             '<h2>Choose your race</h2>' +
                             '<p>Closed 3-lap circuit · no traffic</p>' +
                             '<button type="button" class="game3d-race-option is-ai" onclick="startRaceAi()">' +
@@ -1724,7 +1724,7 @@ function openGameNow(id) {
                 '<div class="game3d-garage-shop" id="g3dGarageShop" style="display:none;">' +
                     '<div class="game3d-garage-shop-inner">' +
                         '<div class="game3d-garage-shop-head">' +
-                            '<div><span class="game3d-garage-kicker">BEACH RACER · GARAGE</span><h2>Parts &amp; cosmetics</h2></div>' +
+                            '<div><span class="game3d-garage-kicker">REDLINE GT · GARAGE</span><h2>Parts &amp; cosmetics</h2></div>' +
                             '<button type="button" class="game3d-mp-x" onclick="closeGarageShop()">×</button>' +
                         '</div>' +
                         '<div class="game3d-garage-shop-balance" id="g3dShopBalance">— Coins</div>' +
@@ -1739,7 +1739,7 @@ function openGameNow(id) {
                 '<div class="game3d-showroom" id="g3dShowroom" style="display:none;">' +
                     '<div class="game3d-showroom-inner">' +
                         '<div class="game3d-showroom-head">' +
-                            '<div><span class="game3d-garage-kicker">BEACH RACER · ' + (IS_HOLIDAY_UI ? 'HOLIDAY SHOWROOM' : 'GARAGE') + '</span><h2>' + (IS_HOLIDAY_UI ? 'Holiday cars' : 'Buy cars') + '</h2></div>' +
+                            '<div><span class="game3d-garage-kicker">REDLINE GT · ' + (IS_HOLIDAY_UI ? 'HOLIDAY SHOWROOM' : 'GARAGE') + '</span><h2>' + (IS_HOLIDAY_UI ? 'Holiday cars' : 'Buy cars') + '</h2></div>' +
                             '<div class="game3d-showroom-balance" id="g3dShowroomBalance">— Coins</div>' +
                             '<button type="button" class="game3d-mp-x" onclick="closeShowroom()">×</button>' +
                         '</div>' +
@@ -8167,7 +8167,7 @@ function renderStore(refocusSearch) {
             '<input type="search" id="storeSearch" class="store-search" placeholder="Search cosmetics…" value="' + escapeHtml(storeSearch) + '" oninput="updateStoreSearch(this.value)">' +
         '</div>' +
         (sections || '<p class="store-empty">No global items match that search.</p>') +
-        '<p class="store-note">Global items work across the whole app and every game. Themes recolour the interface and HUD, and avatar frames appear around profile pictures. Beach Racer car parts are sold in the Garage tab.</p>';
+        '<p class="store-note">Global items work across the whole app and every game. Themes recolour the interface and HUD, and avatar frames appear around profile pictures. Redline GT car parts are sold in the Garage tab.</p>';
 
     if (refocusSearch) {
         var input = document.getElementById('storeSearch');
@@ -8220,10 +8220,10 @@ function renderGarage(refocusSearch) {
     content.innerHTML =
         '<div class="store-toolbar">' +
             '<div class="store-tabs">' + tabs + '</div>' +
-            '<input type="search" id="garageSearch" class="store-search" placeholder="Search Beach Racer parts…" value="' + escapeHtml(garageSearch) + '" oninput="updateGarageSearch(this.value)">' +
+            '<input type="search" id="garageSearch" class="store-search" placeholder="Search Redline GT parts…" value="' + escapeHtml(garageSearch) + '" oninput="updateGarageSearch(this.value)">' +
         '</div>' +
-        (sections || '<p class="store-empty">No Beach Racer parts match that search.</p>') +
-        '<p class="store-note">These parts only affect Beach Racer. Bodies, engines, aero, and kits change real top speed, acceleration, and grip. Paints, boards, glow, wheels, trails, and umbrellas are visual.</p>';
+        (sections || '<p class="store-empty">No Redline GT parts match that search.</p>') +
+        '<p class="store-note">These parts only affect Redline GT. Bodies, engines, aero, and kits change real top speed, acceleration, and grip. Paints, boards, glow, wheels, trails, and umbrellas are visual.</p>';
 
     if (refocusSearch) {
         var input = document.getElementById('garageSearch');
@@ -9285,8 +9285,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.33.97";
-const UPDATE_NOTES = "Real GLB street lamps, gear-change delays, stronger acceleration camera pullback, and crash spark/smoke particles";
+const APP_VERSION = "LessFun Public Beta 1.33.98";
+const UPDATE_NOTES = "Beach Racer is now Redline GT across the games list, Garage, Showroom, multiplayer, scores and the assistant";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -11311,10 +11311,10 @@ function currentActivityInfo() {
         for (let i = 0; i < RACER_MP_PUBLIC_LOBBIES.length; i++) {
             if (RACER_MP_PUBLIC_LOBBIES[i].channel === racerMp.publicChannel) index = i;
         }
-        return { activity: 'Beach Racer · ' + (racerMp.publicName || 'Public'), game: '1', room: 'public:' + index };
+        return { activity: 'Redline GT · ' + (racerMp.publicName || 'Public'), game: '1', room: 'public:' + index };
     }
     if (racerMp.code) {
-        return { activity: 'Beach Racer · Private room', game: '1', room: '' };
+        return { activity: 'Redline GT · Private room', game: '1', room: '' };
     }
     if (currentGameId) {
         const game = games.find(function (g) { return g.id === currentGameId; });

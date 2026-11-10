@@ -7,7 +7,7 @@ A 3D arcade with a liquid-glass interface. Play it at
 
 | Game | What it is |
 | --- | --- |
-| Beach Racer | Outrun traffic on a six-lane coastal highway, or pick Racing for a closed-loop 3-lap race against four adaptive AI rivals. The free holiday **Santa's Sleigh** can fly for 2 seconds (press Space), then needs a 10-second cooldown. **Gift Run** is a holiday mode: fly through tall gift rings, drive through low ones, and deliver 10 presents before the clock runs out. Hold W / ↑ for throttle, steer freely, and brake through the pack in a 6-speed automatic. Shift P/R/N/D with Q and E, take highway exits, and race 2–3 players online with a room code. |
+| Redline GT | Outrun traffic on a six-lane coastal highway, or pick Racing for a closed-loop 3-lap race against four adaptive AI rivals. The free holiday **Santa's Sleigh** can fly for 2 seconds (press Space), then needs a 5-second cooldown. **Gift Run** is a holiday mode: fly through tall gift rings, drive through low ones, and deliver 10 presents before the clock runs out. Hold W / ↑ for throttle, steer freely, and brake through the pack in a 6-speed automatic. Shift P/R/N/D with Q and E, take highway exits, and race 2–3 players online with a room code. |
 | Tunnel Rush | Thread an endless neon tunnel and rotate through the gaps. |
 | Cube Stack | Stack the tower as high as you can before the blocks drift away. |
 | Funtutu Test | GPU/CPU benchmark that shows its work, produces a score, and recommends graphics settings for this device. |
@@ -22,7 +22,7 @@ Low-power devices (4 GB RAM, 4 cores or fewer, Chromebooks) automatically use a 
 | Dead Coast | Drive 10 km through a ruined coast, managing food, water, fuel, and car health while scavenging better car parts. |
 | Star Dodger | Weave through an asteroid storm at increasing speed. |
 
-Most games are real-time 3D scenes rendered with Three.js. **Beach Racer** now
+Most games are real-time 3D scenes rendered with Three.js. **Redline GT** now
 runs on **Babylon.js + Rapier** with HDR environment lighting, a baked road
 lightmap, highway traffic, collectible Coins, equipped Garage cars, an
 automatic 8-speed gearbox with Q/E P/R/N/D selection, N/P exhaust smoke,
@@ -70,9 +70,9 @@ playing in the background. Turn it off or on with the **Christmas Jingle**
 toggle in **Settings → Gameplay**. If the MP3 cannot load, an original
 synthesized Jingle Bells arrangement plays instead.
 
-## Beach Racer wind audio
+## Redline GT wind audio
 
-Beach Racer crossfades two wind loops as speed rises:
+Redline GT crossfades two wind loops as speed rises:
 
 - `docs/audio/wind-low.mp3` — Mixkit “Windy sea loop”
 - `docs/audio/wind-high.mp3` — Mixkit “Wind in the top of the mountain”
@@ -121,13 +121,13 @@ any owned cosmetic can be re-equipped for free. Signed-in purchases — cars,
 cosmetics, performance upgrades and Dead Coast weapons — are tied to the account
 and sync to every device you sign in on, including live updates between open
 tabs. The Store has **23 global items**
-and the Garage has **137 Beach Racer items**:
+and the Garage has **137 Redline GT items**:
 
 | Category | Items | What it does |
 | --- | --- | --- |
 | Global themes | 12 | Recolour the interface, HUD, and buttons across every game |
 | Avatar frames | 11 | Ring colours around avatars everywhere in the app |
-| Car paints | 27 | Body colour of the Beach Racer car |
+| Car paints | 27 | Body colour of the Redline GT car |
 | Car bodies | 20 | Real performance: top speed, acceleration, and grip (includes F1, bus, GT3, supercar, off-road, and a free beater) |
 | Engines | 17 | Real power: top speed and acceleration (includes free lawnmower and V16/plasma tiers) |
 | Aero parts | 8 | Real grip and top speed: splitters, wings, diffusers, GT3, ground effect, free broken wing |
@@ -230,10 +230,10 @@ handling real user data or payments.
 ## Features
 
 - Five real-time 3D games powered by Three.js
-- Six-lane coastal highway with guardrails, streetlights, overhead signs, SUVs, semis, long buses, no entry/exit ramps, a real city district with storefronts, cross streets, overpasses, parked cars, bus stops, traffic lights, and street signs, and a much faster top speed in Beach Racer
-- Beach Racer multiplayer for 2–3 players: create or join a five-character room code, race together, see each driver's name floating above their car, and pass through other players without collisions
+- Six-lane coastal highway with guardrails, streetlights, overhead signs, SUVs, semis, long buses, no entry/exit ramps, a real city district with storefronts, cross streets, overpasses, parked cars, bus stops, traffic lights, and street signs, and a much faster top speed in Redline GT
+- Redline GT multiplayer for 2–3 players: create or join a five-character room code, race together, see each driver's name floating above their car, and pass through other players without collisions
 - Checkpoint gates every 500 m with a CP counter and a +250 score bonus per gate, plus a host-only start and restart button
-- Manual Q/E gear selector (P, R, N, D) with reverse and park in Beach Racer
+- Manual Q/E gear selector (P, R, N, D) with reverse and park in Redline GT
 - Real steering angle with turning front wheels and camera yaw plus speed-scaled steering that locks at a standstill, automatic drift detection from speed/steering/braking, and an **F-key FSD** mode with safer multi-lane choices, a Tesla-style lane/traffic display, animated blue chevrons, smooth automatic braking, emergency braking, and visible turn signals for the car and traffic
 - Three.js performance pass: tighter camera far planes, scenery LOD visibility culling, mobile detail counts, resolution presets, and automatic motion-blur shutdown
 - Richer engine and wind samples with gear-select sounds and tire-screech drift audio
@@ -258,15 +258,15 @@ handling real user data or payments.
 - Mobile performance mode: lower pixel-ratio cap, shadows disabled, reduced traffic/zombie/building counts, cheaper particles, and motion blur off by default
 - Full touch controls for Dead Coast: on-screen throttle and brake, drag to steer, and live food/water/fuel/car bars
 - Messages are available from the Friends view as well as inside games, and showroom car ownership and the equipped car persist after refresh
-- Night-sky dome and clouds in Beach Racer, starfields and an energy core in Tunnel Rush, a podium and stars in Cube Stack, and a ringed planet plus nebula in Star Dodger
-- Beach Racer Racing: a closed 2,400 m loop, three laps, four adaptive AI rivals that cruise at 780 km/h and rubber-band for the win, no traffic, a race loading animation, and lap/position/timer HUD
-- Beach Racer closed-loop multiplayer racing with friends and no traffic
+- Night-sky dome and clouds in Redline GT, starfields and an energy core in Tunnel Rush, a podium and stars in Cube Stack, and a ringed planet plus nebula in Star Dodger
+- Redline GT Racing: a closed 2,400 m loop, three laps, four adaptive AI rivals that cruise at 780 km/h and rubber-band for the win, no traffic, a race loading animation, and lap/position/timer HUD
+- Redline GT closed-loop multiplayer racing with friends and no traffic
 - 200-car showroom across 45+ real brands (BMW, Tesla, Toyota, Porsche, Ferrari, Lamborghini, McLaren, Nissan, Ford, and more) with real horsepower, 0-60, top speed, drivetrain, price tiers, search, pagination, buy/sell/drive, and persistent ownership
 - New players start in the free junk beater with the lawnmower engine, broken aero, and rust kit
 - Funtutu Test benchmark game with longer CPU integer/float, GPU shader, and Canvas 2D tests, a live work visualisation, a combined score normalised so an average 2026 PC scores about 1000 CPU and 1000 GPU (around 4000 total, Medium), and an Apply Recommended button
-- Beach Racer highway with traffic, ramps, coins, and no oncoming bonus lane
-- Beach Racer opens in a 3D garage orbit view with Play, Race, Garage, and Showroom actions; C cycles chase, hood, wheel, and first-person cameras; Play launches the highway, and Race opens a chooser for adaptive AI or friends
-- In-game Garage shop for car parts, opened from the Beach Racer garage screen without leaving the game
+- Redline GT highway with traffic, ramps, coins, and no oncoming bonus lane
+- Redline GT opens in a 3D garage orbit view with Play, Race, Garage, and Showroom actions; C cycles chase, hood, wheel, and first-person cameras; Play launches the highway, and Race opens a chooser for adaptive AI or friends
+- In-game Garage shop for car parts, opened from the Redline GT garage screen without leaving the game
 - Free downgrade parts for experimenting with slower builds
 - Straight segmented highway with aligned traffic, lanes, guardrails, signs, lights, posts, coins, ramps, and checkpoints
 - Game views open edge-to-edge with a compact floating X/fullscreen header
@@ -279,18 +279,18 @@ handling real user data or payments.
 - Site-wide mobile pass: safe-area insets, full-height game modal, larger touch targets, 16px form inputs, scrollable store tabs, and responsive showroom/benchmark layouts
 - Friend activity presence with a Join button for their current game or public lobby
 - Live public multiplayer for Tunnel Rush and Star Dodger with real-time score boards, selectable from each game’s start menu
-- Beach Racer multiplayer uses live low-res camera thumbnails streamed by each player instead of rendering extra local cameras
+- Redline GT multiplayer uses live low-res camera thumbnails streamed by each player instead of rendering extra local cameras
 - Automatic update shutdown: clients check `version.json`, show a full-screen update screen when a new build ships, and reload themselves; set `"shutdown": true` in `docs/version.json` to take the site offline
 - Graphics presets: Potato, Medium, High, Ultra, and Your Computer Will Die, each with its own resolution/detail/shadow level; Auto Graphics can be toggled on or off
 - AI traffic emergency braking with brake lights; human players get a red flash and warning beep instead of auto-braking
-- Real 3D suspension on Beach Racer cars: coilover springs, control arms, independent wheel travel, body roll, brake dive, acceleration squat, and landing compression
+- Real 3D suspension on Redline GT cars: coilover springs, control arms, independent wheel travel, body roll, brake dive, acceleration squat, and landing compression
 - Longer cinematic crashes with tumbling, debris, sparks, smoke, wheel and surfboard detachment, body crumple, bounced landings, and a delayed game-over sequence (no camera shake, no slow-mo label)
-- Always-on public Beach Racer lobbies for up to 50 players with no codes
+- Always-on public Redline GT lobbies for up to 50 players with no codes
 - Render-resolution setting (Auto/100/85/70/50%) for smoother 3D frame rates without lowering model quality
 - Owner-managed admins with selectable post, reply, and user-ban powers
 - Profile pictures with upload/crop, plus richer friend cards showing joined date, Coins, best run, and presence
 - Guest and account authentication options
-- Coins wallet, daily and streak bonuses, a global theme/frame store, and a 132-item Beach Racer garage
+- Coins wallet, daily and streak bonuses, a global theme/frame store, and a 132-item Redline GT garage
 - Purchases transfer the spent Coins into the TotallyMason wallet, keeping currency circulating
 - Car paints, 14 body styles, 12 engines, surfboards, underglow, wheels,
   exhaust trails, and umbrella colours applied to the 3D beach scene

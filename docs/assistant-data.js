@@ -8,7 +8,7 @@ window.LESSFUN_AI_SEEDS = [
   {
     "t": "the games list",
     "k": "games list available",
-    "a": "The arcade has Beach Racer, Tunnel Rush, Cube Stack, Dead Coast, Funtutu Test, Snow Rush, Draw and Guess, Lucky Spin, Boeing Landing and Tranq Arena."
+    "a": "The arcade has Redline GT, Tunnel Rush, Cube Stack, Dead Coast, Funtutu Test, Snow Rush, Draw and Guess, Lucky Spin, Boeing Landing and Tranq Arena."
   },
   {
     "t": "starting a game",
@@ -83,7 +83,7 @@ window.LESSFUN_AI_SEEDS = [
   {
     "t": "the Garage",
     "k": "garage cars parts upgrades",
-    "a": "The Garage holds Beach Racer cars, performance parts and cosmetics."
+    "a": "The Garage holds Redline GT cars, performance parts and cosmetics."
   },
   {
     "t": "the Showroom",
@@ -198,7 +198,7 @@ window.LESSFUN_AI_SEEDS = [
   {
     "t": "multiplayer",
     "k": "multiplayer online players",
-    "a": "Beach Racer uses room-code races and Tranq Arena uses a public lobby."
+    "a": "Redline GT uses room-code races and Tranq Arena uses a public lobby."
   },
   {
     "t": "public lobbies",
@@ -208,7 +208,7 @@ window.LESSFUN_AI_SEEDS = [
   {
     "t": "private rooms",
     "k": "private room code friends",
-    "a": "Beach Racer Racing supports private five-character room codes."
+    "a": "Redline GT Racing supports private five-character room codes."
   },
   {
     "t": "Meggreatness",
@@ -268,7 +268,7 @@ window.LESSFUN_AI_SEEDS = [
   {
     "t": "friend invite to game",
     "k": "invite friend room",
-    "a": "Create a Beach Racer Racing room and share its code."
+    "a": "Create a Redline GT Racing room and share its code."
   },
   {
     "t": "game scoring",
@@ -291,37 +291,37 @@ window.LESSFUN_AI_SEEDS = [
     "a": "Hi. Ask me about a game, Coins, gifts, controls, accounts, Store, Garage or settings."
   },
   {
-    "t": "Beach Racer",
+    "t": "Redline GT",
     "k": "beach racer game highway",
-    "a": "Beach Racer is a coastal highway driving game with traffic, gears, nitrous, a city and races."
+    "a": "Redline GT is a coastal highway driving game with traffic, gears, nitrous, a city and races."
   },
   {
-    "t": "Beach Racer controls",
+    "t": "Redline GT controls",
     "k": "beach racer controls steer throttle brake",
     "a": "W/Up accelerates, S/Down brakes, A/D steers, C changes camera, Shift boosts, Q/E shift gears."
   },
   {
-    "t": "Beach Racer gears",
+    "t": "Redline GT gears",
     "k": "beach racer gears park reverse",
     "a": "P is park, R reverse, N neutral and D drive."
   },
   {
-    "t": "Beach Racer racing",
+    "t": "Redline GT racing",
     "k": "beach racer race laps ai",
     "a": "Racing is a three-lap closed loop against adaptive AI or friends."
   },
   {
-    "t": "Beach Racer city",
+    "t": "Redline GT city",
     "k": "beach racer city free roam",
     "a": "City mode is free roam through a street grid with traffic and intersections."
   },
   {
-    "t": "Beach Racer multiplayer",
+    "t": "Redline GT multiplayer",
     "k": "beach racer multiplayer room code",
     "a": "Racing multiplayer uses a five-character room code."
   },
   {
-    "t": "Beach Racer cars",
+    "t": "Redline GT cars",
     "k": "beach racer cars garage showroom",
     "a": "There are 500 cars; buy them in the Showroom and equip them in the Garage."
   },
@@ -533,7 +533,7 @@ window.LESSFUN_AI_SEEDS = [
   {
     "t": "choosing a car",
     "k": "best car fastest car which car showroom garage",
-    "a": "There is no single best car. Every Beach Racer car has unique handling, so test favourites in the Garage and use the Showroom filters. Engine, aero and tyre parts usually matter more than the body."
+    "a": "There is no single best car. Every Redline GT car has unique handling, so test favourites in the Garage and use the Showroom filters. Engine, aero and tyre parts usually matter more than the body."
   },
   {
     "t": "the Christmas event",

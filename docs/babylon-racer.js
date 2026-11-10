@@ -1,4 +1,4 @@
-/* LessFun — Beach Racer · Babylon.js + Rapier (Phase 1)
+/* LessFun — Redline GT · Babylon.js + Rapier
  * HDR environment lighting, baked road lighting, ray-cast vehicle physics.
  * This module is loaded on demand and exposes the same controls the arcade
  * already uses, so the original Three.js racer can remain as a fallback.
@@ -1090,7 +1090,7 @@
         }
         if (typeof opts.onScore === 'function') {
             scoreSubmitted = true;
-            try { opts.onScore('Beach Racer', score); } catch (e) {}
+            try { opts.onScore('Redline GT', score); } catch (e) {}
         }
         if (typeof opts.onGameOver === 'function') {
             try { opts.onGameOver(score, Math.max(1, Math.floor(runSeconds))); } catch (e) {}
@@ -1901,7 +1901,7 @@
         cameraAccelSmooth = 0;
         if (chassis) chassis.setGravityScale(1, true);
         resetCamera(true);
-        if (!silent) showToast('RESET · BEACH RACER');
+        if (!silent) showToast('RESET · REDLINE GT');
     }
 
     /* --------------------------------------------------------------------
@@ -2349,7 +2349,7 @@
         canvas.style.height = '100%';
         canvas.style.display = 'block';
         canvas.style.touchAction = 'none';
-        canvas.setAttribute('aria-label', 'Beach Racer — Babylon.js + Rapier');
+        canvas.setAttribute('aria-label', 'Redline GT — Babylon.js + Rapier');
         container.appendChild(canvas);
 
         initAudio();
@@ -2396,7 +2396,7 @@
     function stop() {
         if (!scoreSubmitted && opts && typeof opts.onScore === 'function' && distance > 0) {
             scoreSubmitted = true;
-            try { opts.onScore('Beach Racer', runScore()); } catch (e) {}
+            try { opts.onScore('Redline GT', runScore()); } catch (e) {}
         }
         if (!coinsAwarded && coinsCollected > 0 && opts && typeof opts.onCoins === 'function') {
             coinsAwarded = true;
