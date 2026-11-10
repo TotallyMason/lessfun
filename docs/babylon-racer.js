@@ -35,6 +35,7 @@
     var currentGear = 'D', gearLabel = 'D';
     var gearIndex = 1, manualGearTimer = 0, revLevel = 0;
     var gearShiftTimer = 0, pendingGear = null, pendingGearIndex = null;
+    var engineRpm = 850;
     var GEAR_TOPS = [0.14, 0.24, 0.35, 0.47, 0.60, 0.73, 0.86, 1.0];
     var camPos = null, camTarget = null;
     var resetClock = 0, flipTime = 0, toastTimer = 0;
@@ -329,9 +330,7 @@
             var speed = displaySpeed || 0;
             var running = active && ready && !runOver && !paused;
             var freeRev = currentGear === 'P' || currentGear === 'N';
-            var rev = freeRev
-                ? revLevel
-                : clamp(speed / Math.max(18, driveMaxSpeed) + (input.throttle ? 0.14 : 0) + (input.nitro && nitro > 0 ? 0.18 : 0), 0, 1);
+            var rev = freeRev ? revLevel : clamp(engineRpm / 8000, 0, 1);
             if (garage) { running = true; rev = 0.06; }
             var hasEngine = !!(audioLoops.engineLow && audioLoops.engineHigh);
             var hasWind = !!(audioLoops.windLow && audioLoops.windHigh);
@@ -1064,6 +1063,7 @@
         gearShiftTimer = 0;
         pendingGear = null;
         pendingGearIndex = null;
+        engineRpm = 850;
         fsdActive = false;
         fsdThink = 0;
         setRunCoins(0);
@@ -1835,6 +1835,20 @@
         var drag = 0.006 * forwardSpeed;
         chassis.applyImpulse({ x: -v.x * drag * dt, y: 0, z: -v.z * drag * dt }, true);
 
+        var targetRpm;
+        if (currentGear === 'P' || currentGear === 'N') {
+            targetRpm = 850 + revLevel * 7200;
+        } else if (currentGear === 'R') {
+            targetRpm = 900 + revLevel * 5200;
+        } else {
+            var targetGearTop = driveMaxSpeed * GEAR_TOPS[gearIndex - 1];
+            var targetGearBottom = gearIndex > 1 ? driveMaxSpeed * GEAR_TOPS[gearIndex - 2] : 0;
+            var mechanicalRpm = 900 + clamp((forwardSpeed - targetGearBottom) / Math.max(1, targetGearTop - targetGearBottom), 0, 1) * 6200;
+            var throttleRpm = throttle ? (5200 + (input.nitro && nitro > 0 ? 1200 : 0)) : 0;
+            targetRpm = Math.max(mechanicalRpm, throttleRpm);
+        }
+        engineRpm += (targetRpm - engineRpm) * Math.min(1, dt * 5.2);
+
         if (input.drift && forwardSpeed > 8) {
             driftScore += forwardSpeed * dt * 0.38;
             chassis.applyTorqueImpulse({ x: 0, y: steerVisual * 190 * dt, z: 0 }, true);
@@ -2051,21 +2065,18 @@
         hudTimer += dt;
         speedHudTimer += dt;
         var raw = displaySpeed;
-        var scale = unit === 'kmh' ? 3.6 : 2.23694;
-        var shown = Math.round(raw * scale / SPEED_SCALE);
-        var gear = currentGear === 'D' ? String(gearIndex) : gearLabel;
-        var rpm;
-        if (currentGear === 'P' || currentGear === 'N') {
-            rpm = 850 + revLevel * 6800;
+        var gaugeSpeed = 0;
+        if (currentGear === 'D') {
+            var gaugeTop = driveMaxSpeed * GEAR_TOPS[gearIndex - 1];
+            var gaugeBottom = gearIndex > 1 ? driveMaxSpeed * GEAR_TOPS[gearIndex - 2] : 0;
+            gaugeSpeed = gaugeBottom + (engineRpm / 8000) * (gaugeTop - gaugeBottom);
         } else if (currentGear === 'R') {
-            rpm = 900 + revLevel * 5400;
-        } else {
-            var gearTop = driveMaxSpeed * GEAR_TOPS[gearIndex - 1];
-            var gearBottom = gearIndex > 1 ? driveMaxSpeed * GEAR_TOPS[gearIndex - 2] : 0;
-            var within = clamp((raw - gearBottom) / Math.max(1, gearTop - gearBottom), 0, 1);
-            rpm = 900 + within * 6300 + (input.nitro && nitro > 0 ? 700 : 0);
-            if (raw < 0.2) rpm = input.throttle ? 1250 : 850;
+            gaugeSpeed = raw;
         }
+        var scale = unit === 'kmh' ? 3.6 : 2.23694;
+        var shown = Math.round(gaugeSpeed * scale / SPEED_SCALE);
+        var gear = currentGear === 'D' ? String(gearIndex) : gearLabel;
+        var rpm = engineRpm;
 
         if (hudTimer > 0.075) {
             hudTimer = 0;
@@ -2285,6 +2296,7 @@
         gearShiftTimer = 0;
         pendingGear = null;
         pendingGearIndex = null;
+        engineRpm = 850;
         speedHudTimer = 0;
         distance = 0;
         displaySpeed = 0;
@@ -2566,6 +2578,7 @@
             fsd: fsdActive,
             traffic: traffic.length,
             gear: currentGear === 'D' ? gearIndex : currentGear,
+            rpm: Math.round(engineRpm),
             pitch: chassis ? Math.round((2 * (chassis.rotation().y * chassis.rotation().z - chassis.rotation().x * chassis.rotation().w)) * 100) / 100 : 0,
             remotes: Object.keys(remoteRacers).length,
             fly: flyTime > 0 ? flyTime : 0,
