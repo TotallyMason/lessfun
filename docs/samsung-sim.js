@@ -3,10 +3,11 @@
     'use strict';
 
     var STYLE_ID = 'ssStyles';
+    var APP_TITLES = { phoneg: 'Phone', msgd: 'Messages', settings: 'Settings', camera: 'Camera', gallery: 'Gallery', weather: 'Weather', clock: 'Clock', play: 'Play Store', cssim: 'Galaxy Store', store: 'Store', google: 'Google', chrome: 'Chrome' };
     var root = null;
     var container = null;
     var clockTimer = 0;
-    var state = { unlocked: false, app: '', playing: false, toggles: {} };
+    var state = { unlocked: false, app: '', playing: false, toggles: {}, volume: 0.6, recents: [] };
     var navState = 'home';
 
     function injectStyles() {
@@ -135,6 +136,22 @@
 .ss-chip{display:flex;align-items:center;justify-content:space-between;padding:12px 15px;border-radius:18px;background:#fff;margin-bottom:9px;box-shadow:0 3px 12px rgba(38,42,63,.07);font-size:11.5px;color:#262a3f}
 .ss-chip b{font-weight:800}
 .ss-note{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:5;padding:7px 13px;border-radius:999px;background:rgba(3,6,16,.7);border:1px solid rgba(255,255,255,.09);color:rgba(222,230,250,.56);font-size:8px;text-align:center;white-space:nowrap;pointer-events:none}
+.ss-recents{position:absolute;inset:0;z-index:70;background:rgba(12,10,38,.74);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);display:none;flex-direction:column;padding:60px 18px 58px;border-radius:0}
+.ss-recents.is-visible{display:flex}
+.ss-recents-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;color:#fff}
+.ss-recents-head strong{font-size:15px;font-weight:800;letter-spacing:-.02em}
+.ss-recents-head button{border:0;background:rgba(255,255,255,.14);color:#fff;font:inherit;font-size:9px;font-weight:800;padding:7px 12px;border-radius:999px;cursor:pointer;letter-spacing:.08em}
+.ss-recents-empty{color:rgba(255,255,255,.5);font-size:11px;text-align:center;padding:34px 0}
+.ss-rc-card{display:flex;align-items:center;gap:12px;padding:14px 15px;border-radius:20px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.08);color:#fff;margin-bottom:10px;cursor:pointer}
+.ss-rc-card i{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.18);display:grid;place-items:center;font-size:15px;flex:0 0 auto}
+.ss-rc-card strong{font-size:12.5px;font-weight:700}
+.ss-rc-card small{display:block;color:rgba(255,255,255,.5);font-size:9px;margin-top:2px;letter-spacing:.08em}
+.ss-volume{position:absolute;right:24px;top:300px;z-index:75;width:34px;height:96px;border-radius:999px;background:rgba(24,26,58,.88);color:#fff;display:none;flex-direction:column;align-items:center;justify-content:center;gap:6px;box-shadow:0 8px 22px rgba(0,0,0,.4)}
+.ss-volume.is-visible{display:flex}
+.ss-volume b{font-size:9.5px;font-weight:800}
+.ss-volume i{width:5px;border-radius:3px;background:#8ea2ff;display:block;transition:height .15s}
+.ss-side{cursor:pointer}.ss-side.ps{cursor:pointer}
+.ss-tile-badge{display:inline-block;margin-top:2px;color:#8a8fa3;font-size:8.5px;font-weight:800;letter-spacing:.1em}
 @media (max-width:900px){.ss-copy{display:none}.ss-stage{gap:0}.ss-phone{height:min(80vh,720px)}.ss-note{bottom:10px}}
 @media (max-width:560px){.ss-phone{height:min(78vh,680px)}.ss-app-icon{width:46px;height:46px;font-size:21px}.ss-dock .ss-app-icon{width:42px;height:42px}.ss-app-grid{gap:14px 6px}}
 `;
@@ -177,8 +194,6 @@
         }
         if (name === 'camera') return '<div class="ss-camera" style="position:static"><div class="ss-camera-mode">50 MP · SINGLE TAKE</div><div class="ss-camera-frame"></div><div class="ss-camera-controls"><span style="color:rgba(255,255,255,.55);font-size:10px">0.6×</span><button class="ss-shutter" type="button" data-shutter aria-label="Take photo"></button><span style="color:rgba(255,255,255,.55);font-size:10px">3×</span></div></div>';
         if (name === 'gallery') return '<div class="ss-card"><small>GENERIC PHOTOS</small><h3>Albums</h3><p>32 items · last sync today</p></div><div class="ss-photo-grid">' + Array(18).join('<div class="ss-photo"></div>') + '</div>';
-        if (name === 'msgd') return '<div class="ss-card"><small>MESSAGES</small><h3>New build available</h3><p>LessFun updates roll out through the site. You are on the latest beta.</p></div>' +
-            '<div class="ss-msg-row">Conversation preview coming soon.</div>';
         if (name === 'weather') return '<div class="ss-card"><small>YONKERS</small><h3 style="font-size:34px">31°</h3><p>Clear night · feels 28° · Low 22° · Wind 11 km/h</p></div>' +
             '<div class="ss-card"><small>TONIGHT</small><h3>Dry roads</h3><p>Good grip for the S26 Ultra test drive tonight.</p></div>';
         if (name === 'clock') return '<div class="ss-card"><div class="ss-big-clock" data-ss-time>19:00</div><h3>Alarm set for tomorrow</h3><p>Two alarms · every day</p></div>' +
@@ -187,9 +202,82 @@
         if (name === 'play') return '<div class="ss-card"><small>LEXFUN beta</small><h3>Galaxy Store &amp; Play demo</h3><p>App library is a demo placeholder. No real installs here.</p></div>' +
             '<div class="ss-chip"><span><b>LessFun Arcade</b> <span style="color:#8a8fa3">· free</span></span><span style="color:#1b6ef3;font-weight:800">OPEN</span></div>' +
             '<div class="ss-chip"><span><b>Redline GT Remote</b></span><span style="color:#1b6ef3;font-weight:800">OPEN</span></div>';
-        if (name === 'cssim') return '<div class="ss-quickpill" style="margin:0 auto 14px"><i>⌁</i><span>Quick panel opens from the top too fast in demo · try Settings</span></div>' +
-            Array(4).join('<div class="ss-chip"><span>Generic tile</span><span style="color:#8a8fa3">demo</span></div>');
+        if (name === 'google') return '<div class="ss-card"><div class="ss-google" style="margin:0;box-shadow:none;border:1px solid #eceef4"><span class="ss-g"><span class="a">G</span></span><em>Search or type URL</em><i>🎙</i></div></div>' +
+            '<div class="ss-card"><small>APP SUGGESTIONS</small><h3>Try these</h3><p>Search suggestions are interactive in the full demo.</p></div>' +
+            '<div class="ss-chip"><span><b>Redline GT scores</b></span><span class="ss-tile-badge">TOP RESULT</span></div>' +
+            '<div class="ss-chip"><span><b>LessFun Arcade</b></span><span class="ss-tile-badge">WEBSITE</span></div>' +
+            '<div class="ss-chip"><span><b>Weather Yonkers</b></span><span class="ss-tile-badge">LIVE CARD</span></div>';
+        if (name === 'chrome') return '<div class="ss-card"><small>NEW TAB PAGE</small><h3>Search Google</h3><p>Chrome demo new tab.</p></div>' +
+            '<div class="ss-chip"><span><b>Frequently visited</b></span></div>' +
+            '<div class="ss-chip"><span>redline.gt</span><span class="ss-tile-badge">OPEN</span></div>' +
+            '<div class="ss-chip"><span>lessfun arcade</span><span class="ss-tile-badge">OPEN</span></div>' +
+            '<div class="ss-chip"><span>news</span><span class="ss-tile-badge">LINK</span></div>';
+        if (name === 'store') return '<div class="ss-card"><small>GALAXY STORE</small><h3>Curated for S Ultra</h3><p>Store demo list is read‑only in this build.</p></div>' +
+            '<div class="ss-chip"><span><b>LessFun Arcade</b></span><span style="color:#1b6ef3;font-weight:800">OPEN</span></div>' +
+            '<div class="ss-chip"><span><b>Game Booster</b></span><span class="ss-tile-badge">PRELOADED</span></div>' +
+            '<div class="ss-chip"><span><b>Themes</b></span><span class="ss-tile-badge">SOON</span></div>';
+        if (name === 'msgd') return '<div class="ss-card"><small>MESSAGES</small><h3>LessFun Arcade</h3><p>New beta 1.34.18 is live. Refresh the site to pick it up.</p></div>' +
+            '<div class="ss-chip"><span>Reply</span><span style="color:#1b6ef3;font-weight:800">SEND</span></div>' +
+            '<div class="ss-chip"><span><b>Coming soon</b></span><span class="ss-tile-badge">CONVERSATIONS</span></div>';
         return '<div class="ss-card"><small>' + name.toUpperCase() + '</small><h3>' + name.charAt(0).toUpperCase() + name.slice(1) + '</h3><p>This demo screen is coming soon.</p></div>';
+    }
+
+    function recentsCard(item) {
+        var icons = { phoneg: '☎', msgd: '✉', settings: '⚙', camera: '◉', gallery: '✿', weather: '☁', clock: '◷', play: '▷', cssim: '▦', store: '▣', google: 'G', chrome: '◎' };
+        return '<div class="ss-rc-card" data-recent="' + item + '"><i>' + (icons[item] || '▣') + '</i><div><strong>' + (APP_TITLES[item] || item) + '</strong><small>GALAXY S26 ULTRA · DEMO · JUST NOW</small></div></div>';
+    }
+
+    function showRecents() {
+        if (!root) return;
+        closeApp();
+        var list = root.querySelector('#ssRecentsList');
+        var overlay = root.querySelector('#ssRecents');
+        if (overlay) overlay.classList.add('is-visible');
+        if (list) list.innerHTML = state.recents.length ? state.recents.map(recentsCard).join('') : '<div class="ss-recents-empty">No recent apps yet.</div>';
+    }
+    function hideRecents() {
+        if (!root) return;
+        var overlay = root.querySelector('#ssRecents');
+        if (overlay) overlay.classList.remove('is-visible');
+    }
+    function goHome() {
+        closeApp();
+        hideRecents();
+    }
+    function goBack() {
+        if (!root) return;
+        var overlay = root.querySelector('#ssRecents');
+        if (overlay && overlay.classList.contains('is-visible')) { hideRecents(); return; }
+        closeApp();
+    }
+    function lockNow() {
+        if (!root) return;
+        goHome();
+        root.querySelector('#ssLock').classList.remove('is-hidden');
+        root.querySelector('#ssHome').classList.remove('is-visible');
+        state.unlocked = false;
+    }
+    function unlockTo(name) {
+        if (!root) return;
+        root.querySelector('#ssLock').classList.add('is-hidden');
+        root.querySelector('#ssHome').classList.add('is-visible');
+        state.unlocked = true;
+        if (name) openApp(name);
+    }
+    var volumeHideTimer = 0;
+    function volumeOverlay() {
+        if (!root) return;
+        var o = root.querySelector('#ssVolume');
+        if (!o) return;
+        if (volumeHideTimer) { clearTimeout(volumeHideTimer); }
+        o.querySelector('[data-ssvol]').textContent = String(Math.round(state.volume * 100));
+        o.querySelector('i').style.height = Math.round(state.volume * 54 + 8) + 'px';
+        o.classList.add('is-visible');
+        volumeHideTimer = setTimeout(function () { if (o) o.classList.remove('is-visible'); }, 900);
+    }
+    function volumeChange(delta) {
+        state.volume = Math.min(1, Math.max(0.1, state.volume + delta / 100));
+        volumeOverlay();
     }
 
     function openApp(name) {
@@ -199,15 +287,15 @@
         var title = root.querySelector('#ssAppTitle');
         var body = root.querySelector('#ssAppBody');
         if (!view || !body) return;
-        if (title) title.textContent = name === 'phoneg' ? 'Phone' : (name === 'msgd' ? 'Messages' : (name === 'cssim' ? 'Galaxy Store' : name.charAt(0).toUpperCase() + name.slice(1)));
-        var names = { phoneg: 'PHONE', msgd: 'MESSAGES', settings: 'SETTINGS', camera: 'CAMERA', gallery: 'GALLERY', weather: 'WEATHER', clock: 'CLOCK', play: 'PLAY STORE', cssim: 'GALAXY STORE', store: 'GALAXY STORE', google: 'GOOGLE', chrome: 'CHROME' };
-        if (title && title.parentElement && title.parentElement.querySelector('small') === null) {
-            var sub = document.createElement('small');
-            sub.textContent = 'GALAXY S26 ULTRA · DEMO';
-            title.parentElement.appendChild(sub);
-        }
+        var sub = root.querySelector('#ssAppSub');
+        if (title) title.textContent = APP_TITLES[name] || (name.charAt(0).toUpperCase() + name.slice(1));
+        if (sub) sub.textContent = 'GALAXY S26 ULTRA · DEMO';
         body.innerHTML = appMarkup(name);
+        hideRecents();
         view.classList.add('is-open');
+        if (state.recents[0] !== name) {
+            state.recents = [name].concat(state.recents.filter(function (n) { return n !== name; })).slice(0, 6);
+        }
     }
     function closeApp() {
         if (!root) return;
@@ -218,6 +306,8 @@
 
     function bind() {
         root.addEventListener('click', function (e) {
+            var lockSideFirst = e.target.closest('[data-lockside]');
+            if (lockSideFirst) { unlockTo(lockSideFirst.getAttribute('data-lockside') === 'camera' ? 'camera' : 'phoneg'); return; }
             var lock = e.target.closest('#ssLock');
             if (lock) {
                 root.querySelector('#ssLock').classList.add('is-hidden');
@@ -228,6 +318,26 @@
             var app = e.target.closest('[data-app]');
             if (app && e.target.closest('.ss-home')) { openApp(app.getAttribute('data-app')); return; }
             if (e.target.closest('[data-close-appss]')) { closeApp(); return; }
+            var navBtn = e.target.closest('[data-ssnav]');
+            if (navBtn) {
+                var which = navBtn.getAttribute('data-ssnav');
+                if (which === 'recents') showRecents();
+                else if (which === 'home') goHome();
+                else goBack();
+                return;
+            }
+            var sideBtn = e.target.closest('[data-ssside]');
+            if (sideBtn) {
+                var side = sideBtn.getAttribute('data-ssside');
+                if (side === 'power') { if (state.unlocked) lockNow(); }
+                else volumeChange(side === 'volup' ? +10 : -10);
+                return;
+            }
+            var lockSide = e.target.closest('[data-lockside]');
+            if (lockSide) { unlockTo(lockSide.getAttribute('data-lockside') === 'camera' ? 'camera' : 'phoneg'); return; }
+            var recent = e.target.closest('[data-recent]');
+            if (recent) { openApp(recent.getAttribute('data-recent')); return; }
+            if (e.target.closest('[data-ssclear]')) { state.recents = []; var list2 = root.querySelector('#ssRecentsList'); if (list2) list2.innerHTML = '<div class="ss-recents-empty">No recent apps yet.</div>'; return; }
             var dial = e.target.closest('[data-dial]');
             if (dial) {
                 var d = root.querySelector('#ssDial');
@@ -269,7 +379,7 @@
                     '<div class="ss-demo-badge"><i></i> DEMO BUILD · FAN CONCEPT · NOT AFFILIATED WITH SAMSUNG</div>' +
                 '</div>' +
                 '<div class="ss-phone">' +
-                    '<div class="ss-side ps"></div><div class="ss-side up"></div><div class="ss-side down"></div>' +
+                    '<div class="ss-side ps" data-ssside="power" title="Side key"></div><div class="ss-side up" data-ssside="volup" title="Volume up"></div><div class="ss-side down" data-ssside="voldown" title="Volume down"></div>' +
                     '<div class="ss-frame"><div class="ss-screen">' +
                         '<div class="ss-wallpaper"></div>' +
                         '<div class="ss-punch"></div>' +
@@ -277,7 +387,7 @@
                         '<div class="ss-lock" id="ssLock">' +
                             '<div class="ss-lock-top"><div class="ss-lock-date" data-ss-date>Monday, November 10</div><div class="ss-lock-time" data-ss-time>8:42</div></div>' +
                             '<div class="ss-notification"><span class="ss-nt-ic">★</span><div><strong>LessFun Arcade</strong><small>Redline GT is running tonight · tap to open the garage</small></div></div>' +
-                            '<div class="ss-lock-bottom"><span>◉</span><span>⌂</span></div>' +
+                            '<div class="ss-lock-bottom"><span data-lockside="camera" title="Open Camera">◉</span><span data-lockside="phone" title="Open Phone">⌂</span></div>' +
                             '<div class="ss-unlock-hint">Tap or swipe up to unlock</div>' +
                         '</div>' +
                         '<div class="ss-home" id="ssHome">' +
@@ -308,11 +418,13 @@
                                 '<button class="ss-app" data-app="camera" type="button"><span class="ss-app-icon"><u>◉</u></span><span>Camera</span></button>' +
                             '</div>' +
                         '</div>' +
+                        '<div class="ss-recents" id="ssRecents"><div class="ss-recents-head"><strong>Recent apps</strong><button type="button" data-ssclear>CLEAR ALL</button></div><div id="ssRecentsList"></div></div>' +
+                        '<div class="ss-volume" id="ssVolume"><b>◉</b><i></i><b data-ssvol>60</b></div>' +
                         '<div class="ss-appview" id="ssAppView">' +
                             '<div class="ss-app-head"><button class="ss-app-back" type="button" data-close-appss>‹</button><div><strong id="ssAppTitle">App</strong><small id="ssAppSub">GALAXY S26 ULTRA · DEMO</small></div></div>' +
                             '<div class="ss-app-body" id="ssAppBody"></div>' +
                         '</div>' +
-                        '<div class="ss-nav"><button type="button" data-close-appss aria-label="Recents">|||</button><button type="button" data-close-appss aria-label="Home">○</button><button type="button" data-close-appss aria-label="Back">‹</button></div>' +
+                        '<div class="ss-nav"><button type="button" data-ssnav="recents" aria-label="Recents">|||</button><button type="button" data-ssnav="home" aria-label="Home">○</button><button type="button" data-ssnav="back" aria-label="Back">‹</button></div>' +
                     '</div></div>' +
                 '</div>' +
                 '<div class="ss-note">Tap the lock screen · open apps · try Settings and Camera</div>' +
@@ -328,7 +440,8 @@
         if (container) { try { container.innerHTML = ''; } catch (e) {} }
         container = null;
         root = null;
-        state = { unlocked: false, app: '', playing: false, toggles: {} };
+        state = { unlocked: false, app: '', playing: false, toggles: {}, volume: 0.6, recents: [] };
+        if (typeof volumeHideTimer !== 'undefined' && volumeHideTimer) { clearTimeout(volumeHideTimer); volumeHideTimer = 0; }
         navState = 'home';
     }
 
