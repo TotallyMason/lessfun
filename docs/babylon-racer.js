@@ -18,8 +18,9 @@
     var carRoot = null, carVisuals = [], wheelPivots = [], wheelSpins = [], contactShadow = null;
     var sun = null, shadow = null, sky = null, exhaustSmoke = null, exhaustEmitter = null;
     var impactSparks = null, impactSmoke = null, impactSparkTimer = 0, crashShake = 0, wallImpactCool = 0;
-    var interiorRoot = null, interiorLight = null, interiorScreenTex = null, centerScreenTex = null;
+    var interiorRoot = null, interiorLight = null, interiorScreenTex = null, centerScreenTex = null, interiorSteeringWheel = null;
     var debris = [], debrisPaintMat = null, debrisCarbonMat = null, debrisTireMat = null;
+    var headlights = [], headlightsOn = false;
     var motionBlurPost = null, motionBlurStrength = 0.02;
     var vhsPost = null, glowLayer = null;
     var realCarRoot = null, realCarLoading = false, carPaintHex = 0xc2280b;
@@ -30,7 +31,7 @@
     var CITY_X = 0, CITY_Z = 50000;
     function highwayCurveX(z) {
         var d = z - START_Z;
-        return Math.sin(d / 900) * 8.0 + Math.sin(d / 370) * 2.2;
+        return Math.sin(d / 820) * 18.0 + Math.sin(d / 330) * 5.0;
     }
     var smokeTexture = null, driftSmoke = null, driftEmitter = null;
     var isSanta = false, flyTime = 0, flyCooldown = 0;
@@ -670,6 +671,9 @@
 
         createRoadsideLights(low);
         createPalms(low);
+        createPines();
+        createMountains();
+        createRoadSigns();
         loadStreetLampModel(low);
     }
 
@@ -953,6 +957,18 @@
             box('sleighSeatBack', 1.32, 0.32, 0.18, 0, 0.62, -1.02, gold);
             wheelPivots.forEach(function (wp) { wp.node.setEnabled(false); });
         }
+
+        headlights = [];
+        [-0.55, 0.55].forEach(function (hx) {
+            var light = new BABYLON.SpotLight('headlightBeam', new BABYLON.Vector3(hx, 0.30, 2.15), new BABYLON.Vector3(0, -0.10, 1), 1.05, 2.2, scene);
+            light.parent = carRoot;
+            light.intensity = 0;
+            light.range = 95;
+            light.diffuse = new BABYLON.Color3(1.0, 0.88, 0.68);
+            light.specular = new BABYLON.Color3(1.0, 0.91, 0.75);
+            light.setEnabled(false);
+            headlights.push(light);
+        });
     }
 
     function ensureTrafficShared() {
@@ -1803,6 +1819,79 @@
         return mat;
     }
 
+    function createMountains() {
+        var mat = new BABYLON.PBRMaterial('mountainMat', scene);
+        mat.albedoColor = new BABYLON.Color3(0.035, 0.055, 0.085);
+        mat.metallic = 0.02;
+        mat.roughness = 0.92;
+        var source = BABYLON.MeshBuilder.CreateCylinder('mountainSource', { height: 1, diameterBottom: 1, diameterTop: 0, tessellation: 7 }, scene);
+        source.material = mat;
+        source.isVisible = false;
+        for (var side = -1; side <= 1; side += 2) {
+            for (var i = 0; i < 46; i++) {
+                var z = 100 + i * (ROAD_LENGTH / 46);
+                var x = highwayCurveX(z) + side * (150 + Math.random() * 230);
+                var h = 70 + Math.random() * 190;
+                var w = 80 + Math.random() * 150;
+                var m = source.createInstance('mountain' + side + '_' + i);
+                m.position.set(x, h / 2 - 1, z);
+                m.scaling.set(w, h, w);
+                m.rotation.y = Math.random() * Math.PI;
+                m.freezeWorldMatrix();
+            }
+        }
+    }
+
+    function createPines() {
+        var trunkMat = new BABYLON.PBRMaterial('pineTrunk', scene);
+        trunkMat.albedoColor = new BABYLON.Color3(0.12, 0.075, 0.04);
+        trunkMat.roughness = 0.95;
+        var leafMat = new BABYLON.PBRMaterial('pineLeaf', scene);
+        leafMat.albedoColor = new BABYLON.Color3(0.018, 0.075, 0.055);
+        leafMat.roughness = 0.9;
+        var trunk = BABYLON.MeshBuilder.CreateCylinder('pineTrunkSource', { height: 1, diameter: 0.18, tessellation: 6 }, scene);
+        trunk.material = trunkMat;
+        trunk.isVisible = false;
+        var crown = BABYLON.MeshBuilder.CreateCylinder('pineCrownSource', { height: 1, diameterBottom: 1, diameterTop: 0, tessellation: 7 }, scene);
+        crown.material = leafMat;
+        crown.isVisible = false;
+        for (var side = -1; side <= 1; side += 2) {
+            for (var i = 0; i < 125; i++) {
+                var z = 80 + i * (ROAD_LENGTH / 125) + Math.random() * 18;
+                var x = highwayCurveX(z) + side * (38 + Math.random() * 32);
+                var h = 6 + Math.random() * 8;
+                var t = trunk.createInstance('pineTrunk' + side + '_' + i);
+                t.position.set(x, h * 0.24, z);
+                t.scaling.set(1, h * 0.5, 1);
+                t.freezeWorldMatrix();
+                var c = crown.createInstance('pineCrown' + side + '_' + i);
+                c.position.set(x, h * 0.68, z);
+                c.scaling.set(h * 0.23, h * 0.72, h * 0.23);
+                c.freezeWorldMatrix();
+            }
+        }
+    }
+
+    function createRoadSigns() {
+        var postMat = new BABYLON.PBRMaterial('signPost', scene);
+        postMat.albedoColor = new BABYLON.Color3(0.20, 0.22, 0.24);
+        postMat.metallic = 0.65;
+        postMat.roughness = 0.35;
+        var labels = ['CURVE AHEAD', 'REDLINE GT', 'NIGHT RUN', 'COAST 01', 'STAY SHARP', 'CITY LIMITS'];
+        for (var i = 0; i < labels.length; i++) {
+            var z = spawnZ + 480 + i * 1900;
+            var side = i % 2 === 0 ? 1 : -1;
+            var x = highwayCurveX(z) + side * 15.5;
+            var post = BABYLON.MeshBuilder.CreateBox('signPost' + i, { width: 0.16, height: 4.2, depth: 0.16 }, scene);
+            post.position.set(x, 2.1, z);
+            post.material = postMat;
+            var sign = BABYLON.MeshBuilder.CreatePlane('roadSign' + i, { width: 4.0, height: 1.1 }, scene);
+            sign.position.set(x, 4.5, z);
+            sign.material = makeWorldSign(labels[i], i % 2 ? '#ffcf4d' : '#5fe7ff');
+            sign.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+        }
+    }
+
     function createExitGate(x, z, root, label) {
         var metal = new BABYLON.PBRMaterial('exitMetal', scene);
         metal.albedoColor = new BABYLON.Color3(0.16, 0.23, 0.26);
@@ -2041,26 +2130,28 @@
         center.material = centerMat;
         center.parent = interiorRoot;
 
+        interiorSteeringWheel = new BABYLON.TransformNode('interiorSteeringWheel', scene);
+        interiorSteeringWheel.parent = interiorRoot;
+        interiorSteeringWheel.position.set(-0.34, 0.36, 0.58);
         var wheel = BABYLON.MeshBuilder.CreateTorus('interiorWheel', { diameter: 0.34, thickness: 0.044, tessellation: 24 }, scene);
         wheel.rotation.x = Math.PI / 2;
-        wheel.position.set(-0.34, 0.36, 0.58);
         wheel.material = leather;
-        wheel.parent = interiorRoot;
+        wheel.parent = interiorSteeringWheel;
         var hub = BABYLON.MeshBuilder.CreateCylinder('interiorWheelHub', { height: 0.035, diameter: 0.13, tessellation: 18 }, scene);
         hub.rotation.x = Math.PI / 2;
-        hub.position.set(-0.34, 0.36, 0.59);
+        hub.position.z = 0.01;
         hub.material = carbon;
-        hub.parent = interiorRoot;
+        hub.parent = interiorSteeringWheel;
         [-0.16, 0.16].forEach(function (offsetX) {
             var spoke = BABYLON.MeshBuilder.CreateBox('interiorSpoke', { width: 0.16, height: 0.025, depth: 0.025 }, scene);
-            spoke.position.set(-0.34 + offsetX, 0.36, 0.59);
+            spoke.position.set(offsetX, 0, 0.01);
             spoke.material = aluminium;
-            spoke.parent = interiorRoot;
+            spoke.parent = interiorSteeringWheel;
         });
         var spokeV = BABYLON.MeshBuilder.CreateBox('interiorSpokeV', { width: 0.025, height: 0.15, depth: 0.025 }, scene);
-        spokeV.position.set(-0.34, 0.30, 0.59);
+        spokeV.position.set(0, -0.06, 0.01);
         spokeV.material = aluminium;
-        spokeV.parent = interiorRoot;
+        spokeV.parent = interiorSteeringWheel;
 
         interiorLight = new BABYLON.PointLight('interiorLight', new BABYLON.Vector3(-0.2, 0.64, 0.25), scene);
         interiorLight.parent = carRoot;
@@ -2100,7 +2191,7 @@
     }
 
     function applyViewMode() {
-        var showExterior = !!garage;
+        var showExterior = !!garage || cameraMode === 1;
         if (realCarRoot) realCarRoot.setEnabled(showExterior);
         else {
             carVisuals.forEach(function (m) { m.setEnabled(showExterior); });
@@ -2551,6 +2642,17 @@
         var forward = BABYLON.Vector3.TransformNormal(new BABYLON.Vector3(0, 0, 1), rotMatrix);
         var right = BABYLON.Vector3.TransformNormal(new BABYLON.Vector3(1, 0, 0), rotMatrix);
         var speedFactor = clamp(displaySpeed / 75, 0, 1);
+        if (cameraMode === 1) {
+            var chaseTarget = carPos.add(forward.scale(5.0)).add(new BABYLON.Vector3(0, 0.9, 0));
+            var chasePos = carPos.subtract(forward.scale(8.8)).add(new BABYLON.Vector3(0, 3.45, 0));
+            camPos = BABYLON.Vector3.Lerp(camPos, chasePos, 1 - Math.pow(0.001, dt));
+            camTarget = BABYLON.Vector3.Lerp(camTarget, chaseTarget, 1 - Math.pow(0.0007, dt));
+            camera.position.copyFrom(camPos);
+            camera.upVector.set(0, 1, 0);
+            camera.setTarget(camTarget);
+            camera.fov = 1.02 + speedFactor * 0.08;
+            return;
+        }
         var instantAccel = (displaySpeed - cameraPrevSpeed) / Math.max(0.001, dt);
         cameraPrevSpeed = displaySpeed;
         cameraAccelSmooth += (clamp(instantAccel, 0, 32) - cameraAccelSmooth) * Math.min(1, dt * 7.0);
@@ -2612,6 +2714,7 @@
                 wheelSpins[i].rotation.x += speed * dt * 4.2;
             }
         }
+        if (interiorSteeringWheel) interiorSteeringWheel.rotation.z = steerVisual * 1.18;
         if (contactShadow) {
             contactShadow.position.x = t.x;
             contactShadow.position.z = t.z;
@@ -2752,6 +2855,8 @@
                 else if (k === 'q') { shiftGear(-1); e.preventDefault(); }
                 else if (k === 'e') { shiftGear(1); e.preventDefault(); }
                 else if (k === 'r') { resetCar(true); e.preventDefault(); }
+                else if (k === 'c') { cameraMode = (cameraMode + 1) % 2; applyViewMode(); showToast(cameraMode ? 'THIRD PERSON' : 'FIRST PERSON'); e.preventDefault(); }
+                else if (k === 'l') { headlightsOn = !headlightsOn; headlights.forEach(function (light) { light.setEnabled(headlightsOn); light.intensity = headlightsOn ? 4.5 : 0; }); e.preventDefault(); }
             },
             up: function (e) {
                 var k = String(e.key || '').toLowerCase();
@@ -2858,6 +2963,8 @@
         unit = (global.localStorage && localStorage.getItem('lessfun_units')) === 'kmh' ? 'kmh' : 'mph';
         currentGear = 'D';
         gearLabel = '1';
+        cameraMode = 0;
+        headlightsOn = false;
         gearIndex = 1;
         manualGearTimer = 0;
         revLevel = 0;
@@ -3031,6 +3138,7 @@
         debris = [];
         interiorRoot = null;
         interiorLight = null;
+        interiorSteeringWheel = null;
         interiorScreenTex = null;
         centerScreenTex = null;
         driftSmoke = null;
@@ -3173,6 +3281,8 @@
             gear: currentGear === 'D' ? gearIndex : currentGear,
             rpm: Math.round(engineRpm),
             world: worldMode,
+            camera: cameraMode,
+            headlights: !!headlightsOn,
             abs: !!absActive,
             pitch: chassis ? Math.round((2 * (chassis.rotation().y * chassis.rotation().z - chassis.rotation().x * chassis.rotation().w)) * 100) / 100 : 0,
             remotes: Object.keys(remoteRacers).length,
