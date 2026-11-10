@@ -1179,7 +1179,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261384'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261385'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1193,7 +1193,7 @@ function ensureBabylonRacer() {
             .then(function () {
                 return loadScriptOnce('https://cdn.jsdelivr.net/npm/babylonjs-loaders@7.54.0/babylonjs.loaders.min.js').catch(function () {});
             })
-            .then(function () { return loadScriptOnce('babylon-racer.js?v=20261384'); })
+            .then(function () { return loadScriptOnce('babylon-racer.js?v=20261385'); })
             .catch(function (error) {
                 babylonRacerPromise = null;
                 babylonRacerUnavailable = true;
@@ -1258,7 +1258,7 @@ window.LessFunBabylonFallback = function () {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261384').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261385').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1266,7 +1266,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261384').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261385').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1274,9 +1274,9 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261384')
-            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261384'); })
-            .then(function () { return loadScriptOnce('assistant.js?v=20261384'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261385')
+            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261385'); })
+            .then(function () { return loadScriptOnce('assistant.js?v=20261385'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1304,7 +1304,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261384').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261385').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1312,7 +1312,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261384').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261385').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1320,7 +1320,7 @@ function ensureLucky() {
 function ensureTycoon() {
     if (window.Tycoon) return Promise.resolve();
     if (!tycoonPromise) {
-        tycoonPromise = loadScriptOnce('tycoon.js?v=20261384').catch(function (error) { tycoonPromise = null; throw error; });
+        tycoonPromise = loadScriptOnce('tycoon.js?v=20261385').catch(function (error) { tycoonPromise = null; throw error; });
     }
     return tycoonPromise;
 }
@@ -1474,13 +1474,23 @@ function openGameNow(id) {
                     '<div class="g3d-tach g3d-tach-cluster" id="g3dTach">' +
                         '<div class="g3d-tach-ticks"></div>' +
                         '<div class="g3d-tach-red"></div>' +
+                        '<div class="g3d-rpm-labels" aria-hidden="true">' +
+                            '<span class="g3d-rpm-label" style="left:10.4%;top:60.3%">900</span>' +
+                            '<span class="g3d-rpm-label" style="left:12.1%;top:34.3%">2000</span>' +
+                            '<span class="g3d-rpm-label" style="left:27.2%;top:15.9%">3000</span>' +
+                            '<span class="g3d-rpm-label" style="left:50%;top:9%">4000</span>' +
+                            '<span class="g3d-rpm-label" style="left:72.8%;top:15.9%">5000</span>' +
+                            '<span class="g3d-rpm-label is-red" style="left:87.9%;top:34.3%">6000</span>' +
+                            '<span class="g3d-rpm-label is-red" style="left:90.2%;top:58%">7000</span>' +
+                            '<span class="g3d-rpm-label is-red" style="left:79%;top:79%">8000</span>' +
+                        '</div>' +
                         '<div class="g3d-gauge-needle" id="g3dNeedle"></div>' +
                         '<div class="g3d-cluster">' +
                             '<div class="g3d-cluster-headline">' +
                                 '<div class="g3d-cluster-speed"><strong id="g3dGaugeSpeed">0</strong><span id="g3dGaugeUnit">mph</span></div>' +
                             '</div>' +
                             '<div class="g3d-cluster-gearline"><b id="g3dGaugeGearBig">1</b><span>GEAR</span></div>' +
-                            '<div class="g3d-cluster-core"><span>RPM <b id="g3dGaugeRpm">0</b></span><span>NOS <b id="g3dGaugeNitro">100%</b></span></div>' +
+                            '<div class="g3d-cluster-core"><span>NOS <b id="g3dGaugeNitro">100%</b></span></div>' +
                             '<div class="g3d-cluster-status" id="g3dGaugeStatus">HOLD W TO START</div>' +
                             '<div class="g3d-cluster-warnings" id="g3dWarnings">' +
                                 '<span class="g3d-warn" data-warn="abs">ABS</span>' +
@@ -9278,8 +9288,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.00";
-const UPDATE_NOTES = "Removed DIST, DRIFT, COINS and DMG gauge stats, moved the redline right, hid the idle engine-status bar, and made the engine louder";
+const APP_VERSION = "LessFun Public Beta 1.34.01";
+const UPDATE_NOTES = "The numeric RPM readout is replaced by dial markings from 900 to 8000 RPM";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

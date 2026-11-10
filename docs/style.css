@@ -13051,3 +13051,26 @@ body.low-power .site-snow { opacity: 0.55; }
     cursor: pointer;
 }
 .game3d-terrain-picker select option { background: #0b1218; color: #dff6ff; }
+
+/* Redline GT dial RPM markers */
+.g3d-rpm-labels {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+}
+.g3d-rpm-label {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    color: rgba(225, 245, 255, 0.54);
+    font-size: 6px;
+    font-weight: 900;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    text-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
+}
+.g3d-rpm-label.is-red { color: rgba(255, 90, 100, 0.78); }
+.g3d-cluster-core { justify-content: center; }
+@media (max-width: 760px) {
+    .g3d-rpm-label { font-size: 5px; }
+}
