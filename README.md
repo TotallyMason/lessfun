@@ -309,15 +309,3 @@ handling real user data or payments.
   blocked, pins fall back to local storage for the owner.
 - Only scores and the offline wallet fallback are cached locally. The rest of
   the site is served with cache-busting query parameters.
-
-## Throw & Break
-
-Drag-and-release physics destruction sandbox in a 2 D arena (Matter.js from the CDN).
-
-- 3D arena (Three.js + Cannon.js from the CDN): crates, glass panes, pots and a melon on the left — grab, drag and release to throw in real depth
-- Glass wall, pot stack and crates tower on the right that smash on hard impacts with gravity
-- Glass wall, pot stack and crates tower on the right that smash on hard impacts
-- Glass bursts into shards, pots split into terracotta chunks, crates into planks, and the melon into slices plus flying seeds
-- Throw, broke and score counters plus a toast every 6 breaks
-- Renderer disposed and WebGL context freed on close; low-power pixel ratio for weak Chromebooks
-- Refill targets and a full reset button; arena resizes with the window
