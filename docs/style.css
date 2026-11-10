@@ -12366,7 +12366,7 @@ body.in-game .xmas-snowman { display: none; }
     position: absolute;
     inset: 16px;
     border-radius: 50%;
-    background: conic-gradient(from 135deg, transparent 0 180deg, rgba(255, 51, 74, 0.78) 180deg 270deg, transparent 270deg 360deg);
+    background: conic-gradient(from 135deg, transparent 0 210deg, rgba(255, 51, 74, 0.82) 210deg 270deg, transparent 270deg 360deg);
     -webkit-mask: radial-gradient(circle, transparent 55%, #000 56% 69%, transparent 70%);
     mask: radial-gradient(circle, transparent 55%, #000 56% 69%, transparent 70%);
 }

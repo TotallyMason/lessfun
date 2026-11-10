@@ -74,7 +74,9 @@
     function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
     function setText(id, value) {
         var el = $(id);
-        if (el && el.textContent !== String(value)) el.textContent = String(value);
+        if (!el) return;
+        if (el.textContent !== String(value)) el.textContent = String(value);
+        if (id === 'g3dGaugeStatus') el.style.display = String(value).trim() ? '' : 'none';
     }
     function isLowPower() {
         var cores = (global.navigator && global.navigator.hardwareConcurrency) || 8;
@@ -85,6 +87,7 @@
         var el = $('g3dGaugeStatus');
         if (el) {
             el.textContent = text;
+            el.style.display = '';
             if (toastTimer) clearTimeout(toastTimer);
             toastTimer = setTimeout(function () { toastTimer = 0; }, 2600);
         }
@@ -164,7 +167,7 @@
         try {
             audioCtx = new AC();
             audioMaster = audioCtx.createGain();
-            audioMaster.gain.value = sound ? 0.34 : 0;
+            audioMaster.gain.value = sound ? 0.48 : 0;
             audioCompressor = audioCtx.createDynamicsCompressor();
             audioCompressor.threshold.value = -18;
             audioCompressor.knee.value = 18;
@@ -332,7 +335,7 @@
             if (garage) { running = true; rev = 0.06; }
             var hasEngine = !!(audioLoops.engineLow && audioLoops.engineHigh);
             var hasWind = !!(audioLoops.windLow && audioLoops.windHigh);
-            var synthGain = running ? (hasEngine ? 0.006 : 0.035 + rev * 0.025) : 0;
+            var synthGain = running ? (hasEngine ? 0.010 : 0.055 + rev * 0.045) : 0;
             audioSynth.engineGain.gain.setTargetAtTime(synthGain, now, 0.08);
             audioSynth.engineOsc.frequency.setTargetAtTime(48 + rev * 165, now, 0.06);
             audioSynth.subOsc.frequency.setTargetAtTime(76 + rev * 236, now, 0.06);
@@ -341,8 +344,8 @@
             audioSynth.windFilter.frequency.setTargetAtTime(520 + speed * 8, now, 0.12);
 
             if (hasEngine) {
-                audioLoops.engineLow.gain.gain.setTargetAtTime(running ? 0.10 + rev * 0.17 : 0, now, 0.09);
-                audioLoops.engineHigh.gain.gain.setTargetAtTime(running ? Math.max(0, rev - 0.35) * 0.30 : 0, now, 0.09);
+                audioLoops.engineLow.gain.gain.setTargetAtTime(running ? 0.18 + rev * 0.34 : 0, now, 0.09);
+                audioLoops.engineHigh.gain.gain.setTargetAtTime(running ? Math.max(0, rev - 0.30) * 0.58 : 0, now, 0.09);
                 audioLoops.engineLow.src.playbackRate.setTargetAtTime(0.78 + rev * 0.96, now, 0.1);
                 audioLoops.engineHigh.src.playbackRate.setTargetAtTime(0.86 + rev * 1.18, now, 0.1);
             }
@@ -353,7 +356,7 @@
                 audioLoops.windLow.src.playbackRate.setTargetAtTime(0.82 + windFrac * 0.52, now, 0.14);
                 audioLoops.windHigh.src.playbackRate.setTargetAtTime(0.9 + windFrac * 0.7, now, 0.14);
             }
-            audioMaster.gain.setTargetAtTime(sound ? 0.34 : 0, now, 0.1);
+            audioMaster.gain.setTargetAtTime(sound ? 0.48 : 0, now, 0.1);
         } catch (e) {}
     }
 
@@ -2075,14 +2078,7 @@
             setText('g3dGaugeGearBig', gear);
             setText('g3dGaugeGear', gear);
             setText('g3dGaugeNitro', Math.round(nitro) + '%');
-            setText('g3dGaugeDistance', distance >= 1000 ? (distance / 1000).toFixed(1) + 'km' : Math.round(distance) + 'm');
-            setText('g3dGaugeDrift', Math.round(driftScore));
-            setText('g3dGaugeSplitLabel', 'COINS');
-            setText('g3dGaugeSplit', coinsCollected);
-            setText('g3dGaugeDamage', '0%');
             setRunCoins(coinsCollected);
-            var fill = $('g3dGaugeNitroFill');
-            if (fill) fill.style.width = Math.round(nitro) + '%';
             var needle = $('g3dNeedle');
             if (needle) {
                 var angle = -135 + clamp(rpm / 8000, 0, 1) * 270;
@@ -2094,7 +2090,7 @@
                 else if (runOver) setText('g3dGaugeStatus', 'CRASHED · PRESS PLAY AGAIN');
                 else if (paused) setText('g3dGaugeStatus', 'PAUSED');
                 else if (gearShiftTimer > 0) setText('g3dGaugeStatus', 'SHIFTING…');
-                else if (input.drift && displaySpeed > 9) setText('g3dGaugeStatus', 'DRIFT · ' + Math.round(driftScore) + ' · ' + coinsCollected + ' COINS');
+                else if (input.drift && displaySpeed > 9) setText('g3dGaugeStatus', 'DRIFT · ' + Math.round(driftScore));
                 else if (isSanta) {
                     if (flyTime > 0) setText('g3dGaugeStatus', 'SANTA FLYING · ' + flyTime.toFixed(1) + 's');
                     else if (flyCooldown > 0) setText('g3dGaugeStatus', 'FLY READY IN ' + Math.ceil(flyCooldown) + 's');
@@ -2103,14 +2099,14 @@
                 else if (localRacerName) {
                     var mp = multiplayerPlace();
                     setText('g3dGaugeStatus', mp
-                        ? 'MP P' + mp.place + '/' + mp.total + ' · ' + coinsCollected + ' COINS'
-                        : 'MULTIPLAYER · WAITING FOR RACERS · ' + coinsCollected + ' COINS');
+                        ? 'MP P' + mp.place + '/' + mp.total
+                        : 'MULTIPLAYER · WAITING FOR RACERS');
                 }
-                else if (input.nitro && nitro > 0 && currentGear === 'D') setText('g3dGaugeStatus', 'NITROUS ACTIVE · ' + coinsCollected + ' COINS');
-                else if (currentGear === 'N' || currentGear === 'P') setText('g3dGaugeStatus', 'REV WITH W · Q/E P R N D · ' + coinsCollected + ' COINS');
-                else if (currentGear === 'R') setText('g3dGaugeStatus', 'REVERSE · Q/E P R N D · ' + coinsCollected + ' COINS');
-                else if (displaySpeed < 0.4) setText('g3dGaugeStatus', 'HOLD W TO START · Q/E P R N D · ' + coinsCollected + ' COINS');
-                else setText('g3dGaugeStatus', 'BABYLON.JS + RAPIER · ' + coinsCollected + ' COINS');
+                else if (input.nitro && nitro > 0 && currentGear === 'D') setText('g3dGaugeStatus', 'NITROUS ACTIVE');
+                else if (currentGear === 'N' || currentGear === 'P') setText('g3dGaugeStatus', 'REV WITH W · Q/E P R N D');
+                else if (currentGear === 'R') setText('g3dGaugeStatus', 'REVERSE · Q/E P R N D');
+                else if (displaySpeed < 0.4) setText('g3dGaugeStatus', 'HOLD W TO START · Q/E P R N D');
+                else setText('g3dGaugeStatus', '');
             }
             var brake = document.querySelector('.g3d-warn[data-warn="brake"]');
             if (brake) brake.classList.toggle('is-on', !!input.brake);
@@ -2518,7 +2514,7 @@
     function setSoundEnabled(on) {
         sound = !!on;
         if (audioMaster && audioCtx) {
-            try { audioMaster.gain.setTargetAtTime(sound ? 0.34 : 0, audioCtx.currentTime, 0.08); } catch (e) {}
+            try { audioMaster.gain.setTargetAtTime(sound ? 0.48 : 0, audioCtx.currentTime, 0.08); } catch (e) {}
         }
     }
     function setShadows() {}
