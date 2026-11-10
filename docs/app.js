@@ -6,7 +6,7 @@ const supabaseClient = (typeof window !== 'undefined' && window.supabase) ? wind
 const IS_HOLIDAY_UI = document.documentElement.classList.contains('is-holiday');
 
 const games = [
-    { id: 1, name: "Beach Racer", description: "Collect Coins and weave through traffic on a six-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · A D / ← → steer · Q/E shift 1-8 · Shift/N nitrous · C camera" },
+    { id: 1, name: "Beach Racer", description: "Collect Coins and weave through traffic on a six-lane coastal highway", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · A D / ← → steer · Q/E P R N D · automatic 8-speed · Shift/N nitrous · C camera" },
     { id: 2, name: "Tunnel Rush", description: "Thread the neon tunnel at warp speed", icon: "tunnel", controls: "Left / Right or drag to rotate" },
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
     { id: 4, name: "Dead Coast", description: "Drive 10 km through the dead coast, scavenging food, water, fuel, and car parts", icon: "skull", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · A D / ← → steer · C camera · drag to steer on mobile · survive 10 km" },
@@ -1179,7 +1179,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261371'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261372'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1190,7 +1190,7 @@ function ensureBabylonRacer() {
     if (babylonRacerUnavailable) return Promise.reject(new Error('Babylon racer is unavailable'));
     if (!babylonRacerPromise) {
         babylonRacerPromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/babylonjs@7.54.0/babylon.js')
-            .then(function () { return loadScriptOnce('babylon-racer.js?v=20261371'); })
+            .then(function () { return loadScriptOnce('babylon-racer.js?v=20261372'); })
             .catch(function (error) {
                 babylonRacerPromise = null;
                 babylonRacerUnavailable = true;
@@ -1255,7 +1255,7 @@ window.LessFunBabylonFallback = function () {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261371').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261372').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1263,7 +1263,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261371').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261372').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1271,9 +1271,9 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261371')
-            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261371'); })
-            .then(function () { return loadScriptOnce('assistant.js?v=20261371'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261372')
+            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261372'); })
+            .then(function () { return loadScriptOnce('assistant.js?v=20261372'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1301,7 +1301,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261371').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261372').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1309,7 +1309,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261371').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261372').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1317,7 +1317,7 @@ function ensureLucky() {
 function ensureTycoon() {
     if (window.Tycoon) return Promise.resolve();
     if (!tycoonPromise) {
-        tycoonPromise = loadScriptOnce('tycoon.js?v=20261371').catch(function (error) { tycoonPromise = null; throw error; });
+        tycoonPromise = loadScriptOnce('tycoon.js?v=20261372').catch(function (error) { tycoonPromise = null; throw error; });
     }
     return tycoonPromise;
 }
@@ -9282,8 +9282,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.33.87";
-const UPDATE_NOTES = "Removed FSD. Beach Racer has an 8-speed gearbox with Q/E shifting, N/P revving, and NOS that only drains while boosting";
+const APP_VERSION = "LessFun Public Beta 1.33.88";
+const UPDATE_NOTES = "Traffic bounces instead of crashing, acceleration is doubled, Q/E shifts P/R/N/D with automatic 8-speed, N/P rev smoke, and multiplayer ghost racers work";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

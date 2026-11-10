@@ -16,7 +16,7 @@
 
     var engine = null, scene = null, camera = null, canvas = null, container = null;
     var carRoot = null, carVisuals = [], wheelPivots = [], wheelSpins = [], contactShadow = null;
-    var sun = null, shadow = null, sky = null;
+    var sun = null, shadow = null, sky = null, exhaustSmoke = null, exhaustEmitter = null;
     var resizeObs = null, active = false, failed = false;
     var rapier = null, world = null, chassis = null, vehicle = null;
     var rapierPromise = null, ready = false, starting = false;
@@ -36,6 +36,7 @@
     var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.25;
     var laneCenters = [-9.16, -5.5, -1.83, 1.83, 5.5, 9.16];
     var traffic = [], coinPickups = [], trafficTimer = 0;
+    var remoteRacers = {}, localRacerName = '';
     var runOver = false, runSeconds = 0, coinsCollected = 0, coinsAwarded = false, scoreSubmitted = false;
     var fsdActive = false, fsdLane = 2, fsdThink = 0, fsdSteerTarget = 0, fsdBrake = false, fsdThrottle = false;
     var lastPlayerZ = START_Z;
@@ -1057,6 +1058,109 @@
         fsdSteerTarget = clamp((laneCenters[fsdLane] - t.x) * 0.60, -1, 1);
     }
 
+    function drawRemoteName(rr) {
+        if (!rr || !rr.labelTexture) return;
+        var ctx = rr.labelTexture.getContext();
+        ctx.clearRect(0, 0, 256, 64);
+        ctx.fillStyle = 'rgba(3, 12, 20, 0.58)';
+        ctx.fillRect(0, 8, 256, 48);
+        ctx.strokeStyle = 'rgba(95, 231, 255, 0.55)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(1, 9, 254, 46);
+        ctx.fillStyle = '#eafaff';
+        ctx.font = '800 24px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText((rr.name || 'Racer').slice(0, 16), 128, 33);
+        rr.labelTexture.update(false);
+    }
+
+    function createRemoteRacer(entry) {
+        var style = entry && TRAFFIC_SPECS[entry.body] ? entry.body : 'sport';
+        var car = makeTrafficCar(style, entry && entry.paint != null ? entry.paint : 0xef476f);
+        car.root.name = 'remoteRacer_' + String(entry.id);
+        var tex = new BABYLON.DynamicTexture('remoteName_' + entry.id, { width: 256, height: 64 }, scene, false);
+        tex.hasAlpha = true;
+        var mat = new BABYLON.StandardMaterial('remoteNameMat_' + entry.id, scene);
+        mat.diffuseTexture = tex;
+        mat.diffuseTexture.hasAlpha = true;
+        mat.useAlphaFromDiffuseTexture = true;
+        mat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+        mat.disableLighting = true;
+        mat.backFaceCulling = false;
+        var plane = BABYLON.MeshBuilder.CreatePlane('remoteNamePlane_' + entry.id, { width: 2.5, height: 0.62 }, scene);
+        plane.parent = car.root;
+        plane.position.y = 2.05;
+        plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+        plane.material = mat;
+        plane.isPickable = false;
+        car.labelTexture = tex;
+        car.labelMaterial = mat;
+        car.labelPlane = plane;
+        car.name = entry.name || 'Racer';
+        car.targetX = 0;
+        car.targetDistance = 0;
+        car.remoteSpeed = 0;
+        car.lastX = 0;
+        drawRemoteName(car);
+        return car;
+    }
+
+    function disposeRemoteRacer(rr) {
+        if (!rr) return;
+        try { if (rr.labelTexture) rr.labelTexture.dispose(); } catch (e) {}
+        try { if (rr.labelPlane) rr.labelPlane.dispose(); } catch (e) {}
+        try { if (rr.root) rr.root.dispose(false, false); } catch (e) {}
+    }
+
+    function setRemoteRacers(list) {
+        if (!scene) return;
+        var seen = {};
+        list = Array.isArray(list) ? list : [];
+        for (var i = 0; i < list.length; i++) {
+            var entry = list[i];
+            if (!entry || !entry.id) continue;
+            var id = String(entry.id);
+            if (id === 'undefined' || id === 'null') continue;
+            seen[id] = true;
+            var rr = remoteRacers[id];
+            if (!rr) {
+                rr = createRemoteRacer(entry);
+                remoteRacers[id] = rr;
+            }
+            var newName = entry.name || 'Racer';
+            if (newName !== rr.name) {
+                rr.name = newName;
+                drawRemoteName(rr);
+            }
+            rr.targetX = clamp(num(entry.x, 0), -10.2, 10.2);
+            rr.targetDistance = Math.max(0, num(entry.distance, 0));
+            rr.remoteSpeed = Math.max(0, num(entry.speed, 0));
+            rr.root.setEnabled(true);
+        }
+        Object.keys(remoteRacers).forEach(function (id) {
+            if (!seen[id]) {
+                disposeRemoteRacer(remoteRacers[id]);
+                delete remoteRacers[id];
+            }
+        });
+    }
+
+    function updateRemoteRacers(dt) {
+        if (!chassis) return;
+        var pz = chassis.translation().z;
+        Object.keys(remoteRacers).forEach(function (id) {
+            var rr = remoteRacers[id];
+            var targetZ = spawnZ + rr.targetDistance;
+            var dx = rr.targetX - rr.root.position.x;
+            rr.root.position.x += dx * Math.min(1, dt * 7.5);
+            rr.root.position.z += (targetZ - rr.root.position.z) * Math.min(1, dt * 10);
+            rr.root.rotation.y = clamp(dx * 0.18, -0.38, 0.38);
+            for (var w = 0; w < rr.wheels.length; w++) rr.wheels[w].rotation.x += rr.remoteSpeed * dt * 3.2;
+            rr.root.setEnabled(Math.abs(targetZ - pz) < 1500);
+        });
+    }
+
     function updateTraffic(dt) {
         if (!chassis) return;
         var p = chassis.translation();
@@ -1074,14 +1178,30 @@
             var dx = Math.abs(p.x - car.root.position.x);
             var dz = Math.abs(pz - car.root.position.z);
             if (dx < 0.92 + car.spec.w / 2 && dz < 2.15 + car.spec.l / 2 && car.cool <= 0) {
-                car.cool = 1.2;
-                if (Math.abs(displaySpeed - car.speed) > 6 || displaySpeed > 12) {
-                    crashRun();
-                    return;
-                }
+                car.cool = 0.9;
+                // Arcade bounce: no crash/game-over. Push the car sideways and
+                // back while keeping most of its forward momentum.
                 var v = chassis.linvel();
-                chassis.setLinvel({ x: v.x * 0.55 + (p.x > car.root.position.x ? 2.2 : -2.2), y: v.y, z: v.z * 0.7 }, true);
-                playTone(140, 0.16, 'square', 0.06, 70);
+                var closing = Math.max(0, displaySpeed - car.speed);
+                var dirX = p.x >= car.root.position.x ? 1 : -1;
+                var lateralKick = Math.min(16, 4.5 + closing * 0.45);
+                var forwardKeep = Math.max(0.58, 1 - Math.min(0.32, 0.10 + closing * 0.004));
+                chassis.setLinvel({
+                    x: v.x + dirX * lateralKick,
+                    y: Math.max(v.y, 1.4 + Math.min(2.8, closing * 0.055)),
+                    z: v.z * forwardKeep
+                }, true);
+                chassis.setAngvel({ x: 0, y: (Math.random() - 0.5) * 1.2, z: 0 }, true);
+                // Nudge the traffic car aside so the player is not stuck inside it.
+                car.root.position.x += dirX * 0.35;
+                car.speed = Math.max(4, car.speed * 0.9);
+                var flash = $('g3dCrashFlash');
+                if (flash) {
+                    flash.classList.add('is-active');
+                    setTimeout(function () { flash.classList.remove('is-active'); }, 140);
+                }
+                playTone(150, 0.18, 'square', 0.075, 65);
+                playTone(260, 0.10, 'sawtooth', 0.045, 120);
             }
         }
     }
@@ -1106,6 +1226,49 @@
                 playCoinSound();
             }
         }
+    }
+
+    function createExhaustSmoke() {
+        var tex = new BABYLON.DynamicTexture('exhaustSmokeTexture', { width: 96, height: 96 }, scene, false);
+        var ctx = tex.getContext();
+        ctx.clearRect(0, 0, 96, 96);
+        var g = ctx.createRadialGradient(48, 48, 2, 48, 48, 46);
+        g.addColorStop(0, 'rgba(255,255,255,0.82)');
+        g.addColorStop(0.34, 'rgba(225,225,225,0.48)');
+        g.addColorStop(0.72, 'rgba(180,180,180,0.16)');
+        g.addColorStop(1, 'rgba(140,140,140,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, 96, 96);
+        tex.update(false);
+        tex.hasAlpha = true;
+
+        exhaustEmitter = new BABYLON.TransformNode('exhaustSmokeEmitter', scene);
+        exhaustEmitter.parent = carRoot;
+        exhaustEmitter.position.set(0, -0.02, -2.28);
+        var ps = new BABYLON.ParticleSystem('exhaustSmoke', isLowPower() ? 70 : 130, scene);
+        ps.particleTexture = tex;
+        ps.emitter = exhaustEmitter;
+        ps.minEmitBox = new BABYLON.Vector3(-0.38, -0.05, -0.10);
+        ps.maxEmitBox = new BABYLON.Vector3(0.38, 0.16, 0.10);
+        ps.color1 = new BABYLON.Color4(0.62, 0.63, 0.66, 0.42);
+        ps.color2 = new BABYLON.Color4(0.34, 0.35, 0.38, 0.28);
+        ps.colorDead = new BABYLON.Color4(0.12, 0.12, 0.14, 0);
+        ps.minSize = 0.32;
+        ps.maxSize = 1.35;
+        ps.minLifeTime = 1.05;
+        ps.maxLifeTime = 2.15;
+        ps.emitRate = 0;
+        ps.blendMode = BABYLON.ParticleSystem.BLENDMODE_STANDARD;
+        ps.direction1 = new BABYLON.Vector3(-0.65, 0.75, -1.8);
+        ps.direction2 = new BABYLON.Vector3(0.65, 1.55, -0.15);
+        ps.minEmitPower = 0.45;
+        ps.maxEmitPower = 1.45;
+        ps.updateSpeed = 0.024;
+        ps.gravity = new BABYLON.Vector3(0, 0.65, 0);
+        ps.minAngularSpeed = -0.8;
+        ps.maxAngularSpeed = 0.8;
+        ps.start();
+        exhaustSmoke = ps;
     }
 
     function createScene() {
@@ -1135,6 +1298,7 @@
         createEnvironment();
         createContactShadow();
         createCar();
+        createExhaustSmoke();
 
         // Subtle cinematic pass: ACES, bloom, FXAA. Skip bloom on low-power GPUs.
         try {
@@ -1236,21 +1400,17 @@
             if (throttle) engineForce = -1450 * driveAccel;
             if (brake) brakeForce = 26;
         } else {
-            if (manualGearTimer > 0) {
-                manualGearTimer = Math.max(0, manualGearTimer - dt);
-            } else {
-                while (gearIndex < 8 && forwardSpeed > driveMaxSpeed * GEAR_TOPS[gearIndex - 1] * 0.97) gearIndex++;
-                while (gearIndex > 1 && forwardSpeed < driveMaxSpeed * GEAR_TOPS[gearIndex - 2] * 0.70) gearIndex--;
-            }
+            while (gearIndex < 8 && forwardSpeed > driveMaxSpeed * GEAR_TOPS[gearIndex - 1] * 0.96) gearIndex++;
+            while (gearIndex > 1 && forwardSpeed < driveMaxSpeed * GEAR_TOPS[gearIndex - 2] * 0.68) gearIndex--;
             gearLabel = String(gearIndex);
             var gearPull = 1.45 - (gearIndex - 1) * 0.10;
             var boosting = input.nitro && nitro > 0 && throttle;
             var maxSpeed = boosting ? nitroMax : driveMaxSpeed;
             if (throttle && forwardSpeed < maxSpeed) {
                 var falloff = 1 - (forwardSpeed / maxSpeed) * 0.88;
-                engineForce = 4800 * driveAccel * gearPull * falloff;
+                engineForce = 9600 * driveAccel * gearPull * falloff;
                 if (boosting) {
-                    engineForce += 3200 * driveAccel;
+                    engineForce += 6400 * driveAccel;
                     nitro = Math.max(0, nitro - dt * 26);
                 }
             }
@@ -1489,10 +1649,10 @@
                 else if (runOver) setText('g3dGaugeStatus', 'CRASHED · PRESS PLAY AGAIN');
                 else if (paused) setText('g3dGaugeStatus', 'PAUSED');
                 else if (input.nitro && nitro > 0 && currentGear === 'D') setText('g3dGaugeStatus', 'NITROUS ACTIVE · ' + coinsCollected + ' COINS');
-                else if (currentGear === 'N' || currentGear === 'P') setText('g3dGaugeStatus', 'REV WITH W · Q/E TO SHIFT · ' + coinsCollected + ' COINS');
-                else if (currentGear === 'R') setText('g3dGaugeStatus', 'REVERSE · Q/E TO SHIFT · ' + coinsCollected + ' COINS');
-                else if (displaySpeed < 0.4) setText('g3dGaugeStatus', 'HOLD W TO START · Q/E SHIFT · ' + coinsCollected + ' COINS');
-                else setText('g3dGaugeStatus', 'GEAR ' + gearIndex + '/8 · ' + coinsCollected + ' COINS');
+                else if (currentGear === 'N' || currentGear === 'P') setText('g3dGaugeStatus', 'REV WITH W · Q/E P R N D · ' + coinsCollected + ' COINS');
+                else if (currentGear === 'R') setText('g3dGaugeStatus', 'REVERSE · Q/E P R N D · ' + coinsCollected + ' COINS');
+                else if (displaySpeed < 0.4) setText('g3dGaugeStatus', 'HOLD W TO START · Q/E P R N D · ' + coinsCollected + ' COINS');
+                else setText('g3dGaugeStatus', 'AUTO ' + gearIndex + '/8 · ' + coinsCollected + ' COINS');
             }
             var brake = document.querySelector('.g3d-warn[data-warn="brake"]');
             if (brake) brake.classList.toggle('is-on', !!input.brake);
@@ -1511,6 +1671,11 @@
         } else if (!paused) {
             updateCoins(dt);
         }
+        if (exhaustSmoke) {
+            var revvingN = (currentGear === 'N' || currentGear === 'P') && revLevel > 0.10 && !garage && !runOver;
+            exhaustSmoke.emitRate = revvingN ? 22 + revLevel * 58 : 0;
+        }
+        updateRemoteRacers(dt);
         syncCarVisual(dt);
         updateAudio();
         updateCamera(dt);
@@ -1541,15 +1706,6 @@
                 else if (k === 'e') { shiftGear(1); e.preventDefault(); }
                 else if (k === 'r') { resetCar(true); e.preventDefault(); }
                 else if (k === 'c') { cameraMode = (cameraMode + 1) % 2; showToast(cameraMode ? 'CAMERA · FAR' : 'CAMERA · CHASE'); }
-                else if (k >= '1' && k <= '8') {
-                    if (currentGear !== 'D') setGearMode('D');
-                    gearIndex = Number(k);
-                    gearLabel = String(gearIndex);
-                    manualGearTimer = 5;
-                    playGearSound();
-                    showToast('GEAR ' + gearIndex + '/8');
-                    e.preventDefault();
-                }
             },
             up: function (e) {
                 var k = String(e.key || '').toLowerCase();
@@ -1664,6 +1820,8 @@
         steerVisual = 0;
         selectedCar = opts.car || null;
         carCosmetics = opts.cosmetics || null;
+        remoteRacers = {};
+        localRacerName = '';
         var perf = carCosmetics && carCosmetics.performance ? carCosmetics.performance : {};
         // Use the car's advertised top speed (mph) instead of the old compressed
         // arcade scale. A 200 mph car now reads 200 on the gauge.
@@ -1789,6 +1947,7 @@
         contactShadow = null;
         traffic = [];
         coinPickups = [];
+        remoteRacers = {};
         trafficPaintCache = {};
         trafficShared = null;
         coinMaterial = null;
@@ -1799,6 +1958,8 @@
         sun = null;
         shadow = null;
         sky = null;
+        exhaustSmoke = null;
+        exhaustEmitter = null;
         camPos = null;
         camTarget = null;
     }
@@ -1839,19 +2000,15 @@
         if (mode === 'D') { gearIndex = 1; manualGearTimer = 0; }
         else revLevel = 0;
         playGearSound();
-        showToast(mode === 'D' ? 'GEAR D · 1/8' : 'GEAR ' + mode);
+        showToast(mode === 'D' ? 'GEAR D · AUTO 1/8' : 'GEAR ' + mode);
     }
 
     function shiftGear(direction) {
         if (!ready || garage || runOver) return;
-        if (currentGear !== 'D') setGearMode('D');
-        var next = clamp(gearIndex + (direction > 0 ? 1 : -1), 1, 8);
-        if (next === gearIndex) { showToast('GEAR ' + gearIndex + '/8'); return; }
-        gearIndex = next;
-        gearLabel = String(gearIndex);
-        manualGearTimer = 4.5;
-        playGearSound();
-        showToast('GEAR ' + gearIndex + '/8');
+        var order = ['P', 'R', 'N', 'D'];
+        var idx = order.indexOf(currentGear);
+        idx = clamp(idx + (direction > 0 ? 1 : -1), 0, order.length - 1);
+        setGearMode(order[idx]);
     }
 
     function setGear(mode) { setGearMode(mode); }
@@ -1873,12 +2030,21 @@
     function setRenderScale() {}
     function setShowFps() {}
     function toggleFsd() {}
-    function setLocalRacerName() {}
-    function setRemoteRacers() {}
+    function setLocalRacerName(name) { localRacerName = String(name || '').slice(0, 16); }
     function setTerrain() {}
     function setElevation() {}
     function toggleShadowHelper() {}
-    function teleportRacer() {}
+    function teleportRacer(targetDistance, targetX) {
+        if (!chassis) return;
+        var d = Math.max(0, num(targetDistance, 0));
+        var tx = clamp(num(targetX, 0), -10.2, 10.2);
+        chassis.setTranslation({ x: tx, y: 0.92, z: spawnZ + d }, true);
+        chassis.setLinvel({ x: 0, y: 0, z: 0 }, true);
+        chassis.setAngvel({ x: 0, y: 0, z: 0 }, true);
+        distance = Math.max(distance, d);
+        resetCamera(true);
+        showToast('TELEPORTED TO RACER');
+    }
     function lockPointer() {}
     function getRacerInfo() { return null; }
     function getRacerState() {
@@ -1896,6 +2062,7 @@
             fsd: fsdActive,
             traffic: traffic.length,
             gear: currentGear === 'D' ? gearIndex : currentGear,
+            remotes: Object.keys(remoteRacers).length,
             maxMph: Math.round(driveMaxSpeed * 2.23694),
             nitro: Math.round(nitro),
             audio: !!(audioCtx && audioCtx.state === 'running'),

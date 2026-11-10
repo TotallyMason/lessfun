@@ -25,7 +25,9 @@ Low-power devices (4 GB RAM, 4 cores or fewer, Chromebooks) automatically use a 
 Most games are real-time 3D scenes rendered with Three.js. **Beach Racer** now
 runs on **Babylon.js + Rapier** with HDR environment lighting, a baked road
 lightmap, highway traffic, collectible Coins, equipped Garage cars, an
-8-speed Q/E gearbox, and sampled engine/wind audio with a synthesized fallback. The
+automatic 8-speed gearbox with Q/E P/R/N/D selection, N/P exhaust smoke, and
+sampled engine/wind audio with a synthesized fallback. Traffic now bounces off
+the player instead of ending the run. Multiplayer ghost racers are visible. The
 original Three.js racer is kept as an automatic fallback if Babylon or Rapier
 cannot start on a device. Race modes, damage, crash physics and multiplayer
 visuals are still being migrated.

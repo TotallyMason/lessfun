@@ -1,7 +1,7 @@
 /* LessFun offline shell — single-player games stay available offline. */
 'use strict';
 
-var CACHE_NAME = 'lessfun-static-1.33.87';
+var CACHE_NAME = 'lessfun-static-1.33.88';
 var CORE_ASSETS = [
     './',
     'index.html',
