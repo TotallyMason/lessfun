@@ -1842,21 +1842,17 @@
         var powerShake = 0;
         if (!paused && !runOver) {
             if (currentGear === 'D' || currentGear === 'R') {
-                if (input.throttle) powerShake = 0.020 + speedFactor * 0.030;
-                if (input.nitro && nitro > 0 && input.throttle) powerShake += 0.028;
+                if (input.throttle) powerShake = 0.085 + speedFactor * 0.12;
+                if (input.nitro && nitro > 0 && input.throttle) powerShake += 0.10;
             } else if (input.throttle) {
-                powerShake = revLevel * 0.055;
+                powerShake = 0.10 + revLevel * 0.10;
             }
         }
-        var shake = speedFactor * 0.035 + powerShake;
+        var shake = speedFactor * 0.045;
         var target = carPos.add(forward.scale(5.2)).add(new BABYLON.Vector3(0, 0.95, 0));
         var desired = carPos.subtract(forward.scale(back)).add(new BABYLON.Vector3(0, height, 0));
         desired = desired.add(right.scale(Math.sin(performance.now() * 0.031) * shake));
         desired.y += Math.sin(performance.now() * 0.047) * shake;
-        if (powerShake > 0.001) {
-            desired.y += Math.sin(performance.now() * 0.083) * powerShake * 0.6;
-            desired.x += Math.sin(performance.now() * 0.071) * powerShake * 0.45;
-        }
         if (crashShake > 0.001) {
             crashShake = Math.max(0, crashShake - dt * 2.1);
             desired.x += (Math.random() - 0.5) * crashShake;
@@ -1869,6 +1865,17 @@
         camPos = BABYLON.Vector3.Lerp(camPos, desired, posLerp);
         camTarget = BABYLON.Vector3.Lerp(camTarget, target, targetLerp);
         camera.position.copyFrom(camPos);
+        if (powerShake > 0.001) {
+            var nowMs = performance.now();
+            var sx = (Math.sin(nowMs * 0.052) + Math.sin(nowMs * 0.113) * 0.45) * powerShake;
+            var sy = (Math.sin(nowMs * 0.067) + Math.sin(nowMs * 0.149) * 0.35) * powerShake * 0.8;
+            var sz = Math.sin(nowMs * 0.083) * powerShake * 0.35;
+            camera.position.x += sx;
+            camera.position.y += sy;
+            camera.position.z += sz;
+            camTarget.x += sx * 0.32;
+            camTarget.y += sy * 0.22;
+        }
         camera.setTarget(camTarget);
         camera.fov = 1.02 + speedFactor * 0.11;
     }
