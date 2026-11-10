@@ -10266,7 +10266,7 @@
         if (active && active.toggleShadowHelper) active.toggleShadowHelper(on);
     }
 
-    global.Games3D = {
+    global.Games3DThree = {
         start: start,
         restart: restart,
         stop: stop,

@@ -22,7 +22,12 @@ Low-power devices (4 GB RAM, 4 cores or fewer, Chromebooks) automatically use a 
 | Dead Coast | Drive 10 km through a ruined coast, managing food, water, fuel, and car health while scavenging better car parts. |
 | Star Dodger | Weave through an asteroid storm at increasing speed. |
 
-Most games are real-time 3D scenes rendered with Three.js.
+Most games are real-time 3D scenes rendered with Three.js. **Beach Racer Phase 1**
+now runs on **Babylon.js + Rapier** with HDR environment lighting and a baked
+road lightmap. The original Three.js racer is kept as an automatic fallback if
+Babylon or Rapier cannot start on a device. The remaining Beach Racer features
+(traffic, race modes, garage cars, damage, multiplayer and audio) are being
+migrated in later phases.
 
 ## Play
 

@@ -1168,6 +1168,8 @@ function loadScriptOnce(src) {
 }
 
 let enginePromise = null;
+let babylonRacerPromise = null;
+let babylonRacerUnavailable = false;
 let landingPromise = null;
 let tranqPromise = null;
 let assistantPromise = null;
@@ -1177,20 +1179,87 @@ let tycoonPromise = null;
 let gameOpenToken = 0;
 
 function ensure3DEngine() {
-    if (window.Games3D) return Promise.resolve();
+    if (window.Games3DThree) return Promise.resolve();
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261367'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261368'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
 }
 
+function ensureBabylonRacer() {
+    if (window.BabylonRacer && !window.BabylonRacer.hasFailed()) return Promise.resolve();
+    if (babylonRacerUnavailable) return Promise.reject(new Error('Babylon racer is unavailable'));
+    if (!babylonRacerPromise) {
+        babylonRacerPromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/babylonjs@7.54.0/babylon.js')
+            .then(function () { return loadScriptOnce('babylon-racer.js?v=20261368'); })
+            .catch(function (error) {
+                babylonRacerPromise = null;
+                babylonRacerUnavailable = true;
+                throw error;
+            });
+    }
+    return babylonRacerPromise;
+}
+
+/* One stable API for the arcade. Beach Racer uses Babylon + Rapier while the
+   other 3D games keep using the original Three.js engine. */
+function game3dPick() {
+    if (currentGameId === 1 && window.BabylonRacer && !window.BabylonRacer.hasFailed()) return window.BabylonRacer;
+    return window.Games3DThree || null;
+}
+
+var GAME3D_METHODS = [
+    'restart', 'stop', 'setBrake', 'setThrottle', 'setDrift', 'setNitro', 'shiftGear',
+    'setPaused', 'setRemoteRacers', 'requestFrameCapture', 'getCapturedFrame',
+    'setZombieRemotes', 'getZombieState', 'setZombieNet', 'setMobileMove', 'setMobileFiring',
+    'mobileFpsAction', 'getZombieWorld', 'applyZombieWorld', 'applyZombieHit', 'addZombieScore',
+    'applyZombieAttack', 'reviveZombiePlayer', 'applyLootedCrate', 'setLocalRacerName',
+    'setGraphicsPreset', 'setRenderScale', 'setMotionBlur', 'setShowFps', 'setShadows',
+    'setCrashSlowmo', 'setSoundEnabled', 'setUnitSystem', 'teleportRacer', 'setGarageMode',
+    'setGearMode', 'toggleFsd', 'setTerrain', 'setElevation', 'toggleShadowHelper',
+    'getCurrentScore', 'lockPointer', 'getRacerState', 'getRacerInfo'
+];
+
+var Game3DRouter = {
+    start: function (id, containerEl, options) {
+        if (id === 1 && window.BabylonRacer && !window.BabylonRacer.hasFailed()) {
+            return window.BabylonRacer.start(containerEl, options || {});
+        }
+        return window.Games3DThree && window.Games3DThree.start(id, containerEl, options);
+    }
+};
+GAME3D_METHODS.forEach(function (name) {
+    Game3DRouter[name] = function () {
+        var target = game3dPick();
+        if (!target || typeof target[name] !== 'function') return undefined;
+        return target[name].apply(target, arguments);
+    };
+});
+window.Games3D = Game3DRouter;
+
+window.LessFunBabylonFallback = function () {
+    if (currentGameId !== 1) return;
+    babylonRacerUnavailable = true;
+    if (window.BabylonRacer) {
+        try { window.BabylonRacer.stop(); } catch (e) {}
+    }
+    showViewLoader('Switching to the Three.js racer…', 'The Babylon renderer could not start on this device.');
+    ensure3DEngine().then(function () {
+        openGameNow(1);
+        hideViewLoader();
+    }).catch(function () {
+        hideViewLoader();
+        if (typeof showGameToast === 'function') showGameToast('Could not start the 3D racer.');
+    });
+};
+
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261367').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261368').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1198,7 +1267,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261367').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261368').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1206,9 +1275,9 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261367')
-            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261367'); })
-            .then(function () { return loadScriptOnce('assistant.js?v=20261367'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261368')
+            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261368'); })
+            .then(function () { return loadScriptOnce('assistant.js?v=20261368'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1236,7 +1305,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261367').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261368').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1244,7 +1313,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261367').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261368').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1252,7 +1321,7 @@ function ensureLucky() {
 function ensureTycoon() {
     if (window.Tycoon) return Promise.resolve();
     if (!tycoonPromise) {
-        tycoonPromise = loadScriptOnce('tycoon.js?v=20261367').catch(function (error) { tycoonPromise = null; throw error; });
+        tycoonPromise = loadScriptOnce('tycoon.js?v=20261368').catch(function (error) { tycoonPromise = null; throw error; });
     }
     return tycoonPromise;
 }
@@ -1275,6 +1344,7 @@ function cancelPreloadGame() {
 }
 
 function preloadGame(id) {
+    if (id === 1) { ensureBabylonRacer().catch(function () {}); return; }
     if (id === 13) { ensureLanding().catch(function () {}); return; }
     if (id === 14) { ensureTranq().catch(function () {}); return; }
     if (id === 8) { ensureDrawGuess().catch(function () {}); return; }
@@ -1299,6 +1369,20 @@ function openGame(id) {
     if (window.Tycoon && currentGameId === 15 && id !== 15) window.Tycoon.close();
     const token = ++gameOpenToken;
     if (id === 6) { openGameNow(id); return; }
+    if (id === 1) {
+        showViewLoader('Loading ' + game.name + '…', babylonRacerUnavailable ? 'Downloading the Three.js engine…' : 'Downloading Babylon.js, Rapier and the HDR environment…');
+        var racerLoad = babylonRacerUnavailable ? ensure3DEngine() : ensureBabylonRacer().catch(function () {
+            babylonRacerUnavailable = true;
+            return ensure3DEngine();
+        });
+        racerLoad.then(function () {
+            if (token === gameOpenToken) { setViewLoaderDetail('Building the game world…'); openGameNow(id); hideViewLoader(); }
+        }).catch(function () {
+            hideViewLoader();
+            alert('Could not load the 3D engine. Check your connection and try again.');
+        });
+        return;
+    }
     if (id === 8) {
         showViewLoader('Loading ' + game.name + '…', 'Fetching game files…');
         ensureDrawGuess().then(function () { if (token === gameOpenToken) { setViewLoaderDetail('Building ' + game.name + '…'); openGameNow(id); hideViewLoader(); } }).catch(function () {
@@ -9201,8 +9285,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.33.83";
-const UPDATE_NOTES = "Removed Supabase Auth. Username and password accounts use the original users table again";
+const APP_VERSION = "LessFun Public Beta 1.33.84";
+const UPDATE_NOTES = "Beach Racer Phase 1 is live on Babylon.js + Rapier with HDR environment lighting and baked road lighting";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

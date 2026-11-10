@@ -1,13 +1,14 @@
 /* LessFun offline shell — single-player games stay available offline. */
 'use strict';
 
-var CACHE_NAME = 'lessfun-static-1.33.83';
+var CACHE_NAME = 'lessfun-static-1.33.84';
 var CORE_ASSETS = [
     './',
     'index.html',
     'style.css',
     'app.js',
     'games3d.js',
+    'babylon-racer.js',
     'landing.js',
     'tranq.js',
     'drawguess.js',
