@@ -960,7 +960,7 @@
         car.lane = Math.floor(Math.random() * laneCenters.length);
         car.root.position.set(laneCenters[car.lane], 0, pz + offset + Math.random() * 35);
         car.root.position.z = Math.max(spawnZ + 90, car.root.position.z);
-        car.speed = (50 + Math.random() * 20) / 3.6;
+        car.speed = (100 + Math.random() * 40) / 3.6;
     }
 
     function makeCoinPickup(index) {
