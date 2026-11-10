@@ -17,6 +17,7 @@ const games = [
     { id: 13, name: "Boeing Landing", description: "Side-view 737 landing sim with flaps, spoilers and live suspension", icon: "plane", controls: "W/S pitch · A/D throttle · Space brakes · F flaps · G gear" },
     { id: 14, name: "Tranq Arena", description: "Top-down tranquilizer showdown — put rivals to sleep, spend energy to revive, reach the final two", icon: "dart", controls: "WASD move · mouse aim · click / Space shoot · one revive costs 1 energy" },
     { id: 15, name: "Arcade Tycoon", description: "Build your own LessFun arcade, fill it with cabinets and grow the takings", icon: "tycoon", controls: "Click to build, upgrade and expand · earnings continue while away" },
+    { id: 16, name: "Throw & Break", description: "Drag and throw crates, melons, glass and pots — everything shatters into pieces", icon: "break", controls: "Grab an object · pull and release to throw · refill targets anytime" }
 ];
 
 let currentUser = null;
@@ -499,6 +500,7 @@ function getIcon(name) {
         "dart": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m14 10 6-6M16 2l6 6M12 8l4 4"/><path d="m4 20 8-8"/><path d="m2 18 2-2 4 4-2 2-4-4Z"/><path d="M13 11l-2 2"/></svg>',
         "paw": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"><ellipse cx="12" cy="15.5" rx="4.6" ry="4"/><circle cx="5.5" cy="10" r="2.1"/><circle cx="9.5" cy="6.3" r="2.1"/><circle cx="14.5" cy="6.3" r="2.1"/><circle cx="18.5" cy="10" r="2.1"/></svg>',
         "samsung": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M10 4.5h4"/></svg>',
+        "break": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20l5-7"/><path d="M13 3.5 16 8l-3 4"/><path d="m19 5-3 4 2.5 3"/><path d="M20 20h-6l3-6"/><circle cx="16.5" cy="16" r="1.2" fill="white" stroke="none"/></svg>',
         "tycoon": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8v5H8z"/><circle cx="10" cy="16" r="1" fill="white"/><circle cx="14" cy="16" r="1" fill="white"/><path d="M9 21v-2M15 21v-2"/></svg>',
     };
     return icons[name] || '';
@@ -1164,6 +1166,7 @@ let tranqPromise = null;
 let assistantPromise = null;
 let drawGuessPromise = null;
 let luckyPromise = null;
+let throwBreakPromise = null;
 let tycoonPromise = null;
 let gameOpenToken = 0;
 
@@ -1310,6 +1313,14 @@ function ensureLucky() {
     return luckyPromise;
 }
 
+function ensureThrowBreak() {
+    if (window.ThrowBreak) return Promise.resolve();
+    if (!throwBreakPromise) {
+        throwBreakPromise = loadScriptOnce('throw-break.js?v=20261410').catch(function (error) { throwBreakPromise = null; throw error; });
+    }
+    return throwBreakPromise;
+}
+
 function ensureTycoon() {
     if (window.Tycoon) return Promise.resolve();
     if (!tycoonPromise) {
@@ -1343,6 +1354,7 @@ function preloadGame(id) {
     if (id === 8) { ensureDrawGuess().catch(function () {}); return; }
     if (id === 9) { ensureLucky().catch(function () {}); return; }
     if (id === 15) { ensureTycoon().catch(function () {}); return; }
+    if (id === 16) { ensureThrowBreak().catch(function () {}); return; }
     if (id === 6) return;
     ensure3DEngine().catch(function () {});
 }
@@ -1408,6 +1420,14 @@ function openGame(id) {
         });
         return;
     }
+    if (id === 16) {
+        showViewLoader('Loading ' + game.name + '…', 'Loading physics…');
+        ensureThrowBreak().then(function () { if (token === gameOpenToken) { setViewLoaderDetail('Building the arena…'); openGameNow(id); hideViewLoader(); } }).catch(function () {
+            hideViewLoader();
+            alert('Could not load ' + game.name + '. Check your connection and try again.');
+        });
+        return;
+    }
     if (id === 15) {
         showViewLoader('Loading ' + game.name + '…', 'Fetching game files…');
         ensureTycoon().then(function () { if (token === gameOpenToken) { setViewLoaderDetail('Building ' + game.name + '…'); openGameNow(id); hideViewLoader(); } }).catch(function () {
@@ -1442,6 +1462,15 @@ function openGameNow(id) {
     if (id === 9) { openLuckySpinGame(); return; }
     if (id === 13) { openLandingSim(); return; }
     if (id === 14) { openTranqGame(); return; }
+    if (id === 16) {
+        currentGameId = 16;
+        trackRecentGame(16);
+        document.getElementById('modalGameTitle').textContent = game.name;
+        const tbBody = document.getElementById('modalGameBody');
+        document.getElementById('gameModal').style.display = 'flex';
+        if (window.ThrowBreak) window.ThrowBreak.open(tbBody);
+        return;
+    }
     if (id === 15) { openTycoonGame(); return; }
     currentGameId = id;
     trackRecentGame(id);
@@ -1938,6 +1967,7 @@ function toggleGameFullscreen() {
 function closeGame(fromHistory) {
     var shouldGoBack = gameHistoryPushed && !fromHistory;
     gameHistoryPushed = false;
+    if (window.ThrowBreak) window.ThrowBreak.close();
     if (window.Tycoon) window.Tycoon.close();
     giftModeSetting = false;
     snowStormMode = false;
@@ -9283,8 +9313,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.25";
-const UPDATE_NOTES = "Removed the iPhone Simulator";
+const APP_VERSION = "LessFun Public Beta 1.34.26";
+const UPDATE_NOTES = "Added Throw & Break, a pouring physics sandbox where things crack into pieces";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

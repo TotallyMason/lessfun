@@ -250,7 +250,7 @@
     var lastTopic = '';
     var lastGame = '';
     var lastAnswer = '';
-    var GAME_BY_ID = { 1: 'Redline GT', 2: 'Tunnel Rush', 3: 'Cube Stack', 4: 'Dead Coast', 6: 'Funtutu Test', 7: 'Snow Rush', 8: 'Draw & Guess', 9: 'Lucky Spin', 13: 'Boeing Landing', 14: 'Tranq Arena', 15: 'Arcade Tycoon' };
+    var GAME_BY_ID = { 1: 'Redline GT', 2: 'Tunnel Rush', 3: 'Cube Stack', 4: 'Dead Coast', 6: 'Funtutu Test', 7: 'Snow Rush', 8: 'Draw & Guess', 9: 'Lucky Spin', 13: 'Boeing Landing', 14: 'Tranq Arena', 15: 'Arcade Tycoon', 16: 'Throw & Break' };
 
     function currentGameName() {
         try {
