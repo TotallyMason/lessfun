@@ -72,34 +72,37 @@
 .ss-brief-pill i{width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 34% 32%,#fff 0 16%,#1f6ac8 17%,#0c3f77 100%);display:grid;place-items:center;font-size:9px}
 .ss-unlock-hint{position:absolute;bottom:10px;left:0;right:0;text-align:center;color:rgba(255,255,255,.5);font-size:9px;font-weight:700;letter-spacing:.08em}
 /* home */
-.ss-home{position:absolute;inset:0;z-index:7;padding:72px 0 46px;opacity:0;transform:scale(1.05);pointer-events:none;transition:opacity .3s,transform .3s;display:flex;flex-direction:column}
+.ss-home{position:absolute;inset:0;z-index:7;padding:60px 0 40px;opacity:0;transform:scale(1.05);pointer-events:none;transition:opacity .3s,transform .3s;overflow:hidden}
+.ss-home-in{transform-origin:50% 0;transition:transform .2s}
 .ss-home.is-visible{opacity:1;transform:scale(1);pointer-events:auto}
 .ss-home .ss-nav-under{position:absolute;inset:auto 0 0 0;height:52px;background:linear-gradient(180deg,transparent,rgba(38,32,110,.25));pointer-events:none}
-.ss-brief{margin:8px 22px 14px;padding:16px 18px 14px;border-radius:26px;background:rgba(255,255,255,.80);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 8px 26px rgba(43,36,110,.28)}
+.ss-brief{flex:0 0 auto;margin:6px 20px 8px;padding:8px 12px 8px;border-radius:26px;background:rgba(255,255,255,.80);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 8px 26px rgba(43,36,110,.28)}
 .ss-brief-head{display:flex;align-items:center;gap:9px;margin-bottom:3px}.ss-brief-head .ss-cloud{width:30px;height:30px;border-radius:50%;background:#e9defa;display:grid;place-items:center;font-size:15px}
 .ss-brief-head strong{font-size:17px;font-weight:800;color:#22243a;letter-spacing:-.02em}
 .ss-brief p{margin:0;font-size:11px;color:#6c7086;line-height:1.45}
-.ss-brief-tip{display:inline-block;margin-top:10px;padding:7px 13px;border-radius:999px;background:#e7e9f2;color:#34375a;font-size:9.5px;font-weight:700}
-.ss-widgets{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 22px 15px}
-.ss-widget{border-radius:24px;background:rgba(255,255,255,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:13px 15px;box-shadow:0 6px 20px rgba(43,36,110,.22)}
+.ss-brief-tip{display:inline-block;margin-top:7px;padding:5px 11px;border-radius:999px;background:#e7e9f2;color:#34375a;font-size:9.5px;font-weight:700}
+.ss-widgets{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:0 20px 10px;flex:0 0 auto}
+.ss-widget{border-radius:20px;background:rgba(255,255,255,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:8px 11px;box-shadow:0 6px 20px rgba(43,36,110,.22)}
 .ss-widget.dark{background:rgba(24,26,58,.66)}
 .ss-widget small{display:block;color:rgba(255,255,255,.55);font-size:8px;font-weight:800;letter-spacing:.12em}
-.ss-widget .ss-w-now{font-size:24px;font-weight:800;color:#fff;letter-spacing:-.04em;margin-top:6px}
+.ss-widget .ss-w-now{font-size:15px;font-weight:800;color:#fff;letter-spacing:-.04em;margin-top:6px}
 .ss-widget.light small{color:#7a7e94}.ss-widget.light .ss-w-now{color:#262a44}
-.ss-google{display:flex;align-items:center;gap:10px;margin:0 22px 18px;padding:13px 15px;border-radius:999px;background:rgba(255,255,255,.88);box-shadow:0 6px 20px rgba(43,36,110,.22);cursor:pointer}
-.ss-google .ss-g{font-weight:800;font-size:19px;color:#4285F4}
+.ss-google{display:flex;align-items:center;gap:9px;margin:0 20px 8px;padding:8px 13px;border-radius:999px;flex:0 0 auto;background:rgba(255,255,255,.88);box-shadow:0 6px 20px rgba(43,36,110,.22);cursor:pointer}
+.ss-google .ss-g{font-weight:800;font-size:16px;color:#4285F4}
 .ss-google em{font-style:normal;color:#8a8fa3;font-size:12px;flex:1}
 .ss-google i{font-size:13px;color:#34375a}
-.ss-app-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px 8px;padding:0 18px;overflow:hidden}
-.ss-app{background:none;border:0;padding:0;color:#fff;font:inherit;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer}
-.ss-app-icon{width:50px;height:50px;border-radius:15px;display:grid;place-items:center;font-size:23px;box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 7px 16px rgba(20,16,60,.35);transition:transform .16s}
+.ss-app-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px 8px;padding:0 14px;overflow:hidden;flex:0 0 auto}
+.ss-app{background:none;border:0;padding:0;color:#fff;font:inherit;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;line-height:1}
+.ss-app-icon{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:19px;box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 6px 14px rgba(20,16,60,.35);transition:transform .16s}
 .ss-app:hover .ss-app-icon,.ss-app:active .ss-app-icon{transform:scale(1.07)}
-.ss-app span:last-child{font-size:10px;color:rgba(255,255,255,.94);font-weight:500;text-shadow:0 1px 3px rgba(20,16,60,.5);white-space:nowrap}
-.ss-app[data-app="camera"] .ss-app-icon{background:linear-gradient(145deg,#f6f7fb,#c9ccd6);color:#2b2f3e}
+.ss-img{width:64%;height:64%;object-fit:contain}
+.ss-app span:last-child{font-size:8.5px;line-height:1.1;color:rgba(255,255,255,.94);font-weight:500;text-shadow:0 1px 3px rgba(20,16,60,.5);white-space:nowrap}
+.ss-lens{display:block;width:19px;height:19px;border-radius:50%;border:3px solid #2b2f3e;box-shadow:0 0 0 4px rgba(43,47,62,.13);position:relative}.ss-lens:after{content:"";position:absolute;top:3px;left:3px;right:6px;bottom:6px;border-radius:50%;background:rgba(43,47,62,.25)}
 .ss-app[data-app="msgd"] .ss-app-icon{background:linear-gradient(145deg,#7c86ff,#4a52d8)}
 .ss-app[data-app="clock"] .ss-app-icon{background:linear-gradient(145deg,#2b2f6b,#15173a);color:#cfd3ff}
 .ss-app[data-app="settings"] .ss-app-icon{background:linear-gradient(145deg,#f4f6fb,#c9cddc);color:#4a5064}
-.ss-app[data-app="gallery"] .ss-app-icon{background:linear-gradient(145deg,#ffd166,#ff5d8f 55%,#7c5cff)}
+.ss-app[data-app="gallery"] .ss-app-icon{background:#fff}
+.ss-app[data-app="phoneg"] .ss-app-icon{background:linear-gradient(145deg,#57d977,#18a83b)}
 .ss-app[data-app="weather"] .ss-app-icon{background:linear-gradient(145deg,#7cc2ff,#2a6ff3)}
 .ss-app[data-app="play"] .ss-app-icon{background:#fff;color:#12a05e}
 .ss-app[data-app="google"] .ss-app-icon{background:#fff;color:#4285F4}
@@ -107,8 +110,8 @@
 .ss-app[data-app="phone"] .ss-app-icon{background:linear-gradient(145deg,#57d977,#18a83b)}
 .ss-app[data-app="chrome"] .ss-app-icon{background:#fff}
 .ss-app[data-app="cssim"] .ss-app-icon{background:linear-gradient(145deg,#cfd4e8,#8e94b8);color:#3c4062}
-.ss-dock{margin:auto auto 6px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:9px 12px;border-radius:24px;background:rgba(255,255,255,.20);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);width:fit-content}
-.ss-dock .ss-app-icon{width:44px;height:44px;font-size:20px}
+.ss-dock{flex:0 0 auto;margin:auto auto 4px;display:grid;grid-template-columns:repeat(4,1fr);gap:5px;padding:6px 9px;border-radius:20px;background:rgba(255,255,255,.20);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);width:fit-content}
+.ss-dock .ss-app-icon{width:44px;height:44px}
 .ss-dock .ss-app span:last-child{display:none}
 /* nav bar */
 .ss-nav{position:absolute;bottom:0;left:0;right:0;z-index:60;height:42px;display:flex;align-items:center;justify-content:space-between;padding:0 42px;color:#fff}
@@ -309,7 +312,9 @@
 
     function recentsCard(item) {
         var icons = { phoneg: '☎', msgd: '✉', settings: '⚙', camera: '◉', gallery: '✿', weather: '☁', clock: '◷', play: '▷', cssim: '▦', store: '▣', google: 'G', chrome: '◎' };
-        return '<div class="ss-rc-card" data-recent="' + item + '"><i>' + (icons[item] || '▣') + '</i><div><strong>' + (APP_TITLES[item] || item) + '</strong><small>GALAXY S26 ULTRA · DEMO · JUST NOW</small></div></div>';
+        var glyph = { phoneg: '☎', msgd: '✉', settings: '⚙', camera: '◉', weather: '☁', clock: '◷' }[item] || '▣';
+        var inner = iconSlugs[item] ? '<img class="ss-img" style="width:56%" src="https://cdn.simpleicons.org/' + iconSlugs[item] + '" alt="">' : glyph;
+        return '<div class="ss-rc-card" data-recent="' + item + '"><i style="background:#fff">' + inner + '</i><div><strong>' + (APP_TITLES[item] || item) + '</strong><small>GALAXY S26 ULTRA · DEMO · JUST NOW</small></div></div>';
     }
     function showRecents() {
         if (!root) return;
@@ -376,6 +381,18 @@
     function volumeChange(delta) {
         state.volume = Math.min(1, Math.max(0.1, state.volume + delta / 100));
         volumeOverlay();
+    }
+
+    function fitHome() {
+        if (!root) return;
+        var home = root.querySelector('#ssHome');
+        var inn = root.querySelector('#ssHomeIn');
+        if (!home || !inn) return;
+        inn.style.transform = 'none';
+        var cs = window.getComputedStyle(home);
+        var avail = home.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+        var nat = inn.scrollHeight;
+        if (nat > avail && nat > 0) inn.style.transform = 'scale(' + (avail / nat) + ')';
     }
 
     function openApp(name) {
@@ -520,64 +537,20 @@
                         /* home */
                         '<div class="ss-home" id="ssHome">' +
                             '<div class="ss-nav-under"></div>' +
-                            '<div class="ss-brief"><div class="ss-brief-head"><span class="ss-cloud">☁</span><strong>Good evening</strong></div><p>Get a brief weather briefing that changes throughout the day</p><span class="ss-brief-tip">Start Now brief</span></div>' +
+                            '<div class="ss-home-in" id="ssHomeIn">' +
+                            '<div class="ss-brief"><div class="ss-brief-head"><span class="ss-cloud">☁</span><strong>Good evening</strong></div><span class="ss-brief-tip">Start Now brief</span></div>' +
                             '<div class="ss-widgets">' +
-                                '<div class="ss-widget dark"><small>NIGHT</small><div class="ss-w-now">31° <span style="font-size:13px;font-weight:500">Yonkers</span></div></div>' +
+                                '<div class="ss-widget dark"><small>NIGHT</small><div class="ss-w-now">31° Yonkers</div></div>' +
                                 '<div class="ss-widget light"><small>START</small><div class="ss-w-now" style="color:#1b6ef3">▶ Launch</div></div>' +
                             '</div>' +
                             '<div class="ss-google" data-app="google"><span class="ss-g">G</span><em>Search or type URL</em><i>🎙</i></div>' +
                             '<div class="ss-app-grid">' +
-                                '<button class="ss-app" data-app="google" type="button"><span class="ss-app-icon"><span class="ss-g" style="color:#4285F4">G</span></span><span>Google</span></button>' +
-                                '<button class="ss-app" data-app="camera" type="button"><span class="ss-app-icon">◉</span><span>Camera</span></button>' +
-                                '<button class="ss-app" data-app="clock" type="button"><span class="ss-app-icon">◷</span><span>Clock</span></button>' +
-                                '<button class="ss-app" data-app="weather" type="button"><span class="ss-app-icon">☁</span><span>Weather</span></button>' +
-                                '<button class="ss-app" data-app="gallery" type="button"><span class="ss-app-icon">✿</span><span>Gallery</span></button>' +
-                                '<button class="ss-app" data-app="msgd" type="button"><span class="ss-app-icon">✉</span><span>Messages</span></button>' +
-                                '<button class="ss-app" data-app="chrome" type="button"><span class="ss-app-icon">◎</span><span>Chrome</span></button>' +
-                                '<button class="ss-app" data-app="phoneg" type="button"><span class="ss-app-icon">☎</span><span>Phone</span></button>' +
-                                '<button class="ss-app" data-app="settings" type="button"><span class="ss-app-icon">⚙</span><span>Settings</span></button>' +
-                                '<button class="ss-app" data-app="store" type="button"><span class="ss-app-icon">▣</span><span>Store</span></button>' +
-                                '<button class="ss-app" data-app="play" type="button"><span class="ss-app-icon">▷</span><span>Play Store</span></button>' +
-                                '<button class="ss-app" data-app="cssim" type="button"><span class="ss-app-icon">▦</span><span>Galaxy</span></button>' +
+                                '<button class="ss-app" data-app="google" type="button"><span class="ss-app-icon"><img class="ss-img" src="https://cdn.simpleicons.org/google" alt=""></span><span>Google</span></button><button class="ss-app" data-app="camera" type="button"><span class="ss-app-icon"><span class="ss-lens"></span></span><span>Camera</span></button><button class="ss-app" data-app="clock" type="button"><span class="ss-app-icon"><span style="color:#cfd3ff">◷</span></span><span>Clock</span></button><button class="ss-app" data-app="weather" type="button"><span class="ss-app-icon"><span style="color:#fff">☁</span></span><span>Weather</span></button><button class="ss-app" data-app="gallery" type="button"><span class="ss-app-icon"><img class="ss-img" src="https://cdn.simpleicons.org/googlephotos" alt=""></span><span>Gallery</span></button><button class="ss-app" data-app="msgd" type="button"><span class="ss-app-icon"><img class="ss-img" src="https://cdn.simpleicons.org/googlemessages" alt=""></span><span>Messages</span></button><button class="ss-app" data-app="chrome" type="button"><span class="ss-app-icon"><img class="ss-img" src="https://cdn.simpleicons.org/googlechrome" alt=""></span><span>Chrome</span></button><button class="ss-app" data-app="phoneg" type="button"><span class="ss-app-icon"><span style="color:#fff">☎</span></span><span>Phone</span></button><button class="ss-app" data-app="settings" type="button"><span class="ss-app-icon"><span style="color:#4a5064">⚙</span></span><span>Settings</span></button><button class="ss-app" data-app="store" type="button"><span class="ss-app-icon"><img class="ss-img" src="https://cdn.simpleicons.org/samsung" alt=""></span><span>Store</span></button><button class="ss-app" data-app="play" type="button"><span class="ss-app-icon"><img class="ss-img" src="https://cdn.simpleicons.org/googleplay" alt=""></span><span>Play Store</span></button><button class="ss-app" data-app="cssim" type="button"><span class="ss-app-icon"><img class="ss-img" src="https://cdn.simpleicons.org/samsungpay" alt=""></span><span>Galaxy</span></button>' +
                             '</div>' +
                             '<div class="ss-dock">' +
-                                '<button class="ss-app" data-app="phoneg" type="button"><span class="ss-app-icon">☎</span><span>Phone</span></button>' +
-                                '<button class="ss-app" data-app="msgd" type="button"><span class="ss-app-icon">✉</span><span>Messages</span></button>' +
-                                '<button class="ss-app" data-app="chrome" type="button"><span class="ss-app-icon">◎</span><span>Chrome</span></button>' +
-                                '<button class="ss-app" data-app="camera" type="button"><span class="ss-app-icon">◉</span><span>Camera</span></button>' +
+                                '<button class="ss-app" data-app="phoneg" type="button"><span class="ss-app-icon"><span style="color:#fff">☎</span></span><span>Phone</span></button><button class="ss-app" data-app="msgd" type="button"><span class="ss-app-icon"><img class="ss-img" src="https://cdn.simpleicons.org/googlemessages" alt=""></span><span>Messages</span></button><button class="ss-app" data-app="chrome" type="button"><span class="ss-app-icon"><img class="ss-img" src="https://cdn.simpleicons.org/googlechrome" alt=""></span><span>Chrome</span></button><button class="ss-app" data-app="camera" type="button"><span class="ss-app-icon"><span class="ss-lens"></span></span><span>Camera</span></button>' +
                             '</div>' +
-                        '</div>' +
-                        /* quick panel */
-                        '<div class="ss-quick" id="ssQuick">' +
-                            '<div class="ss-quick-head"><span>DGX‑TJG</span><i><u style="text-decoration:none">✎</u><u style="text-decoration:none">◷</u><u style="text-decoration:none">⚙</u></i></div>' +
-                            '<div class="ss-qp-grid">' +
-                                '<button class="ss-qp-circle is-on" type="button" data-qp="wifi">⌁</button>' +
-                                '<button class="ss-qp-circle" type="button" data-qp="brightness">↓</button>' +
-                                '<div class="ss-qp-tile is-on" data-qp="bt"><i>ᛒ</i><div><strong>Bluetooth</strong><small>Josh\'s Watch7</small></div></div>' +
                             '</div>' +
-                            '<div class="ss-qp-media">' +
-                                '<h4>QUICK ACCESS</h4>' +
-                                '<button class="ss-qp-circle" type="button" data-qp="a1">+</button>' +
-                                '<button class="ss-qp-circle" type="button" data-qp="a2">+</button>' +
-                                '<button class="ss-qp-circle" type="button" data-qp="a3">+</button>' +
-                                '<button class="ss-qp-circle" type="button" data-qp="a4">+</button>' +
-                                '<button class="ss-qp-circle" type="button" data-qp="a5">+</button>' +
-                            '</div>' +
-                            '<div class="ss-qp-sliders">' +
-                                '<div class="ss-qp-slider" id="ssBrightFillWrap" title="Brightness"><i id="ssBrightFill" style="height:76%"></i><span class="top">✹</span><span class="bot">☾</span></div>' +
-                                '<div class="ss-qp-slider" id="ssVolFillWrap" title="Media volume"><i id="ssVolFill" style="height:60%"></i><span class="top">♫</span><span class="bot">○</span></div>' +
-                                '<div class="ss-qp-right">' +
-                                    '<div class="ss-qp-card"><div class="ss-qp-panel" data-qp="p1" style="width:100%"><span class="ic">+</span><div style="min-width:0"><strong>Title</strong><small>Subtitle</small></div></div></div>' +
-                                    '<div class="ss-qp-plus">+</div>' +
-                                    '<div style="display:flex;gap:9px"><div class="ss-qp-plus">+</div><div class="ss-qp-plus">+</div></div>' +
-                                    '<div class="ss-qp-card"><div class="ss-qp-panel" data-qp="p2" style="width:100%"><span class="ic">⤴</span><div><strong>Title</strong><small>Subtitle</small></div></div></div>' +
-                                '</div>' +
-                            '</div>' +
-                            '<div class="ss-device-card"><div class="txt">📺 55" Neo QLED<small>Living room</small></div><button class="ss-qp-circle" type="button" data-qp="cast">⤴</button><button class="ss-qp-circle" type="button" data-qp="remote">▤</button><button class="pwr" type="button" data-qp="pwr">⏻</button></div>' +
-                        '</div>' +
-                        /* recents + volume + appview + nav */
-                        '<div class="ss-recents" id="ssRecents"><div class="ss-recents-head"><strong>Recent apps</strong><button type="button" data-ssclear>CLEAR ALL</button></div><div id="ssRecentsList"></div></div>' +
-                        '<div class="ss-volume" id="ssVolume"><b>◉</b><i></i><b data-ssvol>60</b></div>' +
                         '<div class="ss-appview" id="ssAppView">' +
                             '<div class="ss-app-head"><button class="ss-app-back" type="button" data-close-appss>‹</button><div><strong id="ssAppTitle">App</strong><small id="ssAppSub">GALAXY S26 ULTRA · DEMO</small></div></div>' +
                             '<div class="ss-app-body" id="ssAppBody"></div>' +
@@ -595,6 +568,9 @@
             setTimeout(function () { showBootStage(2); }, 1900),
             setTimeout(function () { endBoot(); }, 4200)
         ];
+        [300, 1400, 2600, 4200, 6000, 9000].forEach(function (ms) {
+            bootTimers.push(setTimeout(fitHome, ms));
+        });
     }
 
     function close() {
