@@ -13058,3 +13058,88 @@ body.low-power .site-snow { opacity: 0.55; }
     cursor: pointer;
 }
 .game3d-terrain-picker select option { background: #0b1218; color: #dff6ff; }
+
+/* In-app browser-style address bar */
+.app-browser-bar {
+    position: sticky;
+    top: 0;
+    z-index: 120;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    height: 42px;
+    padding: 5px 12px;
+    background: rgba(9, 13, 18, 0.94);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+}
+.app-browser-controls { display: flex; gap: 2px; flex: 0 0 auto; }
+.app-browser-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.055);
+    color: rgba(225, 242, 252, 0.72);
+    font: inherit;
+    font-size: 17px;
+    line-height: 1;
+    cursor: pointer;
+}
+.app-browser-btn:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
+.app-browser-newtab { flex: 0 0 auto; font-size: 14px; }
+.app-browser-field {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    height: 30px;
+    padding: 0 5px 0 11px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.06);
+}
+.app-browser-field:focus-within { border-color: rgba(95, 231, 255, 0.42); background: rgba(255, 255, 255, 0.09); }
+.app-browser-lock { flex: 0 0 auto; color: #8affd0; font-size: 11px; }
+.app-browser-field input {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    color: #eafaff;
+    font: inherit;
+    font-size: 11px;
+    outline: none;
+}
+.app-browser-field input::placeholder { color: rgba(220, 240, 250, 0.34); }
+.app-browser-go {
+    flex: 0 0 auto;
+    height: 23px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 0;
+    background: rgba(95, 231, 255, 0.14);
+    color: #9feaff;
+    font: inherit;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+}
+.app-browser-go:hover { background: rgba(95, 231, 255, 0.24); }
+.top-nav { top: 42px; }
+@media (max-width: 760px) {
+    .app-browser-bar { height: 40px; padding: 4px 8px; gap: 4px; }
+    .app-browser-controls .app-browser-btn:nth-child(2) { display: none; }
+    .app-browser-btn { width: 26px; height: 26px; }
+    .app-browser-newtab { display: none; }
+    .app-browser-field { height: 28px; }
+    .app-browser-field input { font-size: 10px; }
+    .top-nav { top: 40px; }
+}
