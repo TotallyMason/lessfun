@@ -310,19 +310,3 @@ handling real user data or payments.
 - Only scores and the offline wallet fallback are cached locally. The rest of
   the site is served with cache-busting query parameters.
 
-## iPhone Simulator
-
-Interactive **iPhone 11 Pro Max** concept demo running Android-style? No — a pure
-CSS/JS take on **iOS 27.2**, complete with a liquid-glass lock screen in gold and
-taupe. It is a fan concept and is not affiliated with Apple.
-
-- Liquid-glass lock screen: giant gold digits, Tue 10 Nov date, flashlight and camera circles
-- Boot animation with the Apple logo, then a fade to the lock screen
-- Real side buttons: right side key sleeps/wakes, left volume up/down shows the volume HUD
-- Control Centre pulled from the top-right corner: connectivity toggles, music tile,
-  brightness and volume sliders and torch/timer/calculator/camera shortcuts
-- Home screen with widgets, real online app icons and a dock
-- Demo apps: Phone dialer, Safari, Messages, Music, Camera, Photos, Clock, Weather,
-  Settings and Maps (plus Google and Chrome from online icons)
-- Recents overlay, home indicator that goes home, and an app-back button
-- Clearly labelled as a fan concept demo, not affiliated with Apple

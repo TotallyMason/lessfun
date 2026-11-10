@@ -85,7 +85,7 @@
         return out;
     }
 
-    var GAME_NAMES = ['Redline GT', 'Tunnel Rush', 'Cube Stack', 'Dead Coast', 'Funtutu Test', 'Snow Rush', 'Draw and Guess', 'Lucky Spin', 'Boeing Landing', 'Tranq Arena', 'iPhone Simulator'];
+    var GAME_NAMES = ['Redline GT', 'Tunnel Rush', 'Cube Stack', 'Dead Coast', 'Funtutu Test', 'Snow Rush', 'Draw and Guess', 'Lucky Spin', 'Boeing Landing', 'Tranq Arena';
     var GAME_ALIASES = [
         ['redline gt', 'Redline GT'], ['redline', 'Redline GT'], ['beach racer', 'Redline GT'], ['beach', 'Redline GT'],
         ['tunnel rush', 'Tunnel Rush'], ['tunnel', 'Tunnel Rush'],
@@ -250,7 +250,7 @@
     var lastTopic = '';
     var lastGame = '';
     var lastAnswer = '';
-    var GAME_BY_ID = { 1: 'Redline GT', 2: 'Tunnel Rush', 3: 'Cube Stack', 4: 'Dead Coast', 6: 'Funtutu Test', 7: 'Snow Rush', 8: 'Draw & Guess', 9: 'Lucky Spin', 13: 'Boeing Landing', 14: 'Tranq Arena', 15: 'Arcade Tycoon', 17: 'iPhone Simulator' };
+    var GAME_BY_ID = { 1: 'Redline GT', 2: 'Tunnel Rush', 3: 'Cube Stack', 4: 'Dead Coast', 6: 'Funtutu Test', 7: 'Snow Rush', 8: 'Draw & Guess', 9: 'Lucky Spin', 13: 'Boeing Landing', 14: 'Tranq Arena', 15: 'Arcade Tycoon' };
 
     function currentGameName() {
         try {
