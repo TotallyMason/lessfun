@@ -1019,9 +1019,9 @@
             updateElevationMeshes();
         }
 
-        function setRayTrace(on) {
+        function setRayTrace(on, force) {
             on = !!on;
-            if (on === rayTraceEnabled) return;
+            if (on === rayTraceEnabled && !force) return;
             rayTraceEnabled = on;
             if (on) {
                 if (!rtEnvTexture && typeof document !== 'undefined') {
@@ -5980,6 +5980,7 @@
         initAudio();
         updateRaceHud();
         updateRaceModeHud();
+        setRayTrace(true, true);
         return {
             over: false,
             update: update,

@@ -74,7 +74,7 @@ let autoGraphicsSetting = false;
 let motionBlurSetting = !isMobileUI;
 let showFpsSetting = true;
 let reduceMotionSetting = false;
-let shadowSetting = !isMobileUI;
+let shadowSetting = true;
 let grainSetting = false;
 let crashSlowmoSetting = true;
 try {
@@ -105,7 +105,7 @@ try {
         graphicsPresetSetting = isLowPowerDevice ? 'medium' : 'extreme';
         autoGraphicsSetting = isLowPowerDevice;
         motionBlurSetting = !isLowPowerDevice;
-        shadowSetting = !isLowPowerDevice;
+        shadowSetting = true;
         grainSetting = !isLowPowerDevice;
         crashSlowmoSetting = !isLowPowerDevice;
         localStorage.setItem('lessfun_graphics_preset', graphicsPresetSetting);
@@ -125,17 +125,25 @@ try {
             graphicsPresetSetting = 'medium';
             autoGraphicsSetting = true;
             motionBlurSetting = false;
-            shadowSetting = false;
+            shadowSetting = true;
             grainSetting = false;
             crashSlowmoSetting = false;
             localStorage.setItem('lessfun_graphics_preset', 'medium');
             localStorage.setItem('lessfun_auto_graphics', '1');
             localStorage.setItem('lessfun_motion_blur', '0');
-            localStorage.setItem('lessfun_shadows', '0');
+            localStorage.setItem('lessfun_shadows', '1');
             localStorage.setItem('lessfun_film_grain', '0');
             localStorage.setItem('lessfun_crash_slowmo', '0');
         }
         localStorage.setItem(LOW_POWER_DEFAULTS_KEY, '1');
+    }
+
+    // Shadows are on by default again; allow the settings toggle to disable them later.
+    const SHADOWS_ON_KEY = 'lessfun_shadows_default_on_v1';
+    if (!localStorage.getItem(SHADOWS_ON_KEY)) {
+        shadowSetting = true;
+        localStorage.setItem('lessfun_shadows', '1');
+        localStorage.setItem(SHADOWS_ON_KEY, '1');
     }
     renderScaleSetting = GRAPHICS_PRESETS[graphicsPresetSetting].scale;
 } catch (e) {}
@@ -1173,7 +1181,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261359'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261360'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1182,7 +1190,7 @@ function ensure3DEngine() {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261359').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261360').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1190,7 +1198,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261359').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261360').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1198,9 +1206,9 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261359')
-            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261359'); })
-            .then(function () { return loadScriptOnce('assistant.js?v=20261359'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261360')
+            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261360'); })
+            .then(function () { return loadScriptOnce('assistant.js?v=20261360'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1228,7 +1236,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261359').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261360').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1236,7 +1244,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261359').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261360').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1244,7 +1252,7 @@ function ensureLucky() {
 function ensureTycoon() {
     if (window.Tycoon) return Promise.resolve();
     if (!tycoonPromise) {
-        tycoonPromise = loadScriptOnce('tycoon.js?v=20261359').catch(function (error) { tycoonPromise = null; throw error; });
+        tycoonPromise = loadScriptOnce('tycoon.js?v=20261360').catch(function (error) { tycoonPromise = null; throw error; });
     }
     return tycoonPromise;
 }
@@ -9218,8 +9226,8 @@ if(supabaseClient){
     });
 }
 
-const APP_VERSION = "LessFun Public Beta 1.33.75";
-const UPDATE_NOTES = "Press R in Beach Racer for software ray-marched reflections: the scene renders to a depth buffer and reflection rays are traced across the screen for the car, road and water";
+const APP_VERSION = "LessFun Public Beta 1.33.76";
+const UPDATE_NOTES = "Shadows are on by default again, and software ray tracing now starts enabled in Beach Racer. Press R to toggle the ray-traced reflections";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
