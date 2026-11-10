@@ -314,8 +314,10 @@ handling real user data or payments.
 
 Drag-and-release physics destruction sandbox in a 2 D arena (Matter.js from the CDN).
 
-- Launch pile on the left: crates, glass panes, pots and a melon — grab, pull and release to throw
+- 3D arena (Three.js + Cannon.js from the CDN): crates, glass panes, pots and a melon on the left — grab, drag and release to throw in real depth
+- Glass wall, pot stack and crates tower on the right that smash on hard impacts with gravity
 - Glass wall, pot stack and crates tower on the right that smash on hard impacts
-- Glass breaks into five shards, pots into two shards, crates into two planks, and the melon into halves plus flying seeds
+- Glass bursts into shards, pots split into terracotta chunks, crates into planks, and the melon into slices plus flying seeds
 - Throw, broke and score counters plus a toast every 6 breaks
+- Renderer disposed and WebGL context freed on close; low-power pixel ratio for weak Chromebooks
 - Refill targets and a full reset button; arena resizes with the window

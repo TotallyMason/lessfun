@@ -1316,7 +1316,7 @@ function ensureLucky() {
 function ensureThrowBreak() {
     if (window.ThrowBreak) return Promise.resolve();
     if (!throwBreakPromise) {
-        throwBreakPromise = loadScriptOnce('throw-break.js?v=20261410').catch(function (error) { throwBreakPromise = null; throw error; });
+        throwBreakPromise = loadScriptOnce('throw-break-3d.js?v=20261411').catch(function (error) { throwBreakPromise = null; throw error; });
     }
     return throwBreakPromise;
 }
@@ -9313,8 +9313,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.26";
-const UPDATE_NOTES = "Added Throw & Break, a pouring physics sandbox where things crack into pieces";
+const APP_VERSION = "LessFun Public Beta 1.34.27";
+const UPDATE_NOTES = "Throw & Break is now fully 3D — real gravity, depth and shatter physics";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
