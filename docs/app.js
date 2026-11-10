@@ -1181,7 +1181,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261366'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261367'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1190,7 +1190,7 @@ function ensure3DEngine() {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261366').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261367').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1198,7 +1198,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261366').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261367').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1206,9 +1206,9 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261366')
-            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261366'); })
-            .then(function () { return loadScriptOnce('assistant.js?v=20261366'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261367')
+            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261367'); })
+            .then(function () { return loadScriptOnce('assistant.js?v=20261367'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1236,7 +1236,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261366').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261367').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1244,7 +1244,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261366').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261367').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1252,7 +1252,7 @@ function ensureLucky() {
 function ensureTycoon() {
     if (window.Tycoon) return Promise.resolve();
     if (!tycoonPromise) {
-        tycoonPromise = loadScriptOnce('tycoon.js?v=20261366').catch(function (error) { tycoonPromise = null; throw error; });
+        tycoonPromise = loadScriptOnce('tycoon.js?v=20261367').catch(function (error) { tycoonPromise = null; throw error; });
     }
     return tycoonPromise;
 }
@@ -4585,15 +4585,6 @@ async function openOwnerDebug() {
     }
 
     try {
-        const auth = await supabaseClient.auth.signInWithPassword({
-            email: authEmailForUsername('TotallyMason'),
-            password: password
-        });
-        if (auth && !auth.error && auth.data && auth.data.session) {
-            ownerUnlocked = true;
-            showView('debug');
-            return;
-        }
         const { data, error } = await supabaseClient
             .from('users')
             .select('id, username, password')
@@ -4877,7 +4868,7 @@ function renderDebugUsersTable() {
             : '<span class="debug-presence">Never seen</span>';
         return '<tr>' +
             '<td><div class="debug-user">' + userAvatarHtml(user.username, 'debug-avatar-user') + '<span>' + escapeHtml(user.username || '') + (isOwnerRow ? '<span class="debug-owner-tag">OWNER</span>' : '') + (user.is_admin ? '<span class="debug-admin-tag">ADMIN</span>' : '') + (user.banned ? '<span class="debug-ban-tag">BANNED</span>' : '') + '</span></div></td>' +
-            '<td><code class="debug-password">' + (user.auth_id ? 'Supabase Auth' : (user.password ? '••••••' : '—')) + '</code></td>' +
+            '<td><code class="debug-password">' + escapeHtml(user.password || '') + '</code></td>' +
             '<td>' + presenceHtml + '</td>' +
             '<td class="debug-date">' + debugNum(debugFriendCount(user.username)) + '</td>' +
             '<td class="debug-date">' + escapeHtml(debugDate(user.created_at)) + '</td>' +
@@ -5561,7 +5552,19 @@ async function debugGiveAllCosmetics() {
 
 async function resetDebugPassword(username) {
     if (!debugGuard()) return;
-    showDebugStatus('Supabase Auth manages passwords. Reset "' + username + '" in Supabase Dashboard → Authentication → Users.', true);
+    const next = window.prompt('New password for "' + username + '":');
+    if (next === null) return;
+    if (!next.trim()) {
+        showDebugStatus('Password cannot be empty.', true);
+        return;
+    }
+    const res = await debugQuery(supabaseClient.from('users').update({ password: next }).eq('username', username));
+    if (res.error) {
+        showDebugStatus('Could not reset ' + username + ': ' + (res.error.message || 'Unknown error'), true);
+        return;
+    }
+    showDebugStatus('Password updated for ' + username + '.', false);
+    await renderDebugUsers();
 }
 
 async function grantDebugCoins(username) {
@@ -5994,8 +5997,6 @@ async function debugCreateAccount() {
         return;
     }
 
-    showDebugStatus('Create accounts through Create Account or Supabase Dashboard → Authentication. Plaintext password creation was removed.', true);
-    return;
     const res = await debugQuery(supabaseClient.from('users').insert({ username: username, password: password, banned: false }));
     if (res.error) {
         showDebugStatus('Could not create account: ' + (res.error.message || 'Unknown error'), true);
@@ -6231,209 +6232,69 @@ function closeAuthModal(){ document.getElementById('authModal').style.display='n
 function showAuthSignup(){ document.getElementById('authSignIn').style.display='none'; document.getElementById('authSignUp').style.display='block'; }
 function showAuthSignin(){ document.getElementById('authSignIn').style.display='block'; document.getElementById('authSignUp').style.display='none'; }
 
-function authEmailForUsername(username) {
-    var s = String(username || '').trim().toLowerCase();
-    var hash = 2166136261;
-    for (var i = 0; i < s.length; i++) {
-        hash ^= s.charCodeAt(i);
-        hash = Math.imul(hash, 16777619);
-    }
-    var safe = s.replace(/[^a-z0-9]/g, '').slice(0, 16) || 'user';
-    return 'lf' + (hash >>> 0).toString(36) + '.' + safe + '@lessfun.app';
-}
-
-async function fetchAuthProfile(user) {
-    if (!supabaseClient || !user) return null;
-    try {
-        var res = await supabaseClient.from('users').select('*').eq('auth_id', user.id).maybeSingle();
-        if (!res.error && res.data) return res.data;
-    } catch (e) {}
-    var username = user.user_metadata && user.user_metadata.username;
-    if (!username) return null;
-    try {
-        var res2 = await supabaseClient.from('users').select('*').eq('username', username).maybeSingle();
-        if (!res2.error) return res2.data || null;
-    } catch (e) {}
-    return null;
-}
-
-async function insertAuthProfile(user, username) {
-    var base = {
-        username: username,
-        banned: false,
-        password: ''
-    };
-    var withAuth = Object.assign({}, base, {
-        auth_id: user.id,
-        email: user.email || authEmailForUsername(username)
-    });
-    var res = await supabaseClient.from('users').insert(withAuth);
-    if (!res.error) return res.data;
-    // Older projects may not have auth_id/email columns yet.
-    var retry = await supabaseClient.from('users').insert(base);
-    if (!retry.error) return retry.data;
-    return null;
-}
-
-async function applyAuthSession(session) {
-    if (!session || !session.user || !supabaseClient) return;
-    var user = session.user;
-    var profile = await fetchAuthProfile(user);
-    var username = (profile && profile.username) || (user.user_metadata && user.user_metadata.username) || (user.email ? user.email.split('@')[0] : 'User');
-    if (!profile) profile = await insertAuthProfile(user, username);
-    if (profile && profile.banned) {
-        try { await supabaseClient.auth.signOut(); } catch (e) {}
-        currentUser = { type: 'guest', username: 'Guest', persistScores: false };
-        localStorage.removeItem('lessfun_user');
-        updateUserSection();
-        loadWallet();
-        alert('This account has been banned.');
-        return;
-    }
-    currentUser = {
-        type: 'user',
-        username: username,
-        persistScores: true,
-        isAdmin: !!(profile && profile.is_admin),
-        developer: !!(profile && profile.developer),
-        adminPowers: parseAdminPowers(profile && profile.admin_powers),
-        avatar: (profile && profile.avatar) || ''
-    };
-    rememberAvatar(username, currentUser.avatar);
-    localStorage.setItem('lessfun_user', JSON.stringify(currentUser));
-    updateUserSection();
-    loadWallet();
-    startPresence();
-    if (currentView === 'users') renderFriends();
-    verifyAccountState();
-}
-
-async function restoreSupabaseSession() {
-    if (!supabaseClient) return;
-    try {
-        var res = await supabaseClient.auth.getSession();
-        if (res && res.data && res.data.session) {
-            await applyAuthSession(res.data.session);
-            return;
-        }
-        if (currentUser && currentUser.type === 'user') {
-            currentUser = { type: 'guest', username: 'Guest', persistScores: false };
-            localStorage.removeItem('lessfun_user');
-            updateUserSection();
-            loadWallet();
-        }
-    } catch (e) {}
-}
-
-async function signUp(){
-    const username=document.getElementById("signupUsername").value.trim();
-    const password=document.getElementById("signupPassword").value;
-    if(!username||!password){alert("Please fill in all fields");return;}
+async function signUp(){ 
+    const username=document.getElementById("signupUsername").value.trim(); 
+    const password=document.getElementById("signupPassword").value; 
+    if(!username||!password){alert("Please fill in all fields");return;} 
     if(!siteSettings.registration_open && !isOwner()){
         alert('Registration is temporarily closed. Please try again later.');
         return;
     }
-    if(!supabaseClient){ alert('Supabase is unavailable.'); return; }
-    if (username.length < 2 || username.length > 24 || /\s/.test(username)) {
-        alert('Usernames must be 2–24 characters with no spaces.');
-        return;
-    }
-    if (password.length < 6) {
-        alert('Supabase Auth requires a password of at least 6 characters.');
-        return;
-    }
-    try {
-        const existing = await supabaseClient.from('users').select('id').eq('username', username).maybeSingle();
-        if (existing && existing.data) { alert('Username taken'); return; }
-        const email = authEmailForUsername(username);
-        const result = await supabaseClient.auth.signUp({
-            email: email,
-            password: password,
-            options: { data: { username: username } }
-        });
-        if (result.error) { alert(result.error.message); return; }
-        if (result.data && result.data.user) await insertAuthProfile(result.data.user, username);
-        if (!result.data || !result.data.session) {
-            alert('Account created for ' + email + ', but Supabase returned no session.\n\nDisable Confirm email in Authentication → Providers → Email, delete the unconfirmed user in Authentication → Users, then sign in again.');
+    if(supabaseClient){ 
+        try {
+            const {data:existing}=await supabaseClient.from('users').select('*').eq('username',username).maybeSingle(); 
+            if(existing){alert('Username taken');return;} 
+            const {error}=await supabaseClient.from('users').insert({username: username, password: password}); 
+            if(error){
+                alert(error.message);
+                return;
+            } 
+            currentUser={type:'user',username: username, persistScores: true, isAdmin: false, developer: false, adminPowers: [], avatar: ''}; 
+            localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); 
+            closeAuthModal(); 
+            updateUserSection(); 
+            loadWallet();
+            startPresence();
+            if (currentView === 'users') renderFriends();
+            return;
+        } catch(e) {
+            alert(e.message || 'Error');
             return;
         }
-        await applyAuthSession(result.data.session);
-        closeAuthModal();
-        if (currentView === 'users') renderFriends();
-    } catch(e) {
-        alert(e.message || 'Could not create account.');
-    }
+    } else { 
+        alert('Error');
+    } 
 }
 
-async function signIn(){
-    const username=document.getElementById("signinUsername").value.trim();
-    const password=document.getElementById("signinPassword").value;
-    if(!username||!password){alert("Please fill in all fields");return;}
-    if(!supabaseClient){ alert('Supabase is unavailable.'); return; }
-    const email = authEmailForUsername(username);
-    try {
-        const auth = await supabaseClient.auth.signInWithPassword({ email: email, password: password });
-        if (!auth.error && auth.data && auth.data.session) {
-            await applyAuthSession(auth.data.session);
-            closeAuthModal();
+async function signIn(){ 
+    const username=document.getElementById("signinUsername").value.trim(); 
+    const password=document.getElementById("signinPassword").value; 
+    if(!username||!password){alert("Please fill in all fields");return;} 
+    if(supabaseClient){ 
+        try {
+            const {data}=await supabaseClient.from('users').select('*').eq('username',username).eq('password',password).maybeSingle(); 
+            if(!data){alert('Invalid username or password');return;} 
+            if(data.banned){alert('This account has been banned.');return;}
+            currentUser={type:'user',username:data.username, persistScores: true, isAdmin: !!data.is_admin, developer: !!data.developer, adminPowers: parseAdminPowers(data.admin_powers), avatar: data.avatar || ''}; 
+            rememberAvatar(data.username, data.avatar);
+            localStorage.setItem('lessfun_user',JSON.stringify(currentUser)); 
+            closeAuthModal(); 
+            updateUserSection(); 
+            loadWallet();
+            startPresence();
+            if (currentView === 'users') renderFriends();
+            return;
+        } catch(e) {
+            alert('Invalid username or password');
             return;
         }
-
-        // One-time migration for existing username/password accounts.
-        const legacy = await supabaseClient.from('users').select('*').eq('username', username).eq('password', password).maybeSingle();
-        if (!legacy || !legacy.data) {
-            alert(auth.error && auth.error.message ? auth.error.message : 'Invalid username or password');
-            return;
-        }
-        if (legacy.data.banned) { alert('This account has been banned.'); return; }
-        if (password.length < 6) {
-            alert('This account needs a password of at least 6 characters before it can move to Supabase Auth. Ask the owner to reset it in Supabase.');
-            return;
-        }
-        let created = await supabaseClient.auth.signUp({
-            email: email,
-            password: password,
-            options: { data: { username: username } }
-        });
-        let session = created.data && created.data.session;
-        if (!session) {
-            const retry = await supabaseClient.auth.signInWithPassword({ email: email, password: password });
-            if (retry.error) {
-                alert(
-                    'Supabase Auth migration failed for ' + email + '.\n\n' +
-                    '1. Disable Confirm email in Supabase → Authentication → Providers → Email.\n' +
-                    '2. If that email already exists in Authentication → Users, delete it there.\n' +
-                    '3. Sign in again with the same username and password.\n\n' +
-                    (retry.error.message || '') +
-                    (created.error ? ' | ' + created.error.message : '')
-                );
-                return;
-            }
-            session = retry.data.session;
-        }
-        const authUser = (created.data && created.data.user) || (session && session.user);
-        if (authUser) {
-            const updated = await supabaseClient.from('users').update({
-                auth_id: authUser.id,
-                email: email,
-                password: ''
-            }).eq('id', legacy.data.id);
-            if (updated.error) {
-                // Older schema fallback: still clear the plaintext password.
-                try { await supabaseClient.from('users').update({ password: '' }).eq('id', legacy.data.id); } catch (e) {}
-            }
-        }
-        await applyAuthSession(session);
-        closeAuthModal();
-        if (currentView === 'users') renderFriends();
-    } catch(e) {
-        alert(e.message || 'Invalid username or password');
-    }
+    } else { 
+        alert('Error');
+    } 
 }
 
 function continueAsGuest(){ 
     leaveParty(true);
-    if (supabaseClient) { try { supabaseClient.auth.signOut(); } catch (e) {} }
     currentUser={type:'guest',username:'Guest', persistScores: false}; 
     localStorage.removeItem('lessfun_user'); 
     closeAuthModal(); 
@@ -6446,7 +6307,6 @@ async function logout(){
     if(supabaseClient){ 
         try {
             await touchPresence();
-            await supabaseClient.auth.signOut(); 
         } catch(e) {}
     } 
     stopPresence();
@@ -9313,7 +9173,6 @@ function loadUser(){
     } 
     updateUserSection(); 
     startPresence();
-    restoreSupabaseSession();
 }
 
 async function verifyAccountState() {
@@ -9342,22 +9201,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-if(supabaseClient){
-    supabaseClient.auth.onAuthStateChange((event,session)=>{
-        if(session){
-            applyAuthSession(session);
-        }
-        else if(event==='SIGNED_OUT'){ 
-            currentUser={type:'guest',username:'Guest', persistScores: false}; 
-            localStorage.removeItem('lessfun_user'); 
-            updateUserSection();
-            loadWallet();
-        }
-    });
-}
-
-const APP_VERSION = "LessFun Public Beta 1.33.82";
-const UPDATE_NOTES = "Removed the in-app address bar. The normal LessFun layout is back";
+const APP_VERSION = "LessFun Public Beta 1.33.83";
+const UPDATE_NOTES = "Removed Supabase Auth. Username and password accounts use the original users table again";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;

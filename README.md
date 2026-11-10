@@ -159,7 +159,6 @@ full file:
   post reactions, reply reactions, and the newer owner toggles.
 - [`supabase/owner_debug.sql`](supabase/owner_debug.sql) — owner delete/update
   permissions.
-- [`supabase/supabase_auth.sql`](supabase/supabase_auth.sql) — Supabase Auth migration: links `public.users` profiles to `auth.users`, adds `auth_id`/`email`, and makes the legacy password column nullable.
 - [`supabase/wallet_sync.sql`](supabase/wallet_sync.sql) — optional dedicated
   cars, equipped car, XP, achievements and stats columns. Purchases already sync
   through the existing `equipped` JSON without it.
@@ -177,10 +176,6 @@ The migration is intentionally permissive because the beta signs users in
 against the public `users` table with the publishable key instead of Supabase
 Auth. Move to Supabase Auth before handling real payments.
 
-The client now uses Supabase Auth for username accounts via stable synthetic
-emails. Run `supabase/supabase_auth.sql` and disable email confirmation in
-Supabase Authentication settings. Existing username/password accounts migrate
-on their next successful sign-in, then their plaintext password is cleared.
 
 ## Owner console
 
