@@ -309,4 +309,3 @@ handling real user data or payments.
   blocked, pins fall back to local storage for the owner.
 - Only scores and the offline wallet fallback are cached locally. The rest of
   the site is served with cache-busting query parameters.
-

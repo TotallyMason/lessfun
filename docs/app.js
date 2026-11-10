@@ -1171,7 +1171,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261400'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261401'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1185,7 +1185,7 @@ function ensureBabylonRacer() {
             .then(function () {
                 return loadScriptOnce('https://cdn.jsdelivr.net/npm/babylonjs-loaders@7.54.0/babylonjs.loaders.min.js').catch(function () {});
             })
-            .then(function () { return loadScriptOnce('babylon-racer.js?v=20261400'); })
+            .then(function () { return loadScriptOnce('babylon-racer.js?v=20261401'); })
             .catch(function (error) {
                 babylonRacerPromise = null;
                 babylonRacerUnavailable = true;
@@ -1250,7 +1250,7 @@ window.LessFunBabylonFallback = function () {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261400').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261401').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1258,7 +1258,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261400').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261401').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1266,9 +1266,9 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261400')
-            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261400'); })
-            .then(function () { return loadScriptOnce('assistant.js?v=20261400'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261401')
+            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261401'); })
+            .then(function () { return loadScriptOnce('assistant.js?v=20261401'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1296,7 +1296,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261400').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261401').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1304,7 +1304,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261400').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261401').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1312,7 +1312,7 @@ function ensureLucky() {
 function ensureTycoon() {
     if (window.Tycoon) return Promise.resolve();
     if (!tycoonPromise) {
-        tycoonPromise = loadScriptOnce('tycoon.js?v=20261400').catch(function (error) { tycoonPromise = null; throw error; });
+        tycoonPromise = loadScriptOnce('tycoon.js?v=20261401').catch(function (error) { tycoonPromise = null; throw error; });
     }
     return tycoonPromise;
 }
@@ -1954,6 +1954,9 @@ function closeGame(fromHistory) {
     funtutuRunning = false;
     document.getElementById('gameModal').style.display = 'none';
     document.body.classList.remove('in-game');
+    // Free the game DOM (canvases, HUD, big innerHTML) instead of keeping it hidden.
+    try { document.getElementById('modalGameBody').innerHTML = ''; } catch (e) {}
+    try { document.getElementById('modalGameTitle').textContent = ''; } catch (e) {}
     currentGameId = null;
     if (shouldGoBack) {
         try { history.back(); } catch (e) {}
@@ -9279,8 +9282,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.16";
-const UPDATE_NOTES = "Removed Phone Simulator";
+const APP_VERSION = "LessFun Public Beta 1.34.17";
+const UPDATE_NOTES = "Resource-usage pass: game modal memory is freed on close and background polls pause for hidden tabs";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -9318,6 +9321,7 @@ function hideUpdateShutdown() {
 
 async function checkForServerUpdate() {
     if (serverUpdateCheckActive) return;
+    if (document.hidden) return; // skip version fetches while the tab is in the background
     serverUpdateCheckActive = true;
     try {
         const res = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
@@ -10126,12 +10130,17 @@ async function markNotificationsSeen() {
     } catch (e) {}
 }
 
+function visibilityPoll(fn) {
+    // Runs the step only when the tab is visible and the page focused enough to matter.
+    return function () { if (!document.hidden) fn(); };
+}
+
 function startNotifications() {
     if (!friendUsername() || !supabaseClient) return;
     loadNotifications(true);
-    if (!notifPoll) notifPoll = setInterval(function () { loadNotifications(true); }, 25000);
+    if (!notifPoll) notifPoll = setInterval(visibilityPoll(function () { loadNotifications(true); }), 25000);
     loadMessageNotifications();
-    if (!messageNotifPoll) messageNotifPoll = setInterval(loadMessageNotifications, 15000);
+    if (!messageNotifPoll) messageNotifPoll = setInterval(visibilityPoll(loadMessageNotifications), 15000);
 }
 
 function stopNotifications() {
