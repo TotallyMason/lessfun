@@ -12366,7 +12366,7 @@ body.in-game .xmas-snowman { display: none; }
     position: absolute;
     inset: 16px;
     border-radius: 50%;
-    background: conic-gradient(from 135deg, transparent 0 210deg, rgba(255, 51, 74, 0.82) 210deg 270deg, transparent 270deg 360deg);
+    background: conic-gradient(from 135deg, transparent 0 235deg, rgba(255, 51, 74, 0.84) 235deg 270deg, transparent 270deg 360deg);
     -webkit-mask: radial-gradient(circle, transparent 55%, #000 56% 69%, transparent 70%);
     mask: radial-gradient(circle, transparent 55%, #000 56% 69%, transparent 70%);
 }
@@ -13061,13 +13061,23 @@ body.low-power .site-snow { opacity: 0.55; }
 }
 .g3d-rpm-label {
     position: absolute;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%) rotate(var(--a, 0deg));
     color: rgba(225, 245, 255, 0.54);
     font-size: 6px;
     font-weight: 900;
     letter-spacing: 0.02em;
     line-height: 1;
     text-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
+}
+.g3d-rpm-label::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 100%;
+    width: 1px;
+    height: 13px;
+    transform: translateX(-50%);
+    background: linear-gradient(to bottom, rgba(225, 245, 255, 0.35), rgba(225, 245, 255, 0));
 }
 .g3d-rpm-label.is-red { color: rgba(255, 90, 100, 0.78); }
 .g3d-cluster-core { justify-content: center; }

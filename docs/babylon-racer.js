@@ -1319,7 +1319,7 @@
                 var closing = Math.max(0, displaySpeed - car.speed);
                 var dirX = p.x >= car.root.position.x ? 1 : -1;
                 var lateralKick = Math.min(16, 4.5 + closing * 0.45);
-                var forwardKeep = Math.max(0.58, 1 - Math.min(0.32, 0.10 + closing * 0.004));
+                var forwardKeep = Math.max(0.76, 1 - Math.min(0.22, 0.07 + closing * 0.003));
                 chassis.setLinvel({
                     x: v.x + dirX * lateralKick,
                     y: Math.max(v.y, 0.65 + Math.min(1.1, closing * 0.028)),
@@ -1644,7 +1644,7 @@
 
         chassis = world.createRigidBody(rapier.RigidBodyDesc.dynamic()
             .setTranslation(0, 0.92, spawnZ)
-            .setLinearDamping(0.13)
+            .setLinearDamping(0.035)
             .setAngularDamping(0.92)
             .setCanSleep(false)
             .setCcdEnabled(true));
@@ -1832,7 +1832,7 @@
 
         // Light aerodynamic drag; keeps the car from coasting forever.
         var v = chassis.linvel();
-        var drag = 0.020 * forwardSpeed;
+        var drag = 0.006 * forwardSpeed;
         chassis.applyImpulse({ x: -v.x * drag * dt, y: 0, z: -v.z * drag * dt }, true);
 
         if (input.drift && forwardSpeed > 8) {
@@ -2089,7 +2089,6 @@
                 else if (garage) setText('g3dGaugeStatus', 'GARAGE · PRESS PLAY TO DRIVE');
                 else if (runOver) setText('g3dGaugeStatus', 'CRASHED · PRESS PLAY AGAIN');
                 else if (paused) setText('g3dGaugeStatus', 'PAUSED');
-                else if (gearShiftTimer > 0) setText('g3dGaugeStatus', 'SHIFTING…');
                 else if (input.drift && displaySpeed > 9) setText('g3dGaugeStatus', 'DRIFT · ' + Math.round(driftScore));
                 else if (isSanta) {
                     if (flyTime > 0) setText('g3dGaugeStatus', 'SANTA FLYING · ' + flyTime.toFixed(1) + 's');
@@ -2102,7 +2101,6 @@
                         ? 'MP P' + mp.place + '/' + mp.total
                         : 'MULTIPLAYER · WAITING FOR RACERS');
                 }
-                else if (input.nitro && nitro > 0 && currentGear === 'D') setText('g3dGaugeStatus', 'NITROUS ACTIVE');
                 else if (currentGear === 'N' || currentGear === 'P') setText('g3dGaugeStatus', 'REV WITH W · Q/E P R N D');
                 else if (currentGear === 'R') setText('g3dGaugeStatus', 'REVERSE · Q/E P R N D');
                 else if (displaySpeed < 0.4) setText('g3dGaugeStatus', 'HOLD W TO START · Q/E P R N D');
