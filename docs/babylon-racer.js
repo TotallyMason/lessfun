@@ -23,6 +23,7 @@
     var smokeTexture = null, driftSmoke = null, driftEmitter = null;
     var isSanta = false, flyTime = 0, flyCooldown = 0;
     var powerShakeLevel = 0;
+    var cameraPrevSpeed = 0, cameraAccelSmooth = 0;
     var resizeObs = null, active = false, failed = false;
     var rapier = null, world = null, chassis = null, vehicle = null;
     var rapierPromise = null, ready = false, starting = false;
@@ -1788,6 +1789,8 @@
         flyTime = 0;
         flyCooldown = 0;
         powerShakeLevel = 0;
+        cameraPrevSpeed = 0;
+        cameraAccelSmooth = 0;
         if (chassis) chassis.setGravityScale(1, true);
         resetCamera(true);
         if (!silent) showToast('RESET · BEACH RACER');
@@ -1799,6 +1802,8 @@
 
     function resetCamera(snap) {
         if (!camera) return;
+        cameraPrevSpeed = displaySpeed;
+        cameraAccelSmooth = 0;
         var carPos = carRoot ? carRoot.position : new BABYLON.Vector3(0, 0.9, spawnZ);
         var target = new BABYLON.Vector3(carPos.x, carPos.y + 0.95, carPos.z + 5);
         var pos = new BABYLON.Vector3(carPos.x, carPos.y + 3.45, carPos.z - 8.7);
@@ -1839,7 +1844,11 @@
         var forward = BABYLON.Vector3.TransformNormal(new BABYLON.Vector3(0, 0, 1), rotMatrix);
         var right = BABYLON.Vector3.TransformNormal(new BABYLON.Vector3(1, 0, 0), rotMatrix);
         var speedFactor = clamp(displaySpeed / 75, 0, 1);
-        var back = 8.6 + speedFactor * 1.6;
+        var instantAccel = (displaySpeed - cameraPrevSpeed) / Math.max(0.001, dt);
+        cameraPrevSpeed = displaySpeed;
+        cameraAccelSmooth += (clamp(instantAccel, 0, 32) - cameraAccelSmooth) * Math.min(1, dt * 5.5);
+        var accelPullback = (currentGear === 'N' || currentGear === 'P') ? 0 : Math.min(2.2, cameraAccelSmooth * 0.085);
+        var back = 8.6 + speedFactor * 1.6 + accelPullback;
         var height = 3.35 + speedFactor * 0.35;
         var targetPowerShake = 0;
         if (!paused && !runOver && !garage) {
