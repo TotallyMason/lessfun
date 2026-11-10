@@ -2132,30 +2132,39 @@
 
         interiorSteeringWheel = new BABYLON.TransformNode('interiorSteeringWheel', scene);
         interiorSteeringWheel.parent = interiorRoot;
-        interiorSteeringWheel.position.set(-0.34, 0.36, 0.58);
-        var wheel = BABYLON.MeshBuilder.CreateTorus('interiorWheel', { diameter: 0.34, thickness: 0.044, tessellation: 24 }, scene);
+        interiorSteeringWheel.position.set(-0.34, 0.38, 0.61);
+        var wheelMat = new BABYLON.PBRMaterial('interiorWheelLeather', scene);
+        wheelMat.albedoColor = new BABYLON.Color3(0.12, 0.115, 0.11);
+        wheelMat.metallic = 0.08;
+        wheelMat.roughness = 0.52;
+        wheelMat.emissiveColor = new BABYLON.Color3(0.012, 0.014, 0.016);
+        var wheel = BABYLON.MeshBuilder.CreateTorus('interiorWheel', { diameter: 0.30, thickness: 0.055, tessellation: 24 }, scene);
         wheel.rotation.x = Math.PI / 2;
-        wheel.material = leather;
+        wheel.material = wheelMat;
         wheel.parent = interiorSteeringWheel;
-        var hub = BABYLON.MeshBuilder.CreateCylinder('interiorWheelHub', { height: 0.035, diameter: 0.13, tessellation: 18 }, scene);
+        var hub = BABYLON.MeshBuilder.CreateCylinder('interiorWheelHub', { height: 0.035, diameter: 0.11, tessellation: 18 }, scene);
         hub.rotation.x = Math.PI / 2;
         hub.position.z = 0.01;
         hub.material = carbon;
         hub.parent = interiorSteeringWheel;
-        [-0.16, 0.16].forEach(function (offsetX) {
-            var spoke = BABYLON.MeshBuilder.CreateBox('interiorSpoke', { width: 0.16, height: 0.025, depth: 0.025 }, scene);
+        [-0.13, 0.13].forEach(function (offsetX) {
+            var spoke = BABYLON.MeshBuilder.CreateBox('interiorSpoke', { width: 0.13, height: 0.022, depth: 0.025 }, scene);
             spoke.position.set(offsetX, 0, 0.01);
             spoke.material = aluminium;
             spoke.parent = interiorSteeringWheel;
         });
-        var spokeV = BABYLON.MeshBuilder.CreateBox('interiorSpokeV', { width: 0.025, height: 0.15, depth: 0.025 }, scene);
-        spokeV.position.set(0, -0.06, 0.01);
+        var spokeV = BABYLON.MeshBuilder.CreateBox('interiorSpokeV', { width: 0.022, height: 0.075, depth: 0.025 }, scene);
+        spokeV.position.set(0, -0.035, 0.01);
         spokeV.material = aluminium;
         spokeV.parent = interiorSteeringWheel;
+        var wheelMarker = BABYLON.MeshBuilder.CreateBox('interiorWheelMarker', { width: 0.05, height: 0.016, depth: 0.018 }, scene);
+        wheelMarker.position.set(0, 0.145, 0.01);
+        wheelMarker.material = trimMat;
+        wheelMarker.parent = interiorSteeringWheel;
 
         interiorLight = new BABYLON.PointLight('interiorLight', new BABYLON.Vector3(-0.2, 0.64, 0.25), scene);
         interiorLight.parent = carRoot;
-        interiorLight.intensity = 0.55;
+        interiorLight.intensity = 0.72;
         interiorLight.range = 4.5;
         interiorLight.diffuse = new BABYLON.Color3(0.75, 0.84, 1.0);
         interiorLight.setEnabled(false);
@@ -2714,7 +2723,7 @@
                 wheelSpins[i].rotation.x += speed * dt * 4.2;
             }
         }
-        if (interiorSteeringWheel) interiorSteeringWheel.rotation.z = steerVisual * 1.18;
+        if (interiorSteeringWheel) interiorSteeringWheel.rotation.z = -steerVisual * 1.18;
         if (contactShadow) {
             contactShadow.position.x = t.x;
             contactShadow.position.z = t.z;
