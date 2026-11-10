@@ -1359,23 +1359,23 @@
         exhaustEmitter = new BABYLON.TransformNode('exhaustSmokeEmitter', scene);
         exhaustEmitter.parent = carRoot;
         exhaustEmitter.position.set(0, -0.02, -2.28);
-        var ps = new BABYLON.ParticleSystem('exhaustSmoke', isLowPower() ? 110 : 210, scene);
+        var ps = new BABYLON.ParticleSystem('exhaustSmoke', isLowPower() ? 140 : 260, scene);
         ps.particleTexture = tex;
         ps.emitter = exhaustEmitter;
-        ps.minEmitBox = new BABYLON.Vector3(-0.38, -0.05, -0.10);
-        ps.maxEmitBox = new BABYLON.Vector3(0.38, 0.16, 0.10);
+        ps.minEmitBox = new BABYLON.Vector3(-0.72, -0.08, -0.16);
+        ps.maxEmitBox = new BABYLON.Vector3(0.72, 0.22, 0.16);
         ps.color1 = new BABYLON.Color4(0.62, 0.63, 0.66, 0.42);
         ps.color2 = new BABYLON.Color4(0.34, 0.35, 0.38, 0.28);
         ps.colorDead = new BABYLON.Color4(0.12, 0.12, 0.14, 0);
-        ps.minSize = 0.45;
-        ps.maxSize = 2.15;
-        ps.minLifeTime = 1.8;
-        ps.maxLifeTime = 3.4;
+        ps.minSize = 0.50;
+        ps.maxSize = 2.45;
+        ps.minLifeTime = 2.0;
+        ps.maxLifeTime = 3.7;
         ps.emitRate = 0;
         ps.blendMode = BABYLON.ParticleSystem.BLENDMODE_STANDARD;
         // Exhaust leaves the pipes and climbs upward instead of hanging low.
-        ps.direction1 = new BABYLON.Vector3(-0.38, 2.5, -0.9);
-        ps.direction2 = new BABYLON.Vector3(0.38, 3.5, -0.15);
+        ps.direction1 = new BABYLON.Vector3(-1.25, 2.2, -1.1);
+        ps.direction2 = new BABYLON.Vector3(1.25, 3.7, -0.10);
         ps.minEmitPower = 1.15;
         ps.maxEmitPower = 2.55;
         ps.updateSpeed = 0.02;
@@ -1520,12 +1520,12 @@
             while (gearIndex < 8 && forwardSpeed > driveMaxSpeed * GEAR_TOPS[gearIndex - 1] * 0.96) gearIndex++;
             while (gearIndex > 1 && forwardSpeed < driveMaxSpeed * GEAR_TOPS[gearIndex - 2] * 0.68) gearIndex--;
             gearLabel = String(gearIndex);
-            var gearPull = 1.45 - (gearIndex - 1) * 0.10;
+            var gearPull = 1.15 - (gearIndex - 1) * 0.05;
             var boosting = input.nitro && nitro > 0 && throttle;
             var maxSpeed = boosting ? nitroMax : driveMaxSpeed;
             if (throttle && forwardSpeed < maxSpeed) {
                 var falloff = 1 - (forwardSpeed / maxSpeed) * 0.88;
-                engineForce = 9600 * driveAccel * gearPull * falloff;
+                engineForce = 8400 * driveAccel * gearPull * falloff;
                 if (boosting) {
                     engineForce += 6400 * driveAccel;
                     nitro = Math.max(0, nitro - dt * 26);
@@ -1542,10 +1542,20 @@
         var qNow = chassis.rotation();
         var forwardLift = 2 * (qNow.y * qNow.z - qNow.x * qNow.w);
         var carY = chassis.translation().y;
-        if (forwardLift > 0.045 && carY < 1.6) {
-            var antiWheelie = clamp((forwardLift - 0.045) * 2.8, 0, 1);
-            engineForce *= 1 - antiWheelie * 0.58;
-            chassis.applyTorqueImpulse({ x: 26000 * antiWheelie * dt, y: 0, z: 0 }, true);
+        if (forwardLift > 0.025 && carY < 1.6) {
+            var antiWheelie = clamp((forwardLift - 0.025) * 3.6, 0, 1);
+            engineForce *= 1 - antiWheelie * 0.72;
+            chassis.applyTorqueImpulse({ x: 42000 * antiWheelie * dt, y: 0, z: 0 }, true);
+            var frontPoint = chassis.translation();
+            chassis.applyImpulseAtPoint(
+                { x: 0, y: -1900 * antiWheelie * dt, z: 0 },
+                { x: frontPoint.x, y: frontPoint.y + 0.05, z: frontPoint.z + 1.35 },
+                true
+            );
+            var angNow = chassis.angvel();
+            // Nose-up rotation is negative around X. Stop the chassis from
+            // building a big wheelie while still allowing suspension pitch.
+            if (angNow.x < -0.30) chassis.setAngvel({ x: -0.30, y: angNow.y, z: angNow.z }, true);
         }
 
         var steerMax = 0.46 - Math.min(0.36, forwardSpeed / 150);
@@ -1560,11 +1570,14 @@
         vehicle.setWheelSteering(2, 0);
         vehicle.setWheelSteering(3, 0);
 
-        // Rear-drive, front steering. Nitrous also feeds the front axle.
-        vehicle.setWheelEngineForce(0, input.nitro && nitro > 0 ? engineForce * 0.16 : 0);
-        vehicle.setWheelEngineForce(1, input.nitro && nitro > 0 ? engineForce * 0.16 : 0);
-        vehicle.setWheelEngineForce(2, engineForce * 0.5);
-        vehicle.setWheelEngineForce(3, engineForce * 0.5);
+        // AWD launch distribution keeps the nose down while the front axle
+        // helps pull out of corners and off the line.
+        var frontForce = engineForce * 0.28;
+        var rearForce = engineForce * 0.22;
+        vehicle.setWheelEngineForce(0, frontForce);
+        vehicle.setWheelEngineForce(1, frontForce);
+        vehicle.setWheelEngineForce(2, rearForce);
+        vehicle.setWheelEngineForce(3, rearForce);
 
         for (var i = 0; i < 4; i++) {
             vehicle.setWheelBrake(i, brakeForce);
@@ -1673,8 +1686,9 @@
             return;
         }
         resetClock = 0;
-        var q = chassis ? chassis.rotation() : { x: 0, y: 0, z: 0, w: 1 };
-        var rot = new BABYLON.Quaternion(q.x, q.y, q.z, q.w);
+        var rot = carRoot && carRoot.rotationQuaternion
+            ? carRoot.rotationQuaternion
+            : new BABYLON.Quaternion(0, 0, 0, 1);
         var rotMatrix = rot.toRotationMatrix(new BABYLON.Matrix());
         var carPos = carRoot ? carRoot.position : new BABYLON.Vector3(0, 0.9, spawnZ);
         var forward = BABYLON.Vector3.TransformNormal(new BABYLON.Vector3(0, 0, 1), rotMatrix);
@@ -1682,11 +1696,24 @@
         var speedFactor = clamp(displaySpeed / 75, 0, 1);
         var back = 8.6 + speedFactor * 1.6;
         var height = 3.35 + speedFactor * 0.35;
-        var shake = speedFactor * 0.035;
+        var powerShake = 0;
+        if (!paused && !runOver) {
+            if (currentGear === 'D' || currentGear === 'R') {
+                if (input.throttle) powerShake = 0.020 + speedFactor * 0.030;
+                if (input.nitro && nitro > 0 && input.throttle) powerShake += 0.028;
+            } else if (input.throttle) {
+                powerShake = revLevel * 0.055;
+            }
+        }
+        var shake = speedFactor * 0.035 + powerShake;
         var target = carPos.add(forward.scale(5.2)).add(new BABYLON.Vector3(0, 0.95, 0));
         var desired = carPos.subtract(forward.scale(back)).add(new BABYLON.Vector3(0, height, 0));
         desired = desired.add(right.scale(Math.sin(performance.now() * 0.031) * shake));
         desired.y += Math.sin(performance.now() * 0.047) * shake;
+        if (powerShake > 0.001) {
+            desired.y += Math.sin(performance.now() * 0.083) * powerShake * 0.6;
+            desired.x += Math.sin(performance.now() * 0.071) * powerShake * 0.45;
+        }
         if (crashShake > 0.001) {
             crashShake = Math.max(0, crashShake - dt * 2.1);
             desired.x += (Math.random() - 0.5) * crashShake;
@@ -1713,7 +1740,12 @@
         var t = chassis.translation();
         var q = chassis.rotation();
         carRoot.position.set(t.x, t.y, t.z);
-        carRoot.rotationQuaternion = new BABYLON.Quaternion(q.x, q.y, q.z, q.w);
+        var fullRot = new BABYLON.Quaternion(q.x, q.y, q.z, q.w);
+        // Keep the visible body from standing up into a wheelie. The physics
+        // stays intact; only the presentation pitch is limited.
+        var euler = fullRot.toEulerAngles();
+        var visualPitch = clamp(euler.x, -0.14, 0.14);
+        carRoot.rotationQuaternion = BABYLON.Quaternion.FromEulerAngles(visualPitch, euler.y, euler.z);
 
         var speed = displaySpeed || 0;
         for (var i = 0; i < wheelPivots.length; i++) {
@@ -1814,7 +1846,7 @@
         }
         if (exhaustSmoke) {
             var revvingN = (currentGear === 'N' || currentGear === 'P') && revLevel > 0.10 && !garage && !runOver;
-            exhaustSmoke.emitRate = revvingN ? 45 + revLevel * 105 : 0;
+            exhaustSmoke.emitRate = revvingN ? 60 + revLevel * 125 : 0;
         }
         if (impactSparks) {
             impactSparkTimer = Math.max(0, impactSparkTimer - dt);
