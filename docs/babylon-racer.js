@@ -960,7 +960,7 @@
         car.lane = Math.floor(Math.random() * laneCenters.length);
         car.root.position.set(laneCenters[car.lane], 0, pz + offset + Math.random() * 35);
         car.root.position.z = Math.max(spawnZ + 90, car.root.position.z);
-        car.speed = 6 + Math.random() * 8;
+        car.speed = (50 + Math.random() * 20) / 3.6;
     }
 
     function makeCoinPickup(index) {
@@ -1844,10 +1844,10 @@
         var targetPowerShake = 0;
         if (!paused && !runOver && !garage) {
             if (currentGear === 'D' || currentGear === 'R') {
-                if (input.throttle) targetPowerShake = 0.085 + speedFactor * 0.12;
-                if (input.nitro && nitro > 0 && input.throttle) targetPowerShake += 0.10;
+                if (input.throttle) targetPowerShake = 0.034 + speedFactor * 0.052;
+                if (input.nitro && nitro > 0 && input.throttle) targetPowerShake += 0.040;
             } else if (input.throttle) {
-                targetPowerShake = 0.10 + revLevel * 0.10;
+                targetPowerShake = 0.040 + revLevel * 0.045;
             }
         }
         // Ramp in under power and ease out after lifting, rather than snapping
@@ -1855,7 +1855,7 @@
         var shakeResponse = targetPowerShake > powerShakeLevel ? 3.4 : 2.1;
         powerShakeLevel += (targetPowerShake - powerShakeLevel) * Math.min(1, dt * shakeResponse);
         var powerShake = powerShakeLevel;
-        var shake = speedFactor * 0.045;
+        var shake = speedFactor * 0.022;
         var target = carPos.add(forward.scale(5.2)).add(new BABYLON.Vector3(0, 0.95, 0));
         var desired = carPos.subtract(forward.scale(back)).add(new BABYLON.Vector3(0, height, 0));
         desired = desired.add(right.scale(Math.sin(performance.now() * 0.031) * shake));
