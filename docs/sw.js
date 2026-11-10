@@ -1,7 +1,7 @@
 /* LessFun offline shell — single-player games stay available offline. */
 'use strict';
 
-var CACHE_NAME = 'lessfun-static-1.34.17';
+var CACHE_NAME = 'lessfun-static-1.34.18';
 var CORE_ASSETS = [
     './',
     'index.html',
@@ -14,6 +14,7 @@ var CORE_ASSETS = [
     'drawguess.js',
     'lucky.js',
     'tycoon.js',
+    'samsung-sim.js',
     'christmas.js',
     'easter.js',
     'assistant-data.js',

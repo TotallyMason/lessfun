@@ -309,3 +309,17 @@ handling real user data or payments.
   blocked, pins fall back to local storage for the owner.
 - Only scores and the offline wallet fallback are cached locally. The rest of
   the site is served with cache-busting query parameters.
+
+## Samsung Simulator
+
+Interactive **Galaxy S26 Ultra** concept demo built around Samsung's One UI design
+language. It is a fan concept and is not affiliated with Samsung.
+
+- One UI&#8209;style lock screen with a large left-aligned clock and a notification card
+- Home screen with the Good evening brief widget, weather widget, Google search pill
+  and app grid plus dock
+- Working demo apps: Phone dialer, Messages, Camera, Gallery, Clock, Weather,
+  Settings, Play Store placeholder and Galaxy Store placeholder
+- Three-button Android navigation bar (recents, home, back) that closes apps
+- 50 MP / Single Take&#8209;style camera demo with zoom hints
+- Clearly labelled as a demo build, not affiliated with Samsung
