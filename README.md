@@ -310,4 +310,3 @@ handling real user data or payments.
 - Only scores and the offline wallet fallback are cached locally. The rest of
   the site is served with cache-busting query parameters.
 
-| Phone Simulator | Interactive iPhone 18 Pro concept demo with a lock screen, home screen, Dynamic Island, apps, camera and settings. |

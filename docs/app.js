@@ -16,8 +16,7 @@ const games = [
     { id: 9, name: "Lucky Spin", description: "Virtual-coin slot machine — pick a bet and chase the jackpot", icon: "dice", controls: "Pick a bet and spin · virtual Coins only" },
     { id: 13, name: "Boeing Landing", description: "Side-view 737 landing sim with flaps, spoilers and live suspension", icon: "plane", controls: "W/S pitch · A/D throttle · Space brakes · F flaps · G gear" },
     { id: 14, name: "Tranq Arena", description: "Top-down tranquilizer showdown — put rivals to sleep, spend energy to revive, reach the final two", icon: "dart", controls: "WASD move · mouse aim · click / Space shoot · one revive costs 1 energy" },
-    { id: 15, name: "Arcade Tycoon", description: "Build your own LessFun arcade, fill it with cabinets and grow the takings", icon: "tycoon", controls: "Click to build, upgrade and expand · earnings continue while away" },
-    { id: 16, name: "Phone Simulator", description: "Interactive iPhone 18 Pro concept demo — lock screen, apps, camera and settings", icon: "phone", controls: "Tap or click the phone · unlock · open apps · tap the Dynamic Island" }
+    { id: 15, name: "Arcade Tycoon", description: "Build your own LessFun arcade, fill it with cabinets and grow the takings", icon: "tycoon", controls: "Click to build, upgrade and expand · earnings continue while away" }
 ];
 
 let currentUser = null;
@@ -500,7 +499,6 @@ function getIcon(name) {
         "dart": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m14 10 6-6M16 2l6 6M12 8l4 4"/><path d="m4 20 8-8"/><path d="m2 18 2-2 4 4-2 2-4-4Z"/><path d="M13 11l-2 2"/></svg>',
         "paw": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"><ellipse cx="12" cy="15.5" rx="4.6" ry="4"/><circle cx="5.5" cy="10" r="2.1"/><circle cx="9.5" cy="6.3" r="2.1"/><circle cx="14.5" cy="6.3" r="2.1"/><circle cx="18.5" cy="10" r="2.1"/></svg>',
         "tycoon": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8v5H8z"/><circle cx="10" cy="16" r="1" fill="white"/><circle cx="14" cy="16" r="1" fill="white"/><path d="M9 21v-2M15 21v-2"/></svg>',
-        "phone": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M9 5h6"/><circle cx="12" cy="18" r="1" fill="white" stroke="none"/></svg>',
     };
     return icons[name] || '';
 }
@@ -1166,7 +1164,6 @@ let assistantPromise = null;
 let drawGuessPromise = null;
 let luckyPromise = null;
 let tycoonPromise = null;
-let phoneSimPromise = null;
 let gameOpenToken = 0;
 
 function ensure3DEngine() {
@@ -1174,7 +1171,7 @@ function ensure3DEngine() {
     if (!enginePromise) {
         enginePromise = loadScriptOnce('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js')
             .then(function () { return loadScriptOnce('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js'); })
-            .then(function () { return loadScriptOnce('games3d.js?v=20261399'); })
+            .then(function () { return loadScriptOnce('games3d.js?v=20261400'); })
             .catch(function (error) { enginePromise = null; throw error; });
     }
     return enginePromise;
@@ -1188,7 +1185,7 @@ function ensureBabylonRacer() {
             .then(function () {
                 return loadScriptOnce('https://cdn.jsdelivr.net/npm/babylonjs-loaders@7.54.0/babylonjs.loaders.min.js').catch(function () {});
             })
-            .then(function () { return loadScriptOnce('babylon-racer.js?v=20261399'); })
+            .then(function () { return loadScriptOnce('babylon-racer.js?v=20261400'); })
             .catch(function (error) {
                 babylonRacerPromise = null;
                 babylonRacerUnavailable = true;
@@ -1253,7 +1250,7 @@ window.LessFunBabylonFallback = function () {
 function ensureLanding() {
     if (typeof openLandingSim === 'function') return Promise.resolve();
     if (!landingPromise) {
-        landingPromise = loadScriptOnce('landing.js?v=20261399').catch(function (error) { landingPromise = null; throw error; });
+        landingPromise = loadScriptOnce('landing.js?v=20261400').catch(function (error) { landingPromise = null; throw error; });
     }
     return landingPromise;
 }
@@ -1261,7 +1258,7 @@ function ensureLanding() {
 function ensureTranq() {
     if (typeof openTranqGame === 'function') return Promise.resolve();
     if (!tranqPromise) {
-        tranqPromise = loadScriptOnce('tranq.js?v=20261399').catch(function (error) { tranqPromise = null; throw error; });
+        tranqPromise = loadScriptOnce('tranq.js?v=20261400').catch(function (error) { tranqPromise = null; throw error; });
     }
     return tranqPromise;
 }
@@ -1269,9 +1266,9 @@ function ensureTranq() {
 function ensureAssistant() {
     if (window.LessFunAI) return Promise.resolve();
     if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261399')
-            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261399'); })
-            .then(function () { return loadScriptOnce('assistant.js?v=20261399'); })
+        assistantPromise = loadScriptOnce('assistant-data.js?v=20261400')
+            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261400'); })
+            .then(function () { return loadScriptOnce('assistant.js?v=20261400'); })
             .catch(function (error) { assistantPromise = null; throw error; });
     }
     return assistantPromise;
@@ -1299,7 +1296,7 @@ function openAssistant() {
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
-        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261399').catch(function (error) { drawGuessPromise = null; throw error; });
+        drawGuessPromise = loadScriptOnce('drawguess.js?v=20261400').catch(function (error) { drawGuessPromise = null; throw error; });
     }
     return drawGuessPromise;
 }
@@ -1307,7 +1304,7 @@ function ensureDrawGuess() {
 function ensureLucky() {
     if (typeof openLuckySpinGame === 'function') return Promise.resolve();
     if (!luckyPromise) {
-        luckyPromise = loadScriptOnce('lucky.js?v=20261399').catch(function (error) { luckyPromise = null; throw error; });
+        luckyPromise = loadScriptOnce('lucky.js?v=20261400').catch(function (error) { luckyPromise = null; throw error; });
     }
     return luckyPromise;
 }
@@ -1315,18 +1312,11 @@ function ensureLucky() {
 function ensureTycoon() {
     if (window.Tycoon) return Promise.resolve();
     if (!tycoonPromise) {
-        tycoonPromise = loadScriptOnce('tycoon.js?v=20261399').catch(function (error) { tycoonPromise = null; throw error; });
+        tycoonPromise = loadScriptOnce('tycoon.js?v=20261400').catch(function (error) { tycoonPromise = null; throw error; });
     }
     return tycoonPromise;
 }
 
-function ensurePhoneSim() {
-    if (window.PhoneSim) return Promise.resolve();
-    if (!phoneSimPromise) {
-        phoneSimPromise = loadScriptOnce('phone-sim.js?v=20261399').catch(function (error) { phoneSimPromise = null; throw error; });
-    }
-    return phoneSimPromise;
-}
 
 let preloadGameTimer = 0;
 
@@ -1352,7 +1342,6 @@ function preloadGame(id) {
     if (id === 8) { ensureDrawGuess().catch(function () {}); return; }
     if (id === 9) { ensureLucky().catch(function () {}); return; }
     if (id === 15) { ensureTycoon().catch(function () {}); return; }
-    if (id === 16) { ensurePhoneSim().catch(function () {}); return; }
     if (id === 6) return;
     ensure3DEngine().catch(function () {});
 }
@@ -1426,14 +1415,6 @@ function openGame(id) {
         });
         return;
     }
-    if (id === 16) {
-        showViewLoader('Loading ' + game.name + '…', 'Opening the iPhone 18 Pro demo…');
-        ensurePhoneSim().then(function () { if (token === gameOpenToken) { openGameNow(id); hideViewLoader(); } }).catch(function () {
-            hideViewLoader();
-            alert('Could not load ' + game.name + '. Check your connection and try again.');
-        });
-        return;
-    }
     showViewLoader('Loading ' + game.name + '…', 'Downloading the 3D engine…');
     ensure3DEngine().then(function () {
         if (token === gameOpenToken) { setViewLoaderDetail('Building the game world…'); openGameNow(id); hideViewLoader(); }
@@ -1455,15 +1436,6 @@ function openGameNow(id) {
     }
     if (!gameHistoryPushed) {
         try { history.pushState({ lessfunGame: id }, ''); gameHistoryPushed = true; } catch (e) {}
-    }
-    if (id === 16) {
-        currentGameId = 16;
-        trackRecentGame(16);
-        document.getElementById('modalGameTitle').textContent = game.name;
-        const phoneBody = document.getElementById('modalGameBody');
-        document.getElementById('gameModal').style.display = 'flex';
-        if (window.PhoneSim) window.PhoneSim.open(phoneBody);
-        return;
     }
     if (id === 8) { openDrawGuessGame(); return; }
     if (id === 9) { openLuckySpinGame(); return; }
@@ -1965,7 +1937,6 @@ function toggleGameFullscreen() {
 function closeGame(fromHistory) {
     var shouldGoBack = gameHistoryPushed && !fromHistory;
     gameHistoryPushed = false;
-    if (window.PhoneSim) window.PhoneSim.close();
     if (window.Tycoon) window.Tycoon.close();
     giftModeSetting = false;
     snowStormMode = false;
@@ -9308,8 +9279,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.15";
-const UPDATE_NOTES = "Phone Simulator now uses a 125 × 37 pt Dynamic Island, Pro screen proportions, larger icons and an iOS-style Control Centre";
+const APP_VERSION = "LessFun Public Beta 1.34.16";
+const UPDATE_NOTES = "Removed Phone Simulator";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
