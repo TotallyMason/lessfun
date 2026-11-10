@@ -102,17 +102,29 @@
     }
 
     function buildLaunchPile() {
-        var startX = W * .12;
-        var scales = [44, 44, 36, 30];
-        for (var i = 0; i < 6; i++) {
-            var kind = ['crate', 'glass', 'pot', 'crate', 'glass', 'pot'][i];
-            var size = kind === 'pot' ? 40 : kind === 'glass' ? 30 : 44;
-            var b = breakableBody(kind, startX + (i % 2) * 52, groundY - size / 2 - 4 - Math.floor(i / 2) * (size + 4), size, size);
-            b._throwable = true;
-            b._breakable = false; // launching pile copies don't shatter on the drag pile itself
-            Matter.Composite.add(engine.world, b);
+        var startX = W * .11;
+        // neat two columns, no overlaps so nothing shatters from settling
+        var colA = ['crate', 'crate', 'pot'];
+        var colB = ['glass', 'glass', 'glass'];
+        var y = groundY;
+        var i;
+        for (i = 0; i < colA.length; i++) {
+            var sizeA = colA[i] === 'pot' ? 40 : 44;
+            y -= sizeA / 2 + 2;
+            var ba = breakableBody(colA[i], startX, y, sizeA, sizeA);
+            ba._throwable = true;
+            Matter.Composite.add(engine.world, ba);
+            y -= sizeA / 2 + 6;
         }
-        var melon = Matter.Bodies.circle(startX + 26, groundY - 26 - 96, 26, { density: .002, friction: .4, restitution: .3 });
+        var yb = groundY;
+        for (i = 0; i < colB.length; i++) {
+            yb -= 15 + 2;
+            var bb = breakableBody('glass', startX + 96, yb, 30, 30);
+            bb._throwable = true;
+            Matter.Composite.add(engine.world, bb);
+            yb -= 15 + 6;
+        }
+        var melon = Matter.Bodies.circle(startX + 48, y - 26, 26, { density: .002, friction: .4, restitution: .3 });
         melon._kind = 'melon';
         melon._w = 52; melon._h = 52;
         melon._breakable = true;
@@ -168,7 +180,7 @@
         for (var i = 0; i < pairs.length; i++) {
             var a = pairs[i].bodyA, b = pairs[i].bodyB;
             var rel = Matter.Vector.magnitude(Matter.Vector.sub(a.velocity, b.velocity));
-            if (rel > 4.6) {
+            if (rel > 5.4) {
                 if (a._throwable !== true && a._breakable && !a._piece && !a.isStatic) breakBody(a);
                 if (b._throwable !== true && b._breakable && !b._piece && !b.isStatic) breakBody(b);
             }
@@ -380,5 +392,17 @@
         drag = null;
     }
 
-    global.ThrowBreak = { open: open, close: close };
+    global.ThrowBreak = {
+        open: open,
+        close: close,
+        _debug: function () {
+            if (!engine) return null;
+            var out = [];
+            var bodies = Matter.Composite.allBodies(engine.world);
+            for (var i = 0; i < bodies.length; i++) {
+                if (bodies[i]._throwable) out.push({ kind: bodies[i]._kind, x: bodies[i].position.x, y: bodies[i].position.y, r: bodies[i].circleRadius || 0 });
+            }
+            return { w: W, h: H, ground: groundY, items: out, drag: !!drag };
+        }
+    };
 })(window);
