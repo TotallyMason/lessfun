@@ -12,7 +12,7 @@
     var START_Z = 200;
     var ROAD_LENGTH = 24000;
     var ROAD_WIDTH = 22;
-    var SPEED_SCALE = 6;
+    var SPEED_SCALE = 1;
 
     var engine = null, scene = null, camera = null, canvas = null, container = null;
     var carRoot = null, carVisuals = [], wheelPivots = [], wheelSpins = [], contactShadow = null;
@@ -1635,7 +1635,13 @@
         selectedCar = opts.car || null;
         carCosmetics = opts.cosmetics || null;
         var perf = carCosmetics && carCosmetics.performance ? carCosmetics.performance : {};
-        driveMaxSpeed = clamp(67 * (num(perf.topSpeed, 1) || 1), 38, 98);
+        // Use the car's advertised top speed (mph) instead of the old compressed
+        // arcade scale. A 200 mph car now reads 200 on the gauge.
+        var perfTop = num(perf.topSpeed, 1) || 1;
+        var baseTopFactor = selectedCar ? clamp((selectedCar.topSpeed || 170) / 170, 0.52, 1.9) : 1;
+        var upgradeTop = selectedCar ? clamp(perfTop / baseTopFactor, 0.88, 1.4) : clamp(perfTop, 0.75, 1.6);
+        var topMph = (selectedCar ? (selectedCar.topSpeed || 192) : 192) * upgradeTop;
+        driveMaxSpeed = clamp(topMph / 2.23694, 32, 145);
         driveAccel = clamp(num(perf.accel, 1) || 1, 0.55, 2.4);
         driveGrip = clamp(3.25 * (num(perf.grip, 1) || 1), 2.2, 5.3);
         traffic = [];
