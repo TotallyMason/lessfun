@@ -17,9 +17,10 @@
     var engine = null, scene = null, camera = null, canvas = null, container = null;
     var carRoot = null, carVisuals = [], wheelPivots = [], wheelSpins = [], contactShadow = null;
     var sun = null, shadow = null, sky = null, exhaustSmoke = null, exhaustEmitter = null;
-    var impactSparks = null, impactSparkTimer = 0, crashShake = 0;
+    var impactSparks = null, impactSmoke = null, impactSparkTimer = 0, crashShake = 0, wallImpactCool = 0;
     var motionBlurPost = null, motionBlurStrength = 0.02;
     var realCarRoot = null, realCarLoading = false, carPaintHex = 0xc2280b;
+    var proceduralLampMeshes = [];
     var smokeTexture = null, driftSmoke = null, driftEmitter = null;
     var isSanta = false, flyTime = 0, flyCooldown = 0;
     var powerShakeLevel = 0;
@@ -33,6 +34,7 @@
     var nitro = 100, driftScore = 0, steerVisual = 0;
     var currentGear = 'D', gearLabel = 'D';
     var gearIndex = 1, manualGearTimer = 0, revLevel = 0;
+    var gearShiftTimer = 0, pendingGear = null, pendingGearIndex = null;
     var GEAR_TOPS = [0.14, 0.24, 0.35, 0.47, 0.60, 0.73, 0.86, 1.0];
     var camPos = null, camTarget = null;
     var resetClock = 0, flipTime = 0, toastTimer = 0;
@@ -611,6 +613,7 @@
 
         createRoadsideLights(low);
         createPalms(low);
+        loadStreetLampModel(low);
     }
 
     function createRoadsideLights(low) {
@@ -647,8 +650,42 @@
                 var b = bulb.createInstance('lampBulb' + side + '_' + i);
                 b.position.set(x - side * 2.0, 7.33, z);
                 b.freezeWorldMatrix();
+                proceduralLampMeshes.push(p, a, b);
             }
         }
+    }
+
+    function loadStreetLampModel(low) {
+        if (!BABYLON.SceneLoader || !BABYLON.SceneLoader.ImportMeshAsync) return;
+        BABYLON.SceneLoader.ImportMeshAsync('', 'models/', 'streetlamp.glb', scene).then(function (res) {
+            if (!active) return;
+            var parts = res.meshes.filter(function (m) { return m.getTotalVertices && m.getTotalVertices() > 0; });
+            if (!parts.length) return;
+            var scale = 7.6 / 4.335;
+            var count = low ? 70 : 130;
+            parts.forEach(function (part) {
+                part.computeWorldMatrix(true);
+                var local = part.getWorldMatrix().clone();
+                part.parent = null;
+                part.isPickable = false;
+                for (var side = -1; side <= 1; side += 2) {
+                    for (var i = 0; i < count; i++) {
+                        var z = 40 + i * (ROAD_LENGTH / count);
+                        var x = side * (ROAD_WIDTH / 2 + 1.55);
+                        var world = BABYLON.Matrix.Compose(
+                            new BABYLON.Vector3(scale, scale, scale),
+                            BABYLON.Quaternion.RotationYawPitchRoll(side < 0 ? 0 : Math.PI, 0, 0),
+                            new BABYLON.Vector3(x, 0, z)
+                        );
+                        part.thinInstanceAdd(local.multiply(world), true);
+                    }
+                }
+            });
+            proceduralLampMeshes.forEach(function (m) { m.setEnabled(false); });
+            proceduralLampMeshes = [];
+        }).catch(function () {
+            // The procedural lamps remain if the online model cannot load.
+        });
     }
 
     function createPalms(low) {
@@ -1021,6 +1058,9 @@
         gearIndex = 1;
         manualGearTimer = 0;
         revLevel = 0;
+        gearShiftTimer = 0;
+        pendingGear = null;
+        pendingGearIndex = null;
         fsdActive = false;
         fsdThink = 0;
         setRunCoins(0);
@@ -1393,14 +1433,42 @@
         ps.gravity = new BABYLON.Vector3(0, -9.81, 0);
         ps.start();
         impactSparks = ps;
+
+        if (smokeTexture) {
+            var smoke = new BABYLON.ParticleSystem('impactSmoke', isLowPower() ? 40 : 80, scene);
+            smoke.particleTexture = smokeTexture;
+            smoke.emitter = new BABYLON.Vector3(0, 0.8, 0);
+            smoke.minEmitBox = new BABYLON.Vector3(-0.4, -0.15, -0.4);
+            smoke.maxEmitBox = new BABYLON.Vector3(0.4, 0.25, 0.4);
+            smoke.color1 = new BABYLON.Color4(0.68, 0.67, 0.65, 0.42);
+            smoke.color2 = new BABYLON.Color4(0.38, 0.37, 0.36, 0.28);
+            smoke.colorDead = new BABYLON.Color4(0.12, 0.12, 0.12, 0);
+            smoke.minSize = 0.30;
+            smoke.maxSize = 1.15;
+            smoke.minLifeTime = 0.45;
+            smoke.maxLifeTime = 1.15;
+            smoke.emitRate = 0;
+            smoke.blendMode = BABYLON.ParticleSystem.BLENDMODE_STANDARD;
+            smoke.direction1 = new BABYLON.Vector3(-1.2, 0.4, -1.2);
+            smoke.direction2 = new BABYLON.Vector3(1.2, 1.8, 0.6);
+            smoke.minEmitPower = 0.4;
+            smoke.maxEmitPower = 1.8;
+            smoke.gravity = new BABYLON.Vector3(0, 0.5, 0);
+            smoke.start();
+            impactSmoke = smoke;
+        }
     }
 
     function triggerImpactFx(x, z, intensity) {
         if (!impactSparks) return;
         impactSparks.emitter = new BABYLON.Vector3(x, 0.82, z);
-        impactSparks.emitRate = 120 + Math.min(260, (intensity || 0) * 8);
-        impactSparkTimer = 0.16;
-        crashShake = Math.min(0.65, 0.16 + (intensity || 0) * 0.007);
+        impactSparks.emitRate = 160 + Math.min(340, (intensity || 0) * 10);
+        if (impactSmoke) {
+            impactSmoke.emitter = new BABYLON.Vector3(x, 0.8, z);
+            impactSmoke.emitRate = 55 + Math.min(120, (intensity || 0) * 4);
+        }
+        impactSparkTimer = 0.22;
+        crashShake = Math.max(crashShake, Math.min(0.75, 0.18 + (intensity || 0) * 0.008));
     }
 
     function createExhaustSmoke() {
@@ -1610,6 +1678,24 @@
         setText('g3dGaugeStatus', 'BABYLON + RAPIER · HDR READY');
     }
 
+    function applyPendingGear() {
+        if (pendingGear !== null) {
+            currentGear = pendingGear;
+            gearLabel = currentGear === 'D' ? '1' : currentGear;
+            if (currentGear === 'D') gearIndex = 1;
+            else revLevel = 0;
+            pendingGear = null;
+            pendingGearIndex = null;
+            playGearSound();
+            showToast('GEAR ' + currentGear);
+        } else if (pendingGearIndex !== null) {
+            gearIndex = clamp(pendingGearIndex, 1, 8);
+            gearLabel = String(gearIndex);
+            pendingGearIndex = null;
+            playGearSound();
+        }
+    }
+
     function applyControls(dt) {
         var speed = chassis.linvel();
         var forwardSpeed = Math.sqrt(speed.x * speed.x + speed.z * speed.z);
@@ -1618,6 +1704,13 @@
         var nitroMax = driveMaxSpeed * 1.30;
         var throttle = input.throttle;
         var brake = input.brake;
+
+        if (gearShiftTimer > 0) {
+            gearShiftTimer = Math.max(0, gearShiftTimer - dt);
+            if (gearShiftTimer <= 0) applyPendingGear();
+        }
+        var shiftingNow = gearShiftTimer > 0;
+        if (shiftingNow) throttle = false;
 
         if (isSanta) {
             if (flyTime > 0) {
@@ -1656,8 +1749,18 @@
             if (throttle) engineForce = -1450 * driveAccel;
             if (brake) brakeForce = 26;
         } else {
-            while (gearIndex < 8 && forwardSpeed > driveMaxSpeed * GEAR_TOPS[gearIndex - 1] * 0.96) gearIndex++;
-            while (gearIndex > 1 && forwardSpeed < driveMaxSpeed * GEAR_TOPS[gearIndex - 2] * 0.68) gearIndex--;
+            if (!shiftingNow && pendingGearIndex === null && pendingGear === null) {
+                var nextAutoGear = gearIndex;
+                while (nextAutoGear < 8 && forwardSpeed > driveMaxSpeed * GEAR_TOPS[nextAutoGear - 1] * 0.96) nextAutoGear++;
+                while (nextAutoGear > 1 && forwardSpeed < driveMaxSpeed * GEAR_TOPS[nextAutoGear - 2] * 0.68) nextAutoGear--;
+                if (nextAutoGear > gearIndex + 1) nextAutoGear = gearIndex + 1;
+                else if (nextAutoGear < gearIndex - 1) nextAutoGear = gearIndex - 1;
+                if (nextAutoGear !== gearIndex) {
+                    pendingGearIndex = nextAutoGear;
+                    gearShiftTimer = 0.20;
+                    playGearSound();
+                }
+            }
             gearLabel = String(gearIndex);
             var gearPull = 1.15 - (gearIndex - 1) * 0.05;
             var boosting = input.nitro && nitro > 0 && throttle;
@@ -1754,6 +1857,11 @@
         distance = Math.max(distance, t.z - spawnZ);
         displaySpeed = Math.sqrt(v.x * v.x + v.z * v.z);
         runSeconds += dt;
+        if (!runOver && wallImpactCool <= 0 && Math.abs(t.x) > 10.65 && Math.abs(v.x) > 2.0) {
+            wallImpactCool = 0.8;
+            triggerImpactFx(t.x, t.z, Math.abs(v.x) * 3.2);
+            playTone(120, 0.16, 'square', 0.07, 55);
+        }
         lastPlayerZ = t.z;
 
         if (t.z > ROAD_LENGTH - 220) {
@@ -1846,8 +1954,8 @@
         var speedFactor = clamp(displaySpeed / 75, 0, 1);
         var instantAccel = (displaySpeed - cameraPrevSpeed) / Math.max(0.001, dt);
         cameraPrevSpeed = displaySpeed;
-        cameraAccelSmooth += (clamp(instantAccel, 0, 32) - cameraAccelSmooth) * Math.min(1, dt * 5.5);
-        var accelPullback = (currentGear === 'N' || currentGear === 'P') ? 0 : Math.min(2.2, cameraAccelSmooth * 0.085);
+        cameraAccelSmooth += (clamp(instantAccel, 0, 32) - cameraAccelSmooth) * Math.min(1, dt * 7.0);
+        var accelPullback = (currentGear === 'N' || currentGear === 'P') ? 0 : Math.min(5.5, cameraAccelSmooth * 0.16);
         var back = 8.6 + speedFactor * 1.6 + accelPullback;
         var height = 3.35 + speedFactor * 0.35;
         var targetPowerShake = 0;
@@ -1981,6 +2089,7 @@
                 else if (garage) setText('g3dGaugeStatus', 'GARAGE · PRESS PLAY TO DRIVE');
                 else if (runOver) setText('g3dGaugeStatus', 'CRASHED · PRESS PLAY AGAIN');
                 else if (paused) setText('g3dGaugeStatus', 'PAUSED');
+                else if (gearShiftTimer > 0) setText('g3dGaugeStatus', 'SHIFTING…');
                 else if (input.drift && displaySpeed > 9) setText('g3dGaugeStatus', 'DRIFT · ' + Math.round(driftScore) + ' · ' + coinsCollected + ' COINS');
                 else if (isSanta) {
                     if (flyTime > 0) setText('g3dGaugeStatus', 'SANTA FLYING · ' + flyTime.toFixed(1) + 's');
@@ -2025,8 +2134,12 @@
         }
         if (impactSparks) {
             impactSparkTimer = Math.max(0, impactSparkTimer - dt);
-            if (impactSparkTimer <= 0) impactSparks.emitRate = 0;
+            if (impactSparkTimer <= 0) {
+                impactSparks.emitRate = 0;
+                if (impactSmoke) impactSmoke.emitRate = 0;
+            }
         }
+        wallImpactCool = Math.max(0, wallImpactCool - dt);
         var speedFrac = clamp(displaySpeed / Math.max(1, driveMaxSpeed), 0, 1);
         motionBlurStrength = 0.012 + speedFrac * 0.070 + (input.nitro && nitro > 0 ? 0.022 : 0);
         updateRemoteRacers(dt);
@@ -2171,6 +2284,9 @@
         gearIndex = 1;
         manualGearTimer = 0;
         revLevel = 0;
+        gearShiftTimer = 0;
+        pendingGear = null;
+        pendingGearIndex = null;
         distance = 0;
         displaySpeed = 0;
         nitro = 100;
@@ -2328,9 +2444,12 @@
         smokeTexture = null;
         realCarRoot = null;
         realCarLoading = false;
+        proceduralLampMeshes = [];
         impactSparks = null;
+        impactSmoke = null;
         impactSparkTimer = 0;
         crashShake = 0;
+        wallImpactCool = 0;
         motionBlurPost = null;
         powerShakeLevel = 0;
         camPos = null;
@@ -2368,20 +2487,21 @@
     function setGearMode(mode) {
         mode = String(mode || '').toUpperCase();
         if (mode !== 'P' && mode !== 'R' && mode !== 'N' && mode !== 'D') mode = 'D';
-        currentGear = mode;
-        gearLabel = mode === 'D' ? '1' : mode;
-        if (mode === 'D') { gearIndex = 1; manualGearTimer = 0; }
-        else revLevel = 0;
+        if (mode === currentGear && gearShiftTimer <= 0) return;
+        pendingGear = mode;
+        pendingGearIndex = null;
+        gearShiftTimer = 0.55;
         playGearSound();
-        showToast('GEAR ' + mode);
+        showToast('SHIFTING TO ' + mode);
     }
 
     function shiftGear(direction) {
         if (!ready || garage || runOver) return;
         var order = ['P', 'R', 'N', 'D'];
-        var idx = order.indexOf(currentGear);
+        var base = pendingGear !== null ? pendingGear : currentGear;
+        var idx = order.indexOf(base);
         idx = clamp(idx + (direction > 0 ? 1 : -1), 0, order.length - 1);
-        setGearMode(order[idx]);
+        if (order[idx] !== pendingGear) setGearMode(order[idx]);
     }
 
     function setGear(mode) { setGearMode(mode); }
