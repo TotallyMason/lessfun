@@ -59,6 +59,7 @@
     var lastFps = 0;
     var soundEnabled = true;
     var unitSystem = 'mph';
+    var SPEED_DISPLAY_SCALE = 6;
     var audioMuteHandler = null;
     var audioCleanup = null;
     var container = null, resizeObs = null;
@@ -8263,7 +8264,7 @@
             cityHudT -= dt;
             if (cityHudT <= 0) {
                 cityHudT = 0.1;
-                setPillText('g3dExtra', 'CITY · ' + Math.round(speed * 2.23694 / 2) + ' MPH');
+                setPillText('g3dExtra', 'CITY · ' + Math.round(speed * 2.23694 / SPEED_DISPLAY_SCALE) + ' MPH');
             }
             var throttleFill = document.getElementById('g3dThrottleFill');
             if (throttleFill) throttleFill.style.height = Math.round(throttleSmooth * 100) + '%';
@@ -9155,7 +9156,7 @@
                 var hEl = document.getElementById('dcHealth'); if (hEl) hEl.style.width = health + '%';
                 var partEl = document.getElementById('dcPart'); if (partEl) partEl.textContent = partLabel();
                 var zEl = document.getElementById('dcZombies'); if (zEl) zEl.textContent = 'ZOMBIES ' + zombiesHit;
-                setPillText('g3dExtra', 'DEAD COAST · ' + Math.round(Math.abs(speed) * 2.23694 / 2) + ' MPH' + (speed < -0.3 ? ' · R' : ''));
+                setPillText('g3dExtra', 'DEAD COAST · ' + Math.round(Math.abs(speed) * 2.23694 / SPEED_DISPLAY_SCALE) + ' MPH' + (speed < -0.3 ? ' · R' : ''));
             }
             if (toastT > 0) {
                 toastT -= dt;
@@ -10171,8 +10172,8 @@
         // Physics stays in metres per second. The km/h readout uses the
         // arcade display scale again so numbers stay readable.
         return unitSystem === 'kmh'
-            ? Math.round(Math.abs(mps) * 3.6 / 2) + ' km/h'
-            : Math.round(Math.abs(mps) * 2.23694 / 2) + ' mph';
+            ? Math.round(Math.abs(mps) * 3.6 / SPEED_DISPLAY_SCALE) + ' km/h'
+            : Math.round(Math.abs(mps) * 2.23694 / SPEED_DISPLAY_SCALE) + ' mph';
     }
     function setPaused(on) {
         paused = !!on;
