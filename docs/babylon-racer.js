@@ -19,6 +19,7 @@
     var sun = null, shadow = null, sky = null, exhaustSmoke = null, exhaustEmitter = null;
     var impactSparks = null, impactSmoke = null, impactSparkTimer = 0, crashShake = 0, wallImpactCool = 0;
     var interiorRoot = null, interiorLight = null, interiorScreenTex = null, centerScreenTex = null;
+    var debris = [], debrisPaintMat = null, debrisCarbonMat = null, debrisTireMat = null;
     var motionBlurPost = null, motionBlurStrength = 0.02;
     var vhsPost = null, glowLayer = null;
     var realCarRoot = null, realCarLoading = false, carPaintHex = 0xc2280b;
@@ -27,6 +28,10 @@
     var absActive = false;
     var worldMode = 'highway', cityRoot = null, cityBuildings = [], highwayMeshes = [], highwayExits = [], savedHighwayZ = START_Z + 500, portalCooldown = 0;
     var CITY_X = 0, CITY_Z = 50000;
+    function highwayCurveX(z) {
+        var d = z - START_Z;
+        return Math.sin(d / 900) * 8.0 + Math.sin(d / 370) * 2.2;
+    }
     var smokeTexture = null, driftSmoke = null, driftEmitter = null;
     var isSanta = false, flyTime = 0, flyCooldown = 0;
     var powerShakeLevel = 0;
@@ -572,11 +577,29 @@
         shadow.darkness = 0.34;
         shadow.bias = 0.0015;
 
-        var road = BABYLON.MeshBuilder.CreateGround('coastalRoad', {
-            width: ROAD_WIDTH, height: ROAD_LENGTH, subdivisions: 1
-        }, scene);
-        road.position.y = 0.02;
-        road.position.z = ROAD_LENGTH / 2;
+        var roadSegments = 1200;
+        var roadPositions = [], roadIndices = [], roadUvs = [];
+        for (var ri = 0; ri <= roadSegments; ri++) {
+            var rz = (ri / roadSegments) * ROAD_LENGTH;
+            var rx = highwayCurveX(rz);
+            roadPositions.push(rx - ROAD_WIDTH / 2, 0.02, rz);
+            roadPositions.push(rx + ROAD_WIDTH / 2, 0.02, rz);
+            roadUvs.push(0, ri / roadSegments);
+            roadUvs.push(1, ri / roadSegments);
+            if (ri < roadSegments) {
+                var base = ri * 2;
+                roadIndices.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
+            }
+        }
+        var roadNormals = [];
+        BABYLON.VertexData.ComputeNormals(roadPositions, roadIndices, roadNormals);
+        var roadData = new BABYLON.VertexData();
+        roadData.positions = roadPositions;
+        roadData.indices = roadIndices;
+        roadData.uvs = roadUvs;
+        roadData.normals = roadNormals;
+        var road = new BABYLON.Mesh('coastalRoad', scene);
+        roadData.applyToMesh(road);
         road.receiveShadows = true;
         var roadMat = new BABYLON.PBRMaterial('bakedRoadMaterial', scene);
         roadMat.albedoTexture = makeBakedRoadTexture();
@@ -584,8 +607,8 @@
         roadMat.metallic = 0.06;
         roadMat.roughness = 0.76;
         roadMat.environmentIntensity = 0.55;
+        roadMat.backFaceCulling = false;
         road.material = roadMat;
-        road.freezeWorldMatrix();
         highwayMeshes.push(road);
 
         var sand = BABYLON.MeshBuilder.CreateGround('beachSand', {
@@ -615,26 +638,38 @@
         water.freezeWorldMatrix();
         highwayMeshes.push(water);
 
-        // Concrete guardrails keep the car on the coastal road.
+        // Curved guardrail ribbons follow the road centreline.
         var railMat = new BABYLON.PBRMaterial('guardrailMaterial', scene);
         railMat.albedoColor = new BABYLON.Color3(0.24, 0.27, 0.29);
         railMat.metallic = 0.55;
         railMat.roughness = 0.45;
+        railMat.backFaceCulling = false;
         [-1, 1].forEach(function (side) {
-            var rail = BABYLON.MeshBuilder.CreateBox('guardrail' + side, {
-                width: 0.32, height: 0.82, depth: ROAD_LENGTH
-            }, scene);
-            rail.position.set(side * (ROAD_WIDTH / 2 + 0.5), 0.41, ROAD_LENGTH / 2);
+            var railPositions = [], railIndices = [], railNormals = [];
+            for (var gi = 0; gi <= roadSegments; gi++) {
+                var gz = (gi / roadSegments) * ROAD_LENGTH;
+                var gx = highwayCurveX(gz) + side * (ROAD_WIDTH / 2 + 0.5);
+                railPositions.push(gx, 0.02, gz);
+                railPositions.push(gx, 0.86, gz);
+                if (gi < roadSegments) {
+                    var gb = gi * 2;
+                    railIndices.push(gb, gb + 2, gb + 1, gb + 1, gb + 2, gb + 3);
+                }
+            }
+            BABYLON.VertexData.ComputeNormals(railPositions, railIndices, railNormals);
+            var railData = new BABYLON.VertexData();
+            railData.positions = railPositions;
+            railData.indices = railIndices;
+            railData.normals = railNormals;
+            var rail = new BABYLON.Mesh('guardrail' + side, scene);
+            railData.applyToMesh(rail);
             rail.material = railMat;
             rail.receiveShadows = true;
-            rail.freezeWorldMatrix();
             highwayMeshes.push(rail);
         });
 
         createRoadsideLights(low);
         createPalms(low);
-        createHighwayExits();
-        createCity();
         loadStreetLampModel(low);
     }
 
@@ -662,7 +697,7 @@
         for (var side = -1; side <= 1; side += 2) {
             for (var i = 0; i < count; i++) {
                 var z = 40 + i * (ROAD_LENGTH / count);
-                var x = side * (ROAD_WIDTH / 2 + 1.55);
+                var x = highwayCurveX(z) + side * (ROAD_WIDTH / 2 + 1.55);
                 var p = pole.createInstance('lampPole' + side + '_' + i);
                 p.position.set(x, 3.8, z);
                 p.freezeWorldMatrix();
@@ -693,7 +728,7 @@
                 for (var side = -1; side <= 1; side += 2) {
                     for (var i = 0; i < count; i++) {
                         var z = 40 + i * (ROAD_LENGTH / count);
-                        var x = side * (ROAD_WIDTH / 2 + 1.55);
+                        var x = highwayCurveX(z) + side * (ROAD_WIDTH / 2 + 1.55);
                         var world = BABYLON.Matrix.Compose(
                             new BABYLON.Vector3(scale, scale, scale),
                             BABYLON.Quaternion.RotationYawPitchRoll(side < 0 ? 0 : Math.PI, 0, 0),
@@ -730,7 +765,7 @@
         for (var side = -1; side <= 1; side += 2) {
             for (var i = 0; i < count; i++) {
                 var z = 80 + i * (ROAD_LENGTH / count) + (i % 3) * 9;
-                var x = side * (32 + (i % 4) * 4.5);
+                var x = highwayCurveX(z) + side * (32 + (i % 4) * 4.5);
                 var t = trunk.createInstance('palmTrunk' + side + '_' + i);
                 t.position.set(x, 3.0, z);
                 t.rotation.y = i * 1.7;
@@ -1072,7 +1107,8 @@
 
     function placeTrafficCar(car, pz, offset) {
         car.lane = Math.floor(Math.random() * laneCenters.length);
-        car.root.position.set(laneCenters[car.lane], 0, pz + offset + Math.random() * 35);
+        var spawnZPos = pz + offset + Math.random() * 35;
+        car.root.position.set(highwayCurveX(spawnZPos) + laneCenters[car.lane], 0, spawnZPos);
         car.root.position.z = Math.max(spawnZ + 90, car.root.position.z);
         car.speed = (100 + Math.random() * 40) / 3.6;
     }
@@ -1094,8 +1130,8 @@
 
     function placeCoin(coin, pz, offset) {
         var lane = Math.floor(Math.random() * laneCenters.length);
-        coin.x = laneCenters[lane];
         coin.z = pz + offset + Math.random() * 24;
+        coin.x = highwayCurveX(coin.z) + laneCenters[lane];
         coin.active = true;
         coin.mesh.setEnabled(true);
     }
@@ -1126,6 +1162,8 @@
     }
 
     function resetRunWorld() {
+        debris.forEach(function (d) { try { d.mesh.dispose(); } catch (e) {} });
+        debris = [];
         runOver = false;
         paused = false;
         runSeconds = 0;
@@ -1378,7 +1416,8 @@
         for (var i = 0; i < traffic.length; i++) {
             var car = traffic[i];
             car.root.position.z += car.speed * dt;
-            car.root.position.x += (laneCenters[car.lane] - car.root.position.x) * Math.min(1, dt * 2.4);
+            var trafficTargetX = highwayCurveX(car.root.position.z) + laneCenters[car.lane];
+            car.root.position.x += (trafficTargetX - car.root.position.x) * Math.min(1, dt * 2.8);
             for (var w = 0; w < car.wheels.length; w++) car.wheels[w].rotation.x += car.speed * dt * 3.2;
             car.cool = Math.max(0, car.cool - dt);
             if (car.root.position.z < pz - 100 || car.root.position.z > pz + 1050 || car.root.position.z > ROAD_LENGTH - 80) {
@@ -1547,7 +1586,88 @@
         }
     }
 
+    function spawnCrashDebris(x, z, intensity) {
+        if (!scene) return;
+        if (!debrisPaintMat) {
+            debrisPaintMat = new BABYLON.PBRMaterial('debrisPaint', scene);
+            debrisPaintMat.albedoColor = color3(carPaintHex);
+            debrisPaintMat.metallic = 0.65;
+            debrisPaintMat.roughness = 0.3;
+            debrisCarbonMat = new BABYLON.PBRMaterial('debrisCarbon', scene);
+            debrisCarbonMat.albedoColor = new BABYLON.Color3(0.03, 0.032, 0.036);
+            debrisCarbonMat.metallic = 0.3;
+            debrisCarbonMat.roughness = 0.5;
+            debrisTireMat = new BABYLON.PBRMaterial('debrisTire', scene);
+            debrisTireMat.albedoColor = new BABYLON.Color3(0.012, 0.013, 0.015);
+            debrisTireMat.metallic = 0;
+            debrisTireMat.roughness = 0.9;
+        }
+        var count = Math.max(3, Math.min(9, 3 + Math.round((intensity || 0) * 0.5)));
+        for (var i = 0; i < count; i++) {
+            var size = 0.07 + Math.random() * 0.17;
+            var m = BABYLON.MeshBuilder.CreateBox('crashDebris', { size: size }, scene);
+            m.position.set(x + (Math.random() - 0.5) * 2.2, 0.55 + Math.random() * 0.8, z + (Math.random() - 0.5) * 2.4);
+            m.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
+            m.material = Math.random() < 0.58 ? debrisPaintMat : debrisCarbonMat;
+            m.isPickable = false;
+            debris.push({
+                mesh: m,
+                life: 1.5 + Math.random() * 1.1,
+                vx: (Math.random() - 0.5) * 9,
+                vy: 2.2 + Math.random() * 5.5,
+                vz: (Math.random() - 0.5) * 9,
+                rx: (Math.random() - 0.5) * 10,
+                ry: (Math.random() - 0.5) * 10
+            });
+        }
+        if ((intensity || 0) > 1.2 && Math.random() < 0.82) {
+            var tire = BABYLON.MeshBuilder.CreateCylinder('crashTyre', { height: 0.25, diameter: 0.72, tessellation: 16 }, scene);
+            tire.rotation.z = Math.PI / 2;
+            tire.position.set(x + (Math.random() < 0.5 ? -1 : 1) * 1.05, 0.48, z + (Math.random() - 0.5) * 2.5);
+            tire.material = debrisTireMat;
+            tire.isPickable = false;
+            debris.push({
+                mesh: tire,
+                life: 2.6,
+                vx: (Math.random() - 0.5) * 8,
+                vy: 2.5 + Math.random() * 4,
+                vz: (Math.random() - 0.5) * 8,
+                rx: (Math.random() - 0.5) * 8,
+                ry: (Math.random() - 0.5) * 8
+            });
+        }
+        while (debris.length > 48) {
+            var old = debris.shift();
+            try { old.mesh.dispose(); } catch (e) {}
+        }
+    }
+
+    function updateDebris(dt) {
+        for (var i = debris.length - 1; i >= 0; i--) {
+            var d = debris[i];
+            d.life -= dt;
+            if (d.life <= 0) {
+                try { d.mesh.dispose(); } catch (e) {}
+                debris.splice(i, 1);
+                continue;
+            }
+            d.vy -= 9.81 * dt;
+            d.mesh.position.x += d.vx * dt;
+            d.mesh.position.y += d.vy * dt;
+            d.mesh.position.z += d.vz * dt;
+            d.mesh.rotation.x += d.rx * dt;
+            d.mesh.rotation.y += d.ry * dt;
+            if (d.mesh.position.y < 0.08) {
+                d.mesh.position.y = 0.08;
+                d.vy = Math.abs(d.vy) * 0.32;
+                d.vx *= 0.68;
+                d.vz *= 0.68;
+            }
+        }
+    }
+
     function triggerImpactFx(x, z, intensity) {
+        spawnCrashDebris(x, z, intensity);
         if (!impactSparks) return;
         impactSparks.emitter = new BABYLON.Vector3(x, 0.82, z);
         impactSparks.emitRate = 160 + Math.min(340, (intensity || 0) * 10);
@@ -1556,7 +1676,6 @@
             impactSmoke.emitRate = 55 + Math.min(120, (intensity || 0) * 4);
         }
         impactSparkTimer = 0.22;
-        crashShake = Math.max(crashShake, Math.min(0.75, 0.18 + (intensity || 0) * 0.008));
     }
 
     function createExhaustSmoke() {
@@ -1805,7 +1924,6 @@
             }
         }
 
-        createExitGate(0, CITY_Z + 155, cityRoot, 'HIGHWAY');
     }
 
     function setWorldMode(mode) {
@@ -1844,19 +1962,8 @@
 
     function updateWorldPortals(dt) {
         portalCooldown = Math.max(0, portalCooldown - dt);
-        if (!chassis || portalCooldown > 0 || paused || garage || runOver) return;
-        var t = chassis.translation();
-        if (worldMode === 'highway') {
-            for (var i = 0; i < highwayExits.length; i++) {
-                if (Math.abs(t.z - highwayExits[i]) < 4 && t.x > 4.4 && t.x < 10) {
-                    enterCity(highwayExits[i]);
-                    return;
-                }
-            }
-        } else if (worldMode === 'city') {
-            if (Math.abs(t.z - (CITY_Z + 155)) < 5 && Math.abs(t.x) < 6) returnToHighway();
-        }
     }
+
 
     function createInterior() {
         interiorRoot = new BABYLON.TransformNode('interiorRoot', scene);
@@ -1895,11 +2002,11 @@
         box('doorPanelR', 0.045, 0.38, 0.96, 0.98, 0.22, -0.12, leather);
         box('dashTrim', 1.48, 0.022, 0.030, 0, 0.255, 0.53, trimMat);
         box('mirror', 0.30, 0.065, 0.05, 0, 0.82, 0.96, carbon);
-        box('pillarL', 0.035, 0.56, 0.065, -0.94, 0.61, 1.04, leather);
-        box('pillarR', 0.035, 0.56, 0.065, 0.94, 0.61, 1.04, leather);
+        box('pillarL', 0.026, 0.44, 0.055, -0.96, 0.60, 1.08, leather);
+        box('pillarR', 0.026, 0.44, 0.055, 0.96, 0.60, 1.08, leather);
         box('hoodEdge', 1.55, 0.030, 0.50, 0, 0.26, 1.65, carbon);
+        box('headliner', 1.52, 0.035, 1.05, 0, 1.12, -0.38, leather);
 
-        // BMW-style digital cluster behind the wheel.
         interiorScreenTex = new BABYLON.DynamicTexture('interiorCluster', { width: 320, height: 128 }, scene, false);
         var clusterMat = new BABYLON.StandardMaterial('interiorClusterMat', scene);
         clusterMat.diffuseTexture = interiorScreenTex;
@@ -1926,7 +2033,6 @@
         center.material = centerMat;
         center.parent = interiorRoot;
 
-        // Steering wheel.
         var wheel = BABYLON.MeshBuilder.CreateTorus('interiorWheel', { diameter: 0.34, thickness: 0.044, tessellation: 24 }, scene);
         wheel.rotation.x = Math.PI / 2;
         wheel.position.set(-0.34, 0.36, 0.58);
@@ -1951,7 +2057,7 @@
         interiorLight = new BABYLON.PointLight('interiorLight', new BABYLON.Vector3(-0.2, 0.64, 0.25), scene);
         interiorLight.parent = carRoot;
         interiorLight.intensity = 0.55;
-        interiorLight.range = 3.5;
+        interiorLight.range = 4.5;
         interiorLight.diffuse = new BABYLON.Color3(0.75, 0.84, 1.0);
         interiorLight.setEnabled(false);
         updateInteriorScreens(0, '1', 850);
@@ -1961,42 +2067,25 @@
         if (!interiorScreenTex || !centerScreenTex) return;
         try {
             var ctx = interiorScreenTex.getContext();
-            ctx.fillStyle = '#03080d';
-            ctx.fillRect(0, 0, 320, 128);
-            ctx.fillStyle = '#ff5b3d';
-            ctx.fillRect(14, 18, 292, 2);
-            ctx.fillStyle = '#eafaff';
-            ctx.font = '900 54px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(String(speed), 22, 75);
-            ctx.fillStyle = '#8fd8ff';
-            ctx.font = '800 16px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+            ctx.fillStyle = '#03080d'; ctx.fillRect(0, 0, 320, 128);
+            ctx.fillStyle = '#ff5b3d'; ctx.fillRect(14, 18, 292, 2);
+            ctx.fillStyle = '#eafaff'; ctx.font = '900 54px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+            ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(String(speed), 22, 75);
+            ctx.fillStyle = '#8fd8ff'; ctx.font = '800 16px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
             ctx.fillText(unit === 'kmh' ? 'KM/H' : 'MPH', 24, 112);
-            ctx.fillStyle = '#ffcf4d';
-            ctx.font = '900 32px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
-            ctx.textAlign = 'right';
-            ctx.fillText(String(gear), 294, 73);
-            ctx.fillStyle = '#5fe7ff';
-            ctx.fillRect(180, 92, 112 * clamp(rpm / 8000, 0, 1), 5);
+            ctx.fillStyle = '#ffcf4d'; ctx.font = '900 32px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+            ctx.textAlign = 'right'; ctx.fillText(String(gear), 294, 73);
+            ctx.fillStyle = '#5fe7ff'; ctx.fillRect(180, 92, 112 * clamp(rpm / 8000, 0, 1), 5);
             interiorScreenTex.update(false);
-
             ctx = centerScreenTex.getContext();
-            ctx.fillStyle = '#050d16';
-            ctx.fillRect(0, 0, 320, 160);
-            ctx.fillStyle = '#5fe7ff';
-            ctx.font = '900 23px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
-            ctx.textAlign = 'left';
-            ctx.fillText('REDLINE GT', 20, 42);
-            ctx.fillStyle = 'rgba(143, 216, 255, 0.62)';
-            ctx.font = '800 12px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+            ctx.fillStyle = '#050d16'; ctx.fillRect(0, 0, 320, 160);
+            ctx.fillStyle = '#5fe7ff'; ctx.font = '900 23px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+            ctx.textAlign = 'left'; ctx.fillText('REDLINE GT', 20, 42);
+            ctx.fillStyle = 'rgba(143,216,255,0.62)'; ctx.font = '800 12px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
             ctx.fillText('CITY NAVIGATION · ONLINE', 20, 68);
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.10)';
-            ctx.fillRect(20, 88, 280, 2);
-            ctx.fillStyle = '#ffcf4d';
-            ctx.fillRect(20, 108, 96 + (rpm / 8000) * 160, 7);
-            ctx.fillStyle = 'rgba(234, 250, 255, 0.72)';
-            ctx.font = '700 11px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+            ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.fillRect(20, 88, 280, 2);
+            ctx.fillStyle = '#ffcf4d'; ctx.fillRect(20, 108, 96 + (rpm / 8000) * 160, 7);
+            ctx.fillStyle = 'rgba(234,250,255,0.72)'; ctx.font = '700 11px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
             ctx.fillText('TRACTION  ON      SPORT  ON      ASSIST  ON', 20, 140);
             centerScreenTex.update(false);
         } catch (e) {}
@@ -2114,12 +2203,6 @@
         var ground = world.createRigidBody(rapier.RigidBodyDesc.fixed().setTranslation(0, -0.5, ROAD_LENGTH / 2));
         world.createCollider(rapier.ColliderDesc.cuboid(600, 0.5, ROAD_LENGTH / 2).setFriction(1.0), ground);
 
-        [-1, 1].forEach(function (side) {
-            var wall = world.createRigidBody(rapier.RigidBodyDesc.fixed()
-                .setTranslation(side * (ROAD_WIDTH / 2 + 0.68), 0.45, ROAD_LENGTH / 2));
-            world.createCollider(rapier.ColliderDesc.cuboid(0.16, 0.5, ROAD_LENGTH / 2), wall);
-        });
-
         var cityGround = world.createRigidBody(rapier.RigidBodyDesc.fixed().setTranslation(CITY_X, -0.5, CITY_Z));
         world.createCollider(rapier.ColliderDesc.cuboid(230, 0.5, 230).setFriction(1.0), cityGround);
         cityBuildings.forEach(function (b) {
@@ -2161,6 +2244,8 @@
         }
         ready = true;
         Object.keys(remoteRacers).forEach(function (id) { createRemoteBody(remoteRacers[id]); });
+        worldMode = 'highway';
+        setWorldMode('highway');
         syncCarVisual(0);
         resetRunWorld();
         setText('g3dGaugeStatus', 'BABYLON + RAPIER · HDR READY');
@@ -2366,11 +2451,6 @@
         displaySpeed = Math.sqrt(v.x * v.x + v.z * v.z);
         runSeconds += dt;
         updateWorldPortals(dt);
-        if (!runOver && wallImpactCool <= 0 && Math.abs(t.x) > 10.65 && Math.abs(v.x) > 2.0) {
-            wallImpactCool = 0.8;
-            triggerImpactFx(t.x, t.z, Math.abs(v.x) * 3.2);
-            playTone(120, 0.16, 'square', 0.07, 55);
-        }
         lastPlayerZ = t.z;
 
         if (worldMode === 'highway' && t.z > ROAD_LENGTH - 220) {
@@ -2391,7 +2471,8 @@
 
     function resetCar(keepDistance, silent) {
         if (!chassis) return;
-        chassis.setTranslation({ x: 0, y: 0.92, z: spawnZ }, true);
+        var resetZ = spawnZ;
+        chassis.setTranslation({ x: 0, y: 0.92, z: resetZ }, true);
         chassis.setRotation({ x: 0, y: 0, z: 0, w: 1 }, true);
         chassis.setLinvel({ x: 0, y: 0, z: 0 }, true);
         chassis.setAngvel({ x: 0, y: 0, z: 0 }, true);
@@ -2483,31 +2564,13 @@
         // rigidly attached to the car so every bump, lean and impact is felt.
         var eyeLocal = new BABYLON.Vector3(-0.33, 0.72, -0.05);
         eyeLocal.x += steerVisual * 0.030;
-        eyeLocal.z -= Math.min(0.045, cameraAccelSmooth * 0.0018);
+        eyeLocal.z -= Math.min(0.16, cameraAccelSmooth * 0.0065);
         var eye = carPos.add(BABYLON.Vector3.TransformNormal(eyeLocal, rotMatrix));
         var focus = eye.add(forward.scale(18)).add(new BABYLON.Vector3(0, 0.06 + (input.brake ? -0.02 : 0), 0));
         camPos = eye;
         camTarget = focus;
         camera.position.copyFrom(eye);
         camera.upVector.set(steerVisual * 0.024, 1, 0);
-        if (powerShake > 0.001) {
-            var nowMs = performance.now();
-            var sx = (Math.sin(nowMs * 0.052) + Math.sin(nowMs * 0.113) * 0.45) * powerShake;
-            var sy = (Math.sin(nowMs * 0.067) + Math.sin(nowMs * 0.149) * 0.35) * powerShake * 0.8;
-            var sz = Math.sin(nowMs * 0.083) * powerShake * 0.35;
-            camera.position.x += sx;
-            camera.position.y += sy;
-            camera.position.z += sz;
-            camTarget.x += sx * 0.45;
-            camTarget.y += sy * 0.30;
-        }
-        if (crashShake > 0.001) {
-            crashShake = Math.max(0, crashShake - dt * 2.1);
-            camera.position.x += (Math.random() - 0.5) * crashShake;
-            camera.position.y += (Math.random() - 0.5) * crashShake * 0.7;
-            camera.position.z += (Math.random() - 0.5) * crashShake;
-            camTarget.x += (Math.random() - 0.5) * crashShake * 0.6;
-        }
         camera.setTarget(camTarget);
         camera.fov = 1.06 + speedFactor * 0.06;
     }
@@ -2592,7 +2655,7 @@
                 else if (garage) setText('g3dGaugeStatus', 'GARAGE · PRESS PLAY TO DRIVE');
                 else if (runOver) setText('g3dGaugeStatus', 'CRASHED · PRESS PLAY AGAIN');
                 else if (paused) setText('g3dGaugeStatus', 'PAUSED');
-                else if (worldMode === 'city') setText('g3dGaugeStatus', 'CITY · HIGHWAY GATE AHEAD');
+                else if (worldMode === 'city') setText('g3dGaugeStatus', 'CITY · NIGHT DRIVE');
                 else if (input.drift && displaySpeed > 9) setText('g3dGaugeStatus', 'DRIFT · ' + Math.round(driftScore));
                 else if (isSanta) {
                     if (flyTime > 0) setText('g3dGaugeStatus', 'SANTA FLYING · ' + flyTime.toFixed(1) + 's');
@@ -2636,6 +2699,7 @@
         if (driftSmoke) {
             driftSmoke.emitRate = (input.drift && displaySpeed > 9 && !garage && !runOver) ? 50 + Math.min(120, displaySpeed * 0.7) : 0;
         }
+        updateDebris(dt);
         if (impactSparks) {
             impactSparkTimer = Math.max(0, impactSparkTimer - dt);
             if (impactSparkTimer <= 0) {
@@ -2753,6 +2817,8 @@
 
     function fail(error) {
         failed = true;
+        try { console.error('Babylon racer failed', error); } catch (e) {}
+        window.__babylonRacerError = error && (error.stack || error.message || String(error));
         active = false;
         if (engine) {
             try { engine.dispose(); } catch (e) {}
@@ -2954,6 +3020,7 @@
         sky = null;
         exhaustSmoke = null;
         exhaustEmitter = null;
+        debris = [];
         interiorRoot = null;
         interiorLight = null;
         interiorScreenTex = null;
