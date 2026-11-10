@@ -2002,10 +2002,18 @@
         box('doorPanelR', 0.045, 0.38, 0.96, 0.98, 0.22, -0.12, leather);
         box('dashTrim', 1.48, 0.022, 0.030, 0, 0.255, 0.53, trimMat);
         box('mirror', 0.30, 0.065, 0.05, 0, 0.82, 0.96, carbon);
-        box('pillarL', 0.026, 0.44, 0.055, -0.96, 0.60, 1.08, leather);
-        box('pillarR', 0.026, 0.44, 0.055, 0.96, 0.60, 1.08, leather);
+        box('pillarL', 0.034, 0.52, 0.060, -0.96, 0.63, 1.05, leather);
+        box('pillarR', 0.034, 0.52, 0.060, 0.96, 0.63, 1.05, leather);
         box('hoodEdge', 1.55, 0.030, 0.50, 0, 0.26, 1.65, carbon);
-        box('headliner', 1.52, 0.035, 1.05, 0, 1.12, -0.38, leather);
+        box('headliner', 1.58, 0.045, 1.30, 0, 0.98, -0.05, leather);
+        box('headlinerFront', 1.54, 0.055, 0.08, 0, 0.94, 0.66, leather);
+        box('overheadConsole', 0.32, 0.055, 0.22, 0, 0.945, 0.34, carbon);
+        var roofLightMat = new BABYLON.StandardMaterial('interiorRoofLightMat', scene);
+        roofLightMat.diffuseColor = new BABYLON.Color3(1, 0.78, 0.44);
+        roofLightMat.emissiveColor = new BABYLON.Color3(1, 0.50, 0.15);
+        roofLightMat.disableLighting = true;
+        box('roofLightL', 0.10, 0.020, 0.12, -0.18, 0.925, 0.34, roofLightMat);
+        box('roofLightR', 0.10, 0.020, 0.12, 0.18, 0.925, 0.34, roofLightMat);
 
         interiorScreenTex = new BABYLON.DynamicTexture('interiorCluster', { width: 320, height: 128 }, scene, false);
         var clusterMat = new BABYLON.StandardMaterial('interiorClusterMat', scene);
