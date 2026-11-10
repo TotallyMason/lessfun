@@ -30,6 +30,27 @@
     var opts = {};
     var spawnZ = START_Z;
     var keyHandlers = null;
+    var selectedCar = null, carCosmetics = null;
+    var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.25;
+    var laneCenters = [-9.16, -5.5, -1.83, 1.83, 5.5, 9.16];
+    var traffic = [], coinPickups = [], trafficTimer = 0;
+    var runOver = false, runSeconds = 0, coinsCollected = 0, coinsAwarded = false, scoreSubmitted = false;
+    var fsdActive = false, fsdLane = 2, fsdThink = 0, fsdSteerTarget = 0, fsdBrake = false, fsdThrottle = false;
+    var lastPlayerZ = START_Z;
+    var audioCtx = null, audioMaster = null, audioCompressor = null, audioListeners = null;
+    var audioSamples = {}, audioLoops = {}, audioSynth = null;
+    var trafficPaintCache = {};
+    var trafficShared = null;
+    var coinMaterial = null;
+
+    var TRAFFIC_SPECS = {
+        sedan: { w: 1.82, l: 4.3, bodyH: 0.42, cabinH: 0.38, cabinL: 1.75, cabinZ: -0.10, y: 0.60 },
+        sport: { w: 1.88, l: 4.35, bodyH: 0.34, cabinH: 0.30, cabinL: 1.45, cabinZ: -0.05, y: 0.54 },
+        suv:   { w: 1.98, l: 4.75, bodyH: 0.58, cabinH: 0.48, cabinL: 2.25, cabinZ: -0.20, y: 0.72 },
+        van:   { w: 2.02, l: 5.2, bodyH: 0.68, cabinH: 0.56, cabinL: 2.85, cabinZ: -0.25, y: 0.80 },
+        truck: { w: 2.35, l: 7.0, bodyH: 0.72, cabinH: 0.78, cabinL: 1.95, cabinZ: 2.20, y: 0.82 },
+        bus:   { w: 2.52, l: 9.4, bodyH: 1.34, cabinH: 0.62, cabinL: 7.3, cabinZ: -0.30, y: 1.02 }
+    };
 
     var input = {
         throttle: false, brake: false, left: false, right: false,
@@ -55,6 +76,270 @@
             if (toastTimer) clearTimeout(toastTimer);
             toastTimer = setTimeout(function () { toastTimer = 0; }, 2600);
         }
+    }
+
+    function color3(hex) {
+        if (typeof hex === 'string') {
+            var m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+            hex = m ? parseInt(m[1], 16) : 0x8a6f5a;
+        }
+        hex = num(hex, 0x8a6f5a) | 0;
+        return new BABYLON.Color3(((hex >> 16) & 255) / 255, ((hex >> 8) & 255) / 255, (hex & 255) / 255);
+    }
+
+    function setRunCoins(value) {
+        var el = $('g3dRunCoins');
+        if (el) el.textContent = String(value);
+    }
+
+    function runScore() {
+        return Math.floor(distance + coinsCollected * 120 + driftScore);
+    }
+
+    /* --------------------------------------------------------------------
+       Web Audio: sampled engine/wind with synthesized fallback
+       -------------------------------------------------------------------- */
+    function makeAudioLoop(buffer) {
+        if (!audioCtx || !buffer) return null;
+        var src = audioCtx.createBufferSource();
+        src.buffer = buffer;
+        src.loop = true;
+        var gain = audioCtx.createGain();
+        gain.gain.value = 0;
+        src.connect(gain);
+        gain.connect(audioMaster);
+        try { src.start(0); } catch (e) {}
+        return { src: src, gain: gain };
+    }
+
+    function decodeAudio(url) {
+        return fetch(url, { cache: 'force-cache' }).then(function (response) {
+            if (!response.ok) throw new Error('audio ' + url);
+            return response.arrayBuffer();
+        }).then(function (data) {
+            return new Promise(function (resolve, reject) {
+                audioCtx.decodeAudioData(data, resolve, reject);
+            });
+        });
+    }
+
+    function loadAudioSamples() {
+        if (!audioCtx) return;
+        var names = ['engineLow', 'engineHigh', 'windLow', 'windHigh', 'gear', 'crash'];
+        var urls = [
+            'audio/engine-low.mp3', 'audio/engine-high.mp3',
+            'audio/wind-low.mp3', 'audio/wind-high.mp3',
+            'audio/gear-select.mp3', 'audio/crash.mp3'
+        ];
+        Promise.all(urls.map(function (url) {
+            return decodeAudio(url).catch(function () { return null; });
+        })).then(function (buffers) {
+            if (!audioCtx) return;
+            for (var i = 0; i < names.length; i++) audioSamples[names[i]] = buffers[i];
+            if (buffers[0]) audioLoops.engineLow = makeAudioLoop(buffers[0]);
+            if (buffers[1]) audioLoops.engineHigh = makeAudioLoop(buffers[1]);
+            if (buffers[2]) audioLoops.windLow = makeAudioLoop(buffers[2]);
+            if (buffers[3]) audioLoops.windHigh = makeAudioLoop(buffers[3]);
+        }).catch(function () {
+            // Synthesized engine/wind remain available if a sample is missing.
+        });
+    }
+
+    function initAudio() {
+        if (audioCtx) return;
+        var AC = global.AudioContext || global.webkitAudioContext;
+        if (!AC) return;
+        try {
+            audioCtx = new AC();
+            audioMaster = audioCtx.createGain();
+            audioMaster.gain.value = sound ? 0.34 : 0;
+            audioCompressor = audioCtx.createDynamicsCompressor();
+            audioCompressor.threshold.value = -18;
+            audioCompressor.knee.value = 18;
+            audioCompressor.ratio.value = 5;
+            audioCompressor.attack.value = 0.004;
+            audioCompressor.release.value = 0.2;
+            audioMaster.connect(audioCompressor);
+            audioCompressor.connect(audioCtx.destination);
+
+            var engineFilter = audioCtx.createBiquadFilter();
+            engineFilter.type = 'lowpass';
+            engineFilter.frequency.value = 780;
+            var engineGain = audioCtx.createGain();
+            engineGain.gain.value = 0;
+            engineFilter.connect(engineGain);
+            engineGain.connect(audioMaster);
+            var engineOsc = audioCtx.createOscillator();
+            engineOsc.type = 'sawtooth';
+            engineOsc.frequency.value = 52;
+            engineOsc.connect(engineFilter);
+            var subOsc = audioCtx.createOscillator();
+            subOsc.type = 'triangle';
+            subOsc.frequency.value = 80;
+            var subGain = audioCtx.createGain();
+            subGain.gain.value = 0.35;
+            subOsc.connect(subGain);
+            subGain.connect(engineFilter);
+            try { engineOsc.start(); subOsc.start(); } catch (e) {}
+
+            var noiseLen = Math.floor(audioCtx.sampleRate * 1.2);
+            var noiseBuffer = audioCtx.createBuffer(1, noiseLen, audioCtx.sampleRate);
+            var noiseData = noiseBuffer.getChannelData(0);
+            for (var n = 0; n < noiseLen; n++) noiseData[n] = Math.random() * 2 - 1;
+            var windFilter = audioCtx.createBiquadFilter();
+            windFilter.type = 'bandpass';
+            windFilter.frequency.value = 760;
+            windFilter.Q.value = 0.55;
+            var windGain = audioCtx.createGain();
+            windGain.gain.value = 0;
+            var windSrc = audioCtx.createBufferSource();
+            windSrc.buffer = noiseBuffer;
+            windSrc.loop = true;
+            windSrc.connect(windFilter);
+            windFilter.connect(windGain);
+            windGain.connect(audioMaster);
+            try { windSrc.start(0); } catch (e) {}
+
+            audioSynth = {
+                engineFilter: engineFilter,
+                engineGain: engineGain,
+                engineOsc: engineOsc,
+                subOsc: subOsc,
+                windFilter: windFilter,
+                windGain: windGain,
+                windSrc: windSrc
+            };
+
+            audioListeners = function () {
+                if (!audioCtx) return;
+                if (audioCtx.state === 'suspended') {
+                    var p = audioCtx.resume();
+                    if (p && p.catch) p.catch(function () {});
+                }
+            };
+            document.addEventListener('pointerdown', audioListeners, { passive: true });
+            document.addEventListener('keydown', audioListeners);
+            audioListeners();
+            loadAudioSamples();
+        } catch (e) {
+            audioCtx = null;
+            audioSynth = null;
+        }
+    }
+
+    function stopAudio() {
+        if (audioListeners) {
+            document.removeEventListener('pointerdown', audioListeners);
+            document.removeEventListener('keydown', audioListeners);
+            audioListeners = null;
+        }
+        Object.keys(audioLoops).forEach(function (key) {
+            var loop = audioLoops[key];
+            if (!loop) return;
+            try { loop.src.stop(); } catch (e) {}
+            try { loop.src.disconnect(); } catch (e) {}
+        });
+        audioLoops = {};
+        if (audioSynth) {
+            try { audioSynth.engineOsc.stop(); } catch (e) {}
+            try { audioSynth.subOsc.stop(); } catch (e) {}
+            try { audioSynth.windSrc.stop(); } catch (e) {}
+            audioSynth = null;
+        }
+        if (audioCtx) {
+            try { audioCtx.close(); } catch (e) {}
+        }
+        audioCtx = null;
+        audioMaster = null;
+        audioCompressor = null;
+        audioSamples = {};
+    }
+
+    function playTone(freq, duration, type, volume, endFreq) {
+        if (!sound || !audioCtx || !audioMaster) return;
+        try {
+            var now = audioCtx.currentTime;
+            var osc = audioCtx.createOscillator();
+            var gain = audioCtx.createGain();
+            osc.type = type || 'sine';
+            osc.frequency.setValueAtTime(freq, now);
+            if (endFreq) osc.frequency.exponentialRampToValueAtTime(Math.max(30, endFreq), now + duration);
+            gain.gain.setValueAtTime(Math.max(0.0001, volume || 0.05), now);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+            osc.connect(gain);
+            gain.connect(audioMaster);
+            osc.start(now);
+            osc.stop(now + duration + 0.02);
+        } catch (e) {}
+    }
+
+    function playAudioSample(name, volume, rate) {
+        if (!sound || !audioCtx || !audioMaster || !audioSamples[name]) return false;
+        try {
+            var src = audioCtx.createBufferSource();
+            src.buffer = audioSamples[name];
+            src.playbackRate.value = rate || 1;
+            var gain = audioCtx.createGain();
+            gain.gain.value = volume || 0.3;
+            src.connect(gain);
+            gain.connect(audioMaster);
+            src.start(0);
+            return true;
+        } catch (e) { return false; }
+    }
+
+    function playCoinSound() {
+        if (!playAudioSample('coin', 0.28, 0.96 + Math.random() * 0.1)) {
+            playTone(980, 0.10, 'square', 0.045, 1460);
+            setTimeout(function () { playTone(1460, 0.10, 'square', 0.035, 1850); }, 55);
+        }
+    }
+
+    function playCrashSound() {
+        if (!playAudioSample('crash', 0.62, 0.94 + Math.random() * 0.12)) {
+            playTone(110, 0.42, 'sawtooth', 0.18, 34);
+        }
+    }
+
+    function playGearSound() {
+        if (!playAudioSample('gear', 0.24, 0.96 + Math.random() * 0.1)) {
+            playTone(240, 0.06, 'square', 0.035, 160);
+        }
+    }
+
+    function updateAudio() {
+        if (!audioCtx || !audioSynth || !audioMaster) return;
+        try {
+            var now = audioCtx.currentTime;
+            var speed = displaySpeed || 0;
+            var running = active && ready && !runOver && !paused;
+            var rev = clamp(speed / Math.max(18, driveMaxSpeed) + (input.throttle ? 0.14 : 0) + (input.nitro && nitro > 0 ? 0.18 : 0), 0, 1);
+            if (garage) { running = true; rev = 0.06; }
+            var hasEngine = !!(audioLoops.engineLow && audioLoops.engineHigh);
+            var hasWind = !!(audioLoops.windLow && audioLoops.windHigh);
+            var synthGain = running ? (hasEngine ? 0.006 : 0.035 + rev * 0.025) : 0;
+            audioSynth.engineGain.gain.setTargetAtTime(synthGain, now, 0.08);
+            audioSynth.engineOsc.frequency.setTargetAtTime(48 + rev * 165, now, 0.06);
+            audioSynth.subOsc.frequency.setTargetAtTime(76 + rev * 236, now, 0.06);
+            audioSynth.engineFilter.frequency.setTargetAtTime(460 + speed * 12 + (input.nitro && nitro > 0 ? 360 : 0), now, 0.1);
+            audioSynth.windGain.gain.setTargetAtTime(running && !hasWind ? Math.min(0.08, speed / 900) : 0, now, 0.12);
+            audioSynth.windFilter.frequency.setTargetAtTime(520 + speed * 8, now, 0.12);
+
+            if (hasEngine) {
+                audioLoops.engineLow.gain.gain.setTargetAtTime(running ? 0.10 + rev * 0.17 : 0, now, 0.09);
+                audioLoops.engineHigh.gain.gain.setTargetAtTime(running ? Math.max(0, rev - 0.35) * 0.30 : 0, now, 0.09);
+                audioLoops.engineLow.src.playbackRate.setTargetAtTime(0.78 + rev * 0.96, now, 0.1);
+                audioLoops.engineHigh.src.playbackRate.setTargetAtTime(0.86 + rev * 1.18, now, 0.1);
+            }
+            if (hasWind) {
+                var windFrac = Math.min(1, speed / 95);
+                audioLoops.windLow.gain.gain.setTargetAtTime(running ? 0.025 + windFrac * 0.14 : 0, now, 0.12);
+                audioLoops.windHigh.gain.gain.setTargetAtTime(running ? Math.max(0, windFrac - 0.4) * 0.28 : 0, now, 0.12);
+                audioLoops.windLow.src.playbackRate.setTargetAtTime(0.82 + windFrac * 0.52, now, 0.14);
+                audioLoops.windHigh.src.playbackRate.setTargetAtTime(0.9 + windFrac * 0.7, now, 0.14);
+            }
+            audioMaster.gain.setTargetAtTime(sound ? 0.34 : 0, now, 0.1);
+        } catch (e) {}
     }
 
     function loadRapier() {
@@ -415,9 +700,16 @@
 
     function createCar() {
         carRoot = new BABYLON.TransformNode('babylonRacerCar', scene);
+        var style = selectedCar ? String(selectedCar.style || '') : '';
+        var paintHex = selectedCar && selectedCar.threeColor != null
+            ? selectedCar.threeColor
+            : (carCosmetics && carCosmetics.paint != null ? carCosmetics.paint : 0xc2280b);
+        var longScale = style === 'limo' || style === 'bus' ? 1.16 : (style === 'truck' || style === 'suv' || style === 'van' ? 1.06 : 1);
+        var wideScale = style === 'truck' || style === 'suv' || style === 'bus' ? 1.06 : 1;
+        carRoot.scaling.set(wideScale, 1, longScale);
         var paint = new BABYLON.PBRMaterial('racerPaint', scene);
-        paint.albedoColor = new BABYLON.Color3(0.79, 0.16, 0.055);
-        paint.metallic = 0.72;
+        paint.albedoColor = color3(paintHex);
+        paint.metallic = style === 'f1' ? 0.35 : 0.72;
         paint.roughness = 0.24;
         paint.clearCoat.isEnabled = true;
         paint.clearCoat.intensity = 0.8;
@@ -503,7 +795,9 @@
         tireMat.metallic = 0.0;
         tireMat.roughness = 0.88;
         var rimMat = new BABYLON.PBRMaterial('rimMaterial', scene);
-        rimMat.albedoColor = new BABYLON.Color3(0.60, 0.63, 0.67);
+        rimMat.albedoColor = carCosmetics && carCosmetics.wheel != null
+            ? color3(carCosmetics.wheel)
+            : new BABYLON.Color3(0.60, 0.63, 0.67);
         rimMat.metallic = 0.9;
         rimMat.roughness = 0.18;
         var brakeMat = new BABYLON.StandardMaterial('brakeDiscMaterial', scene);
@@ -537,6 +831,273 @@
         wheel('frontRight', 0.93, 1.36, true);
         wheel('rearLeft', -0.97, -1.38, false);
         wheel('rearRight', 0.97, -1.38, false);
+    }
+
+    function ensureTrafficShared() {
+        if (trafficShared) return;
+        var glass = new BABYLON.PBRMaterial('trafficGlass', scene);
+        glass.albedoColor = new BABYLON.Color3(0.025, 0.045, 0.07);
+        glass.metallic = 0.2;
+        glass.roughness = 0.08;
+        glass.alpha = 0.8;
+        glass.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+        var tire = new BABYLON.PBRMaterial('trafficTyre', scene);
+        tire.albedoColor = new BABYLON.Color3(0.015, 0.016, 0.019);
+        tire.metallic = 0;
+        tire.roughness = 0.9;
+        var head = new BABYLON.StandardMaterial('trafficHeadlight', scene);
+        head.diffuseColor = new BABYLON.Color3(1, 0.94, 0.78);
+        head.emissiveColor = new BABYLON.Color3(1, 0.86, 0.58);
+        head.disableLighting = true;
+        var tail = new BABYLON.StandardMaterial('trafficTaillight', scene);
+        tail.diffuseColor = new BABYLON.Color3(0.7, 0.015, 0.02);
+        tail.emissiveColor = new BABYLON.Color3(1, 0.02, 0.02);
+        tail.disableLighting = true;
+        var trim = new BABYLON.PBRMaterial('trafficTrim', scene);
+        trim.albedoColor = new BABYLON.Color3(0.11, 0.12, 0.14);
+        trim.metallic = 0.55;
+        trim.roughness = 0.4;
+        trafficShared = { glass: glass, tire: tire, head: head, tail: tail, trim: trim };
+    }
+
+    function makeTrafficCar(style, colorHex) {
+        ensureTrafficShared();
+        var spec = TRAFFIC_SPECS[style] || TRAFFIC_SPECS.sedan;
+        var root = new BABYLON.TransformNode('traffic_' + style, scene);
+        var paintKey = String(colorHex);
+        if (!trafficPaintCache[paintKey]) {
+            var freshPaint = new BABYLON.PBRMaterial('trafficPaint_' + paintKey, scene);
+            freshPaint.albedoColor = color3(colorHex);
+            freshPaint.metallic = 0.48;
+            freshPaint.roughness = 0.34;
+            trafficPaintCache[paintKey] = freshPaint;
+        }
+        var paint = trafficPaintCache[paintKey];
+
+        function part(name, w, h, d, x, y, z, mat) {
+            var m = BABYLON.MeshBuilder.CreateBox(name, { width: w, height: h, depth: d }, scene);
+            m.position.set(x, y, z);
+            m.material = mat;
+            m.parent = root;
+            m.receiveShadows = true;
+            if (shadow && (name === 'body' || name === 'cabin' || name === 'trailer')) shadow.addShadowCaster(m, true);
+            return m;
+        }
+
+        part('body', spec.w, spec.bodyH, spec.l, 0, spec.y - spec.bodyH * 0.1, 0, paint);
+        if (style === 'bus') {
+            part('cabin', spec.w * 0.96, spec.cabinH, spec.cabinL, 0, spec.y + spec.bodyH * 0.46, spec.cabinZ, trafficShared.glass);
+            part('roof', spec.w * 0.98, 0.12, spec.cabinL, 0, spec.y + spec.bodyH * 0.46 + spec.cabinH * 0.54, spec.cabinZ, paint);
+        } else if (style === 'truck') {
+            part('cabin', spec.w * 0.9, spec.cabinH, spec.cabinL, 0, spec.y + 0.1, spec.cabinZ, paint);
+            part('trailer', spec.w, 1.45, 4.35, 0, spec.y + 0.45, -0.72, paint);
+            part('trailerGlass', spec.w * 0.9, 0.32, 0.12, 0, spec.y + 0.1, spec.cabinZ + 0.95, trafficShared.glass);
+        } else {
+            part('cabin', spec.w * 0.86, spec.cabinH, spec.cabinL, 0, spec.y + spec.bodyH * 0.45, spec.cabinZ, trafficShared.glass);
+            part('roof', spec.w * 0.88, 0.11, spec.cabinL, 0, spec.y + spec.bodyH * 0.45 + spec.cabinH * 0.52, spec.cabinZ, paint);
+        }
+        part('bumperF', spec.w * 0.92, 0.12, 0.14, 0, spec.y - spec.bodyH * 0.42, spec.l / 2 + 0.02, trafficShared.trim);
+        part('bumperR', spec.w * 0.92, 0.12, 0.14, 0, spec.y - spec.bodyH * 0.42, -spec.l / 2 - 0.02, trafficShared.trim);
+        part('headL', 0.38, 0.11, 0.08, -spec.w * 0.30, spec.y - spec.bodyH * 0.05, spec.l / 2 + 0.08, trafficShared.head);
+        part('headR', 0.38, 0.11, 0.08, spec.w * 0.30, spec.y - spec.bodyH * 0.05, spec.l / 2 + 0.08, trafficShared.head);
+        part('tailL', 0.38, 0.10, 0.08, -spec.w * 0.30, spec.y - spec.bodyH * 0.02, -spec.l / 2 - 0.08, trafficShared.tail);
+        part('tailR', 0.38, 0.10, 0.08, spec.w * 0.30, spec.y - spec.bodyH * 0.02, -spec.l / 2 - 0.08, trafficShared.tail);
+
+        var wheels = [];
+        var wheelR = style === 'truck' || style === 'bus' ? 0.46 : 0.34;
+        var wheelX = spec.w / 2 - 0.12;
+        var axleZ = [spec.l * 0.33, -spec.l * 0.33];
+        for (var wi = 0; wi < 2; wi++) {
+            for (var side = -1; side <= 1; side += 2) {
+                var wheel = BABYLON.MeshBuilder.CreateCylinder('trafficWheel', { height: 0.26, diameter: wheelR * 2, tessellation: 12 }, scene);
+                wheel.rotation.z = Math.PI / 2;
+                wheel.position.set(side * wheelX, wheelR, axleZ[wi]);
+                wheel.material = trafficShared.tire;
+                wheel.parent = root;
+                wheels.push(wheel);
+            }
+        }
+        return { root: root, spec: spec, style: style, wheels: wheels, speed: 18, lane: 2, cool: 0, paint: paint };
+    }
+
+    function placeTrafficCar(car, pz, offset) {
+        car.lane = Math.floor(Math.random() * laneCenters.length);
+        car.root.position.set(laneCenters[car.lane], 0, pz + offset + Math.random() * 35);
+        car.root.position.z = Math.max(spawnZ + 90, car.root.position.z);
+        car.speed = 6 + Math.random() * 8;
+    }
+
+    function makeCoinPickup(index) {
+        if (!coinMaterial) {
+            coinMaterial = new BABYLON.PBRMaterial('coinMaterial', scene);
+            coinMaterial.albedoColor = new BABYLON.Color3(1, 0.72, 0.12);
+            coinMaterial.emissiveColor = new BABYLON.Color3(0.9, 0.50, 0.04);
+            coinMaterial.metallic = 0.9;
+            coinMaterial.roughness = 0.18;
+        }
+        var mesh = BABYLON.MeshBuilder.CreateTorus('racerCoin' + index, { diameter: 0.82, thickness: 0.20, tessellation: 14 }, scene);
+        mesh.rotation.x = Math.PI / 2;
+        mesh.material = coinMaterial;
+        mesh.isPickable = false;
+        return { mesh: mesh, z: 0, x: 0, active: true };
+    }
+
+    function placeCoin(coin, pz, offset) {
+        var lane = Math.floor(Math.random() * laneCenters.length);
+        coin.x = laneCenters[lane];
+        coin.z = pz + offset + Math.random() * 24;
+        coin.active = true;
+        coin.mesh.setEnabled(true);
+    }
+
+    function spawnRunTraffic(initial) {
+        if (!traffic.length) {
+            var count = isLowPower() ? 6 : 10;
+            var styles = ['sedan', 'sport', 'suv', 'sedan', 'van', 'truck', 'suv', 'bus', 'sport', 'sedan'];
+            var colors = [0xef476f, 0xffd166, 0x06d6a0, 0x118ab2, 0xf78c6b, 0xf7f3e8, 0x7f8c8d, 0x9b5de5];
+            for (var i = 0; i < count; i++) {
+                traffic.push(makeTrafficCar(styles[i % styles.length], colors[i % colors.length]));
+            }
+        }
+        var pz = spawnZ;
+        for (var t = 0; t < traffic.length; t++) {
+            placeTrafficCar(traffic[t], pz, 30 + t * (initial ? 46 : 38));
+        }
+    }
+
+    function spawnRunCoins(initial) {
+        if (!coinPickups.length) {
+            var count = isLowPower() ? 10 : 16;
+            for (var i = 0; i < count; i++) coinPickups.push(makeCoinPickup(i));
+        }
+        for (var c = 0; c < coinPickups.length; c++) placeCoin(coinPickups[c], spawnZ, 18 + c * (initial ? 30 : 26));
+    }
+
+    function resetRunWorld() {
+        runOver = false;
+        paused = false;
+        runSeconds = 0;
+        coinsCollected = 0;
+        coinsAwarded = false;
+        scoreSubmitted = false;
+        fsdActive = false;
+        fsdThink = 0;
+        setRunCoins(0);
+        var over = $('g3dOver');
+        if (over) over.style.display = 'none';
+        spawnRunTraffic(true);
+        spawnRunCoins(true);
+    }
+
+    function crashRun() {
+        if (runOver || garage) return;
+        runOver = true;
+        paused = true;
+        fsdActive = false;
+        input.throttle = false; input.brake = false;
+        input.left = false; input.right = false; input.nitro = false;
+        var flash = $('g3dCrashFlash');
+        if (flash) {
+            flash.classList.add('is-active');
+            setTimeout(function () { flash.classList.remove('is-active'); }, 500);
+        }
+        playCrashSound();
+        var score = runScore();
+        if (!coinsAwarded && coinsCollected > 0 && typeof opts.onCoins === 'function') {
+            coinsAwarded = true;
+            try { opts.onCoins(coinsCollected); } catch (e) {}
+        }
+        if (typeof opts.onScore === 'function') {
+            scoreSubmitted = true;
+            try { opts.onScore('Beach Racer', score); } catch (e) {}
+        }
+        if (typeof opts.onGameOver === 'function') {
+            try { opts.onGameOver(score, Math.max(1, Math.floor(runSeconds))); } catch (e) {}
+        }
+    }
+
+    function nearestTrafficGap(lane, pz) {
+        var best = 900;
+        for (var i = 0; i < traffic.length; i++) {
+            var car = traffic[i];
+            if (Math.abs(car.root.position.x - laneCenters[lane]) > 1.7) continue;
+            var dz = car.root.position.z - pz;
+            if (dz > 0 && dz < best) best = dz;
+        }
+        return best;
+    }
+
+    function updateFsd(dt, forwardSpeed) {
+        if (!fsdActive || !chassis) return;
+        var t = chassis.translation();
+        fsdThink -= dt;
+        if (fsdThink <= 0) {
+            fsdThink = 0.28;
+            var bestLane = 0;
+            var bestScore = -99999;
+            for (var l = 0; l < laneCenters.length; l++) {
+                var gap = nearestTrafficGap(l, t.z);
+                var score = Math.min(500, gap) - Math.abs(laneCenters[l] - t.x) * 3;
+                if (score > bestScore) { bestScore = score; bestLane = l; }
+            }
+            fsdLane = bestLane;
+        }
+        var gapAhead = nearestTrafficGap(fsdLane, t.z);
+        var safeGap = 13 + forwardSpeed * 0.55;
+        fsdBrake = gapAhead < safeGap && forwardSpeed > 5;
+        fsdThrottle = !fsdBrake && forwardSpeed < driveMaxSpeed * 0.74;
+        fsdSteerTarget = clamp((laneCenters[fsdLane] - t.x) * 0.60, -1, 1);
+    }
+
+    function updateTraffic(dt) {
+        if (!chassis) return;
+        var p = chassis.translation();
+        var pz = p.z;
+        for (var i = 0; i < traffic.length; i++) {
+            var car = traffic[i];
+            car.root.position.z += car.speed * dt;
+            car.root.position.x += (laneCenters[car.lane] - car.root.position.x) * Math.min(1, dt * 2.4);
+            for (var w = 0; w < car.wheels.length; w++) car.wheels[w].rotation.x += car.speed * dt * 3.2;
+            car.cool = Math.max(0, car.cool - dt);
+            if (car.root.position.z < pz - 100 || car.root.position.z > pz + 1050 || car.root.position.z > ROAD_LENGTH - 80) {
+                placeTrafficCar(car, pz, 520 + Math.random() * 280);
+            }
+            if (runOver || garage || paused) continue;
+            var dx = Math.abs(p.x - car.root.position.x);
+            var dz = Math.abs(pz - car.root.position.z);
+            if (dx < 0.92 + car.spec.w / 2 && dz < 2.15 + car.spec.l / 2 && car.cool <= 0) {
+                car.cool = 1.2;
+                if (Math.abs(displaySpeed - car.speed) > 6 || displaySpeed > 12) {
+                    crashRun();
+                    return;
+                }
+                var v = chassis.linvel();
+                chassis.setLinvel({ x: v.x * 0.55 + (p.x > car.root.position.x ? 2.2 : -2.2), y: v.y, z: v.z * 0.7 }, true);
+                playTone(140, 0.16, 'square', 0.06, 70);
+            }
+        }
+    }
+
+    function updateCoins(dt) {
+        if (!chassis) return;
+        var p = chassis.translation();
+        for (var i = 0; i < coinPickups.length; i++) {
+            var coin = coinPickups[i];
+            if (coin.z < p.z - 25 || coin.z > p.z + 900) {
+                placeCoin(coin, p.z, 320 + Math.random() * 550);
+            }
+            coin.mesh.position.set(coin.x, 1.12, coin.z);
+            coin.mesh.rotation.y += dt * 3.4;
+            coin.mesh.setEnabled(coin.active && Math.abs(coin.z - p.z) < 420);
+            if (coin.active && !runOver && !paused && !garage &&
+                Math.abs(coin.z - p.z) < 3.0 && Math.abs(coin.x - p.x) < 1.55) {
+                coin.active = false;
+                coin.mesh.setEnabled(false);
+                coinsCollected++;
+                setRunCoins(coinsCollected);
+                playCoinSound();
+            }
+        }
     }
 
     function createScene() {
@@ -634,6 +1195,7 @@
         }
         ready = true;
         syncCarVisual(0);
+        resetRunWorld();
         setText('g3dGaugeStatus', 'BABYLON + RAPIER · HDR READY');
     }
 
@@ -642,16 +1204,24 @@
         var forwardSpeed = Math.sqrt(speed.x * speed.x + speed.z * speed.z);
         var engineForce = 0;
         var brakeForce = 0;
-        var maxSpeed = input.nitro && nitro > 0 ? 88 : 67;
+        var nitroMax = driveMaxSpeed * 1.30;
+        var maxSpeed = input.nitro && nitro > 0 ? nitroMax : driveMaxSpeed;
+        var throttle = input.throttle;
+        var brake = input.brake;
 
-        if (garage) {
-            input.throttle = false;
-            input.brake = true;
+        if (fsdActive && !garage && !runOver) {
+            if (currentGear !== 'D') setGearMode('D');
+            updateFsd(dt, forwardSpeed);
+            throttle = fsdThrottle;
+            brake = fsdBrake;
+        }
+
+        if (garage || runOver) {
             vehicle.setWheelSteering(0, 0);
             vehicle.setWheelSteering(1, 0);
             for (var g = 0; g < 4; g++) {
                 vehicle.setWheelEngineForce(g, 0);
-                vehicle.setWheelBrake(g, 22);
+                vehicle.setWheelBrake(g, runOver ? 48 : 22);
             }
             return;
         }
@@ -659,20 +1229,20 @@
         if (currentGear === 'P') {
             brakeForce = 34;
         } else if (currentGear === 'R') {
-            if (input.throttle) engineForce = -1450;
-            if (input.brake) brakeForce = 26;
+            if (throttle) engineForce = -1450 * driveAccel;
+            if (brake) brakeForce = 26;
         } else if (currentGear === 'N') {
-            brakeForce = input.brake ? 20 : 1.2;
+            brakeForce = brake ? 20 : 1.2;
         } else {
-            if (input.throttle && forwardSpeed < maxSpeed) {
+            if (throttle && forwardSpeed < maxSpeed) {
                 var falloff = 1 - (forwardSpeed / maxSpeed) * 0.88;
-                engineForce = 4800 * falloff;
-                if (input.nitro && nitro > 0) engineForce += 3200;
+                engineForce = 4800 * driveAccel * falloff;
+                if (input.nitro && nitro > 0 && !fsdActive) engineForce += 3200 * driveAccel;
                 nitro = Math.max(0, nitro - dt * 26);
             } else {
                 nitro = Math.min(100, nitro + dt * 7.5);
             }
-            if (input.brake) brakeForce = 33;
+            if (brake) brakeForce = fsdBrake ? 42 : 33;
         }
 
         var steerMax = 0.46 - Math.min(0.36, forwardSpeed / 150);
@@ -680,7 +1250,8 @@
         if (input.left) steerTarget += 1;
         if (input.right) steerTarget -= 1;
         if (input.pointerActive) steerTarget += input.pointerSteer;
-        steerVisual += (steerTarget - steerVisual) * Math.min(1, dt * 10);
+        if (fsdActive) steerTarget = fsdSteerTarget;
+        steerVisual += (steerTarget - steerVisual) * Math.min(1, dt * (fsdActive ? 7 : 10));
         var steerAngle = steerVisual * steerMax;
         vehicle.setWheelSteering(0, steerAngle);
         vehicle.setWheelSteering(1, steerAngle);
@@ -688,15 +1259,15 @@
         vehicle.setWheelSteering(3, 0);
 
         // Rear-drive, front steering. Nitrous also feeds the front axle.
-        vehicle.setWheelEngineForce(0, input.nitro && nitro > 0 ? engineForce * 0.16 : 0);
-        vehicle.setWheelEngineForce(1, input.nitro && nitro > 0 ? engineForce * 0.16 : 0);
+        vehicle.setWheelEngineForce(0, input.nitro && nitro > 0 && !fsdActive ? engineForce * 0.16 : 0);
+        vehicle.setWheelEngineForce(1, input.nitro && nitro > 0 && !fsdActive ? engineForce * 0.16 : 0);
         vehicle.setWheelEngineForce(2, engineForce * 0.5);
         vehicle.setWheelEngineForce(3, engineForce * 0.5);
 
         for (var i = 0; i < 4; i++) {
             vehicle.setWheelBrake(i, brakeForce);
             var rear = i >= 2;
-            vehicle.setWheelFrictionSlip(i, input.drift && rear ? 1.35 : 3.25);
+            vehicle.setWheelFrictionSlip(i, input.drift && rear && !fsdActive ? 1.35 : driveGrip);
         }
 
         // Light aerodynamic drag; keeps the car from coasting forever.
@@ -725,10 +1296,13 @@
         var v = chassis.linvel();
         distance = Math.max(distance, t.z - spawnZ);
         displaySpeed = Math.sqrt(v.x * v.x + v.z * v.z);
+        runSeconds += dt;
+        lastPlayerZ = t.z;
 
         if (t.z > ROAD_LENGTH - 220) {
             chassis.setTranslation({ x: 0, y: 0.92, z: spawnZ + 20 }, true);
             chassis.setLinvel({ x: 0, y: 0, z: 0 }, true);
+            resetRunWorld();
         }
         if (t.y < -3 || Math.abs(t.x) > 60 || t.z < -20) resetCar(false);
         var q = chassis.rotation();
@@ -750,6 +1324,7 @@
         if (!keepDistance) {
             distance = 0;
             driftScore = 0;
+            resetRunWorld();
         }
         accumulator = 0;
         flipTime = 0;
@@ -875,9 +1450,10 @@
             setText('g3dGaugeNitro', Math.round(nitro) + '%');
             setText('g3dGaugeDistance', distance >= 1000 ? (distance / 1000).toFixed(1) + 'km' : Math.round(distance) + 'm');
             setText('g3dGaugeDrift', Math.round(driftScore));
-            setText('g3dGaugeSplitLabel', 'PHASE');
-            setText('g3dGaugeSplit', '1');
+            setText('g3dGaugeSplitLabel', 'COINS');
+            setText('g3dGaugeSplit', coinsCollected);
             setText('g3dGaugeDamage', '0%');
+            setRunCoins(coinsCollected);
             var fill = $('g3dGaugeNitroFill');
             if (fill) fill.style.width = Math.round(nitro) + '%';
             var needle = $('g3dNeedle');
@@ -888,13 +1464,17 @@
             if (!toastTimer) {
                 if (!ready) setText('g3dGaugeStatus', 'LOADING RAPIER PHYSICS…');
                 else if (garage) setText('g3dGaugeStatus', 'GARAGE · PRESS PLAY TO DRIVE');
+                else if (runOver) setText('g3dGaugeStatus', 'CRASHED · PRESS PLAY AGAIN');
                 else if (paused) setText('g3dGaugeStatus', 'PAUSED');
-                else if (input.nitro && nitro > 0) setText('g3dGaugeStatus', 'NITROUS ACTIVE');
-                else if (displaySpeed < 0.4) setText('g3dGaugeStatus', 'HOLD W TO START');
-                else setText('g3dGaugeStatus', 'BABYLON.JS + RAPIER · HDR');
+                else if (fsdActive) setText('g3dGaugeStatus', 'FSD · AUTOPILOT · ' + coinsCollected + ' COINS');
+                else if (input.nitro && nitro > 0) setText('g3dGaugeStatus', 'NITROUS ACTIVE · ' + coinsCollected + ' COINS');
+                else if (displaySpeed < 0.4) setText('g3dGaugeStatus', 'HOLD W TO START · F FOR FSD');
+                else setText('g3dGaugeStatus', 'BABYLON.JS + RAPIER · ' + coinsCollected + ' COINS');
             }
             var brake = document.querySelector('.g3d-warn[data-warn="brake"]');
             if (brake) brake.classList.toggle('is-on', !!input.brake);
+            var fsdBtn = $('g3dFsdToggle');
+            if (fsdBtn) fsdBtn.classList.toggle('is-active', !!fsdActive);
         }
     }
 
@@ -903,8 +1483,15 @@
         var now = performance.now();
         var dt = Math.min(0.05, Math.max(0.001, (now - lastFrame) / 1000));
         lastFrame = now;
-        if (!paused && !garage) stepPhysics(dt);
+        if (!paused && !garage) {
+            stepPhysics(dt);
+            updateTraffic(dt);
+            updateCoins(dt);
+        } else if (!paused) {
+            updateCoins(dt);
+        }
         syncCarVisual(dt);
+        updateAudio();
         updateCamera(dt);
         updateHud(dt);
         if (scene) scene.render();
@@ -929,6 +1516,7 @@
                 else if (k === ' ') { input.brake = true; e.preventDefault(); }
                 else if (k === 'shift') { input.nitro = true; e.preventDefault(); }
                 else if (k === 'x') { input.drift = true; e.preventDefault(); }
+                else if (k === 'f') { toggleFsd(); e.preventDefault(); }
                 else if (k === 'r') { resetCar(true); e.preventDefault(); }
                 else if (k === 'c') { cameraMode = (cameraMode + 1) % 2; showToast(cameraMode ? 'CAMERA · FAR' : 'CAMERA · CHASE'); }
                 else if (k >= '1' && k <= '4') {
@@ -1044,6 +1632,30 @@
         nitro = 100;
         driftScore = 0;
         steerVisual = 0;
+        selectedCar = opts.car || null;
+        carCosmetics = opts.cosmetics || null;
+        var perf = carCosmetics && carCosmetics.performance ? carCosmetics.performance : {};
+        driveMaxSpeed = clamp(67 * (num(perf.topSpeed, 1) || 1), 38, 98);
+        driveAccel = clamp(num(perf.accel, 1) || 1, 0.55, 2.4);
+        driveGrip = clamp(3.25 * (num(perf.grip, 1) || 1), 2.2, 5.3);
+        traffic = [];
+        coinPickups = [];
+        trafficTimer = 0;
+        trafficPaintCache = {};
+        trafficShared = null;
+        coinMaterial = null;
+        runOver = false;
+        runSeconds = 0;
+        coinsCollected = 0;
+        coinsAwarded = false;
+        scoreSubmitted = false;
+        fsdActive = false;
+        fsdThink = 0;
+        fsdSteerTarget = 0;
+        fsdBrake = false;
+        fsdThrottle = false;
+        lastPlayerZ = spawnZ;
+        setRunCoins(0);
         input.throttle = false; input.brake = false; input.left = false; input.right = false;
         input.drift = false; input.nitro = false; input.pointerActive = false; input.pointerSteer = 0;
         engine = null;
@@ -1067,6 +1679,7 @@
         canvas.setAttribute('aria-label', 'Beach Racer — Babylon.js + Rapier');
         container.appendChild(canvas);
 
+        initAudio();
         try {
             createScene();
         } catch (error) {
@@ -1083,6 +1696,14 @@
         if (raf) { cancelAnimationFrame(raf); raf = 0; }
         engine.runRenderLoop(frame);
         resize();
+        if (selectedCar) {
+            var banner = $('g3dBanner');
+            if (banner) {
+                banner.textContent = selectedCar.year + ' ' + selectedCar.brand + ' ' + selectedCar.model;
+                banner.classList.add('is-active');
+                setTimeout(function () { banner.classList.remove('is-active'); }, 3200);
+            }
+        }
 
         loadRapier().then(function (api) {
             if (!active) return;
@@ -1100,9 +1721,15 @@
     }
 
     function stop() {
-        if (opts && typeof opts.onScore === 'function' && distance > 0) {
-            try { opts.onScore('Beach Racer', Math.floor(distance * 2)); } catch (e) {}
+        if (!scoreSubmitted && opts && typeof opts.onScore === 'function' && distance > 0) {
+            scoreSubmitted = true;
+            try { opts.onScore('Beach Racer', runScore()); } catch (e) {}
         }
+        if (!coinsAwarded && coinsCollected > 0 && opts && typeof opts.onCoins === 'function') {
+            coinsAwarded = true;
+            try { opts.onCoins(coinsCollected); } catch (e) {}
+        }
+        stopAudio();
         active = false;
         ready = false;
         starting = false;
@@ -1123,6 +1750,12 @@
         canvas = null;
         container = null;
         carRoot = null;
+        contactShadow = null;
+        traffic = [];
+        coinPickups = [];
+        trafficPaintCache = {};
+        trafficShared = null;
+        coinMaterial = null;
         carVisuals = [];
         wheelPivots = [];
         wheelSpins = [];
@@ -1139,6 +1772,7 @@
         paused = false;
         garage = false;
         resetCar(false);
+        resetRunWorld();
         if (!ready) createPhysics();
         return true;
     }
@@ -1166,6 +1800,7 @@
         if (mode !== 'P' && mode !== 'R' && mode !== 'N' && mode !== 'D') mode = 'D';
         currentGear = mode;
         gearLabel = mode;
+        playGearSound();
         showToast('GEAR ' + mode);
     }
 
@@ -1182,14 +1817,38 @@
     function setDrift(on) { input.drift = !!on; }
     function setNitro(on) { input.nitro = !!on; }
     function setUnitSystem(value) { unit = value === 'kmh' ? 'kmh' : 'mph'; }
-    function setSoundEnabled(on) { sound = !!on; }
+    function setSoundEnabled(on) {
+        sound = !!on;
+        if (audioMaster && audioCtx) {
+            try { audioMaster.gain.setTargetAtTime(sound ? 0.34 : 0, audioCtx.currentTime, 0.08); } catch (e) {}
+        }
+    }
     function setShadows() {}
     function setMotionBlur() {}
     function setCrashSlowmo() {}
     function setGraphicsPreset() {}
     function setRenderScale() {}
     function setShowFps() {}
-    function toggleFsd() { showToast('FSD · PHASE 4'); }
+    function toggleFsd() {
+        if (!ready || garage || runOver) return;
+        fsdActive = !fsdActive;
+        if (fsdActive) {
+            if (currentGear !== 'D') setGearMode('D');
+            var t = chassis ? chassis.translation() : { x: 0 };
+            var best = 0;
+            for (var l = 0; l < laneCenters.length; l++) if (Math.abs(laneCenters[l] - t.x) < Math.abs(laneCenters[best] - t.x)) best = l;
+            fsdLane = best;
+            fsdThink = 0;
+            input.throttle = true;
+            playTone(520, 0.14, 'sine', 0.05, 900);
+            showToast('FSD ON · AUTOPILOT');
+        } else {
+            fsdBrake = false;
+            fsdThrottle = false;
+            playTone(280, 0.11, 'sine', 0.04, 210);
+            showToast('FSD OFF · MANUAL');
+        }
+    }
     function setLocalRacerName() {}
     function setRemoteRacers() {}
     function setTerrain() {}
@@ -1208,10 +1867,15 @@
             z: t.z,
             speed: speed,
             mph: Math.round(speed * 2.23694 / SPEED_SCALE),
-            kmh: Math.round(speed * 3.6 / SPEED_SCALE)
+            kmh: Math.round(speed * 3.6 / SPEED_SCALE),
+            coins: coinsCollected,
+            fsd: fsdActive,
+            traffic: traffic.length,
+            audio: !!(audioCtx && audioCtx.state === 'running'),
+            audioLoops: Object.keys(audioLoops).length
         };
     }
-    function getCurrentScore() { return Math.floor(distance * 2); }
+    function getCurrentScore() { return runScore(); }
     function getCapturedFrame() {
         try { return canvas ? canvas.toDataURL('image/jpeg', 0.65) : null; } catch (e) { return null; }
     }

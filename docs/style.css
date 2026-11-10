@@ -13059,3 +13059,29 @@ body.low-power .site-snow { opacity: 0.55; }
 }
 .game3d-terrain-picker select option { background: #0b1218; color: #dff6ff; }
 
+
+/* Beach Racer Babylon FSD toggle */
+.g3d-fsd-toggle {
+    position: absolute;
+    left: 18px;
+    bottom: 18px;
+    z-index: 7;
+    padding: 9px 13px;
+    border: 1px solid rgba(95, 231, 255, 0.42);
+    border-radius: 999px;
+    background: rgba(7, 18, 27, 0.78);
+    color: #9feaff;
+    font: 900 10px/1 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+}
+.g3d-fsd-toggle:hover,
+.g3d-fsd-toggle.is-active {
+    background: rgba(95, 231, 255, 0.18);
+    color: #fff;
+}
+@media (max-width: 760px) {
+    .g3d-fsd-toggle { left: 10px; bottom: 10px; padding: 8px 11px; }
+}
