@@ -14,6 +14,7 @@ var CORE_ASSETS = [
     'drawguess.js',
     'lucky.js',
     'tycoon.js',
+    'game-2048.js',
     'christmas.js',
     'easter.js',
     'assistant-data.js',

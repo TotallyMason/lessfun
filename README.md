@@ -309,3 +309,12 @@ handling real user data or payments.
   blocked, pins fall back to local storage for the owner.
 - Only scores and the offline wallet fallback are cached locally. The rest of
   the site is served with cache-busting query parameters.
+
+## 2048
+
+Classic sliding tile merge game with smooth CSS animations.
+
+- Arrow keys / WASD on desktop, swipe on touch
+- Tiles slide with eased transforms, new tiles pop in, merged tiles pulse
+- Score and a best score saved in local storage
+- Game-over overlay and a New Game reset; win banner on reaching 2048
