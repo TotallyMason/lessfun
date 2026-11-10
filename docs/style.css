@@ -12366,7 +12366,7 @@ body.in-game .xmas-snowman { display: none; }
     position: absolute;
     inset: 16px;
     border-radius: 50%;
-    background: conic-gradient(from 135deg, transparent 0 222deg, rgba(255, 51, 74, 0.75) 222deg 270deg, transparent 270deg 360deg);
+    background: conic-gradient(from 135deg, transparent 0 180deg, rgba(255, 51, 74, 0.78) 180deg 270deg, transparent 270deg 360deg);
     -webkit-mask: radial-gradient(circle, transparent 55%, #000 56% 69%, transparent 70%);
     mask: radial-gradient(circle, transparent 55%, #000 56% 69%, transparent 70%);
 }
@@ -12837,28 +12837,22 @@ body.low-power .site-snow { opacity: 0.55; }
     width: 100%;
 }
 .g3d-cluster-speed { display: flex; align-items: baseline; gap: 4px; }
-.g3d-cluster-gear {
+.g3d-cluster-gearline {
     display: flex;
-    flex-direction: column;
-    align-items: center;
+    align-items: baseline;
     justify-content: center;
-    flex: 0 0 auto;
-    width: 58px;
-    height: 58px;
-    border-radius: 50%;
-    border: 1px solid rgba(255, 209, 102, 0.3);
-    background: rgba(255, 209, 102, 0.06);
+    gap: 5px;
+    margin-top: 1px;
     line-height: 1;
 }
-.g3d-cluster-gear b {
+.g3d-cluster-gearline b {
     color: #ffe2a0;
-    font-size: 30px;
+    font-size: 16px;
     font-weight: 900;
     line-height: 0.9;
-    text-shadow: 0 0 12px rgba(255, 209, 102, 0.28);
+    text-shadow: 0 0 10px rgba(255, 209, 102, 0.24);
 }
-.g3d-cluster-gear span {
-    margin-top: 2px;
+.g3d-cluster-gearline span {
     color: rgba(255, 226, 160, 0.42);
     font-size: 5.5px;
     font-weight: 900;
@@ -12999,8 +12993,7 @@ body.low-power .site-snow { opacity: 0.55; }
 @media (max-width: 760px) {
     .g3d-cluster { inset: 24px; padding: 11px 13px 10px; }
     .g3d-cluster-speed strong { font-size: 32px; }
-    .g3d-cluster-gear { width: 46px; height: 46px; }
-    .g3d-cluster-gear b { font-size: 24px; }
+    .g3d-cluster-gearline b { font-size: 14px; }
     .g3d-cluster-core { font-size: 5px; }
     .g3d-cluster-core b { font-size: 8px; }
     .g3d-cluster-stats { font-size: 5px; }

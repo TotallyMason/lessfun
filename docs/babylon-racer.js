@@ -28,7 +28,7 @@
     var resizeObs = null, active = false, failed = false;
     var rapier = null, world = null, chassis = null, vehicle = null;
     var rapierPromise = null, ready = false, starting = false;
-    var raf = 0, lastFrame = 0, accumulator = 0, hudTimer = 0;
+    var raf = 0, lastFrame = 0, accumulator = 0, hudTimer = 0, speedHudTimer = 0;
     var paused = false, garage = false, cameraMode = 0;
     var distance = 0, displaySpeed = 0, unit = 'mph', sound = true;
     var nitro = 100, driftScore = 0, steerVisual = 0;
@@ -2046,6 +2046,7 @@
 
     function updateHud(dt) {
         hudTimer += dt;
+        speedHudTimer += dt;
         var raw = displaySpeed;
         var scale = unit === 'kmh' ? 3.6 : 2.23694;
         var shown = Math.round(raw * scale / SPEED_SCALE);
@@ -2065,8 +2066,11 @@
 
         if (hudTimer > 0.075) {
             hudTimer = 0;
-            setText('g3dGaugeSpeed', shown);
-            setText('g3dGaugeUnit', unit === 'kmh' ? 'km/h' : 'mph');
+            if (speedHudTimer >= 0.4) {
+                speedHudTimer = 0;
+                setText('g3dGaugeSpeed', shown);
+                setText('g3dGaugeUnit', unit === 'kmh' ? 'km/h' : 'mph');
+            }
             setText('g3dGaugeRpm', Math.round(rpm));
             setText('g3dGaugeGearBig', gear);
             setText('g3dGaugeGear', gear);
@@ -2287,6 +2291,7 @@
         gearShiftTimer = 0;
         pendingGear = null;
         pendingGearIndex = null;
+        speedHudTimer = 0;
         distance = 0;
         displaySpeed = 0;
         nitro = 100;
