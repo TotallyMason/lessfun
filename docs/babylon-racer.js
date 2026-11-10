@@ -22,6 +22,7 @@
     var realCarRoot = null, realCarLoading = false, carPaintHex = 0xc2280b;
     var smokeTexture = null, driftSmoke = null, driftEmitter = null;
     var isSanta = false, flyTime = 0, flyCooldown = 0;
+    var powerShakeLevel = 0;
     var resizeObs = null, active = false, failed = false;
     var rapier = null, world = null, chassis = null, vehicle = null;
     var rapierPromise = null, ready = false, starting = false;
@@ -1786,6 +1787,7 @@
         nitro = 100;
         flyTime = 0;
         flyCooldown = 0;
+        powerShakeLevel = 0;
         if (chassis) chassis.setGravityScale(1, true);
         resetCamera(true);
         if (!silent) showToast('RESET · BEACH RACER');
@@ -1839,15 +1841,20 @@
         var speedFactor = clamp(displaySpeed / 75, 0, 1);
         var back = 8.6 + speedFactor * 1.6;
         var height = 3.35 + speedFactor * 0.35;
-        var powerShake = 0;
-        if (!paused && !runOver) {
+        var targetPowerShake = 0;
+        if (!paused && !runOver && !garage) {
             if (currentGear === 'D' || currentGear === 'R') {
-                if (input.throttle) powerShake = 0.085 + speedFactor * 0.12;
-                if (input.nitro && nitro > 0 && input.throttle) powerShake += 0.10;
+                if (input.throttle) targetPowerShake = 0.085 + speedFactor * 0.12;
+                if (input.nitro && nitro > 0 && input.throttle) targetPowerShake += 0.10;
             } else if (input.throttle) {
-                powerShake = 0.10 + revLevel * 0.10;
+                targetPowerShake = 0.10 + revLevel * 0.10;
             }
         }
+        // Ramp in under power and ease out after lifting, rather than snapping
+        // the shake on and off.
+        var shakeResponse = targetPowerShake > powerShakeLevel ? 3.4 : 2.1;
+        powerShakeLevel += (targetPowerShake - powerShakeLevel) * Math.min(1, dt * shakeResponse);
+        var powerShake = powerShakeLevel;
         var shake = speedFactor * 0.045;
         var target = carPos.add(forward.scale(5.2)).add(new BABYLON.Vector3(0, 0.95, 0));
         var desired = carPos.subtract(forward.scale(back)).add(new BABYLON.Vector3(0, height, 0));
@@ -2316,6 +2323,7 @@
         impactSparkTimer = 0;
         crashShake = 0;
         motionBlurPost = null;
+        powerShakeLevel = 0;
         camPos = null;
         camTarget = null;
     }
