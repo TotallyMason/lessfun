@@ -55,7 +55,7 @@
     var spawnZ = START_Z;
     var keyHandlers = null;
     var selectedCar = null, carCosmetics = null;
-    var training = false, trainingStep = 0, trainingRoot = null, trainingProps = [], trainingCooldown = 0;
+    var training = false, trainingStep = 0, trainingRoot = null, trainingProps = [], trainingCooldown = 0, trainingHold = 0;
     var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.25;
     var laneCenters = [-9.16, -5.5, -1.83, 1.83, 5.5, 9.16];
     var traffic = [], coinPickups = [], trafficTimer = 0;
@@ -3251,12 +3251,14 @@
        Training course — tight turns, cones and pedestrian awareness
        -------------------------------------------------------------------- */
     var TRAINING_STEPS = [
-        { at: 0,   text: 'LESSON 1 · Accelerate smoothly — hold W / ↑ and reach 40 km/h on the dial.' },
-        { at: 120, text: 'LESSON 2 · Brake for the corner (S / ↓) and slow below 30 km/h.' },
-        { at: 260, text: 'LESSON 3 · Cone slalom — snake between the orange cones.' },
-        { at: 430, text: 'LESSON 4 · Pedestrian crossing ahead — ease off and stay under 35 km/h.' },
-        { at: 620, text: 'LESSON 5 · Tight hairpin — brake early, steer firmly, stay in lane.' },
-        { at: 860, text: 'FINISH · Cruise to the chequered marker.' }
+        { kind: 'dist', at: 0,   text: 'LESSON 1 · Accelerate smoothly — hold W / ↑ to 40 km/h.' },
+        { kind: 'dist', at: 120, text: 'LESSON 2 · Brake (S / ↓) and slow below 30 km/h for the corner.' },
+        { kind: 'dist', at: 260, text: 'LESSON 3 · Slalom — stay in the marked lane and snake the cones.' },
+        { kind: 'dist', at: 430, text: 'LESSON 4 · Pedestrian crossing — stay under 35 km/h.' },
+        { kind: 'dist', at: 600, text: 'LESSON 5 · Tight hairpin — brake early and hold your lane.' },
+        { kind: 'park', at: 690, text: 'LESSON 6 · PARKING · Stop inside the green bay on the right.' },
+        { kind: 'parallel', at: 800, text: 'LESSON 7 · PARALLEL PARKING · Pass the gap, reverse in, stop straight.' },
+        { kind: 'finish', at: 900, text: 'FINISH · Cross the chequered line.' }
     ];
 
     function trainingBanner(text) {
@@ -3285,6 +3287,30 @@
         }
     }
 
+    function makeBooth(x, z, w, d, color, emissive) {
+        var pad = BABYLON.MeshBuilder.CreateBox('trainPad', { width: w, height: 0.04, depth: d }, scene);
+        pad.position.set(x, 0.06, z);
+        var mat = new BABYLON.StandardMaterial('trainPadMat', scene);
+        mat.diffuseColor = new BABYLON.Color3(color[0], color[1], color[2]);
+        mat.emissiveColor = new BABYLON.Color3(emissive[0], emissive[1], emissive[2]);
+        mat.alpha = 0.75;
+        pad.material = mat;
+        pad.parent = trainingRoot;
+        trainingProps.push(pad);
+        return pad;
+    }
+
+    function makeLine(z, lane, w) {
+        var line = BABYLON.MeshBuilder.CreateBox('trainLine', { width: w || 0.22, height: 0.02, depth: 6 }, scene);
+        line.position.set(highwayCurveX(z) + lane, 0.09, z);
+        var mat = new BABYLON.StandardMaterial('trainLineMat', scene);
+        mat.diffuseColor = new BABYLON.Color3(1, 1, 1);
+        mat.emissiveColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+        line.material = mat;
+        line.parent = trainingRoot;
+        trainingProps.push(line);
+    }
+
     function makePedestrian(z, lane, crossing) {
         var x = highwayCurveX(z) + lane;
         var root = new BABYLON.TransformNode('trainPed', scene);
@@ -3311,12 +3337,36 @@
         return prop;
     }
 
+    function makeParkedCar(z, lane, color) {
+        if (!scene) return;
+        var car = makeTrafficCar('sedan', color || 0x8a94a6);
+        car.root.position.set(highwayCurveX(z) + lane, 0, z);
+        car.root.parent = trainingRoot;
+        trainingProps.push(car.root);
+        if (world && rapier) {
+            try {
+                var spec = TRAFFIC_SPECS.sedan;
+                var b = world.createRigidBody(rapier.RigidBodyDesc.fixed().setTranslation(car.root.position.x, 0.6, z));
+                world.createCollider(rapier.ColliderDesc.cuboid(spec.w / 2, 0.55, spec.l / 2), b);
+            } catch (e) {}
+        }
+    }
+
+    var trainingPedestrians = [];
+    var trainingBays = {};
+
     function buildTrainingCourse() {
         if (!scene) return;
         trainingRoot = new BABYLON.TransformNode('trainingRoot', scene);
         trainingProps = [];
         trainingPedestrians = [];
         var z0 = spawnZ;
+
+        // Lane guides down the whole course (prebuilt track look)
+        for (var g = 0; g < 24; g++) {
+            makeLine(z0 + 40 + g * 38, -10.2);
+            makeLine(z0 + 40 + g * 38, 10.2);
+        }
         // Cone slalom (lessons 2-3)
         for (var i = 0; i < 8; i++) {
             makeCone(z0 + 270 + i * 22, (i % 2 ? 1 : -1) * 3.6);
@@ -3326,13 +3376,28 @@
         trainingPedestrians.push(makePedestrian(z0 + 486, -1.5, true));
         trainingPedestrians.push(makePedestrian(z0 + 500, 4.5, true));
         trainingPedestrians.push(makePedestrian(z0 + 512, 8.0, false));
-        // Tight hairpin cones (lesson 5)
+        // Hairpin cones (lesson 5)
         for (var j = 0; j < 12; j++) {
             var ang = (j / 12) * Math.PI;
             makeCone(z0 + 640 + Math.sin(ang) * 22, Math.cos(ang) * 9.5);
         }
+
+        // PARKING BAY (lesson 6) — perpendicular bay on the right shoulder
+        var bayZ = z0 + 720, bayX = highwayCurveX(bayZ) + 7.6;
+        trainingBays.perpendicular = { x: bayX, z: bayZ, w: 3.4, l: 6.4, heading: 0 };
+        makeBooth(bayX, bayZ, 3.4, 6.4, [0.2, 0.85, 0.35], [0.05, 0.28, 0.1]);
+        makeParkedCar(z0 + 706, 7.6, 0x8a94a6);
+        makeParkedCar(z0 + 734, 7.6, 0xb2563c);
+
+        // PARALLEL PARKING (lesson 7) — kerbside gap between two cars
+        var parZ = z0 + 845, parX = highwayCurveX(parZ) + 8.4;
+        trainingBays.parallel = { x: parX, z: parZ, w: 2.9, l: 7.4, heading: 0 };
+        makeBooth(parX, parZ, 2.9, 7.4, [0.2, 0.7, 0.95], [0.05, 0.2, 0.34]);
+        makeParkedCar(z0 + 830, 8.4, 0xcfd4e6);
+        makeParkedCar(z0 + 860, 8.4, 0x3f5f8f);
+
         // Chequered finish gate
-        var gate = BABYLON.MeshBuilder.CreateBox('trainFinish', { width: 12, height: 0.1, depth: 1.6 }, scene);
+        var gate = BABYLON.MeshBuilder.CreateBox('trainFinish', { width: 14, height: 0.1, depth: 1.6 }, scene);
         gate.position.set(highwayCurveX(z0 + 900), 0.06, z0 + 900);
         var gateMat = new BABYLON.StandardMaterial('trainFinishMat', scene);
         gateMat.diffuseColor = new BABYLON.Color3(1, 1, 1);
@@ -3342,13 +3407,12 @@
         trainingProps.push(gate);
     }
 
-    var trainingPedestrians = [];
-
     function clearTrainingCourse() {
         trainingProps.forEach(function (p) { try { p.dispose(); } catch (e) {} });
         trainingProps = [];
         if (trainingRoot) { try { trainingRoot.dispose(); } catch (e) {} trainingRoot = null; }
         trainingPedestrians = [];
+        trainingBays = {};
     }
 
     function startTraining() {
@@ -3356,6 +3420,7 @@
         training = true;
         trainingStep = 0;
         trainingCooldown = 0;
+        trainingHold = 0;
         garage = false;
         paused = false;
         resetCar(false, true);
@@ -3379,39 +3444,66 @@
         return { active: training, step: trainingStep, total: TRAINING_STEPS.length };
     }
 
+    function carInBay(bay) {
+        if (!bay || !chassis) return false;
+        var p = chassis.translation();
+        var dx = p.x - bay.x, dz = p.z - bay.z;
+        var inside = Math.abs(dx) < bay.w * 0.5 && Math.abs(dz) < bay.l * 0.5;
+        if (!inside) return false;
+        var speed = displaySpeed;
+        return speed < 2.2;
+    }
+
     function updateTraining() {
         if (!training || !ready || !scene) return;
+        var step = TRAINING_STEPS[trainingStep];
+        if (!step) return;
         var progress = distance;
-        for (var i = TRAINING_STEPS.length - 1; i >= 0; i--) {
-            if (progress >= TRAINING_STEPS[i].at && trainingStep < i) {
-                trainingStep = i;
-                trainingBanner(TRAINING_STEPS[i].text);
-                if (i === TRAINING_STEPS.length - 1) showToast('Almost there — cross the chequered line');
+        var advanced = false;
+
+        if (step.kind === 'dist' && progress >= step.at) advanced = true;
+        if ((step.kind === 'park' || step.kind === 'parallel') && trainingBays[step.kind === 'park' ? 'perpendicular' : 'parallel']) {
+            var bay = trainingBays[step.kind === 'park' ? 'perpendicular' : 'parallel'];
+            if (carInBay(bay)) {
+                trainingHold = (trainingHold || 0) + 0.016;
+                if (trainingHold > 0.9) { advanced = true; trainingHold = 0; }
+            } else {
+                trainingHold = 0;
             }
         }
+        if (step.kind === 'finish' && progress >= step.at) advanced = true;
+
+        if (advanced) {
+            var next = Math.min(TRAINING_STEPS.length - 1, trainingStep + 1);
+            if (trainingStep < TRAINING_STEPS.length - 1) {
+                trainingStep = next;
+                var nextStep = TRAINING_STEPS[trainingStep];
+                trainingBanner(nextStep.text);
+                if (nextStep.kind === 'park') showToast('Parking bay ahead on the right');
+                if (nextStep.kind === 'parallel') showToast('Find the gap between the parked cars');
+                if (nextStep.kind === 'finish') showToast('One last stretch — cross the line');
+            } else {
+                showToast('Training complete! Great driving.');
+                trainingBanner('TRAINING COMPLETE · free drive unlocked');
+                training = false;
+                clearTrainingCourse();
+                setTimeout(function () { trainingBanner(null); }, 3200);
+            }
+        }
+
         // pedestrian awareness — count hits, never fail hard
         if (trainingPedestrians && chassis) {
-            var p = chassis.translation();
+            var p2 = chassis.translation();
             trainingCooldown = Math.max(0, trainingCooldown - 0.016);
             for (var k = 0; k < trainingPedestrians.length; k++) {
                 var ped = trainingPedestrians[k];
-                var dx = p.x - ped.x, dz = p.z - ped.z;
-                if (!ped.hit && (dx * dx + dz * dz) < 3.0 && trainingCooldown <= 0) {
+                var dx2 = p2.x - ped.x, dz2 = p2.z - ped.z;
+                if (!ped.hit && (dx2 * dx2 + dz2 * dz2) < 3.0 && trainingCooldown <= 0) {
                     ped.hit = true;
                     trainingCooldown = 2.2;
                     showToast('Careful! Pedestrians have right of way — slow down');
-                    if (ped.root) {
-                        try { ped.root.rotation.z = 1.2; } catch (e) {}
-                    }
                 }
             }
-        }
-        if (distance >= 900) {
-            showToast('Training complete! Great driving.');
-            trainingBanner('TRAINING COMPLETE · free drive unlocked');
-            training = false;
-            clearTrainingCourse();
-            trainingBanner(null);
         }
     }
 
@@ -3419,7 +3511,6 @@
         if (!active || !ready || !engine || !camera || !scene) return Promise.resolve(null);
         return new Promise(function (resolve) {
             try {
-                // one clean frame, then snapshot the live garage view
                 scene.render();
                 BABYLON.Tools.CreateScreenshotUsingRenderTarget(engine, camera, { width: 640, height: 360 }, function (data) {
                     resolve(data || null);

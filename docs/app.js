@@ -9361,8 +9361,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.47";
-const UPDATE_NOTES = "Garage car photos, honest speedometer, no rev in Park, neutral revving on the dial";
+const APP_VERSION = "LessFun Public Beta 1.34.48";
+const UPDATE_NOTES = "Training now runs a marked track with parking and parallel-parking lessons";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
