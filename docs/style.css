@@ -26,3 +26,22 @@
 .idle-ad-close{position:absolute;top:16px;right:18px;z-index:5;width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(0,0,0,.35);color:#fff;font-size:16px;cursor:pointer}
 .idle-ad-close:hover{background:rgba(0,0,0,.6)}
 @media (prefers-reduced-motion: reduce){.idle-ad-car,.idle-ad-road:before{animation:none}}
+
+/* ============================================================
+   Cartoony vibes — playful global restyle
+   ============================================================ */
+:root{--cartoon-radius:18px;--cartoon-border:rgba(28,24,60,.9)}
+.cartoon *{scrollbar-width:thin}
+body,.modal,.modal-content,.game-card,.stat-card,.store-card,.btn,.nav-btn,.chip{border-radius:var(--cartoon-radius)!important}
+.game-card,.stat-card,.store-card,.modal-content{border:2.5px solid var(--cartoon-border)!important;box-shadow:0 6px 0 rgba(20,16,52,.55),0 14px 30px rgba(10,8,30,.35)!important;transition:transform .16s ease,box-shadow .16s ease}
+.game-card:hover,.stat-card:hover{transform:translateY(-4px) rotate(-.4deg)!important;box-shadow:0 10px 0 rgba(20,16,52,.5),0 20px 40px rgba(10,8,30,.4)!important}
+.btn,.nav-btn,.g2048-new,.tb-btn,.rc-btn{border-radius:999px!important;border:2.5px solid var(--cartoon-border)!important;box-shadow:0 4px 0 rgba(20,16,52,.55)!important;font-weight:800!important;transition:transform .12s ease,box-shadow .12s ease!important}
+.btn:hover,.nav-btn:hover{transform:translateY(-2px)!important;box-shadow:0 6px 0 rgba(20,16,52,.5)!important}
+.btn:active,.nav-btn:active,.g2048-new:active{transform:translateY(2px)!important;box-shadow:0 1px 0 rgba(20,16,52,.5)!important}
+.game-card{background:linear-gradient(165deg,rgba(255,255,255,.06),rgba(255,255,255,.02))!important}
+.game-card::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:radial-gradient(circle at 22% 12%,rgba(255,255,255,.16),transparent 42%)}
+.top-nav,.site-header{border-bottom:3px solid var(--cartoon-border)!important}
+h1,h2,h3{letter-spacing:-.03em}
+.modal-header{border-bottom:3px solid var(--cartoon-border)!important}
+.global-toast,.tb-note,.rc-note{border-radius:999px!important;border:2px solid var(--cartoon-border)!important}
+@media (prefers-reduced-motion: reduce){.game-card:hover,.stat-card:hover{transform:none!important}}

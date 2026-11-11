@@ -1266,16 +1266,21 @@
         if (!rr || !rr.labelTexture) return;
         var ctx = rr.labelTexture.getContext();
         ctx.clearRect(0, 0, 256, 64);
-        ctx.fillStyle = 'rgba(3, 12, 20, 0.58)';
-        ctx.fillRect(0, 8, 256, 48);
-        ctx.strokeStyle = 'rgba(95, 231, 255, 0.55)';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(1, 9, 254, 46);
-        ctx.fillStyle = '#eafaff';
-        ctx.font = '800 24px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+        // High-contrast tag: solid dark plate, thick white outline, bold name
+        ctx.fillStyle = 'rgba(6, 14, 24, 0.92)';
+        ctx.fillRect(0, 4, 256, 56);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+        ctx.lineWidth = 5;
+        ctx.strokeRect(3, 7, 250, 50);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 30px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText((rr.name || 'Racer').slice(0, 16), 128, 33);
+        var nm = (rr.name || 'Racer').slice(0, 16);
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
+        ctx.strokeText(nm, 128, 33);
+        ctx.fillText(nm, 128, 33);
         rr.labelTexture.update(false);
     }
 
@@ -1302,12 +1307,14 @@
         mat.emissiveColor = new BABYLON.Color3(1, 1, 1);
         mat.disableLighting = true;
         mat.backFaceCulling = false;
-        var plane = BABYLON.MeshBuilder.CreatePlane('remoteNamePlane_' + entry.id, { width: 2.5, height: 0.62 }, scene);
+        var plane = BABYLON.MeshBuilder.CreatePlane('remoteNamePlane_' + entry.id, { width: 3.6, height: 0.9 }, scene);
         plane.parent = car.root;
-        plane.position.y = 2.05;
+        plane.position.y = 2.45;
         plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
         plane.material = mat;
         plane.isPickable = false;
+        mat.zOffset = -4;
+        plane.renderingGroupId = 2;
         car.labelTexture = tex;
         car.labelMaterial = mat;
         car.labelPlane = plane;

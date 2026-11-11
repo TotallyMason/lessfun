@@ -1163,7 +1163,6 @@ let babylonRacerPromise = null;
 let babylonRacerUnavailable = false;
 let landingPromise = null;
 let tranqPromise = null;
-let assistantPromise = null;
 let drawGuessPromise = null;
 let luckyPromise = null;
 let g2048Promise = null;
@@ -1267,36 +1266,6 @@ function ensureTranq() {
     return tranqPromise;
 }
 
-function ensureAssistant() {
-    if (window.LessFunAI) return Promise.resolve();
-    if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261409')
-            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261409'); })
-            .then(function () { return loadScriptOnce('assistant.js?v=20261409'); })
-            .catch(function (error) { assistantPromise = null; throw error; });
-    }
-    return assistantPromise;
-}
-
-function openAssistant() {
-    showViewLoader('Waking up LessFun AI…', 'Loading the local assistant…');
-    if (window.LessFunAI) {
-        setTimeout(function () {
-            if (window.LessFunAI) window.LessFunAI.open();
-            hideViewLoader();
-        }, 40);
-        return;
-    }
-    ensureAssistant().then(function () {
-        setViewLoaderDetail('Building the local knowledge index…');
-        if (window.LessFunAI) window.LessFunAI.open();
-        hideViewLoader();
-    }).catch(function () {
-        hideViewLoader();
-        if (typeof showGameToast === 'function') showGameToast('Could not load the assistant.');
-    });
-}
-
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
     if (!drawGuessPromise) {
@@ -1316,7 +1285,7 @@ function ensureLucky() {
 function ensure2048() {
     if (window.Game2048) return Promise.resolve();
     if (!g2048Promise) {
-        g2048Promise = loadScriptOnce('game-2048.js?v=20261417').catch(function (error) { g2048Promise = null; throw error; });
+        g2048Promise = loadScriptOnce('game-2048.js?v=20261418').catch(function (error) { g2048Promise = null; throw error; });
     }
     return g2048Promise;
 }
@@ -9329,7 +9298,7 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.33";
+const APP_VERSION = "LessFun Public Beta 1.34.34";
 const UPDATE_NOTES = "Redline GT guardrails now have real collision";
 
 let updateShutdownTimer = 0;

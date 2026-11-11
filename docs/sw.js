@@ -1,7 +1,7 @@
 /* LessFun offline shell — single-player games stay available offline. */
 'use strict';
 
-var CACHE_NAME = 'lessfun-static-1.34.27';
+var CACHE_NAME = 'lessfun-static-1.34.34';
 var CORE_ASSETS = [
     './',
     'index.html',
@@ -17,9 +17,6 @@ var CORE_ASSETS = [
     'game-2048.js',
     'christmas.js',
     'easter.js',
-    'assistant-data.js',
-    'assistant-chat-data.js',
-    'assistant.js',
     'audio/wind-low.mp3',
     'audio/wind-high.mp3',
     'audio/engine-low.mp3',
