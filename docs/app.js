@@ -9300,8 +9300,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.44";
-const UPDATE_NOTES = "Fixed the endless update-prompt loop caused by stale asset versions";
+const APP_VERSION = "LessFun Public Beta 1.34.45";
+const UPDATE_NOTES = "Loud engine audio, two new traffic models and real kit-based body upgrades in the Garage";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;

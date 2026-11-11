@@ -70,7 +70,8 @@
 
     var VEHICLE_MODEL_FILES = {
         sedan: 'town', sport: 'wedge', suv: 'suv', van: 'minivan',
-        truck: 'truck', bus: 'bus', taxi: 'taxi', muscle: 'muscle'
+        truck: 'truck', bus: 'bus', taxi: 'taxi', muscle: 'muscle',
+        hatch: 'hatchback', exotic: 'ferrari'
     };
 
     var TRAFFIC_SPECS = {
@@ -79,7 +80,9 @@
         suv:   { w: 1.98, l: 4.75, bodyH: 0.58, cabinH: 0.48, cabinL: 2.25, cabinZ: -0.20, y: 0.72 },
         van:   { w: 2.02, l: 5.2, bodyH: 0.68, cabinH: 0.56, cabinL: 2.85, cabinZ: -0.25, y: 0.80 },
         truck: { w: 2.35, l: 7.0, bodyH: 0.72, cabinH: 0.78, cabinL: 1.95, cabinZ: 2.20, y: 0.82 },
-        bus:   { w: 2.52, l: 9.4, bodyH: 1.34, cabinH: 0.62, cabinL: 7.3, cabinZ: -0.30, y: 1.02 }
+        bus:   { w: 2.52, l: 9.4, bodyH: 1.34, cabinH: 0.62, cabinL: 7.3, cabinZ: -0.30, y: 1.02 },
+        hatch: { w: 1.78, l: 3.9, bodyH: 0.46, cabinH: 0.42, cabinL: 1.60, cabinZ: -0.15, y: 0.62 },
+        exotic:{ w: 1.94, l: 4.5, bodyH: 0.30, cabinH: 0.26, cabinL: 1.35, cabinZ: -0.05, y: 0.50 }
     };
 
     var input = {
@@ -185,7 +188,7 @@
         try {
             audioCtx = new AC();
             audioMaster = audioCtx.createGain();
-            audioMaster.gain.value = sound ? 0.48 : 0;
+            audioMaster.gain.value = sound ? 1.0 : 0;
             audioCompressor = audioCtx.createDynamicsCompressor();
             audioCompressor.threshold.value = -18;
             audioCompressor.knee.value = 18;
@@ -329,14 +332,14 @@
     }
 
     function playCrashSound() {
-        if (!playAudioSample('crash', 0.62, 0.94 + Math.random() * 0.12)) {
-            playTone(110, 0.42, 'sawtooth', 0.18, 34);
+        if (!playAudioSample('crash', 1.15, 0.94 + Math.random() * 0.12)) {
+            playTone(110, 0.42, 'sawtooth', 0.34, 34);
         }
     }
 
     function playGearSound() {
-        if (!playAudioSample('gear', 0.24, 0.96 + Math.random() * 0.1)) {
-            playTone(240, 0.06, 'square', 0.035, 160);
+        if (!playAudioSample('gear', 0.5, 0.96 + Math.random() * 0.1)) {
+            playTone(240, 0.06, 'square', 0.08, 160);
         }
     }
 
@@ -351,7 +354,7 @@
             if (garage) { running = true; rev = 0.06; }
             var hasEngine = !!(audioLoops.engineLow && audioLoops.engineHigh);
             var hasWind = !!(audioLoops.windLow && audioLoops.windHigh);
-            var synthGain = running ? (hasEngine ? 0.010 : 0.055 + rev * 0.045) : 0;
+            var synthGain = running ? (hasEngine ? 0.020 : 0.11 + rev * 0.09) : 0;
             audioSynth.engineGain.gain.setTargetAtTime(synthGain, now, 0.08);
             audioSynth.engineOsc.frequency.setTargetAtTime(48 + rev * 165, now, 0.06);
             audioSynth.subOsc.frequency.setTargetAtTime(76 + rev * 236, now, 0.06);
@@ -360,14 +363,14 @@
             audioSynth.windFilter.frequency.setTargetAtTime(520 + speed * 8, now, 0.12);
 
             if (hasEngine) {
-                audioLoops.engineLow.gain.gain.setTargetAtTime(running ? 0.18 + rev * 0.34 : 0, now, 0.09);
-                audioLoops.engineHigh.gain.gain.setTargetAtTime(running ? Math.max(0, rev - 0.30) * 0.58 : 0, now, 0.09);
+                audioLoops.engineLow.gain.gain.setTargetAtTime(running ? 0.36 + rev * 0.62 : 0, now, 0.09);
+                audioLoops.engineHigh.gain.gain.setTargetAtTime(running ? Math.max(0, rev - 0.30) * 1.05 : 0, now, 0.09);
                 audioLoops.engineLow.src.playbackRate.setTargetAtTime(0.78 + rev * 0.96, now, 0.1);
                 audioLoops.engineHigh.src.playbackRate.setTargetAtTime(0.86 + rev * 1.18, now, 0.1);
             }
             if (hasWind) {
                 var windFrac = Math.min(1, speed / 95);
-                audioLoops.windLow.gain.gain.setTargetAtTime(running ? 0.025 + windFrac * 0.14 : 0, now, 0.12);
+                audioLoops.windLow.gain.gain.setTargetAtTime(running ? 0.05 + windFrac * 0.26 : 0, now, 0.12);
                 audioLoops.windHigh.gain.gain.setTargetAtTime(running ? Math.max(0, windFrac - 0.4) * 0.28 : 0, now, 0.12);
                 audioLoops.windLow.src.playbackRate.setTargetAtTime(0.82 + windFrac * 0.52, now, 0.14);
                 audioLoops.windHigh.src.playbackRate.setTargetAtTime(0.9 + windFrac * 0.7, now, 0.14);
@@ -888,6 +891,42 @@
         box('wingPostL', 0.07, 0.32, 0.13, -0.52, 0.53, -1.92, carbon);
         box('wingPostR', 0.07, 0.32, 0.13, 0.52, 0.53, -1.92, carbon);
 
+        // Kit-specific body upgrades — the Garage changes the actual silhouette.
+        var kitStyle = carCosmetics && carCosmetics.kitStyle ? carCosmetics.kitStyle : 'stock';
+        if (kitStyle === 'widebody') {
+            box('fenderL', 0.16, 0.34, 1.5, -1.0, 0.16, 1.35, paint);
+            box('fenderR', 0.16, 0.34, 1.5, 1.0, 0.16, 1.35, paint);
+            box('fenderRL', 0.16, 0.34, 1.5, -1.0, 0.16, -1.3, paint);
+            box('fenderRR', 0.16, 0.34, 1.5, 1.0, 0.16, -1.3, paint);
+            box('fenderFlareL', 0.1, 0.42, 3.6, -0.98, 0.1, 0, carbon);
+            box('fenderFlareR', 0.1, 0.42, 3.6, 0.98, 0.1, 0, carbon);
+        }
+        if (kitStyle === 'gt3' || kitStyle === 'track') {
+            box('bigWing', 1.86, 0.08, 0.5, 0, 0.98, -2.0, carbon);
+            box('bigWingPostL', 0.08, 0.5, 0.16, -0.6, 0.68, -2.0, carbon);
+            box('bigWingPostR', 0.08, 0.5, 0.16, 0.6, 0.68, -2.0, carbon);
+            box('canards', 1.7, 0.06, 0.4, 0, 0.02, 2.24, carbon);
+        }
+        if (kitStyle === 'offroad' || kitStyle === 'rally') {
+            box('liftStrutL', 0.14, 0.18, 0.5, -0.8, -0.28, 1.4, carbon);
+            box('liftStrutR', 0.14, 0.18, 0.5, 0.8, -0.28, 1.4, carbon);
+            box('lightBar', 1.3, 0.16, 0.12, 0, 1.02, -0.4, headMat);
+            box('bullBar', 1.5, 0.3, 0.1, 0, 0.14, 2.3, chrome);
+            box('mudflapL', 0.04, 0.26, 0.3, -0.95, -0.32, -1.6, carbon);
+            box('mudflapR', 0.04, 0.26, 0.3, 0.95, -0.32, -1.6, carbon);
+        }
+        if (kitStyle === 'hyper') {
+            box('lowSplitter', 1.9, 0.07, 0.72, 0, -0.16, 2.2, carbon);
+            box('roofScoop', 0.5, 0.1, 0.5, 0, 0.9, -0.2, carbon);
+            box('finCenter', 0.05, 0.3, 0.9, 0, 0.86, -1.7, carbon);
+            box('ventL', 0.06, 0.2, 0.5, -0.92, 0.3, -0.6, carbon);
+            box('ventR', 0.06, 0.2, 0.5, 0.92, 0.3, -0.6, carbon);
+        }
+        // Side mirrors + hood scoop on every car — small details that read well up close.
+        box('mirrorL', 0.2, 0.1, 0.12, -0.86, 0.72, 0.42, paint);
+        box('mirrorR', 0.2, 0.1, 0.12, 0.86, 0.72, 0.42, paint);
+        box('scoop', 0.52, 0.09, 0.6, 0, 0.46, 0.9, paint);
+
         // Accent stripe, headlights and tail lights.
         var stripeMat = new BABYLON.PBRMaterial('racerStripe', scene);
         stripeMat.albedoColor = new BABYLON.Color3(0.94, 0.77, 0.32);
@@ -1155,7 +1194,7 @@
     function spawnRunTraffic(initial) {
         if (!traffic.length) {
             var count = isLowPower() ? 6 : 10;
-            var styles = ['sedan', 'sport', 'suv', 'sedan', 'van', 'truck', 'suv', 'bus', 'sport', 'sedan'];
+            var styles = ['sedan', 'sport', 'suv', 'exotic', 'van', 'truck', 'hatch', 'bus', 'sport', 'muscle', 'taxi', 'sedan'];
             var colors = [0xef476f, 0xffd166, 0x06d6a0, 0x118ab2, 0xf78c6b, 0xf7f3e8, 0x7f8c8d, 0x9b5de5];
             for (var i = 0; i < count; i++) {
                 traffic.push(makeTrafficCar(styles[i % styles.length], colors[i % colors.length]));
