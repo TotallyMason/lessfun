@@ -18,7 +18,6 @@ const games = [
     { id: 14, name: "Tranq Arena", description: "Top-down tranquilizer showdown — put rivals to sleep, spend energy to revive, reach the final two", icon: "dart", controls: "WASD move · mouse aim · click / Space shoot · one revive costs 1 energy" },
     { id: 15, name: "Arcade Tycoon", description: "Build your own LessFun arcade, fill it with cabinets and grow the takings", icon: "tycoon", controls: "Click to build, upgrade and expand · earnings continue while away" },
     { id: 17, name: "2048", description: "Slide tiles, merge numbers and reach 2048 — smooth animations included", icon: "t2048", controls: "Arrow keys / WASD on desktop · swipe on touch · NEW GAME resets" },
-    { id: 18, name: "RC Parking", description: "Top-down RC car parking — 5 lots of tight bays, cones and parked cars", icon: "rcpark", controls: "WASD / arrows to drive · park in the glowing bay and hold for 1s · cones cost 25" }
 ];
 
 let currentUser = null;
@@ -501,7 +500,6 @@ function getIcon(name) {
         "dart": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m14 10 6-6M16 2l6 6M12 8l4 4"/><path d="m4 20 8-8"/><path d="m2 18 2-2 4 4-2 2-4-4Z"/><path d="M13 11l-2 2"/></svg>',
         "paw": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"><ellipse cx="12" cy="15.5" rx="4.6" ry="4"/><circle cx="5.5" cy="10" r="2.1"/><circle cx="9.5" cy="6.3" r="2.1"/><circle cx="14.5" cy="6.3" r="2.1"/><circle cx="18.5" cy="10" r="2.1"/></svg>',
         "samsung": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M10 4.5h4"/></svg>',
-        "rcpark": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/></svg>',
         "t2048": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5" fill="white" stroke="none"/></svg>',
         "tycoon": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8v5H8z"/><circle cx="10" cy="16" r="1" fill="white"/><circle cx="14" cy="16" r="1" fill="white"/><path d="M9 21v-2M15 21v-2"/></svg>',
     };
@@ -1169,7 +1167,6 @@ let assistantPromise = null;
 let drawGuessPromise = null;
 let luckyPromise = null;
 let g2048Promise = null;
-let rcParkingPromise = null;
 let tycoonPromise = null;
 let gameOpenToken = 0;
 
@@ -1316,18 +1313,10 @@ function ensureLucky() {
     return luckyPromise;
 }
 
-function ensureRCParking() {
-    if (window.RCParking) return Promise.resolve();
-    if (!rcParkingPromise) {
-        rcParkingPromise = loadScriptOnce('rc-parking.js?v=20261414').catch(function (error) { rcParkingPromise = null; throw error; });
-    }
-    return rcParkingPromise;
-}
-
 function ensure2048() {
     if (window.Game2048) return Promise.resolve();
     if (!g2048Promise) {
-        g2048Promise = loadScriptOnce('game-2048.js?v=20261414').catch(function (error) { g2048Promise = null; throw error; });
+        g2048Promise = loadScriptOnce('game-2048.js?v=20261415').catch(function (error) { g2048Promise = null; throw error; });
     }
     return g2048Promise;
 }
@@ -1366,7 +1355,6 @@ function preloadGame(id) {
     if (id === 9) { ensureLucky().catch(function () {}); return; }
     if (id === 15) { ensureTycoon().catch(function () {}); return; }
     if (id === 17) { ensure2048().catch(function () {}); return; }
-    if (id === 18) { ensureRCParking().catch(function () {}); return; }
     if (id === 6) return;
     ensure3DEngine().catch(function () {});
 }
@@ -1432,14 +1420,6 @@ function openGame(id) {
         });
         return;
     }
-    if (id === 18) {
-        showViewLoader('Loading ' + game.name + '…', 'Warming up the RC car…');
-        ensureRCParking().then(function () { if (token === gameOpenToken) { openGameNow(id); hideViewLoader(); } }).catch(function () {
-            hideViewLoader();
-            alert('Could not load ' + game.name + '. Check your connection and try again.');
-        });
-        return;
-    }
     if (id === 17) {
         showViewLoader('Loading ' + game.name + '…', 'Shuffling the tiles…');
         ensure2048().then(function () { if (token === gameOpenToken) { openGameNow(id); hideViewLoader(); } }).catch(function () {
@@ -1485,15 +1465,6 @@ function openGameNow(id) {
         const g2048Body = document.getElementById('modalGameBody');
         document.getElementById('gameModal').style.display = 'flex';
         if (window.Game2048) window.Game2048.open(g2048Body);
-        return;
-    }
-    if (id === 18) {
-        currentGameId = 18;
-        trackRecentGame(18);
-        document.getElementById('modalGameTitle').textContent = game.name;
-        const rcBody = document.getElementById('modalGameBody');
-        document.getElementById('gameModal').style.display = 'flex';
-        if (window.RCParking) window.RCParking.open(rcBody);
         return;
     }
     if (id === 8) { openDrawGuessGame(); return; }
@@ -1996,7 +1967,6 @@ function toggleGameFullscreen() {
 function closeGame(fromHistory) {
     var shouldGoBack = gameHistoryPushed && !fromHistory;
     gameHistoryPushed = false;
-    if (window.RCParking) window.RCParking.close();
     if (window.Game2048) window.Game2048.close();
     if (window.Tycoon) window.Tycoon.close();
     giftModeSetting = false;
@@ -2768,6 +2738,10 @@ function racerMpSyncPresence() {
     Object.keys(racerMp.remotes).forEach(function (id) {
         if (!players.some(function (player) { return player.id === id; })) delete racerMp.remotes[id];
     });
+    // Drop camera thumbnails for players who left so their panels don't linger.
+    Object.keys(racerMp.camFrames).forEach(function (id) {
+        if (!players.some(function (player) { return player.id === id; })) delete racerMp.camFrames[id];
+    });
 
     if (racerMp.connected) {
         racerMp.status = racerMp.public
@@ -2924,9 +2898,21 @@ function racerMpRenderCamFrames() {
         return;
     }
     var now = Date.now();
+    // Stable display order: lobby player order (joinedAt/id), NOT frame arrival
+    // time. Sorting by arrival time made thumbnails swap places on every jittery
+    // packet. Data stays freshest-per-player; only the sort is stable.
+    var playerOrder = {};
+    racerMp.players.forEach(function (player, index) {
+        playerOrder[String(player.id)] = index;
+    });
     var frames = Object.keys(racerMp.camFrames).map(function (id) { return racerMp.camFrames[id]; })
         .filter(function (frame) { return frame && now - frame.at < 3500; })
-        .sort(function (a, b) { return b.at - a.at; })
+        .sort(function (a, b) {
+            var ia = playerOrder[a.id] !== undefined ? playerOrder[a.id] : 999;
+            var ib = playerOrder[b.id] !== undefined ? playerOrder[b.id] : 999;
+            if (ia !== ib) return ia - ib;
+            return String(a.id).localeCompare(String(b.id));
+        })
         .slice(0, 3);
     if (!frames.length) { host.style.display = 'none'; return; }
     host.style.display = 'flex';
@@ -9343,8 +9329,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.30";
-const UPDATE_NOTES = "Added RC Parking, a top-down parking game with 5 lots, cones and tight bays";
+const APP_VERSION = "LessFun Public Beta 1.34.31";
+const UPDATE_NOTES = "Removed RC Parking and fixed multiplayer camera glitching between players";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
