@@ -13345,3 +13345,12 @@ html.is-light .radio-panel input[type=range]{filter:none}
 .g3d-cluster-speed{right:1.5%!important;bottom:27%!important}
 .g3d-cluster-speed strong{color:#f4f8fb!important;text-shadow:0 0 18px rgba(95,231,255,.28)!important;font-size:32px!important}
 .g3d-cluster-speed span{color:#8fd8ff!important;opacity:.9}
+
+/* Big unit label at the top of the dial */
+.g3d-gauge-unit-top{
+  position:absolute;top:8.5%;left:50%;transform:translateX(-50%);
+  z-index:5;pointer-events:none;
+  font-size:15px;font-weight:900;letter-spacing:.22em;text-transform:uppercase;
+  color:#8fd8ff;text-shadow:0 0 14px rgba(95,231,255,.45);
+}
+@media (max-width:900px){.g3d-gauge-unit-top{font-size:13px;top:9%}}
