@@ -13285,3 +13285,26 @@ html.is-light .search-pill,html.is-light .games-search input{background:rgba(255
 html.is-light .radio-dock,html.is-light .radio-panel{background:rgba(255,255,255,.92)!important;color:#0e1626!important}
 html.is-light .radio-dock *,html.is-light .radio-panel *{color:#0e1626}
 html.is-light .radio-panel input[type=range]{filter:none}
+
+/* ============================================================
+   Tachometer redesign: gear centre, speed out of needle sweep,
+   RPM ×1000 ticks 1–8 white, 9–10 red
+   ============================================================ */
+.g3d-rpm-caption{position:absolute;top:47.5%;left:50%;transform:translate(-50%,-50%) translateY(-38px);font-size:7px;font-weight:900;letter-spacing:.16em;color:rgba(143,216,255,.5);z-index:3;pointer-events:none;text-transform:uppercase}
+.g3d-rpm-label{font-variant-numeric:tabular-nums}
+.g3d-rpm-label.is-red{color:#ff5b5b!important;text-shadow:0 0 8px rgba(255,60,60,.5)}
+.g3d-cluster{inset:26px;padding:10px 12px 12px;justify-content:flex-start;gap:2px}
+.g3d-cluster-warnings{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:2px}
+.g3d-cluster-gearline{margin-top:auto;margin-bottom:0;gap:4px}
+.g3d-cluster-gearline b{font-size:64px;line-height:.82;letter-spacing:-.06em;color:#f6fbff;text-shadow:0 0 26px rgba(95,231,255,.25)}
+.g3d-cluster-gearline span{font-size:6px;letter-spacing:.2em;color:rgba(143,216,255,.5)}
+.g3d-cluster-status{font-size:6.5px;margin-top:2px}
+.g3d-cluster-core{width:auto;justify-content:center;gap:6px;margin:0;font-size:6px}
+.g3d-cluster-speed{position:absolute;left:50%;bottom:4.5%;transform:translateX(-50%);display:flex;align-items:baseline;gap:3px;z-index:3}
+.g3d-cluster-speed strong{font-size:34px;line-height:.9}
+.g3d-cluster-speed span{font-size:7px}
+@media (max-width:900px){.g3d-cluster-gearline b{font-size:52px}.g3d-cluster-speed strong{font-size:28px}}
+/* Self-test: all warning lights flash on, then settle */
+.g3d-tach.is-booting .g3d-warn{opacity:1!important;animation:g3dWarnBoot .12s steps(2) infinite alternate}
+@keyframes g3dWarnBoot{0%{filter:brightness(1.6)}100%{filter:brightness(.8)}}
+.g3d-tach.is-booting .g3d-cluster-gearline b{color:#8fd8ff}

@@ -12,7 +12,7 @@
     var START_Z = 200;
     var ROAD_LENGTH = 24000;
     var ROAD_WIDTH = 22;
-    var SPEED_SCALE = 1;
+    var SPEED_SCALE = 2;
 
     var engine = null, scene = null, camera = null, canvas = null, container = null;
     var carRoot = null, carVisuals = [], wheelPivots = [], wheelSpins = [], contactShadow = null;
@@ -2535,7 +2535,7 @@
             vehicle.setWheelSideFrictionStiffness(i, 1.0);
         }
         ready = true;
-        gaugeBoot = 1.35;
+        gaugeBoot = 0.95;
         Object.keys(remoteRacers).forEach(function (id) { createRemoteBody(remoteRacers[id]); });
         worldMode = 'highway';
         setWorldMode('highway');
@@ -2949,9 +2949,9 @@
             if (speedHudTimer >= 0.2) {
                 speedHudTimer = 0;
                 var shownOut = shown;
-                if (gaugeBoot > 0) {
-                    var bootProg = 1 - (gaugeBoot / 1.35);
-                    shownOut = Math.round(Math.sin(Math.min(1, bootProg) * Math.PI) * (unit === 'kmh' ? 320 : 200));
+                if (booting) {
+                    var bootProg = 1 - (gaugeBoot / 0.95);
+                    shownOut = Math.round(Math.sin(Math.min(1, bootProg) * Math.PI) * (unit === 'kmh' ? 160 : 100));
                 }
                 setText('g3dGaugeSpeed', shownOut);
                 setText('g3dGaugeUnit', unit === 'kmh' ? 'km/h' : 'mph');
@@ -2960,19 +2960,36 @@
             setText('g3dGaugeRpm', Math.round(rpm));
             setText('g3dGaugeGearBig', gear);
             setText('g3dGaugeGear', gear);
-            setText('g3dGaugeNitro', Math.round(nitro) + '%');
+            var nitroShown = Math.round(nitro);
+            var gearShown = gear;
+            if (booting) {
+                var bp = Math.max(0, Math.min(1, 1 - (gaugeBoot / 0.95)));
+                nitroShown = Math.round(Math.min(100, (bp < 0.35 ? 0 : ((bp - 0.35) / 0.65) * 100)));
+                gearShown = String(Math.max(1, Math.min(8, Math.ceil(bp * 8))));
+            }
+            setText('g3dGaugeNitro', nitroShown + '%');
+            if (booting) {
+                setText('g3dGaugeGearBig', gearShown);
+                setText('g3dGaugeStatus', 'SYSTEM CHECK');
+            }
             setRunCoins(coinsCollected);
             var needle = $('g3dNeedle');
+            var booting = gaugeBoot > 0;
             if (needle) {
                 var sweepNorm = clamp(rpm / 8000, 0, 1);
-                if (gaugeBoot > 0) {
+                if (booting) {
                     gaugeBoot = Math.max(0, gaugeBoot - dt);
-                    var prog = 1 - (gaugeBoot / 1.35);
-                    sweepNorm = Math.sin(Math.min(1, prog) * Math.PI) * 1.0;
+                    var prog = 1 - (gaugeBoot / 0.95);
+                    // drop to zero, sweep to the top, then settle back
+                    sweepNorm = prog < 0.25
+                        ? (1 - prog / 0.25) * sweepNorm
+                        : Math.sin(Math.min(1, (prog - 0.25) / 0.75) * Math.PI);
                 }
                 var angle = -135 + sweepNorm * 270;
                 needle.style.transform = 'translateX(-50%) rotate(' + angle.toFixed(2) + 'deg)';
             }
+            var tachEl = document.getElementById('g3dTach');
+            if (tachEl) tachEl.classList.toggle('is-booting', booting);
             if (!toastTimer) {
                 if (!ready) setText('g3dGaugeStatus', 'LOADING RAPIER PHYSICS…');
                 else if (garage) setText('g3dGaugeStatus', 'GARAGE · PRESS PLAY TO DRIVE');
@@ -3669,6 +3686,7 @@
         if (!active) return false;
         paused = false;
         garage = false;
+        gaugeBoot = 0.95;
         resetCar(false);
         resetRunWorld();
         if (!ready) createPhysics();

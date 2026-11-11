@@ -1525,24 +1525,18 @@ function openGameNow(id) {
                     '<div class="g3d-tach g3d-tach-cluster" id="g3dTach">' +
                         '<div class="g3d-tach-ticks"></div>' +
                         '<div class="g3d-tach-red"></div>' +
+                        '<div class="g3d-rpm-caption">RPM ×1000</div>' +
                         '<div class="g3d-rpm-labels" aria-hidden="true">' +
-                            '<span class="g3d-rpm-label" style="left:10.4%;top:60.3%;--a:-104.6deg">900</span>' +
-                            '<span class="g3d-rpm-label" style="left:12.1%;top:34.3%;--a:-67.5deg">2000</span>' +
-                            '<span class="g3d-rpm-label" style="left:27.2%;top:15.9%;--a:-33.75deg">3000</span>' +
-                            '<span class="g3d-rpm-label" style="left:50%;top:9%;--a:0deg">4000</span>' +
-                            '<span class="g3d-rpm-label" style="left:72.8%;top:15.9%;--a:33.75deg">5000</span>' +
-                            '<span class="g3d-rpm-label is-red" style="left:87.9%;top:34.3%;--a:67.5deg">6000</span>' +
-                            '<span class="g3d-rpm-label is-red" style="left:90.2%;top:58%;--a:101.25deg">7000</span>' +
-                            '<span class="g3d-rpm-label is-red" style="left:79%;top:79%;--a:135deg">8000</span>' +
+                            [1,2,3,4,5,6,7,8,9,10].map(function (n) {
+                                var a = -135 + (n - 1) * 30;
+                                var rad = a * Math.PI / 180;
+                                var left = 50 + Math.sin(rad) * 41.5;
+                                var top = 50 - Math.cos(rad) * 41.5;
+                                return '<span class="g3d-rpm-label' + (n >= 9 ? ' is-red' : '') + '" style="left:' + left.toFixed(2) + '%;top:' + top.toFixed(2) + '%;--a:' + a + 'deg">' + n + '</span>';
+                            }).join('') +
                         '</div>' +
                         '<div class="g3d-gauge-needle" id="g3dNeedle"></div>' +
                         '<div class="g3d-cluster">' +
-                            '<div class="g3d-cluster-headline">' +
-                                '<div class="g3d-cluster-speed"><strong id="g3dGaugeSpeed">0</strong><span id="g3dGaugeUnit">mph</span></div>' +
-                            '</div>' +
-                            '<div class="g3d-cluster-gearline"><b id="g3dGaugeGearBig">1</b><span>GEAR</span></div>' +
-                            '<div class="g3d-cluster-core"><span>NOS <b id="g3dGaugeNitro">100%</b></span></div>' +
-                            '<div class="g3d-cluster-status" id="g3dGaugeStatus">HOLD W TO START</div>' +
                             '<div class="g3d-cluster-warnings" id="g3dWarnings">' +
                                 '<span class="g3d-warn" data-warn="abs">ABS</span>' +
                                 '<span class="g3d-warn" data-warn="brake">BRAKE</span>' +
@@ -1551,6 +1545,10 @@ function openGameNow(id) {
                                 '<span class="g3d-warn" data-warn="tire">TIRE</span>' +
                                 '<span class="g3d-warn" data-warn="dmg">DMG</span>' +
                             '</div>' +
+                            '<div class="g3d-cluster-gearline"><b id="g3dGaugeGearBig">1</b><span>GEAR</span></div>' +
+                            '<div class="g3d-cluster-status" id="g3dGaugeStatus">HOLD W TO START</div>' +
+                            '<div class="g3d-cluster-core"><span>NOS <b id="g3dGaugeNitro">100%</b></span></div>' +
+                            '<div class="g3d-cluster-speed"><strong id="g3dGaugeSpeed">0</strong><span id="g3dGaugeUnit">mph</span></div>' +
                         '</div>' +
                     '</div>' +
                 '</div>' : '') +
@@ -9373,8 +9371,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.56";
-const UPDATE_NOTES = "Light theme polished across the event hero, leaderboard, radio and chips";
+const APP_VERSION = "LessFun Public Beta 1.34.57";
+const UPDATE_NOTES = "New tachometer: half-scale speed readout below the needle sweep, big centre gear, RPM ×1000 ticks 1–10 with red zone, faster self-test sweep";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
