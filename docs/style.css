@@ -13242,3 +13242,30 @@ html.is-light .ios-pill-btn{color:#0b6c8a;border-color:rgba(11,108,138,.3);backg
 .theme-sweep.is-active{animation:themeSweep .5s ease-out}
 @keyframes themeSweep{0%{opacity:0;transform:scale(.6)}35%{opacity:.75}100%{opacity:0;transform:scale(1.6)}}
 @media (prefers-reduced-motion: reduce){.theme-sweep.is-active{animation:none}html.is-theme-shift body{transition:none}}
+
+/* Light theme final overrides (win over the layered dark gradients) */
+html.is-light,html.is-light body{
+  background:#eef1f6!important;
+  background-image:
+    radial-gradient(circle at 12% 0%, rgba(168,85,247,.10), transparent 36%),
+    radial-gradient(circle at 88% 10%, rgba(41,151,255,.10), transparent 34%)!important;
+  color:#111826!important;
+}
+html.is-light body::before,html.is-light body::after{opacity:0!important}
+html.is-light .site-snow{opacity:.25!important}
+html.is-light .xmas-hero,html.is-light .snow-event-card,html.is-light .games-hero,
+html.is-light .event-card,html.is-light .daily-gift-banner,html.is-light .leaderboard-card{
+  background:rgba(255,255,255,.86)!important;border-color:rgba(16,24,40,.1)!important;color:#101a2c!important;
+}
+html.is-light .view h1,html.is-light .view h2,html.is-light .view h3,
+html.is-light .container h1,html.is-light .container h2,html.is-light .container h3,
+html.is-light .games-head h2,html.is-light .section-title{color:#0e1626!important}
+html.is-light .challenge-row,html.is-light .snow-event-actions button,html.is-light .game-btn-3d{
+  color:#0b2b3c!important;
+}
+html.is-light .game-btn-3d:not(.is-secondary){background:#1677ff!important;color:#fff!important}
+html.is-light .updates-list li{color:rgba(22,32,48,.72)!important}
+html.is-light .updates-list strong{color:#0e1626!important}
+html.is-light .site-header{box-shadow:0 8px 30px rgba(20,32,54,.08)}
+html.is-light .footer,html.is-light footer{color:rgba(22,32,48,.55)!important}
+html.is-light .toggle-slider:before{background:#fff}
