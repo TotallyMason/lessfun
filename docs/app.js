@@ -9370,8 +9370,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.66";
-const UPDATE_NOTES = "Cockpit gauge fixed: upright bezel, 1024px face and no bloom so it reads sharp";
+const APP_VERSION = "LessFun Public Beta 1.34.67";
+const UPDATE_NOTES = "Gauge back as a crisp screen instrument in every camera, with clear ticks, red zone, gear and speed";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;

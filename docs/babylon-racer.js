@@ -2200,6 +2200,7 @@
         cluster.rotation.x = -0.05;
         cluster.material = clusterMat;
         cluster.parent = interiorRoot;
+        cluster.isVisible = false;
         // Keep the dial sharp: exclude it from the bloom/glow pass.
         if (glowLayer) { try { glowLayer.addExcludedMesh(cluster); } catch (e) {} }
         // Physical dial housing + chrome bezel so it looks like a real instrument.
@@ -2209,6 +2210,7 @@
         bezel.position.set(0.11, 0.53, 0.792);
         bezel.material = aluminium;
         bezel.parent = interiorRoot;
+        bezel.isVisible = false;
         // small backlight so the dial stays legible at night
         var gaugeLight = new BABYLON.PointLight('interiorGaugeLight', new BABYLON.Vector3(0.05, 0.56, 0.60), scene);
         gaugeLight.parent = carRoot;
@@ -2478,10 +2480,8 @@
 
     function applyViewMode() {
         var showExterior = !!garage || cameraMode === 1;
-        // First person has the interior cluster; the screen gauge is a
-        // third-person / garage instrument only.
         var hudGauges = document.getElementById('g3dGauges');
-        if (hudGauges) hudGauges.style.display = showExterior ? '' : 'none';
+        if (hudGauges) hudGauges.style.display = '';
         if (realCarRoot) realCarRoot.setEnabled(showExterior);
         else {
             carVisuals.forEach(function (m) { m.setEnabled(showExterior); });
