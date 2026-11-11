@@ -2183,11 +2183,14 @@
         box('roofLightL', 0.10, 0.020, 0.12, -0.18, 0.925, 0.34, roofLightMat);
         box('roofLightR', 0.10, 0.020, 0.12, 0.18, 0.925, 0.34, roofLightMat);
 
-        interiorScreenTex = new BABYLON.DynamicTexture('interiorCluster', { width: 512, height: 512 }, scene, false);
+        interiorScreenTex = new BABYLON.DynamicTexture('interiorCluster', { width: 1024, height: 1024 }, scene, false);
+        interiorScreenTex.anisotropicFilteringLevel = 8;
+        interiorScreenTex.hasAlpha = true;
         var clusterMat = new BABYLON.StandardMaterial('interiorClusterMat', scene);
         clusterMat.diffuseTexture = interiorScreenTex;
         clusterMat.emissiveTexture = interiorScreenTex;
-        clusterMat.emissiveColor = new BABYLON.Color3(1.0, 1.0, 1.0);
+        clusterMat.emissiveColor = new BABYLON.Color3(0.98, 0.98, 0.98);
+        clusterMat.specularColor = new BABYLON.Color3(0, 0, 0);
         clusterMat.disableLighting = true;
         clusterMat.backFaceCulling = false;
         var cluster = BABYLON.MeshBuilder.CreatePlane('interiorClusterPlane', { width: 0.36, height: 0.36 }, scene);
@@ -2197,10 +2200,13 @@
         cluster.rotation.x = -0.05;
         cluster.material = clusterMat;
         cluster.parent = interiorRoot;
+        // Keep the dial sharp: exclude it from the bloom/glow pass.
+        if (glowLayer) { try { glowLayer.addExcludedMesh(cluster); } catch (e) {} }
         // Physical dial housing + chrome bezel so it looks like a real instrument.
         var bezel = BABYLON.MeshBuilder.CreateTorus('interiorGaugeBezel', { diameter: 0.375, thickness: 0.016, tessellation: 42 }, scene);
-        bezel.rotation.x = Math.PI / 2;
-        bezel.position.set(0.11, 0.53, 0.795);
+        bezel.rotation.y = Math.PI - 0.30;
+        bezel.rotation.x = -0.05;
+        bezel.position.set(0.11, 0.53, 0.792);
         bezel.material = aluminium;
         bezel.parent = interiorRoot;
         // small backlight so the dial stays legible at night
@@ -2386,7 +2392,7 @@
         if (!interiorScreenTex) return;
         try {
             var ctx = interiorScreenTex.getContext();
-            var S = 512, cx = S / 2, cy = S / 2 + 18, R = 176;
+            var S = 1024, cx = S / 2, cy = S / 2 + 36, R = 352;
             var a0 = Math.PI * 0.75, a1 = Math.PI * 2.25;   // 270° sweep
             var norm = clamp(rpm / 8000, 0, 1);
             ctx.clearRect(0, 0, S, S);
@@ -2396,11 +2402,11 @@
             face.addColorStop(.65, '#0b1016');
             face.addColorStop(1, '#04070a');
             ctx.beginPath(); ctx.arc(cx, cy, R + 26, 0, Math.PI * 2); ctx.fillStyle = face; ctx.fill();
-            ctx.lineWidth = 10; ctx.strokeStyle = 'rgba(150,180,200,.35)';
+            ctx.lineWidth = 20; ctx.strokeStyle = 'rgba(150,180,200,.35)';
             ctx.beginPath(); ctx.arc(cx, cy, R + 20, 0, Math.PI * 2); ctx.stroke();
             // red zone 9-10
             ctx.beginPath(); ctx.arc(cx, cy, R - 6, a0 + (a1 - a0) * (8 / 9), a1);
-            ctx.lineWidth = 18; ctx.strokeStyle = 'rgba(255,60,60,.85)'; ctx.stroke();
+            ctx.lineWidth = 36; ctx.strokeStyle = 'rgba(255,60,60,.85)'; ctx.stroke();
             // ticks + numbers 1..10
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             for (var i = 0; i < 10; i++) {
@@ -2409,10 +2415,10 @@
                 ctx.beginPath();
                 ctx.moveTo(cx + cos * (R - 2), cy + sin * (R - 2));
                 ctx.lineTo(cx + cos * (R - 22), cy + sin * (R - 22));
-                ctx.lineWidth = 5;
+                ctx.lineWidth = 10;
                 ctx.strokeStyle = i >= 8 ? '#ff5b5b' : 'rgba(235,248,255,.9)';
                 ctx.stroke();
-                ctx.font = '900 30px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+                ctx.font = '900 56px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
                 ctx.fillStyle = i >= 8 ? '#ff6b6b' : '#eafaff';
                 ctx.fillText(String(i + 1), cx + cos * (R - 46), cy + sin * (R - 46));
                 if (i < 9) {
@@ -2420,38 +2426,38 @@
                     ctx.beginPath();
                     ctx.moveTo(cx + Math.cos(mid) * (R - 8), cy + Math.sin(mid) * (R - 8));
                     ctx.lineTo(cx + Math.cos(mid) * (R - 16), cy + Math.sin(mid) * (R - 16));
-                    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(200,225,240,.45)'; ctx.stroke();
+                    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(200,225,240,.45)'; ctx.stroke();
                 }
             }
             // RPM ×1000 caption
             ctx.fillStyle = 'rgba(143,216,255,.75)';
-            ctx.font = '900 17px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
-            ctx.fillText('RPM ×1000', cx, cy + 66);
+            ctx.font = '900 32px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+            ctx.fillText('RPM ×1000', cx, cy + 126);
             // needle
             var nang = a0 + (a1 - a0) * norm;
             ctx.save();
             ctx.translate(cx, cy);
             ctx.rotate(nang);
             ctx.beginPath();
-            ctx.moveTo(-14, 0); ctx.lineTo(R - 30, -7); ctx.lineTo(R - 30, 7); ctx.closePath();
+            ctx.moveTo(-26, 0); ctx.lineTo(R - 60, -14); ctx.lineTo(R - 60, 14); ctx.closePath();
             ctx.fillStyle = '#ff3b30'; ctx.shadowColor = 'rgba(255,60,48,.8)'; ctx.shadowBlur = 18; ctx.fill();
             ctx.restore();
-            ctx.beginPath(); ctx.arc(cx, cy, 16, 0, Math.PI * 2); ctx.fillStyle = '#12171d'; ctx.fill();
+            ctx.beginPath(); ctx.arc(cx, cy, 30, 0, Math.PI * 2); ctx.fillStyle = '#12171d'; ctx.fill();
             ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(180,205,225,.5)'; ctx.stroke();
             // gear big centre
             ctx.fillStyle = '#ffffff';
-            ctx.font = '900 86px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
-            ctx.fillText(String(gear), cx, cy + 120);
+            ctx.font = '900 168px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+            ctx.fillText(String(gear), cx, cy + 232);
             ctx.fillStyle = 'rgba(143,216,255,.7)';
-            ctx.font = '900 15px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
-            ctx.fillText('GEAR', cx, cy + 152);
+            ctx.font = '900 30px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+            ctx.fillText('GEAR', cx, cy + 296);
             // speed + unit at the top
             ctx.fillStyle = '#f4f8fb';
-            ctx.font = '900 62px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
-            ctx.fillText(String(speed), cx, cy - 118);
+            ctx.font = '900 120px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+            ctx.fillText(String(speed), cx, cy - 226);
             ctx.fillStyle = '#8fd8ff';
-            ctx.font = '900 22px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
-            ctx.fillText(unit === 'kmh' ? 'KM/H' : 'MPH', cx, cy - 74);
+            ctx.font = '900 44px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+            ctx.fillText(unit === 'kmh' ? 'KM/H' : 'MPH', cx, cy - 144);
             interiorScreenTex.update(false);
             // centre infotainment screen stays as-is
             if (centerScreenTex) {
