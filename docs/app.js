@@ -9329,7 +9329,7 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.36";
+const APP_VERSION = "LessFun Public Beta 1.34.37";
 const UPDATE_NOTES = "Redline GT guardrails now have real collision";
 
 let updateShutdownTimer = 0;
@@ -9504,6 +9504,13 @@ document.addEventListener('DOMContentLoaded', ()=>{
     if ('serviceWorker' in navigator && location.protocol !== 'file:') {
         navigator.serviceWorker.register('sw.js').then(function (registration) {
             if (registration && registration.update) registration.update().catch(function () {});
+            // Aggressive self-healing: check for a new service worker every time
+            // the app becomes visible or refocuses, so stuck installs recover
+            // without a hard refresh.
+            var swUpdate = function () { try { registration.update(); } catch (e) {} };
+            document.addEventListener('visibilitychange', function () { if (!document.hidden) swUpdate(); });
+            global.addEventListener('focus', swUpdate);
+            setInterval(swUpdate, 60000);
         }).catch(function () {});
         navigator.serviceWorker.addEventListener('message', function (event) {
             if (event && event.data && event.data.type === 'lessfun-sw-updated') checkForServerUpdate();
