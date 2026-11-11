@@ -1163,7 +1163,6 @@ let babylonRacerPromise = null;
 let babylonRacerUnavailable = false;
 let landingPromise = null;
 let tranqPromise = null;
-let assistantPromise = null;
 let drawGuessPromise = null;
 let luckyPromise = null;
 let g2048Promise = null;
@@ -1267,35 +1266,7 @@ function ensureTranq() {
     return tranqPromise;
 }
 
-function ensureAssistant() {
-    if (window.LessFunAI) return Promise.resolve();
-    if (!assistantPromise) {
-        assistantPromise = loadScriptOnce('assistant-data.js?v=20261409')
-            .then(function () { return loadScriptOnce('assistant-chat-data.js?v=20261409'); })
-            .then(function () { return loadScriptOnce('assistant.js?v=20261409'); })
-            .catch(function (error) { assistantPromise = null; throw error; });
-    }
-    return assistantPromise;
-}
 
-function openAssistant() {
-    showViewLoader('Waking up LessFun AI…', 'Loading the local assistant…');
-    if (window.LessFunAI) {
-        setTimeout(function () {
-            if (window.LessFunAI) window.LessFunAI.open();
-            hideViewLoader();
-        }, 40);
-        return;
-    }
-    ensureAssistant().then(function () {
-        setViewLoaderDetail('Building the local knowledge index…');
-        if (window.LessFunAI) window.LessFunAI.open();
-        hideViewLoader();
-    }).catch(function () {
-        hideViewLoader();
-        if (typeof showGameToast === 'function') showGameToast('Could not load the assistant.');
-    });
-}
 
 function ensureDrawGuess() {
     if (typeof openDrawGuessGame === 'function') return Promise.resolve();
