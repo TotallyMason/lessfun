@@ -13354,3 +13354,23 @@ html.is-light .radio-panel input[type=range]{filter:none}
   color:#8fd8ff;text-shadow:0 0 14px rgba(95,231,255,.45);
 }
 @media (max-width:900px){.g3d-gauge-unit-top{font-size:13px;top:9%}}
+
+/* Speed + unit together, sitting on top of the dial */
+.g3d-cluster-speed{
+  left:50%!important;right:auto!important;top:9.5%!important;bottom:auto!important;
+  transform:translateX(-50%)!important;flex-direction:row!important;align-items:baseline!important;gap:6px!important;z-index:5
+}
+.g3d-cluster-speed strong{font-size:30px!important;color:#f4f8fb!important;text-shadow:0 0 18px rgba(95,231,255,.3)!important}
+.g3d-cluster-speed span{font-size:10px!important;color:#8fd8ff!important;letter-spacing:.16em;text-transform:uppercase}
+
+/* Major-crash blinding white light (scene stays visible underneath) */
+.g3d-crash-white{position:fixed;inset:0;z-index:9400;pointer-events:none;background:radial-gradient(circle at 50% 45%,rgba(255,255,255,.96) 0%,rgba(255,255,255,.88) 55%,rgba(255,255,255,.76) 100%);opacity:0}
+.g3d-crash-white.is-active{animation:g3dCrashWhite 2.3s ease-out forwards}
+@keyframes g3dCrashWhite{
+  0%{opacity:0}
+  8%{opacity:.95}
+  30%{opacity:.8}
+  65%{opacity:.5}
+  100%{opacity:0}
+}
+@media (prefers-reduced-motion: reduce){.g3d-crash-white.is-active{animation-duration:.6s}}

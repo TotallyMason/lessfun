@@ -1535,7 +1535,6 @@ function openGameNow(id) {
                                 return '<span class="g3d-rpm-label' + (n >= 9 ? ' is-red' : '') + '" style="left:' + left.toFixed(2) + '%;top:' + top.toFixed(2) + '%;--a:' + a + 'deg">' + n + '</span>';
                             }).join('') +
                         '</div>' +
-                        '<div class="g3d-gauge-unit-top" id="g3dGaugeUnit">mph</div>' +
                         '<div class="g3d-gauge-needle" id="g3dNeedle"></div>' +
                         '<div class="g3d-cluster">' +
                             '<div class="g3d-cluster-warnings" id="g3dWarnings">' +
@@ -1548,7 +1547,7 @@ function openGameNow(id) {
                             '</div>' +
                             '<div class="g3d-cluster-gearline"><b id="g3dGaugeGearBig">1</b><span>GEAR</span></div>' +
                             '<div class="g3d-cluster-core"><span>NOS <b id="g3dGaugeNitro">100%</b></span></div>' +
-                            '<div class="g3d-cluster-speed"><strong id="g3dGaugeSpeed">0</strong></div>' +
+                            '<div class="g3d-cluster-speed"><strong id="g3dGaugeSpeed">0</strong><span id="g3dGaugeUnit">mph</span></div>' +
                         '</div>' +
                     '</div>' +
                 '</div>' : '') +
@@ -9371,8 +9370,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.61";
-const UPDATE_NOTES = "KM/H or MPH now sits large at the top of the gauge";
+const APP_VERSION = "LessFun Public Beta 1.34.62";
+const UPDATE_NOTES = "Major crashes now blast a blinding white flash, a high-pitched ring and throw you out of the car; speed and unit sit together on top of the gauge";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;

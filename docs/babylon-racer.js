@@ -56,6 +56,7 @@
     var keyHandlers = null;
     var selectedCar = null, carCosmetics = null;
     var training = false, trainingStep = 0, trainingRoot = null, trainingProps = [], trainingCooldown = 0, trainingHold = 0;
+    var eject = null, crashFlashEl = null;
     var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.25;
     var laneCenters = [-9.16, -5.5, -1.83, 1.83, 5.5, 9.16];
     var traffic = [], coinPickups = [], trafficTimer = 0;
@@ -1238,10 +1239,17 @@
         spawnRunCoins(true);
     }
 
+    function ensureCrashFlash() {
+        if (crashFlashEl && document.body.contains(crashFlashEl)) return crashFlashEl;
+        crashFlashEl = document.createElement('div');
+        crashFlashEl.className = 'g3d-crash-white';
+        document.body.appendChild(crashFlashEl);
+        return crashFlashEl;
+    }
+
     function crashRun() {
         if (runOver || garage) return;
         runOver = true;
-        paused = true;
         fsdActive = false;
         input.throttle = false; input.brake = false;
         input.left = false; input.right = false; input.nitro = false;
@@ -1250,7 +1258,38 @@
             flash.classList.add('is-active');
             setTimeout(function () { flash.classList.remove('is-active'); }, 500);
         }
+        // Major crash: blinding white light, deafening high-pitched ring and
+        // the driver is thrown clear of the car along the impact direction.
+        var white = ensureCrashFlash();
+        white.classList.remove('is-active');
+        void white.offsetWidth;
+        white.classList.add('is-active');
+        setTimeout(function () { if (white) white.classList.remove('is-active'); }, 2300);
+        try {
+            if (audioCtx) {
+                playTone(2600, 1.4, 'sine', 0.16, 5200);
+                playTone(3900, 1.15, 'triangle', 0.09, 6100);
+            }
+        } catch (e) {}
+        if (chassis) {
+            var t0 = chassis.translation();
+            var v0 = chassis.linvel();
+            var len = Math.hypot(v0.x, v0.z) || 1;
+            var dirX = v0.x / len, dirZ = v0.z / len;
+            if (!isFinite(dirX) || !isFinite(dirZ) || (Math.abs(dirX) + Math.abs(dirZ)) < 0.01) {
+                dirX = Math.sin(carRoot ? carRoot.rotation.y : 0);
+                dirZ = Math.cos(carRoot ? carRoot.rotation.y : 0);
+            }
+            eject = {
+                t: 0,
+                life: 2.6,
+                x: t0.x, y: t0.y + 0.75, z: t0.z,
+                dx: dirX, dz: dirZ,
+                spin: (Math.random() - 0.5) * 2.2
+            };
+        }
         playCrashSound();
+        paused = true;
         var score = runScore();
         if (!coinsAwarded && coinsCollected > 0 && typeof opts.onCoins === 'function') {
             coinsAwarded = true;
@@ -2811,6 +2850,21 @@
 
     function updateCamera(dt) {
         if (!camera) return;
+        if (eject) {
+            eject.t += dt;
+            var p = Math.min(1, eject.t / eject.life);
+            var ease = 1 - Math.pow(1 - p, 3);
+            var carPosE = carRoot ? carRoot.position : new BABYLON.Vector3(eject.x, eject.y, eject.z);
+            var px = eject.x + eject.dx * ease * 9.5;
+            var pz = eject.z + eject.dz * ease * 9.5;
+            var py = eject.y + ease * 4.2 + Math.sin(Math.min(1, p * 1.15) * Math.PI) * 2.2;
+            camera.position.set(px, py, pz);
+            camera.upVector.set(Math.sin(eject.spin * p) * 0.5, 1, 0);
+            camera.setTarget(new BABYLON.Vector3(carPosE.x, carPosE.y + 0.6, carPosE.z));
+            camera.fov = 1.15;
+            if (p >= 1) eject = null;
+            return;
+        }
         if (garage) {
             resetClock += dt;
             var angle = resetClock * 0.30;
