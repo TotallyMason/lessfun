@@ -12,7 +12,7 @@
     var START_Z = 200;
     var ROAD_LENGTH = 24000;
     var ROAD_WIDTH = 22;
-    var SPEED_SCALE = 2;
+    var SPEED_SCALE = 1;
 
     var engine = null, scene = null, camera = null, canvas = null, container = null;
     var carRoot = null, carVisuals = [], wheelPivots = [], wheelSpins = [], contactShadow = null;
@@ -350,7 +350,7 @@
             var now = audioCtx.currentTime;
             var speed = displaySpeed || 0;
             var running = active && ready && !runOver && !paused;
-            var freeRev = currentGear === 'P' || currentGear === 'N';
+            var freeRev = currentGear === 'N';
             var rev = freeRev ? revLevel : clamp(engineRpm / 8000, 0, 1);
             if (garage) { running = true; rev = 0.06; }
             var hasEngine = !!(audioLoops.engineLow && audioLoops.engineHigh);
@@ -2480,9 +2480,13 @@
             return;
         }
 
-        if (currentGear === 'P' || currentGear === 'N') {
+        if (currentGear === 'N') {
             revLevel += (throttle ? 1 : -1) * dt * (throttle ? 2.9 : 2.1);
             revLevel = clamp(revLevel, 0, 1);
+        } else if (currentGear === 'P') {
+            // Park: no revving, no movement — hold the brakes.
+            revLevel = Math.max(0, revLevel - dt * 3.2);
+            brakeForce = 40;
         } else if (currentGear === 'R') {
             revLevel += (throttle ? 1 : -1) * dt * (throttle ? 2.4 : 2.0);
             revLevel = clamp(revLevel, 0, 1);
@@ -2805,6 +2809,9 @@
             gaugeSpeed = gaugeBottom + (engineRpm / 8000) * (gaugeTop - gaugeBottom);
         } else if (currentGear === 'R') {
             gaugeSpeed = raw;
+        } else if (currentGear === 'N') {
+            // Revving in neutral moves the needle only — the car stays put.
+            gaugeSpeed = (engineRpm / 8000) * (driveMaxSpeed * 0.55);
         }
         var scale = unit === 'kmh' ? 3.6 : 2.23694;
         var shown = Math.round(gaugeSpeed * scale / SPEED_SCALE);
@@ -2872,7 +2879,7 @@
             updateCoins(dt);
         }
         if (exhaustSmoke) {
-            var revvingN = (currentGear === 'N' || currentGear === 'P') && revLevel > 0.10 && !garage && !runOver;
+            var revvingN = currentGear === 'N' && revLevel > 0.10 && !garage && !runOver;
             exhaustSmoke.emitRate = revvingN ? 60 + revLevel * 125 : 0;
         }
         if (driftSmoke) {
@@ -3244,7 +3251,7 @@
        Training course — tight turns, cones and pedestrian awareness
        -------------------------------------------------------------------- */
     var TRAINING_STEPS = [
-        { at: 0,   text: 'LESSON 1 · Accelerate smoothly — hold W / ↑ and reach 40 km/h.' },
+        { at: 0,   text: 'LESSON 1 · Accelerate smoothly — hold W / ↑ and reach 40 km/h on the dial.' },
         { at: 120, text: 'LESSON 2 · Brake for the corner (S / ↓) and slow below 30 km/h.' },
         { at: 260, text: 'LESSON 3 · Cone slalom — snake between the orange cones.' },
         { at: 430, text: 'LESSON 4 · Pedestrian crossing ahead — ease off and stay under 35 km/h.' },
@@ -3408,6 +3415,21 @@
         }
     }
 
+    function captureGaragePhoto() {
+        if (!active || !ready || !engine || !camera || !scene) return Promise.resolve(null);
+        return new Promise(function (resolve) {
+            try {
+                // one clean frame, then snapshot the live garage view
+                scene.render();
+                BABYLON.Tools.CreateScreenshotUsingRenderTarget(engine, camera, { width: 640, height: 360 }, function (data) {
+                    resolve(data || null);
+                }, 'image/jpeg', 0.9, true);
+            } catch (e) {
+                resolve(null);
+            }
+        });
+    }
+
     function restart() {
         if (!active) return false;
         paused = false;
@@ -3545,6 +3567,7 @@
     function noop() {}
 
     global.BabylonRacer = {
+        captureGaragePhoto: captureGaragePhoto,
         startTraining: startTraining,
         stopTraining: stopTraining,
         getTrainingState: getTrainingState,

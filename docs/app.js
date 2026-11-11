@@ -735,13 +735,14 @@ function renderGarageStats() {
     const perf = getEquippedCosmetics().performance || {};
     const car = getEquippedCar();
     const carName = car ? car.year + ' ' + car.brand + ' ' + car.model : 'Free Junk Beater';
-    const topMph = Math.round(192 * (perf.topSpeed || 1) * 2.23694);
+    const topSpeedMs = 192 * (perf.topSpeed || 1);
+    const topValue = unitSetting === 'kmh' ? Math.round(topSpeedMs * 3.6) + ' km/h' : Math.round(topSpeedMs * 2.23694) + ' mph';
     function chip(label, value) {
         return '<span class="game3d-garage-chip"><strong>' + escapeHtml(label) + '</strong> ' + escapeHtml(value) + '</span>';
     }
     host.innerHTML =
         chip('Car', carName) +
-        chip('Top', topMph + ' mph') +
+        chip('Top', topValue) +
         chip('Accel', (perf.accel || 1).toFixed(2) + 'x') +
         chip('Grip', (perf.grip || 1).toFixed(2) + 'x');
 }
@@ -837,6 +838,32 @@ function garagePlay(raceMode) {
         window.Games3D.setPaused(false);
     }
     touchPresence();
+}
+
+function captureGaragePhoto() {
+    const host = document.getElementById('g3dGaragePhoto');
+    if (!host) return;
+    host.innerHTML = '<span class="game3d-garage-photo-loading">Rendering your car…</span>';
+    const api = window.Games3D;
+    if (!api || !api.captureGaragePhoto) {
+        host.style.display = 'none';
+        return;
+    }
+    let tries = 0;
+    const timer = setInterval(function () {
+        tries++;
+        const run = api.captureGaragePhoto ? api.captureGaragePhoto() : null;
+        if (run && run.then) {
+            run.then(function (dataUrl) {
+                clearInterval(timer);
+                if (!dataUrl) { host.style.display = 'none'; return; }
+                host.innerHTML = '<img src="' + dataUrl + '" alt="Your car in 3D">';
+            }).catch(function () { clearInterval(timer); host.style.display = 'none'; });
+        } else if (tries > 30) {
+            clearInterval(timer);
+            host.style.display = 'none';
+        }
+    }, 250);
 }
 
 function startRacerTraining() {
@@ -1723,6 +1750,7 @@ function openGameNow(id) {
                         '<span class="game3d-garage-kicker">REDLINE GT · ' + (IS_HOLIDAY_UI ? 'HOLIDAY GARAGE' : 'GARAGE') + '</span>' +
                         '<h2>Your ride</h2>' +
                         '<p class="game3d-garage-sub">Buy and drive cars from the Garage. No part customisation.</p>' +
+                        '<div class="game3d-garage-photo" id="g3dGaragePhoto"><span class="game3d-garage-photo-loading">Rendering your car…</span></div>' +
                         '<div class="game3d-garage-stats" id="g3dGarageStats"></div>' +
 
                         '<div class="game3d-garage-actions">' +
@@ -1877,6 +1905,7 @@ function openGameNow(id) {
         const wrap = document.querySelector('#modalGameBody .game3d-wrap');
         if (wrap) wrap.classList.add('is-garage');
         renderGarageStats();
+        setTimeout(captureGaragePhoto, 1200);
     } else {
         const garage = document.getElementById('g3dGarage');
         if (garage) garage.style.display = 'none';
@@ -9332,8 +9361,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.46";
-const UPDATE_NOTES = "New Redline GT Training Course with tight turns, cone slalom and pedestrian awareness";
+const APP_VERSION = "LessFun Public Beta 1.34.47";
+const UPDATE_NOTES = "Garage car photos, honest speedometer, no rev in Park, neutral revving on the dial";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
