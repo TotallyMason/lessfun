@@ -18,7 +18,7 @@
     var carRoot = null, carVisuals = [], wheelPivots = [], wheelSpins = [], contactShadow = null;
     var sun = null, shadow = null, sky = null, exhaustSmoke = null, exhaustEmitter = null;
     var impactSparks = null, impactSmoke = null, impactSparkTimer = 0, crashShake = 0, wallImpactCool = 0;
-    var interiorRoot = null, interiorLight = null, interiorFill = null, interiorScreenTex = null, centerScreenTex = null, interiorSteeringWheel = null;
+    var interiorRoot = null, interiorLight = null, interiorFill = null, interiorGaugeLight = null, interiorScreenTex = null, centerScreenTex = null, interiorSteeringWheel = null;
     var debris = [], debrisPaintMat = null, debrisCarbonMat = null, debrisTireMat = null;
     var headlights = [], headlightsOn = false;
     var motionBlurPost = null, motionBlurStrength = 0.02;
@@ -2187,22 +2187,30 @@
         var clusterMat = new BABYLON.StandardMaterial('interiorClusterMat', scene);
         clusterMat.diffuseTexture = interiorScreenTex;
         clusterMat.emissiveTexture = interiorScreenTex;
-        clusterMat.emissiveColor = new BABYLON.Color3(1.45, 1.45, 1.45);
+        clusterMat.emissiveColor = new BABYLON.Color3(1.0, 1.0, 1.0);
         clusterMat.disableLighting = true;
         clusterMat.backFaceCulling = false;
-        var cluster = BABYLON.MeshBuilder.CreatePlane('interiorClusterPlane', { width: 0.32, height: 0.32 }, scene);
-        // Clear dial beside the wheel, tilted toward the driver like a real cluster.
-        cluster.position.set(0.02, 0.50, 0.745);
-        cluster.rotation.y = Math.PI - 0.18;
-        cluster.rotation.x = -0.08;
+        var cluster = BABYLON.MeshBuilder.CreatePlane('interiorClusterPlane', { width: 0.36, height: 0.36 }, scene);
+        // Big clear dial on the dash beside the wheel, angled to the driver.
+        cluster.position.set(0.11, 0.53, 0.80);
+        cluster.rotation.y = Math.PI - 0.30;
+        cluster.rotation.x = -0.05;
         cluster.material = clusterMat;
         cluster.parent = interiorRoot;
         // Physical dial housing + chrome bezel so it looks like a real instrument.
-        var bezel = BABYLON.MeshBuilder.CreateTorus('interiorGaugeBezel', { diameter: 0.335, thickness: 0.014, tessellation: 40 }, scene);
+        var bezel = BABYLON.MeshBuilder.CreateTorus('interiorGaugeBezel', { diameter: 0.375, thickness: 0.016, tessellation: 42 }, scene);
         bezel.rotation.x = Math.PI / 2;
-        bezel.position.set(0.02, 0.50, 0.742);
+        bezel.position.set(0.11, 0.53, 0.795);
         bezel.material = aluminium;
         bezel.parent = interiorRoot;
+        // small backlight so the dial stays legible at night
+        var gaugeLight = new BABYLON.PointLight('interiorGaugeLight', new BABYLON.Vector3(0.05, 0.56, 0.60), scene);
+        gaugeLight.parent = carRoot;
+        gaugeLight.intensity = 0.9;
+        gaugeLight.range = 1.6;
+        gaugeLight.diffuse = new BABYLON.Color3(0.85, 0.94, 1.0);
+        gaugeLight.setEnabled(false);
+        interiorGaugeLight = gaugeLight;
 
         centerScreenTex = new BABYLON.DynamicTexture('interiorCenter', { width: 320, height: 160 }, scene, false);
         var centerMat = new BABYLON.StandardMaterial('interiorCenterMat', scene);
@@ -2476,6 +2484,7 @@
         if (interiorRoot) interiorRoot.setEnabled(!showExterior);
         if (interiorLight) interiorLight.setEnabled(!showExterior);
         if (interiorFill) interiorFill.setEnabled(!showExterior);
+        if (interiorGaugeLight) interiorGaugeLight.setEnabled(!showExterior);
     }
 
     function createVhs() {
