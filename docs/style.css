@@ -13322,3 +13322,19 @@ html.is-light .radio-panel input[type=range]{filter:none}
 .g3d-cluster-speed{bottom:5%!important}
 .g3d-cluster-warnings{position:absolute;top:14%;left:50%;transform:translateX(-50%);width:78%;justify-content:center;gap:3px}
 .g3d-rpm-caption{top:auto!important;bottom:31%!important;transform:translate(-50%,0)!important;font-size:6.5px}
+
+/* Tach final layout: bigger RPM numbers, speed inside the red zone, warnings low */
+.g3d-rpm-label{font-size:9px!important;font-weight:900!important;letter-spacing:0}
+.g3d-rpm-label.is-red{font-size:10px!important}
+.g3d-cluster-speed{
+  left:auto!important;right:9%!important;bottom:26%!important;
+  transform:none!important;flex-direction:column;align-items:flex-end;gap:0!important;z-index:4
+}
+.g3d-cluster-speed strong{font-size:30px!important;line-height:.95;color:#ff6b6b;text-shadow:0 0 16px rgba(255,80,80,.35)}
+.g3d-cluster-speed span{font-size:6.5px!important;color:rgba(255,120,120,.8);letter-spacing:.14em}
+.g3d-cluster-warnings{
+  top:auto!important;bottom:6%!important;left:50%!important;
+  transform:translateX(-50%)!important;width:82%!important;justify-content:center;gap:3px!important;z-index:4
+}
+.g3d-cluster-core{bottom:15%!important}
+.g3d-rpm-caption{bottom:38%!important}

@@ -9371,8 +9371,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.58";
-const UPDATE_NOTES = "Tach layout polish: tidy spacing and the holiday decoration no longer covers the gauge";
+const APP_VERSION = "LessFun Public Beta 1.34.59";
+const UPDATE_NOTES = "Speed readout moved into the red zone, bigger RPM numbers, warnings at the bottom, and the screen gauge now shows only in third person";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;

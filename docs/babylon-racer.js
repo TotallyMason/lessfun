@@ -2362,6 +2362,10 @@
 
     function applyViewMode() {
         var showExterior = !!garage || cameraMode === 1;
+        // First person has the interior cluster; the screen gauge is a
+        // third-person / garage instrument only.
+        var hudGauges = document.getElementById('g3dGauges');
+        if (hudGauges) hudGauges.style.display = showExterior ? '' : 'none';
         if (realCarRoot) realCarRoot.setEnabled(showExterior);
         else {
             carVisuals.forEach(function (m) { m.setEnabled(showExterior); });
