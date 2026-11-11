@@ -2183,18 +2183,32 @@
         box('roofLightL', 0.10, 0.020, 0.12, -0.18, 0.925, 0.34, roofLightMat);
         box('roofLightR', 0.10, 0.020, 0.12, 0.18, 0.925, 0.34, roofLightMat);
 
-        interiorScreenTex = new BABYLON.DynamicTexture('interiorCluster', { width: 320, height: 128 }, scene, false);
+        interiorScreenTex = new BABYLON.DynamicTexture('interiorCluster', { width: 512, height: 512 }, scene, false);
         var clusterMat = new BABYLON.StandardMaterial('interiorClusterMat', scene);
         clusterMat.diffuseTexture = interiorScreenTex;
         clusterMat.emissiveTexture = interiorScreenTex;
         clusterMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
         clusterMat.disableLighting = true;
         clusterMat.backFaceCulling = false;
-        var cluster = BABYLON.MeshBuilder.CreatePlane('interiorClusterPlane', { width: 0.35, height: 0.14 }, scene);
-        cluster.position.set(-0.34, 0.47, 0.70);
-        cluster.rotation.y = Math.PI;
+        var cluster = BABYLON.MeshBuilder.CreatePlane('interiorClusterPlane', { width: 0.34, height: 0.34 }, scene);
+        // Sits beside the wheel on the dash, angled toward the driver so it reads clearly.
+        cluster.position.set(0.06, 0.47, 0.70);
+        cluster.rotation.y = Math.PI - 0.22;
+        cluster.rotation.x = -0.10;
         cluster.material = clusterMat;
         cluster.parent = interiorRoot;
+        // Physical dial housing + chrome bezel so it looks like a real instrument.
+        var gaugeHousing = BABYLON.MeshBuilder.CreateCylinder('interiorGaugeHousing', { height: 0.045, diameter: 0.40, tessellation: 28 }, scene);
+        gaugeHousing.rotation.x = Math.PI / 2;
+        gaugeHousing.position.set(0.06, 0.47, 0.675);
+        gaugeHousing.rotation.z = 0;
+        gaugeHousing.material = carbon;
+        gaugeHousing.parent = interiorRoot;
+        var bezel = BABYLON.MeshBuilder.CreateTorus('interiorGaugeBezel', { diameter: 0.365, thickness: 0.022, tessellation: 36 }, scene);
+        bezel.rotation.x = Math.PI / 2;
+        bezel.position.set(0.06, 0.47, 0.688);
+        bezel.material = aluminium;
+        bezel.parent = interiorRoot;
 
         centerScreenTex = new BABYLON.DynamicTexture('interiorCenter', { width: 320, height: 160 }, scene, false);
         var centerMat = new BABYLON.StandardMaterial('interiorCenterMat', scene);
@@ -2367,30 +2381,90 @@
     }
 
     function updateInteriorScreens(speed, gear, rpm) {
-        if (!interiorScreenTex || !centerScreenTex) return;
+        if (!interiorScreenTex) return;
         try {
             var ctx = interiorScreenTex.getContext();
-            ctx.fillStyle = '#03080d'; ctx.fillRect(0, 0, 320, 128);
-            ctx.fillStyle = '#ff5b3d'; ctx.fillRect(14, 18, 292, 2);
-            ctx.fillStyle = '#eafaff'; ctx.font = '900 54px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
-            ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(String(speed), 22, 75);
-            ctx.fillStyle = '#8fd8ff'; ctx.font = '800 16px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
-            ctx.fillText(unit === 'kmh' ? 'KM/H' : 'MPH', 24, 112);
-            ctx.fillStyle = '#ffcf4d'; ctx.font = '900 32px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
-            ctx.textAlign = 'right'; ctx.fillText(String(gear), 294, 73);
-            ctx.fillStyle = '#5fe7ff'; ctx.fillRect(180, 92, 112 * clamp(rpm / 8000, 0, 1), 5);
+            var S = 512, cx = S / 2, cy = S / 2 + 18, R = 176;
+            var a0 = Math.PI * 0.75, a1 = Math.PI * 2.25;   // 270° sweep
+            var norm = clamp(rpm / 8000, 0, 1);
+            ctx.clearRect(0, 0, S, S);
+            // face
+            var face = ctx.createRadialGradient(cx, cy - 40, 30, cx, cy, R + 30);
+            face.addColorStop(0, '#1b232b');
+            face.addColorStop(.65, '#0b1016');
+            face.addColorStop(1, '#04070a');
+            ctx.beginPath(); ctx.arc(cx, cy, R + 26, 0, Math.PI * 2); ctx.fillStyle = face; ctx.fill();
+            ctx.lineWidth = 10; ctx.strokeStyle = 'rgba(150,180,200,.35)';
+            ctx.beginPath(); ctx.arc(cx, cy, R + 20, 0, Math.PI * 2); ctx.stroke();
+            // red zone 9-10
+            ctx.beginPath(); ctx.arc(cx, cy, R - 6, a0 + (a1 - a0) * (8 / 9), a1);
+            ctx.lineWidth = 18; ctx.strokeStyle = 'rgba(255,60,60,.85)'; ctx.stroke();
+            // ticks + numbers 1..10
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            for (var i = 0; i < 10; i++) {
+                var t = i / 9, ang = a0 + (a1 - a0) * t;
+                var cos = Math.cos(ang), sin = Math.sin(ang);
+                ctx.beginPath();
+                ctx.moveTo(cx + cos * (R - 2), cy + sin * (R - 2));
+                ctx.lineTo(cx + cos * (R - 22), cy + sin * (R - 22));
+                ctx.lineWidth = 5;
+                ctx.strokeStyle = i >= 8 ? '#ff5b5b' : 'rgba(235,248,255,.9)';
+                ctx.stroke();
+                ctx.font = '900 30px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+                ctx.fillStyle = i >= 8 ? '#ff6b6b' : '#eafaff';
+                ctx.fillText(String(i + 1), cx + cos * (R - 46), cy + sin * (R - 46));
+                if (i < 9) {
+                    var mid = a0 + (a1 - a0) * ((i + 0.5) / 9);
+                    ctx.beginPath();
+                    ctx.moveTo(cx + Math.cos(mid) * (R - 8), cy + Math.sin(mid) * (R - 8));
+                    ctx.lineTo(cx + Math.cos(mid) * (R - 16), cy + Math.sin(mid) * (R - 16));
+                    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(200,225,240,.45)'; ctx.stroke();
+                }
+            }
+            // RPM ×1000 caption
+            ctx.fillStyle = 'rgba(143,216,255,.75)';
+            ctx.font = '900 17px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+            ctx.fillText('RPM ×1000', cx, cy + 66);
+            // needle
+            var nang = a0 + (a1 - a0) * norm;
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(nang);
+            ctx.beginPath();
+            ctx.moveTo(-14, 0); ctx.lineTo(R - 30, -7); ctx.lineTo(R - 30, 7); ctx.closePath();
+            ctx.fillStyle = '#ff3b30'; ctx.shadowColor = 'rgba(255,60,48,.8)'; ctx.shadowBlur = 18; ctx.fill();
+            ctx.restore();
+            ctx.beginPath(); ctx.arc(cx, cy, 16, 0, Math.PI * 2); ctx.fillStyle = '#12171d'; ctx.fill();
+            ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(180,205,225,.5)'; ctx.stroke();
+            // gear big centre
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '900 86px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+            ctx.fillText(String(gear), cx, cy + 120);
+            ctx.fillStyle = 'rgba(143,216,255,.7)';
+            ctx.font = '900 15px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+            ctx.fillText('GEAR', cx, cy + 152);
+            // speed + unit at the top
+            ctx.fillStyle = '#f4f8fb';
+            ctx.font = '900 62px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+            ctx.fillText(String(speed), cx, cy - 118);
+            ctx.fillStyle = '#8fd8ff';
+            ctx.font = '900 22px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+            ctx.fillText(unit === 'kmh' ? 'KM/H' : 'MPH', cx, cy - 74);
             interiorScreenTex.update(false);
-            ctx = centerScreenTex.getContext();
-            ctx.fillStyle = '#050d16'; ctx.fillRect(0, 0, 320, 160);
-            ctx.fillStyle = '#5fe7ff'; ctx.font = '900 23px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
-            ctx.textAlign = 'left'; ctx.fillText('REDLINE GT', 20, 42);
-            ctx.fillStyle = 'rgba(143,216,255,0.62)'; ctx.font = '800 12px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
-            ctx.fillText('CITY NAVIGATION · ONLINE', 20, 68);
-            ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.fillRect(20, 88, 280, 2);
-            ctx.fillStyle = '#ffcf4d'; ctx.fillRect(20, 108, 96 + (rpm / 8000) * 160, 7);
-            ctx.fillStyle = 'rgba(234,250,255,0.72)'; ctx.font = '700 11px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
-            ctx.fillText('TRACTION  ON      SPORT  ON      ASSIST  ON', 20, 140);
-            centerScreenTex.update(false);
+            // centre infotainment screen stays as-is
+            if (centerScreenTex) {
+                var c2 = centerScreenTex.getContext();
+                c2.fillStyle = '#050d16'; c2.fillRect(0, 0, 320, 160);
+                c2.fillStyle = '#5fe7ff'; c2.font = '900 23px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+                c2.textAlign = 'left'; c2.fillText('REDLINE GT', 20, 42);
+                c2.fillStyle = 'rgba(143,216,255,0.62)'; c2.font = '800 12px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+                c2.fillText('CITY NAVIGATION · ONLINE', 20, 68);
+                c2.fillStyle = 'rgba(255,255,255,0.10)'; c2.fillRect(20, 88, 280, 2);
+                c2.fillStyle = '#ffcf4d'; c2.fillRect(20, 108, 96 + (rpm / 8000) * 160, 7);
+                c2.fillStyle = 'rgba(234,250,255,0.72)'; c2.font = '700 11px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+                c2.fillText('TRACTION  ON      SPORT  ON      ASSIST  ON', 20, 140);
+                centerScreenTex.update(false);
+            }
         } catch (e) {}
     }
 
