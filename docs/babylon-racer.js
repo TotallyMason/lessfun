@@ -57,6 +57,7 @@
     var selectedCar = null, carCosmetics = null;
     var training = false, trainingStep = 0, trainingRoot = null, trainingProps = [], trainingCooldown = 0, trainingHold = 0;
     var eject = null, crashFlashEl = null;
+    var tollPlazas = [];
     var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.25;
     var laneCenters = [-9.16, -5.5, -1.83, 1.83, 5.5, 9.16];
     var traffic = [], coinPickups = [], trafficTimer = 0;
@@ -674,6 +675,7 @@
         createPines();
         createMountains();
         createRoadSigns();
+        createTollPlazas();
         loadStreetLampModel(low);
     }
 
@@ -1967,6 +1969,108 @@
         }
     }
 
+    function createTollPlazas() {
+        tollPlazas = [];
+        var steel = new BABYLON.PBRMaterial('tollSteel', scene);
+        steel.albedoColor = new BABYLON.Color3(0.20, 0.23, 0.26);
+        steel.metallic = 0.6;
+        steel.roughness = 0.42;
+        var boothMat = new BABYLON.PBRMaterial('tollBooth', scene);
+        boothMat.albedoColor = new BABYLON.Color3(0.42, 0.45, 0.5);
+        boothMat.metallic = 0.15;
+        boothMat.roughness = 0.6;
+        var boomMat = new BABYLON.StandardMaterial('tollBoom', scene);
+        boomMat.diffuseColor = new BABYLON.Color3(0.95, 0.95, 0.95);
+        boomMat.emissiveColor = new BABYLON.Color3(0.35, 0.35, 0.35);
+        var redMat = new BABYLON.StandardMaterial('tollRed', scene);
+        redMat.diffuseColor = new BABYLON.Color3(0.9, 0.16, 0.16);
+        redMat.emissiveColor = new BABYLON.Color3(1, 0.12, 0.1);
+        redMat.disableLighting = true;
+        var greenMat = new BABYLON.StandardMaterial('tollGreen', scene);
+        greenMat.diffuseColor = new BABYLON.Color3(0.2, 0.95, 0.45);
+        greenMat.emissiveColor = new BABYLON.Color3(0.1, 1, 0.4);
+        greenMat.disableLighting = true;
+
+        var startZ = spawnZ + 760;
+        for (var p = 0; p < 6; p++) {
+            var z = startZ + p * 1500;
+            var cx = highwayCurveX(z);
+            var plaza = { z: z, lanes: [], canopy: null };
+            // booths every 5.5m across the road
+            var offsets = [-8.25, -2.75, 2.75, 8.25];
+            var etcIndex = p % offsets.length;
+            offsets.forEach(function (off, li) {
+                var bx = cx + off;
+                var booth = BABYLON.MeshBuilder.CreateBox('tollBooth' + p + '_' + li, { width: 1.5, height: 2.5, depth: 2.6 }, scene);
+                booth.position.set(bx, 1.25, z);
+                booth.material = boothMat;
+                highwayMeshes.push(booth);
+                var roof = BABYLON.MeshBuilder.CreateBox('tollRoof' + p + '_' + li, { width: 2.0, height: 0.22, depth: 3.2 }, scene);
+                roof.position.set(bx, 2.62, z);
+                roof.material = steel;
+                highwayMeshes.push(roof);
+                // light (red closed / green ETC)
+                var light = BABYLON.MeshBuilder.CreateSphere('tollLight' + p + '_' + li, { diameter: 0.34, segments: 8 }, scene);
+                light.position.set(bx, 3.1, z + 0.4);
+                light.material = li === etcIndex ? greenMat : redMat;
+                highwayMeshes.push(light);
+                // boom arm: pivot at the booth edge, arm across the lane
+                var pivot = new BABYLON.TransformNode('tollPivot' + p + '_' + li, scene);
+                pivot.position.set(bx + 0.85, 0.95, z - 1.2);
+                var arm = BABYLON.MeshBuilder.CreateBox('tollArm' + p + '_' + li, { width: 4.2, height: 0.14, depth: 0.16 }, scene);
+                arm.position.set(2.1, 0, 0);
+                arm.parent = pivot;
+                arm.material = boomMat;
+                pivot.rotation.z = li === etcIndex ? 1.15 : 0;   // ETC lane open, others down
+                highwayMeshes.push(arm);
+                plaza.lanes.push({ x: bx, z: z - 1.2, pivot: pivot, arm: arm, open: li === etcIndex, broken: false });
+            });
+            // canopy across the whole plaza
+            var canopy = BABYLON.MeshBuilder.CreateBox('tollCanopy' + p, { width: 22, height: 0.36, depth: 6.2 }, scene);
+            canopy.position.set(cx, 5.4, z);
+            canopy.material = steel;
+            highwayMeshes.push(canopy);
+            var signMat = makeWorldSign('TOLL · ETC LANE ' + (etcIndex + 1), '#5fe7ff');
+            var sign = BABYLON.MeshBuilder.CreatePlane('tollSign' + p, { width: 9.6, height: 1.3 }, scene);
+            sign.position.set(cx, 4.55, z + 3.3);
+            sign.material = signMat;
+            sign.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+            highwayMeshes.push(sign);
+            tollPlazas.push(plaza);
+        }
+    }
+
+    function updateTolls(dt) {
+        if (!tollPlazas.length || !chassis || runOver) return;
+        var t = chassis.translation();
+        var v = chassis.linvel();
+        for (var i = 0; i < tollPlazas.length; i++) {
+            var plaza = tollPlazas[i];
+            if (Math.abs(t.z - plaza.z) > 8) continue;
+            for (var j = 0; j < plaza.lanes.length; j++) {
+                var lane = plaza.lanes[j];
+                if (lane.open || lane.broken) continue;
+                if (Math.abs(t.x - lane.x) < 2.3 && t.z > lane.z - 1.6 && t.z < lane.z + 0.6 && v.z > 2) {
+                    lane.broken = true;
+                    // nudge straight through: boom snaps up and away with debris
+                    lane.pivot.rotation.z = 1.35;
+                    playCrashSound();
+                    for (var d = 0; d < 6; d++) {
+                        var piece = BABYLON.MeshBuilder.CreateBox('tollShard', { width: 0.22, height: 0.1, depth: 0.1 }, scene);
+                        piece.position.set(lane.x + 1.2 + Math.random(), 1.1, lane.z + Math.random() * 0.6);
+                        piece.material = lane.arm.material;
+                        highwayMeshes.push(piece);
+                        if (impactSparks) {
+                            impactSparks.emitRate = 40;
+                            impactSparkTimer = 0.35;
+                        }
+                    }
+                    showToast('TOLL BOOM SMASHED · use the ETC lane');
+                }
+            }
+        }
+    }
+
     function createExitGate(x, z, root, label) {
         var metal = new BABYLON.PBRMaterial('exitMetal', scene);
         metal.albedoColor = new BABYLON.Color3(0.16, 0.23, 0.26);
@@ -3139,6 +3243,7 @@
         if (!paused && !garage) {
             stepPhysics(dt);
             updateTraffic(dt);
+            updateTolls(dt);
             updateCoins(dt);
         } else if (!paused) {
             updateCoins(dt);
