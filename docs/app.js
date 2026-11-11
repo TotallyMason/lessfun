@@ -12766,8 +12766,8 @@ document.addEventListener('keydown', function (e) {
 function applyThemeMode(mode) {
     var html = document.documentElement;
     var light = mode === 'light';
-    html.classList.toggle('is-light', light);
-    html.classList.toggle('is-dark', !light);
+    if (light) { html.classList.add('is-light'); html.classList.remove('is-dark'); }
+    else { html.classList.add('is-dark'); html.classList.remove('is-light'); }
     var toggle = document.getElementById('darkModeToggle');
     if (toggle) toggle.checked = !light;
     try { localStorage.setItem('lessfun_theme', light ? 'light' : 'dark'); } catch (e) {}
