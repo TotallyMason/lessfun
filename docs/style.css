@@ -13374,3 +13374,8 @@ html.is-light .radio-panel input[type=range]{filter:none}
   100%{opacity:0}
 }
 @media (prefers-reduced-motion: reduce){.g3d-crash-white.is-active{animation-duration:.6s}}
+
+/* Gauge sits on the driver's side, beside the wheel in first person */
+.g3d-gauges{left:18px!important;right:auto!important;bottom:14px!important}
+.g3d-tach{width:clamp(210px,22vw,262px)!important;height:clamp(210px,22vw,262px)!important}
+@media (max-width:900px){.g3d-gauges{left:8px!important;bottom:8px!important}}
