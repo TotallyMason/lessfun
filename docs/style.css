@@ -13115,3 +13115,17 @@ body.low-power .site-snow { opacity: 0.55; }
 .idle-ad-close{position:absolute;top:16px;right:18px;z-index:5;width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(0,0,0,.35);color:#fff;font-size:16px;cursor:pointer}
 .idle-ad-close:hover{background:rgba(0,0,0,.6)}
 @media (prefers-reduced-motion: reduce){.idle-ad-car,.idle-ad-road:before{animation:none}}
+
+/* Auto-scrolling car-ad spec ticker + carousel dots */
+.idle-ad-specs{width:min(84vw,460px);height:118px;margin:6px auto 14px;overflow:hidden;border-radius:16px;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.32);position:relative}
+.idle-ad-specs-scroll{position:absolute;left:0;right:0;animation:idleSpecScroll 12s linear infinite}
+.idle-ad-specs-scroll span{display:block;padding:11px 16px;font-size:clamp(12px,1.8vw,15px);font-weight:800;letter-spacing:.14em;color:#fff;border-bottom:1px solid rgba(255,255,255,.12);text-shadow:0 2px 8px rgba(0,0,0,.5)}
+.idle-ad-specs-scroll span:nth-child(even){color:#ffd75e}
+@keyframes idleSpecScroll{0%{top:0}100%{top:-50%}}
+.idle-ad-specs:after{content:"";position:absolute;left:0;right:0;bottom:0;height:34px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.55));pointer-events:none}
+.idle-ad-foot{font-size:9px;font-weight:900;letter-spacing:.26em;color:rgba(255,255,255,.65)}
+.idle-ad-dots{position:absolute;bottom:26px;left:0;right:0;display:flex;justify-content:center;gap:8px;z-index:4}
+.idle-ad-dots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.32);transition:background .2s,transform .2s}
+.idle-ad-dots i.is-active{background:#ffd75e;transform:scale(1.25)}
+.idle-ad-close{font-size:12px;width:auto;padding:0 14px}
+@media (prefers-reduced-motion: reduce){.idle-ad-specs-scroll{animation:none}}

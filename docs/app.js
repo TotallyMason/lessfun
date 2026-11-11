@@ -9329,7 +9329,7 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.38";
+const APP_VERSION = "LessFun Public Beta 1.34.39";
 const UPDATE_NOTES = "Redline GT guardrails now have real collision";
 
 let updateShutdownTimer = 0;
@@ -12353,27 +12353,35 @@ var IDLE_AD_DELAY = 10000;
 var IDLE_ADS = [
     {
         cls: 'idle-ad-sunset',
-        badge: 'AD · PROMOTED',
-        title: 'BEACH RACER',
-        sub: '200 mph down a neon coast. Drive the supercar now — free in LessFun.',
-        cta: 'PLAY BEACH RACER',
-        game: 1
+        badge: 'AD · TURBO X9 COUPE',
+        title: 'TURBO X9',
+        tagline: 'Zero to legend in 3.1 seconds.',
+        specs: ['0–100 KM/H · 3.1 S', 'TOP SPEED · 341 KM/H', 'TWIN-TURBO V8 · 740 HP', 'ACTIVE AERO · STANDARD', 'FROM $89,900'],
+        foot: 'TURBO MOTORS — DRIVE THE IMPOSSIBLE'
     },
     {
         cls: 'idle-ad-night',
-        badge: 'AD · PROMOTED',
-        title: 'TURBO X9',
-        sub: 'Zero to legend in 3.1 seconds. The concept supercar of the season.',
-        cta: 'SEE IT IN BEACH RACER',
-        game: 1
+        badge: 'AD · AERO EV SALOON',
+        title: 'AERO EV',
+        tagline: 'Silence has never moved this fast.',
+        specs: ['RANGE · 640 KM', '0–100 KM/H · 2.9 S', 'ULTRA-FAST CHARGE · 18 MIN', 'PANORAMIC GLASS ROOF', 'FROM $74,500'],
+        foot: 'AERO — THE FUTURE IS QUIET'
     },
     {
         cls: 'idle-ad-garage',
-        badge: 'AD · PROMOTED',
-        title: 'COAST GARAGE',
-        sub: 'Six body kits. Infinite paint. Build the car the beach deserves.',
-        cta: 'OPEN THE GARAGE',
-        game: 1
+        badge: 'AD · DUNE CRUISER 4×4',
+        title: 'DUNE CRUISER',
+        tagline: 'The city ends. The Dune Cruiser begins.',
+        specs: ['GROUND CLEARANCE · 320 MM', 'WADING DEPTH · 900 MM', 'LOCKING DIFFS · FRONT + REAR', '7 SEATS · EVERY TERRAIN', 'FROM $61,200'],
+        foot: 'CRUISER OFF-ROAD — GO FURTHER'
+    },
+    {
+        cls: 'idle-ad-sunset',
+        badge: 'AD · VELOCITÉ S9 ROADSTER',
+        title: 'VELOCITÉ S9',
+        tagline: 'Drop the top. Raise the pulse.',
+        specs: ['NATURALLY ASPIRATED V10 · 620 HP', '0–100 KM/H · 3.4 S', 'CARBON MONOCOQUE · 1,290 KG', 'TRACK MODE · INCLUDED', 'FROM $112,000'],
+        foot: 'VELOCITÉ — BORN ON THE CIRCUIT'
     }
 ];
 
@@ -12388,22 +12396,49 @@ function idleAdBuild() {
             '<div class="idle-ad-copy">' +
                 '<small data-idle-badge></small>' +
                 '<h2 data-idle-title></h2>' +
-                '<p data-idle-sub></p>' +
-                '<button type="button" data-idle-cta></button>' +
+                '<p data-idle-tagline></p>' +
+                '<div class="idle-ad-specs" data-idle-specs></div>' +
+                '<div class="idle-ad-foot" data-idle-foot></div>' +
             '</div>' +
-            '<button type="button" class="idle-ad-close" data-idle-close aria-label="Close ad">✕</button>' +
+            '<div class="idle-ad-dots" data-idle-dots></div>' +
+            '<button type="button" class="idle-ad-close" data-idle-close aria-label="Close ad">✕ Ad</button>' +
         '</div>';
     document.body.appendChild(ov);
-    ov.querySelector('[data-idle-cta]').addEventListener('click', function (e) {
-        e.stopPropagation();
-        var ad = IDLE_ADS[idleAdIndex] || IDLE_ADS[0];
-        idleAdClose();
-        if (typeof openGame === 'function') openGame(ad.game);
-    });
     ov.querySelector('[data-idle-close]').addEventListener('click', function (e) {
         e.stopPropagation();
         idleAdClose();
     });
+}
+
+function idleAdRender(index) {
+    var ov = document.getElementById('idleAdOverlay');
+    if (!ov) return;
+    var ad = IDLE_ADS[((index % IDLE_ADS.length) + IDLE_ADS.length) % IDLE_ADS.length];
+    ov.className = 'idle-ad-visible ' + ad.cls;
+    ov.querySelector('[data-idle-badge]').textContent = ad.badge;
+    ov.querySelector('[data-idle-title]').textContent = ad.title;
+    ov.querySelector('[data-idle-tagline]').textContent = ad.tagline;
+    ov.querySelector('[data-idle-specs]').innerHTML =
+        '<div class="idle-ad-specs-scroll">' + ad.specs.map(function (sp) { return '<span>' + sp + '</span>'; }).join('') + '</div>';
+    ov.querySelector('[data-idle-foot]').textContent = ad.foot;
+    var dots = ov.querySelector('[data-idle-dots]');
+    dots.innerHTML = IDLE_ADS.map(function (a, i2) {
+        return '<i class="' + (i2 === ((index % IDLE_ADS.length) + IDLE_ADS.length) % IDLE_ADS.length ? 'is-active' : '') + '"></i>';
+    }).join('');
+}
+
+var idleAdRotateTimer = 0;
+
+function idleAdStartRotate() {
+    idleAdStopRotate();
+    idleAdRotateTimer = setInterval(function () {
+        if (!idleAdOpen) { idleAdStopRotate(); return; }
+        idleAdRender(idleAdIndex + 1);
+        idleAdIndex++;
+    }, 6500);
+}
+function idleAdStopRotate() {
+    if (idleAdRotateTimer) { clearInterval(idleAdRotateTimer); idleAdRotateTimer = 0; }
 }
 
 function idleAdShow() {
@@ -12412,20 +12447,16 @@ function idleAdShow() {
     if (document.body.classList.contains('focus-mode')) { idleAdArm(); return; }
     idleAdBuild();
     idleAdIndex = (idleAdIndex + 1) % IDLE_ADS.length;
-    var ad = IDLE_ADS[idleAdIndex];
-    var ov = document.getElementById('idleAdOverlay');
-    ov.className = 'idle-ad-visible ' + ad.cls;
-    ov.querySelector('[data-idle-badge]').textContent = ad.badge;
-    ov.querySelector('[data-idle-title]').textContent = ad.title;
-    ov.querySelector('[data-idle-sub]').textContent = ad.sub;
-    ov.querySelector('[data-idle-cta]').textContent = ad.cta;
+    idleAdRender(idleAdIndex);
     idleAdOpen = true;
+    idleAdStartRotate();
 }
 
 function idleAdClose() {
     var ov = document.getElementById('idleAdOverlay');
     if (ov) ov.className = '';
     idleAdOpen = false;
+    idleAdStopRotate();
     idleAdArm();
 }
 
