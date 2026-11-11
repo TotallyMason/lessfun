@@ -1316,7 +1316,7 @@ function ensureLucky() {
 function ensure2048() {
     if (window.Game2048) return Promise.resolve();
     if (!g2048Promise) {
-        g2048Promise = loadScriptOnce('game-2048.js?v=20261416').catch(function (error) { g2048Promise = null; throw error; });
+        g2048Promise = loadScriptOnce('game-2048.js?v=20261417').catch(function (error) { g2048Promise = null; throw error; });
     }
     return g2048Promise;
 }
@@ -12334,3 +12334,116 @@ function radioPresenceConnect() {
     }
     return radioPresenceChannel;
 }
+
+/* ============================================================
+   Idle ads — after 10s of no input, play a fullscreen ad
+   (fictional in-house car promos for our own games)
+   ============================================================ */
+var idleAdTimer = 0;
+var idleAdOpen = false;
+var idleAdIndex = -1;
+var IDLE_AD_DELAY = 10000;
+var IDLE_ADS = [
+    {
+        cls: 'idle-ad-sunset',
+        badge: 'AD · PROMOTED',
+        title: 'BEACH RACER',
+        sub: '200 mph down a neon coast. Drive the supercar now — free in LessFun.',
+        cta: 'PLAY BEACH RACER',
+        game: 1
+    },
+    {
+        cls: 'idle-ad-night',
+        badge: 'AD · PROMOTED',
+        title: 'TURBO X9',
+        sub: 'Zero to legend in 3.1 seconds. The concept supercar of the season.',
+        cta: 'SEE IT IN BEACH RACER',
+        game: 1
+    },
+    {
+        cls: 'idle-ad-garage',
+        badge: 'AD · PROMOTED',
+        title: 'COAST GARAGE',
+        sub: 'Six body kits. Infinite paint. Build the car the beach deserves.',
+        cta: 'OPEN THE GARAGE',
+        game: 1
+    }
+];
+
+function idleAdBuild() {
+    if (document.getElementById('idleAdOverlay')) return;
+    var ov = document.createElement('div');
+    ov.id = 'idleAdOverlay';
+    ov.innerHTML =
+        '<div class="idle-ad-stage">' +
+            '<div class="idle-ad-road"></div>' +
+            '<div class="idle-ad-car"><span></span><span></span></div>' +
+            '<div class="idle-ad-copy">' +
+                '<small data-idle-badge></small>' +
+                '<h2 data-idle-title></h2>' +
+                '<p data-idle-sub></p>' +
+                '<button type="button" data-idle-cta></button>' +
+            '</div>' +
+            '<button type="button" class="idle-ad-close" data-idle-close aria-label="Close ad">✕</button>' +
+        '</div>';
+    document.body.appendChild(ov);
+    ov.querySelector('[data-idle-cta]').addEventListener('click', function (e) {
+        e.stopPropagation();
+        var ad = IDLE_ADS[idleAdIndex] || IDLE_ADS[0];
+        idleAdClose();
+        if (typeof openGame === 'function') openGame(ad.game);
+    });
+    ov.querySelector('[data-idle-close]').addEventListener('click', function (e) {
+        e.stopPropagation();
+        idleAdClose();
+    });
+}
+
+function idleAdShow() {
+    if (idleAdOpen || document.hidden) { idleAdArm(); return; }
+    // Respect Focus Mode — no interruptions there.
+    if (document.body.classList.contains('focus-mode')) { idleAdArm(); return; }
+    idleAdBuild();
+    idleAdIndex = (idleAdIndex + 1) % IDLE_ADS.length;
+    var ad = IDLE_ADS[idleAdIndex];
+    var ov = document.getElementById('idleAdOverlay');
+    ov.className = 'idle-ad-visible ' + ad.cls;
+    ov.querySelector('[data-idle-badge]').textContent = ad.badge;
+    ov.querySelector('[data-idle-title]').textContent = ad.title;
+    ov.querySelector('[data-idle-sub]').textContent = ad.sub;
+    ov.querySelector('[data-idle-cta]').textContent = ad.cta;
+    idleAdOpen = true;
+}
+
+function idleAdClose() {
+    var ov = document.getElementById('idleAdOverlay');
+    if (ov) ov.className = '';
+    idleAdOpen = false;
+    idleAdArm();
+}
+
+function idleAdArm() {
+    if (idleAdTimer) clearTimeout(idleAdTimer);
+    idleAdTimer = setTimeout(function () {
+        idleAdTimer = 0;
+        idleAdShow();
+    }, IDLE_AD_DELAY);
+}
+
+function idleAdActivity() {
+    if (idleAdOpen) return; // watching the ad is not "activity"
+    idleAdArm();
+}
+
+['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart', 'touchmove'].forEach(function (evt) {
+    document.addEventListener(evt, idleAdActivity, { passive: true });
+});
+document.addEventListener('visibilitychange', function () {
+    if (document.hidden) {
+        if (idleAdTimer) { clearTimeout(idleAdTimer); idleAdTimer = 0; }
+        if (idleAdOpen) idleAdClose();
+    } else {
+        idleAdArm();
+    }
+});
+idleAdArm();
