@@ -13201,3 +13201,44 @@ body.low-power .site-snow { opacity: 0.55; }
 @media (prefers-reduced-motion: reduce){
   .modal,.modal .modal-content,.view,.card,.store-card,.community-post,.settings-group,.info-card,.ios-sheet-card,.whats-new-item{animation:none!important;transition:none!important}
 }
+
+/* ============================================================
+   Light theme (dark stays the default)
+   ============================================================ */
+html{-webkit-tap-highlight-color:transparent}
+body,.site-header,.top-nav,.game-card,.settings-group,.info-card,.store-card,.community-post,.modal-content,.container,.view,.daily-gift-banner,.update-shutdown-card,.ios-sheet-card{transition:background-color .32s ease,color .32s ease,border-color .32s ease,box-shadow .32s ease}
+html.is-theme-shift body,html.is-theme-shift .site-header,html.is-theme-shift .game-card,html.is-theme-shift .settings-group,html.is-theme-shift .info-card,html.is-theme-shift .store-card,html.is-theme-shift .community-post{transition-duration:.42s}
+
+html.is-light{color-scheme:light}
+html.is-light body{background:#eef1f6;color:#111826}
+html.is-light body::before,html.is-light body::after{opacity:.35}
+html.is-light .site-header,html.is-light .top-nav{background:rgba(255,255,255,.78)!important;border-bottom:1px solid rgba(16,24,40,.1)!important;backdrop-filter:blur(20px)}
+html.is-light .brand,html.is-light .logo,html.is-light h1,html.is-light h2,html.is-light h3,html.is-light h4{color:#0e1626!important}
+html.is-light .subtitle,html.is-light p,html.is-light .settings-item p,html.is-light .info-card p{color:rgba(22,32,48,.66)!important}
+html.is-light .nav-btn{color:rgba(20,30,48,.7)!important}
+html.is-light .nav-btn.active,html.is-light .nav-btn:hover{color:#0a1020!important;background:rgba(16,24,40,.07)!important}
+html.is-light .game-card,html.is-light .settings-group,html.is-light .info-card,html.is-light .store-card,html.is-light .community-post,html.is-light .daily-gift-banner{background:rgba(255,255,255,.82)!important;border-color:rgba(16,24,40,.1)!important;box-shadow:0 10px 30px rgba(20,32,54,.10)!important}
+html.is-light .game-card::before,html.is-light .store-card::before,html.is-light .info-card::before,html.is-light .settings-group::before,html.is-light .community-post::before,html.is-light .daily-gift-banner::before{opacity:.2}
+html.is-light .game-card h2,html.is-light .game-card h3,html.is-light .game-card p{color:#101a2c!important}
+html.is-light .game-card p{color:rgba(22,32,48,.62)!important}
+html.is-light .store-tab{background:rgba(16,24,40,.06);color:rgba(20,30,48,.7)}
+html.is-light .store-tab.active{background:#111a2b;color:#f5f9ff}
+html.is-light .toggle{background:rgba(16,24,40,.16)}
+html.is-light .toggle-slider{background:#fff}
+html.is-light input[type="text"],html.is-light input[type="password"],html.is-light input[type="email"],html.is-light textarea,html.is-light select{background:rgba(255,255,255,.9);color:#101a2c;border-color:rgba(16,24,40,.14)}
+html.is-light .modal-content{background:#f7f9fc!important;color:#101a2c}
+html.is-light .modal-header{border-bottom:1px solid rgba(16,24,40,.1)}
+html.is-light .daily-gift-copy span,html.is-light .store-balance-hint{color:rgba(22,32,48,.55)!important}
+html.is-light .global-toast{background:rgba(255,255,255,.95);color:#111a2b}
+html.is-light .ios-sheet-card{background:linear-gradient(170deg,#fdfefe,#eef2f8);border-color:rgba(16,24,40,.1)}
+html.is-light .ios-sheet-head h2{color:#0e1626}
+html.is-light .whats-new-item{background:rgba(16,24,40,.04);border-color:rgba(16,24,40,.08)}
+html.is-light .whats-new-item p{color:rgba(22,32,48,.7)}
+html.is-light .ios-sheet-backdrop{background:rgba(226,232,242,.66)}
+html.is-light .ios-pill-btn{color:#0b6c8a;border-color:rgba(11,108,138,.3);background:rgba(11,108,138,.08)}
+
+/* Theme switch sweep */
+.theme-sweep{position:fixed;inset:0;z-index:12000;pointer-events:none;opacity:0;background:radial-gradient(circle at 50% 40%,rgba(255,255,255,.85),rgba(160,200,255,.35) 40%,transparent 70%)}
+.theme-sweep.is-active{animation:themeSweep .5s ease-out}
+@keyframes themeSweep{0%{opacity:0;transform:scale(.6)}35%{opacity:.75}100%{opacity:0;transform:scale(1.6)}}
+@media (prefers-reduced-motion: reduce){.theme-sweep.is-active{animation:none}html.is-theme-shift body{transition:none}}

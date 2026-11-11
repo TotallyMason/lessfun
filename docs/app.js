@@ -9373,8 +9373,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.54";
-const UPDATE_NOTES = "Speedometer now refreshes every 200 ms instead of 400 ms";
+const APP_VERSION = "LessFun Public Beta 1.34.55";
+const UPDATE_NOTES = "Working light/dark toggle with a smooth sweep, and a gauge self-test sweep on game launch";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
@@ -12759,3 +12759,41 @@ document.addEventListener('keydown', function (e) {
         if (m && m.style.display === 'flex') closeWhatsNew();
     }
 });
+
+/* ============================================================
+   Theme (dark default, light optional) + transition sweep
+   ============================================================ */
+function applyThemeMode(mode) {
+    var html = document.documentElement;
+    var light = mode === 'light';
+    html.classList.toggle('is-light', light);
+    html.classList.toggle('is-dark', !light);
+    var toggle = document.getElementById('darkModeToggle');
+    if (toggle) toggle.checked = !light;
+    try { localStorage.setItem('lessfun_theme', light ? 'light' : 'dark'); } catch (e) {}
+}
+
+function setThemeMode(mode) {
+    var sweep = document.getElementById('themeSweep');
+    document.documentElement.classList.add('is-theme-shift');
+    if (sweep) {
+        sweep.classList.remove('is-active');
+        void sweep.offsetWidth;
+        sweep.classList.add('is-active');
+    }
+    applyThemeMode(mode);
+    clearTimeout(window.__themeShiftTimer);
+    window.__themeShiftTimer = setTimeout(function () {
+        document.documentElement.classList.remove('is-theme-shift');
+        if (sweep) sweep.classList.remove('is-active');
+    }, 520);
+}
+
+function initThemeMode() {
+    var saved = 'dark';
+    try { saved = localStorage.getItem('lessfun_theme') === 'light' ? 'light' : 'dark'; } catch (e) {}
+    applyThemeMode(saved);
+}
+
+document.addEventListener('DOMContentLoaded', initThemeMode);
+if (document.readyState !== 'loading') initThemeMode();

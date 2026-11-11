@@ -40,7 +40,7 @@
     var resizeObs = null, active = false, failed = false;
     var rapier = null, world = null, chassis = null, vehicle = null;
     var rapierPromise = null, ready = false, starting = false;
-    var raf = 0, lastFrame = 0, accumulator = 0, hudTimer = 0, speedHudTimer = 0;
+    var raf = 0, lastFrame = 0, accumulator = 0, hudTimer = 0, speedHudTimer = 0, gaugeBoot = 0;
     var paused = false, garage = false, cameraMode = 0;
     var distance = 0, displaySpeed = 0, unit = 'mph', sound = true;
     var nitro = 100, driftScore = 0, steerVisual = 0;
@@ -2535,6 +2535,7 @@
             vehicle.setWheelSideFrictionStiffness(i, 1.0);
         }
         ready = true;
+        gaugeBoot = 1.35;
         Object.keys(remoteRacers).forEach(function (id) { createRemoteBody(remoteRacers[id]); });
         worldMode = 'highway';
         setWorldMode('highway');
@@ -2947,7 +2948,12 @@
             hudTimer = 0;
             if (speedHudTimer >= 0.2) {
                 speedHudTimer = 0;
-                setText('g3dGaugeSpeed', shown);
+                var shownOut = shown;
+                if (gaugeBoot > 0) {
+                    var bootProg = 1 - (gaugeBoot / 1.35);
+                    shownOut = Math.round(Math.sin(Math.min(1, bootProg) * Math.PI) * (unit === 'kmh' ? 320 : 200));
+                }
+                setText('g3dGaugeSpeed', shownOut);
                 setText('g3dGaugeUnit', unit === 'kmh' ? 'km/h' : 'mph');
                 updateInteriorScreens(shown, gear, engineRpm);
             }
@@ -2958,7 +2964,13 @@
             setRunCoins(coinsCollected);
             var needle = $('g3dNeedle');
             if (needle) {
-                var angle = -135 + clamp(rpm / 8000, 0, 1) * 270;
+                var sweepNorm = clamp(rpm / 8000, 0, 1);
+                if (gaugeBoot > 0) {
+                    gaugeBoot = Math.max(0, gaugeBoot - dt);
+                    var prog = 1 - (gaugeBoot / 1.35);
+                    sweepNorm = Math.sin(Math.min(1, prog) * Math.PI) * 1.0;
+                }
+                var angle = -135 + sweepNorm * 270;
                 needle.style.transform = 'translateX(-50%) rotate(' + angle.toFixed(2) + 'deg)';
             }
             if (!toastTimer) {
