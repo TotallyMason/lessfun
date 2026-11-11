@@ -18,7 +18,7 @@
     var carRoot = null, carVisuals = [], wheelPivots = [], wheelSpins = [], contactShadow = null;
     var sun = null, shadow = null, sky = null, exhaustSmoke = null, exhaustEmitter = null;
     var impactSparks = null, impactSmoke = null, impactSparkTimer = 0, crashShake = 0, wallImpactCool = 0;
-    var interiorRoot = null, interiorLight = null, interiorScreenTex = null, centerScreenTex = null, interiorSteeringWheel = null;
+    var interiorRoot = null, interiorLight = null, interiorFill = null, interiorScreenTex = null, centerScreenTex = null, interiorSteeringWheel = null;
     var debris = [], debrisPaintMat = null, debrisCarbonMat = null, debrisTireMat = null;
     var headlights = [], headlightsOn = false;
     var motionBlurPost = null, motionBlurStrength = 0.02;
@@ -2101,11 +2101,11 @@
         interiorRoot.setEnabled(false);
 
         var leather = new BABYLON.PBRMaterial('interiorLeather', scene);
-        leather.albedoColor = new BABYLON.Color3(0.035, 0.038, 0.042);
+        leather.albedoColor = new BABYLON.Color3(0.24, 0.235, 0.225);
         leather.metallic = 0.05;
         leather.roughness = 0.72;
         var carbon = new BABYLON.PBRMaterial('interiorCarbon', scene);
-        carbon.albedoColor = new BABYLON.Color3(0.055, 0.06, 0.065);
+        carbon.albedoColor = new BABYLON.Color3(0.11, 0.115, 0.125);
         carbon.metallic = 0.45;
         carbon.roughness = 0.28;
         var aluminium = new BABYLON.PBRMaterial('interiorAluminium', scene);
@@ -2135,7 +2135,11 @@
         box('pillarL', 0.034, 0.52, 0.060, -0.96, 0.63, 1.05, leather);
         box('pillarR', 0.034, 0.52, 0.060, 0.96, 0.63, 1.05, leather);
         box('hoodEdge', 1.55, 0.030, 0.50, 0, 0.26, 1.65, carbon);
-        box('headliner', 1.58, 0.045, 1.30, 0, 0.98, -0.05, leather);
+        var headlinerMat = new BABYLON.PBRMaterial('interiorHeadliner', scene);
+        headlinerMat.albedoColor = new BABYLON.Color3(0.55, 0.54, 0.52);
+        headlinerMat.metallic = 0.02;
+        headlinerMat.roughness = 0.95;
+        var headliner = box('headliner', 1.58, 0.045, 1.30, 0, 0.98, -0.05, headlinerMat);
         box('headlinerFront', 1.54, 0.055, 0.08, 0, 0.94, 0.66, leather);
         box('overheadConsole', 0.32, 0.055, 0.22, 0, 0.945, 0.34, carbon);
         var roofLightMat = new BABYLON.StandardMaterial('interiorRoofLightMat', scene);
@@ -2201,14 +2205,14 @@
 
         // ---- Cockpit detail pass: seats, door cards, vents, pedals, shifter ----
         var seatMat = new BABYLON.PBRMaterial('interiorSeat', scene);
-        seatMat.albedoColor = new BABYLON.Color3(0.055, 0.05, 0.048);
+        seatMat.albedoColor = new BABYLON.Color3(0.19, 0.175, 0.16);
         seatMat.metallic = 0.03;
         seatMat.roughness = 0.86;
         var stitch = new BABYLON.StandardMaterial('interiorStitch', scene);
         stitch.diffuseColor = new BABYLON.Color3(0.85, 0.78, 0.62);
         stitch.emissiveColor = new BABYLON.Color3(0.18, 0.16, 0.12);
         var rubber = new BABYLON.PBRMaterial('interiorRubber', scene);
-        rubber.albedoColor = new BABYLON.Color3(0.03, 0.032, 0.035);
+        rubber.albedoColor = new BABYLON.Color3(0.09, 0.092, 0.1);
         rubber.metallic = 0.05;
         rubber.roughness = 0.9;
 
@@ -2264,12 +2268,19 @@
         box('visorL', 0.34, 0.02, 0.22, -0.36, 0.92, 0.72, leather);
         box('visorR', 0.34, 0.02, 0.22, 0.36, 0.92, 0.72, leather);
 
-        interiorLight = new BABYLON.PointLight('interiorLight', new BABYLON.Vector3(-0.2, 0.64, 0.25), scene);
+        interiorLight = new BABYLON.PointLight('interiorLight', new BABYLON.Vector3(-0.2, 0.72, 0.30), scene);
         interiorLight.parent = carRoot;
-        interiorLight.intensity = 0.72;
-        interiorLight.range = 4.5;
-        interiorLight.diffuse = new BABYLON.Color3(0.75, 0.84, 1.0);
+        interiorLight.intensity = 2.2;
+        interiorLight.range = 7.5;
+        interiorLight.diffuse = new BABYLON.Color3(0.86, 0.9, 1.0);
         interiorLight.setEnabled(false);
+        // Soft warm fill from the dashboard so the cabin never reads as a dark void.
+        interiorFill = new BABYLON.PointLight('interiorFill', new BABYLON.Vector3(0.15, 0.42, 0.95), scene);
+        interiorFill.parent = carRoot;
+        interiorFill.intensity = 1.1;
+        interiorFill.range = 4.2;
+        interiorFill.diffuse = new BABYLON.Color3(1.0, 0.86, 0.66);
+        interiorFill.setEnabled(false);
         updateInteriorScreens(0, '1', 850);
     }
 
@@ -2310,6 +2321,7 @@
         }
         if (interiorRoot) interiorRoot.setEnabled(!showExterior);
         if (interiorLight) interiorLight.setEnabled(!showExterior);
+        if (interiorFill) interiorFill.setEnabled(!showExterior);
     }
 
     function createVhs() {
@@ -3389,8 +3401,15 @@
         trousers.diffuseColor = new BABYLON.Color3(0.16, 0.18, 0.24);
         var torso = BABYLON.MeshBuilder.CreateCylinder('pedTorso', { height: 0.78, diameterTop: 0.36, diameterBottom: 0.44, tessellation: 10 }, scene);
         torso.position.y = 1.12; torso.material = shirt; torso.parent = root;
-        var head = BABYLON.MeshBuilder.CreateSphere('pedHead', { diameter: 0.32, segments: 8 }, scene);
+        var head = BABYLON.MeshBuilder.CreateSphere('pedHead', { diameter: 0.32, segments: 10 }, scene);
         head.position.y = 1.68; head.material = skin; head.parent = root;
+        var eyeMat = new BABYLON.StandardMaterial('pedEye', scene);
+        eyeMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.14);
+        var eyeL = BABYLON.MeshBuilder.CreateSphere('pedEyeL', { diameter: 0.045, segments: 6 }, scene);
+        eyeL.position.set(-0.06, 1.71, 0.145); eyeL.material = eyeMat; eyeL.parent = root;
+        var eyeR = eyeL.clone('pedEyeR'); eyeR.position.x = 0.06;
+        var smile = BABYLON.MeshBuilder.CreateTorus('pedSmile', { diameter: 0.1, thickness: 0.012, tessellation: 10 }, scene);
+        smile.position.set(0, 1.64, 0.15); smile.rotation.x = Math.PI / 2; smile.material = eyeMat; smile.parent = root;
         var legsL = BABYLON.MeshBuilder.CreateCylinder('pedLegL', { height: 0.72, diameter: 0.14, tessellation: 6 }, scene);
         legsL.position.set(-0.1, 0.37, 0); legsL.material = trousers; legsL.parent = root;
         var legsR = legsL.clone('pedLegR'); legsR.position.x = 0.1;

@@ -9346,8 +9346,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.49";
-const UPDATE_NOTES = "Removed racing, richer cockpit interior (seats, door cards, vents, shifter, pedals)";
+const APP_VERSION = "LessFun Public Beta 1.34.50";
+const UPDATE_NOTES = "Brighter, friendly cockpit interior — no more horror lighting";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
