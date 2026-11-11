@@ -8,6 +8,7 @@ window. External links are handed to the default macOS browser.
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -77,9 +78,14 @@ class LessFunPage(QWebEnginePage):
         self._main_view = view
 
     def acceptNavigationRequest(self, url: QUrl, nav_type, is_main_frame: bool) -> bool:
+        # Keep normal web navigation inside the app. The Google button and any
+        # other link should load in this window instead of failing or being
+        # pushed out to another browser.
+        if url.scheme() in ("http", "https"):
+            return True
         if is_lessfun_url(url):
             return True
-        if url.scheme() in ("http", "https", "mailto"):
+        if url.scheme() == "mailto":
             QDesktopServices.openUrl(url)
         return False
 
@@ -392,6 +398,8 @@ class LessFunBrowser(QMainWindow):
         self.page.featurePermissionRequested.connect(self._on_feature_permission)
         self.page.loadProgress.connect(self._on_progress)
         self.page.loadFinished.connect(self._on_load_finished)
+        self._healing = False
+        self._heal_count = 0
         self.page.titleChanged.connect(self._on_title_changed)
         self.view.urlChanged.connect(self._on_url_changed)
 
@@ -423,6 +431,9 @@ class LessFunBrowser(QMainWindow):
         self.home_action = QAction("Home", self)
         self.home_action.setToolTip("LessFun home")
         self.home_action.triggered.connect(lambda: self.view.load(QUrl(HOME_URL)))
+        self.google_action = QAction("Google", self)
+        self.google_action.setToolTip("Open Google")
+        self.google_action.triggered.connect(lambda: self.view.load(QUrl("https://www.google.com")))
         self.fullscreen_action = QAction("Full Screen", self)
         self.fullscreen_action.setToolTip("Full screen (⌃⌘F)")
         self.fullscreen_action.triggered.connect(self.toggle_fullscreen)
@@ -434,12 +445,12 @@ class LessFunBrowser(QMainWindow):
         self.exit_phone_action.triggered.connect(self.exit_phone_mode)
         self.exit_phone_action.setVisible(False)
 
-        self.hard_reload_action.triggered.connect(self.hard_reload)
         toolbar.addAction(self.back_action)
         toolbar.addAction(self.forward_action)
         toolbar.addAction(self.reload_action)
         toolbar.addAction(self.hard_reload_action)
         toolbar.addAction(self.home_action)
+        toolbar.addAction(self.google_action)
 
         spacer = QWidget(self)
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
@@ -571,10 +582,11 @@ class LessFunBrowser(QMainWindow):
 
     def _on_load_finished(self, ok: bool) -> None:
         self.progress.hide()
+        self._check_version_heal()
         if not ok:
-            self.status.showMessage("Could not load LessFun. Check your connection and press ⌘R.", 8000)
+            self.status.showMessage("Could not load page. Check your connection and press ⌘R.", 8000)
         else:
-            self.status.showMessage("LessFun ready", 2500)
+            self.status.showMessage("Page ready", 2500)
         self._update_nav()
 
     def _on_title_changed(self, title: str) -> None:
@@ -582,6 +594,54 @@ class LessFunBrowser(QMainWindow):
 
     def _on_url_changed(self, url: QUrl) -> None:
         self._update_nav()
+
+    def hard_reload(self) -> None:
+        """Drop the HTTP cache so a fresh build always lands."""
+        try:
+            self.profile.clearHttpCache()
+            self.status.showMessage("Cache cleared - reloading", 4000)
+        except Exception:
+            self.status.showMessage("Reloading", 2000)
+        self.view.reload()
+
+    def _check_version_heal(self) -> None:
+        """Auto-heal: if the page runs a different build than the live site,
+        clear the HTTP cache and reload once. No user interaction needed."""
+        if self._healing or self._heal_count >= 3:
+            return
+        if not is_lessfun_url(self.view.url()):
+            return
+        js = (
+            "(function(){"
+            "return fetch('version.json?t=' + Date.now(), {cache:'no-store'})"
+            ".then(function(r){ return r.ok ? r.json() : null; })"
+            ".then(function(d){ return JSON.stringify({remote: (d && d.version) || null, local: window.APP_VERSION || null}); })"
+            ".catch(function(){ return JSON.stringify({remote:null, local:null}); });"
+            "})()"
+        )
+        self.page.runJavaScript(js, self._version_heal_result)
+
+    def _version_heal_result(self, result) -> None:
+        try:
+            data = json.loads(result) if isinstance(result, str) else (result or {})
+        except Exception:
+            return
+        remote = (data or {}).get('remote')
+        local = (data or {}).get('local')
+        if not remote or not local:
+            return
+        if remote == local:
+            self._heal_count = 0
+            return
+        self._healing = True
+        self._heal_count += 1
+        self.status.showMessage('Newer build detected - clearing cache and reloading...', 8000)
+        try:
+            self.profile.clearHttpCache()
+        except Exception:
+            pass
+        self.view.reload()
+        self._healing = False
 
     def _update_nav(self) -> None:
         history = self.page.history()
@@ -593,15 +653,6 @@ class LessFunBrowser(QMainWindow):
         except Exception:
             pass
         self.reload_action.triggered.connect(lambda: self.view.stop() if self.page.isLoading() else self.view.reload())
-
-    def hard_reload(self) -> None:
-        """Drop the HTTP cache so a fresh build always lands."""
-        try:
-            self.profile.clearHttpCache()
-            self.status.showMessage("Cache cleared — reloading", 4000)
-        except Exception:
-            self.status.showMessage("Reloading", 2000)
-        self.view.reload()
 
     def toggle_fullscreen(self) -> None:
         if self.isFullScreen():
@@ -636,6 +687,7 @@ class LessFunBrowser(QMainWindow):
 
 
 def main() -> int:
+    os.environ.setdefault('QTWEBENGINE_REMOTE_DEBUGGING', '127.0.0.1:9223')
     QApplication.setApplicationName(APP_NAME)
     QApplication.setApplicationDisplayName(APP_NAME)
     QApplication.setOrganizationName("TotallyMason")
