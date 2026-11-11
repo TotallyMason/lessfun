@@ -9373,8 +9373,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.51";
-const UPDATE_NOTES = "Gifts now refresh every 4 hours with a live countdown";
+const APP_VERSION = "LessFun Public Beta 1.34.52";
+const UPDATE_NOTES = "What's New sheet with full release history, plus iOS-style motion across the site";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
@@ -12701,3 +12701,61 @@ document.addEventListener('visibilitychange', function () {
     }
 });
 idleAdArm();
+
+/* ============================================================
+   What's New — full release history sheet
+   ============================================================ */
+function parseReleaseNotes() {
+    var src = document.querySelector('.updates-list');
+    if (!src) return [];
+    var entries = [];
+    src.querySelectorAll('li').forEach(function (li) {
+        var strong = li.querySelector('strong');
+        if (!strong) return;
+        var version = strong.textContent.trim();
+        var text = li.textContent.slice(version.length).replace(/^\s*[—-]\s*/, '').trim();
+        if (!text) return;
+        entries.push({ version: version, text: text });
+    });
+    function key(v) {
+        var m = v.match(/(\d+)\.(\d+)\.?(\d+)?/);
+        return m ? (Number(m[1]) * 1e6 + Number(m[2]) * 1e3 + Number(m[3] || 0)) : 0;
+    }
+    entries.sort(function (a, b) { return key(b.version) - key(a.version); });
+    return entries;
+}
+
+function openWhatsNew() {
+    var modal = document.getElementById('whatsNewModal');
+    var list = document.getElementById('whatsNewList');
+    if (!modal || !list) return;
+    var entries = parseReleaseNotes();
+    list.innerHTML = entries.length
+        ? entries.map(function (e, i) {
+            return '<article class="whats-new-item' + (i === 0 ? ' is-latest' : '') + '">' +
+                '<span class="whats-new-version">' + escapeHtml(e.version) + (i === 0 ? '<i>NEW</i>' : '') + '</span>' +
+                '<p>' + escapeHtml(e.text) + '</p>' +
+            '</article>';
+        }).join('')
+        : '<p class="whats-new-empty">No release notes yet.</p>';
+    modal.style.display = 'flex';
+    modal.classList.remove('is-open');
+    requestAnimationFrame(function () { requestAnimationFrame(function () { modal.classList.add('is-open'); }); });
+    list.scrollTop = 0;
+}
+
+function closeWhatsNew() {
+    var modal = document.getElementById('whatsNewModal');
+    if (!modal) return;
+    modal.classList.remove('is-open');
+    setTimeout(function () {
+        if (!modal.classList.contains('is-open')) modal.style.display = 'none';
+    }, 260);
+}
+
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+        var m = document.getElementById('whatsNewModal');
+        if (m && m.style.display === 'flex') closeWhatsNew();
+    }
+});
