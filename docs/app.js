@@ -6473,6 +6473,30 @@ const WALLET_STORAGE_PREFIX = 'lessfun_wallet_v1_';
 const DAILY_BONUS = 25;
 const STREAK_BONUSES = { 3: 150, 7: 400, 14: 1000 };
 const DAILY_GIFTS = [50, 75, 100, 150, 200, 300, 500];
+const GIFT_COOLDOWN_MS = 4 * 60 * 60 * 1000; // gifts refresh every 4 hours
+function giftClaimTs(value) {
+    if (!value) return 0;
+    var str = String(value);
+    if (/^\d+$/.test(str)) {
+        var n = Number(str);
+        // legacy wallets stored a day count-ish value; anything huge is ms
+        return n > 1000000000000 ? n : (n > 1000000000 ? n * 1000 : Date.parse(str) || 0);
+    }
+    var parsed = Date.parse(str.length <= 10 ? str + 'T00:00:00' : str);
+    return isFinite(parsed) ? parsed : 0;
+}
+function giftRemaining() {
+    var gift = (wallet && wallet.gift) || {};
+    var last = giftClaimTs(gift.lastClaim);
+    if (!last) return 0;
+    var left = last + GIFT_COOLDOWN_MS - Date.now();
+    return left > 0 ? left : 0;
+}
+function formatGiftRemaining(ms) {
+    var mins = Math.max(1, Math.ceil(ms / 60000));
+    var h = Math.floor(mins / 60), m = mins % 60;
+    return h > 0 ? (h + 'h ' + m + 'm') : (m + 'm');
+}
 const ADVENT_REWARDS = [
     { cookies: 25 }, { cookies: 30 }, { cookies: 35 }, { cookies: 40 },
     { cookies: 45 }, { cookies: 50 }, { cookies: 60 }, { cookies: 40 },
@@ -7778,13 +7802,14 @@ function applyGlobalCosmetics() {
 }
 
 function dailyGiftState() {
-    var today = dayKey();
     var gift = (wallet && wallet.gift) || { lastClaim: '', streak: 0 };
-    var claimed = gift.lastClaim === today;
-    var gap = gift.lastClaim ? dayNumber(today) - dayNumber(gift.lastClaim) : 0;
+    var last = giftClaimTs(gift.lastClaim);
+    var now = Date.now();
+    var claimed = last > 0 && (now - last) < GIFT_COOLDOWN_MS;
+    var gap = last ? now - last : Infinity;
     var streak;
     if (claimed) streak = Math.max(1, Number(gift.streak) || 1);
-    else if (gap === 1) streak = Math.max(1, (Number(gift.streak) || 0) + 1);
+    else if (gap < GIFT_COOLDOWN_MS * 2.5) streak = Math.max(1, (Number(gift.streak) || 0) + 1);
     else streak = 1;
     var day = ((streak - 1) % 7) + 1;
     return {
@@ -7792,7 +7817,8 @@ function dailyGiftState() {
         streak: streak,
         day: day,
         amount: DAILY_GIFTS[day - 1],
-        lastClaim: gift.lastClaim
+        lastClaim: gift.lastClaim,
+        remaining: claimed ? (last + GIFT_COOLDOWN_MS - now) : 0
     };
 }
 
@@ -7810,11 +7836,11 @@ function renderDailyGift() {
     }
     var st = dailyGiftState();
     banner.classList.toggle('is-claimed', st.claimed);
-    if (title) title.textContent = st.claimed ? 'Gift claimed today' : 'Daily gift ready';
+    if (title) title.textContent = st.claimed ? 'Gift claimed' : 'Daily gift ready';
     if (sub) {
         sub.textContent = st.claimed
-            ? 'Day ' + st.day + ' claimed · ' + st.streak + '-day streak · come back tomorrow'
-            : 'Day ' + st.day + ' of 7 · ' + st.amount.toLocaleString() + ' Coins · ' + st.streak + '-day streak';
+            ? 'Next gift in ' + formatGiftRemaining(st.remaining) + ' · ' + st.streak + '-claim streak'
+            : 'Every 4 hours · ' + st.amount.toLocaleString() + ' Coins · ' + st.streak + '-claim streak';
     }
     if (btn) {
         btn.disabled = st.claimed;
@@ -7840,7 +7866,7 @@ function renderDailyGiftModal() {
     if (!grid || !wallet) return;
     var st = dailyGiftState();
     var streakEl = document.getElementById('dailyGiftStreak');
-    if (streakEl) streakEl.innerHTML = '<strong>' + st.streak + '-day streak</strong><span>Day ' + st.day + ' of 7</span>';
+    if (streakEl) streakEl.innerHTML = '<strong>' + st.streak + '-claim streak</strong><span>Gift ' + st.day + ' of 7 · every 4 hours</span>';
     grid.innerHTML = DAILY_GIFTS.map(function (amount, index) {
         var day = index + 1;
         var claimed = st.claimed ? day <= st.day : day < st.day;
@@ -7858,20 +7884,20 @@ function renderDailyGiftModal() {
     var claim = document.getElementById('dailyGiftClaim');
     if (claim) {
         claim.disabled = st.claimed;
-        claim.textContent = st.claimed ? 'Claimed · come back tomorrow' : 'Claim ' + st.amount.toLocaleString() + ' Coins';
+        claim.textContent = st.claimed ? 'Next gift in ' + formatGiftRemaining(st.remaining) : 'Claim ' + st.amount.toLocaleString() + ' Coins';
     }
     var note = document.getElementById('dailyGiftNote');
     if (note) {
         if (!currentUser || currentUser.type !== 'user') note.textContent = 'Sign in to keep your gift streak across devices.';
-        else note.textContent = st.claimed ? 'Your next gift unlocks at midnight.' : 'Claim today to keep the streak alive.';
+        else note.textContent = st.claimed ? 'Next gift unlocks in ' + formatGiftRemaining(st.remaining) + '.' : 'Claim now — gifts refresh every 4 hours.';
     }
 }
 
 async function claimDailyGift() {
     if (!wallet) { showGameToast('Daily gift is still loading.'); return; }
     var st = dailyGiftState();
-    if (st.claimed) { showGameToast('Your gift is already claimed today.'); return; }
-    wallet.gift = { lastClaim: dayKey(), streak: st.streak };
+    if (st.claimed) { showGameToast('Gift ready again in ' + formatGiftRemaining(st.remaining) + '.'); return; }
+    wallet.gift = { lastClaim: String(Date.now()), streak: st.streak };
     wallet.shells = Math.max(0, (Number(wallet.shells) || 0) + st.amount);
     wallet.totalEarned = Math.max(0, (Number(wallet.totalEarned) || 0) + st.amount);
     var cookieBonus = isHolidayEvent() ? 3 : 0;
@@ -7880,7 +7906,7 @@ async function claimDailyGift() {
     renderWalletUI();
     renderDailyGiftModal();
     var result = document.getElementById('dailyGiftResult');
-    if (result) result.textContent = '+' + st.amount.toLocaleString() + ' Coins' + (cookieBonus ? ' · +' + cookieBonus + ' Cookies' : '') + ' · ' + st.streak + '-day streak';
+    if (result) result.textContent = '+' + st.amount.toLocaleString() + ' Coins' + (cookieBonus ? ' · +' + cookieBonus + ' Cookies' : '') + ' · ' + st.streak + '-claim streak';
     showGameToast('Daily gift · +' + st.amount.toLocaleString() + ' Coins' + (cookieBonus ? ' · +' + cookieBonus + ' Cookies' : ''));
 }
 
@@ -8010,6 +8036,7 @@ function renderWalletUI() {
     }
     applyGlobalCosmetics();
     renderDailyGift();
+    if (!window.__giftTick) { window.__giftTick = setInterval(renderDailyGift, 30000); }
 }
 
 function getEquippedCar() {
@@ -9346,8 +9373,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.50";
-const UPDATE_NOTES = "Brighter, friendly cockpit interior — no more horror lighting";
+const APP_VERSION = "LessFun Public Beta 1.34.51";
+const UPDATE_NOTES = "Gifts now refresh every 4 hours with a live countdown";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
