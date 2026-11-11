@@ -2199,6 +2199,71 @@
         wheelMarker.material = trimMat;
         wheelMarker.parent = interiorSteeringWheel;
 
+        // ---- Cockpit detail pass: seats, door cards, vents, pedals, shifter ----
+        var seatMat = new BABYLON.PBRMaterial('interiorSeat', scene);
+        seatMat.albedoColor = new BABYLON.Color3(0.055, 0.05, 0.048);
+        seatMat.metallic = 0.03;
+        seatMat.roughness = 0.86;
+        var stitch = new BABYLON.StandardMaterial('interiorStitch', scene);
+        stitch.diffuseColor = new BABYLON.Color3(0.85, 0.78, 0.62);
+        stitch.emissiveColor = new BABYLON.Color3(0.18, 0.16, 0.12);
+        var rubber = new BABYLON.PBRMaterial('interiorRubber', scene);
+        rubber.albedoColor = new BABYLON.Color3(0.03, 0.032, 0.035);
+        rubber.metallic = 0.05;
+        rubber.roughness = 0.9;
+
+        // Driver + passenger seats (we sit in the driver's one)
+        function seat(px, pz, flip) {
+            box('seatBase', 0.46, 0.1, 0.5, px, 0.09, pz, seatMat);
+            var back = box('seatBack', 0.46, 0.62, 0.1, px, 0.40, pz - 0.28, seatMat);
+            back.rotation.x = flip ? -0.13 : -0.13;
+            box('seatBolsterL', 0.08, 0.5, 0.14, px - 0.2, 0.36, pz - 0.26, seatMat);
+            box('seatBolsterR', 0.08, 0.5, 0.14, px + 0.2, 0.36, pz - 0.26, seatMat);
+            box('seatHead', 0.24, 0.14, 0.1, px, 0.78, pz - 0.3, seatMat);
+            box('seatStitch', 0.02, 0.5, 0.02, px, 0.38, pz - 0.22, stitch);
+        }
+        seat(-0.34, -0.18, false);
+        seat(0.38, -0.18, false);
+
+        // Door cards with handles + window switches
+        box('doorCardL', 0.03, 0.30, 0.84, -0.955, 0.30, -0.12, seatMat);
+        box('doorCardR', 0.03, 0.30, 0.84, 0.955, 0.30, -0.12, seatMat);
+        box('doorHandleL', 0.05, 0.035, 0.16, -0.92, 0.42, 0.18, aluminium);
+        box('doorHandleR', 0.05, 0.035, 0.16, 0.92, 0.42, 0.18, aluminium);
+        box('doorArmL', 0.12, 0.05, 0.42, -0.9, 0.30, 0.02, leather);
+        box('doorArmR', 0.12, 0.05, 0.42, 0.9, 0.30, 0.02, leather);
+
+        // Air vents either side of the dash + center vents
+        var ventMat = new BABYLON.StandardMaterial('interiorVent', scene);
+        ventMat.diffuseColor = new BABYLON.Color3(0.02, 0.02, 0.022);
+        box('ventL', 0.14, 0.07, 0.03, -0.62, 0.28, 0.72, ventMat);
+        box('ventR', 0.14, 0.07, 0.03, 0.62, 0.28, 0.72, ventMat);
+        box('ventC1', 0.12, 0.06, 0.03, 0.06, 0.30, 0.66, ventMat);
+        box('ventC2', 0.12, 0.06, 0.03, 0.22, 0.30, 0.66, ventMat);
+        box('ventTrimC', 0.34, 0.015, 0.035, 0.14, 0.26, 0.66, aluminium);
+
+        // Pedals + footwell
+        box('pedalBrake', 0.10, 0.16, 0.03, -0.22, 0.02, 1.02, rubber);
+        box('pedalThrottle', 0.07, 0.20, 0.03, -0.06, 0.0, 1.02, aluminium);
+        box('footwell', 1.1, 0.03, 0.5, -0.1, -0.02, 0.95, rubber);
+
+        // Center console with shifter and handbrake
+        box('consoleTop', 0.26, 0.02, 0.5, 0.16, 0.215, 0.26, carbon);
+        var shifter = BABYLON.MeshBuilder.CreateCylinder('shifterStick', { height: 0.14, diameter: 0.028, tessellation: 10 }, scene);
+        shifter.position.set(0.16, 0.28, 0.24);
+        shifter.material = aluminium;
+        shifter.parent = interiorRoot;
+        var knob = BABYLON.MeshBuilder.CreateSphere('shifterKnob', { diameter: 0.07, segments: 10 }, scene);
+        knob.position.set(0.16, 0.36, 0.24);
+        knob.material = rubber;
+        knob.parent = interiorRoot;
+        box('handbrake', 0.05, 0.04, 0.24, 0.16, 0.235, 0.02, aluminium);
+
+        // Rear-view mirror stem + sun visors
+        box('mirrorStem', 0.05, 0.12, 0.03, 0, 0.90, 0.94, carbon);
+        box('visorL', 0.34, 0.02, 0.22, -0.36, 0.92, 0.72, leather);
+        box('visorR', 0.34, 0.02, 0.22, 0.36, 0.92, 0.72, leather);
+
         interiorLight = new BABYLON.PointLight('interiorLight', new BABYLON.Vector3(-0.2, 0.64, 0.25), scene);
         interiorLight.parent = carRoot;
         interiorLight.intensity = 0.72;

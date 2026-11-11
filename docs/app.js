@@ -1755,23 +1755,8 @@ function openGameNow(id) {
 
                         '<div class="game3d-garage-actions">' +
                             '<button type="button" class="game3d-mp-primary" onclick="garagePlay()">Play</button>' +
-                            '<button type="button" class="game3d-mp-secondary" onclick="openRaceChoice()">Race</button>' +
                             '<button type="button" class="game3d-mp-secondary" onclick="openShowroom()">Garage</button>' +
                             '<button type="button" class="game3d-mp-secondary" onclick="startRacerTraining()">Training</button>' +
-                        '</div>' +
-                    '</div>' +
-                    '<div class="game3d-race-choice" id="g3dRaceChoice" style="display:none;">' +
-                        '<div class="game3d-race-choice-card">' +
-                            '<span class="game3d-garage-kicker">REDLINE GT · RACE</span>' +
-                            '<h2>Choose your race</h2>' +
-                            '<p>Closed 3-lap circuit · no traffic</p>' +
-                            '<button type="button" class="game3d-race-option is-ai" onclick="startRaceAi()">' +
-                                '<strong>Race AI</strong><span>You + 4 adaptive rivals</span>' +
-                            '</button>' +
-                            '<button type="button" class="game3d-race-option is-mp" onclick="startRaceMultiplayer()">' +
-                                '<strong>Race Friends</strong><span>You + your multiplayer lobby</span>' +
-                            '</button>' +
-                            '<button type="button" class="game3d-mp-secondary" onclick="closeRaceChoice()">Cancel</button>' +
                         '</div>' +
                     '</div>' +
                 '</div>' : '') +
@@ -1880,8 +1865,8 @@ function openGameNow(id) {
             name: game.name,
             cosmetics: getEquippedCosmetics(),
             car: getEquippedCar(),
-            raceMode: raceModeSetting,
-            raceAi: raceAiSetting,
+            raceMode: false,
+            raceAi: false,
             giftMode: giftModeSetting,
             cityMode: cityModeSetting,
             terrain: 'coast',
@@ -9361,8 +9346,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.48";
-const UPDATE_NOTES = "Training now runs a marked track with parking and parallel-parking lessons";
+const APP_VERSION = "LessFun Public Beta 1.34.49";
+const UPDATE_NOTES = "Removed racing, richer cockpit interior (seats, door cards, vents, shifter, pedals)";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
