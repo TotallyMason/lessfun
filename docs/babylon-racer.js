@@ -2187,26 +2187,20 @@
         var clusterMat = new BABYLON.StandardMaterial('interiorClusterMat', scene);
         clusterMat.diffuseTexture = interiorScreenTex;
         clusterMat.emissiveTexture = interiorScreenTex;
-        clusterMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+        clusterMat.emissiveColor = new BABYLON.Color3(1.45, 1.45, 1.45);
         clusterMat.disableLighting = true;
         clusterMat.backFaceCulling = false;
-        var cluster = BABYLON.MeshBuilder.CreatePlane('interiorClusterPlane', { width: 0.34, height: 0.34 }, scene);
-        // Sits beside the wheel on the dash, angled toward the driver so it reads clearly.
-        cluster.position.set(0.06, 0.47, 0.70);
-        cluster.rotation.y = Math.PI - 0.22;
-        cluster.rotation.x = -0.10;
+        var cluster = BABYLON.MeshBuilder.CreatePlane('interiorClusterPlane', { width: 0.32, height: 0.32 }, scene);
+        // Clear dial beside the wheel, tilted toward the driver like a real cluster.
+        cluster.position.set(0.02, 0.50, 0.745);
+        cluster.rotation.y = Math.PI - 0.18;
+        cluster.rotation.x = -0.08;
         cluster.material = clusterMat;
         cluster.parent = interiorRoot;
         // Physical dial housing + chrome bezel so it looks like a real instrument.
-        var gaugeHousing = BABYLON.MeshBuilder.CreateCylinder('interiorGaugeHousing', { height: 0.045, diameter: 0.40, tessellation: 28 }, scene);
-        gaugeHousing.rotation.x = Math.PI / 2;
-        gaugeHousing.position.set(0.06, 0.47, 0.675);
-        gaugeHousing.rotation.z = 0;
-        gaugeHousing.material = carbon;
-        gaugeHousing.parent = interiorRoot;
-        var bezel = BABYLON.MeshBuilder.CreateTorus('interiorGaugeBezel', { diameter: 0.365, thickness: 0.022, tessellation: 36 }, scene);
+        var bezel = BABYLON.MeshBuilder.CreateTorus('interiorGaugeBezel', { diameter: 0.335, thickness: 0.014, tessellation: 40 }, scene);
         bezel.rotation.x = Math.PI / 2;
-        bezel.position.set(0.06, 0.47, 0.688);
+        bezel.position.set(0.02, 0.50, 0.742);
         bezel.material = aluminium;
         bezel.parent = interiorRoot;
 

@@ -9370,8 +9370,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.63";
-const UPDATE_NOTES = "Physical tachometer built into the dashboard beside the wheel, with ticks 1–10, red zone, needle, big gear and speed";
+const APP_VERSION = "LessFun Public Beta 1.34.64";
+const UPDATE_NOTES = "Physical dashboard tachometer repositioned clearly beside the wheel with a slim chrome bezel";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
