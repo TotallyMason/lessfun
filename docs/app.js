@@ -9329,8 +9329,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.40";
-const UPDATE_NOTES = "Performance & accessibility pass: layout-shift fixes, faster preconnects, better update flow";
+const APP_VERSION = "LessFun Public Beta 1.34.41";
+const UPDATE_NOTES = "Idle ads now show rotating 3D car models — any input dismisses them";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -12344,14 +12344,19 @@ function radioPresenceConnect() {
     return radioPresenceChannel;
 }
 
+
 /* ============================================================
-   Idle ads — after 10s of no input, play a fullscreen ad
-   (fictional in-house car promos for our own games)
+   Idle ads — fullscreen 3D car commercials after 10s of no input.
+   Moving the mouse or pressing any key instantly dismisses them.
+   All cars/brands are fictional (no real trademarks).
    ============================================================ */
 var idleAdTimer = 0;
 var idleAdOpen = false;
 var idleAdIndex = -1;
+var idleAdRotateTimer = 0;
+var idleAdThree = null;      // { renderer, scene, camera, carGroup, raf }
 var IDLE_AD_DELAY = 10000;
+var IDLE_AD_ROTATE = 7000;
 var IDLE_ADS = [
     {
         cls: 'idle-ad-sunset',
@@ -12359,7 +12364,8 @@ var IDLE_ADS = [
         title: 'TURBO X9',
         tagline: 'Zero to legend in 3.1 seconds.',
         specs: ['0–100 KM/H · 3.1 S', 'TOP SPEED · 341 KM/H', 'TWIN-TURBO V8 · 740 HP', 'ACTIVE AERO · STANDARD', 'FROM $89,900'],
-        foot: 'TURBO MOTORS — DRIVE THE IMPOSSIBLE'
+        foot: 'TURBO MOTORS — DRIVE THE IMPOSSIBLE',
+        car: { body: 0xd42b3c, cabin: 0x1d222c, wheels: 0x111318, kind: 'coupe' }
     },
     {
         cls: 'idle-ad-night',
@@ -12367,7 +12373,8 @@ var IDLE_ADS = [
         title: 'AERO EV',
         tagline: 'Silence has never moved this fast.',
         specs: ['RANGE · 640 KM', '0–100 KM/H · 2.9 S', 'ULTRA-FAST CHARGE · 18 MIN', 'PANORAMIC GLASS ROOF', 'FROM $74,500'],
-        foot: 'AERO — THE FUTURE IS QUIET'
+        foot: 'AERO — THE FUTURE IS QUIET',
+        car: { body: 0x4f8cff, cabin: 0x0e1730, wheels: 0x0c0f16, kind: 'sedan' }
     },
     {
         cls: 'idle-ad-garage',
@@ -12375,17 +12382,150 @@ var IDLE_ADS = [
         title: 'DUNE CRUISER',
         tagline: 'The city ends. The Dune Cruiser begins.',
         specs: ['GROUND CLEARANCE · 320 MM', 'WADING DEPTH · 900 MM', 'LOCKING DIFFS · FRONT + REAR', '7 SEATS · EVERY TERRAIN', 'FROM $61,200'],
-        foot: 'CRUISER OFF-ROAD — GO FURTHER'
+        foot: 'CRUISER OFF-ROAD — GO FURTHER',
+        car: { body: 0x7a8f5a, cabin: 0x1c2418, wheels: 0x10120e, kind: 'suv' }
     },
     {
         cls: 'idle-ad-sunset',
         badge: 'AD · VELOCITÉ S9 ROADSTER',
         title: 'VELOCITÉ S9',
         tagline: 'Drop the top. Raise the pulse.',
-        specs: ['NATURALLY ASPIRATED V10 · 620 HP', '0–100 KM/H · 3.4 S', 'CARBON MONOCOQUE · 1,290 KG', 'TRACK MODE · INCLUDED', 'FROM $112,000'],
-        foot: 'VELOCITÉ — BORN ON THE CIRCUIT'
+        specs: ['V10 · 620 HP', '0–100 KM/H · 3.4 S', 'CARBON MONOCOQUE · 1,290 KG', 'TRACK MODE · INCLUDED', 'FROM $112,000'],
+        foot: 'VELOCITÉ — BORN ON THE CIRCUIT',
+        car: { body: 0xf2a33c, cabin: 0x22201a, wheels: 0x141210, kind: 'roadster' }
+    },
+    {
+        cls: 'idle-ad-night',
+        badge: 'AD · HYPERION SS HYPERCAR',
+        title: 'HYPERION SS',
+        tagline: 'Eight cylinders of compressed thunder.',
+        specs: ['QUAD-TURBO W16 · 1,578 HP', '0–100 KM/H · 2.4 S', 'TOP SPEED · 440 KM/H', 'ONLY 500 EVER MADE', 'PRICE ON REQUEST'],
+        foot: 'HYPERION — ENGINEERED EXTREMES',
+        car: { body: 0x1b2f6e, cabin: 0x0a1024, wheels: 0x0a0c12, kind: 'hyper' }
     }
 ];
+
+function idleAdLoadThree() {
+    if (idleAdThree) return Promise.resolve();
+    return new Promise(function (resolve, reject) {
+        var existing = document.querySelector('script[data-idle-three]');
+        if (existing) { existing.addEventListener('load', function () { resolve(); }); return; }
+        var sc = document.createElement('script');
+        sc.src = 'https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js';
+        sc.async = true;
+        sc.setAttribute('data-idle-three', '1');
+        sc.onload = function () { resolve(); };
+        sc.onerror = reject;
+        document.head.appendChild(sc);
+    });
+}
+
+function idleAdCarGroup(cfg) {
+    var T = global.THREE;
+    var g = new T.Group();
+    var bodyMat = new T.MeshLambertMaterial({ color: cfg.body });
+    var cabinMat = new T.MeshLambertMaterial({ color: cfg.cabin });
+    var wheelMat = new T.MeshLambertMaterial({ color: cfg.wheels });
+    var glassMat = new T.MeshLambertMaterial({ color: 0x9fd8ff, transparent: true, opacity: .55 });
+    var kind = cfg.kind;
+    var bodyW = 2.1, bodyH = .42, bodyL = 4.6, wheelR = .38;
+    var rideY = .06;
+    if (kind === 'suv') { bodyH = .62; bodyL = 4.4; wheelR = .46; rideY = .18; }
+    if (kind === 'hyper') { bodyH = .34; bodyL = 4.5; wheelR = .4; }
+    if (kind === 'roadster') { bodyH = .38; bodyL = 4.4; wheelR = .36; }
+    if (kind === 'sedan') { bodyH = .46; bodyL = 4.8; wheelR = .36; }
+    // main body (lower)
+    var body = new T.Mesh(new T.BoxGeometry(bodyW, bodyH, bodyL), bodyMat);
+    body.position.y = wheelR + rideY;
+    g.add(body);
+    // tapered nose
+    var nose = new T.Mesh(new T.BoxGeometry(bodyW * .82, bodyH * .72, bodyL * .3), bodyMat);
+    nose.position.set(0, body.position.y - bodyH * .1, bodyL / 2 - bodyL * .13);
+    g.add(nose);
+    // cabin / greenhouse
+    var cabL = kind === 'suv' ? bodyL * .42 : bodyL * .38;
+    var cabin = new T.Mesh(new T.BoxGeometry(bodyW * .78, kind === 'hyper' ? .3 : .4, cabL), cabinMat);
+    cabin.position.set(0, body.position.y + bodyH / 2 + (kind === 'hyper' ? .12 : .18), kind === 'hyper' ? -bodyL * .05 : -bodyL * .08);
+    g.add(cabin);
+    if (kind === 'hyper' || kind === 'roadster') {
+        var spoiler = new T.Mesh(new T.BoxGeometry(bodyW * .9, .06, .34), bodyMat);
+        spoiler.position.set(0, body.position.y + bodyH / 2 + .22, -bodyL / 2 + .2);
+        g.add(spoiler);
+        var wingL = new T.Mesh(new T.BoxGeometry(.06, .2, .1), cabinMat);
+        wingL.position.set(bodyW * .34, body.position.y + bodyH / 2 + .1, -bodyL / 2 + .2);
+        var wingR = wingL.clone();
+        wingR.position.x = -bodyW * .34;
+        g.add(wingL); g.add(wingR);
+    }
+    if (kind === 'suv') {
+        var rack = new T.Mesh(new T.BoxGeometry(bodyW * .7, .08, cabL * .8), cabinMat);
+        rack.position.set(0, body.position.y + bodyH / 2 + .42, -bodyL * .06);
+        g.add(rack);
+    }
+    // wheels
+    var wheelGeo = new T.CylinderGeometry(wheelR, wheelR, .3, 14);
+    var positions = [
+        [ bodyW / 2 + .04, bodyL * .32 ], [ -bodyW / 2 - .04, bodyL * .32 ],
+        [ bodyW / 2 + .04, -bodyL * .32 ], [ -bodyW / 2 - .04, -bodyL * .32 ]
+    ];
+    positions.forEach(function (p) {
+        var w = new T.Mesh(wheelGeo, wheelMat);
+        w.rotation.z = Math.PI / 2;
+        w.position.set(p[0], wheelR, p[1]);
+        g.add(w);
+    });
+    // headlights glow strip
+    var light = new T.Mesh(new T.BoxGeometry(bodyW * .7, .08, .06), glassMat);
+    light.position.set(0, body.position.y + bodyH * .1, bodyL / 2 + .02);
+    g.add(light);
+    return g;
+}
+
+function idleAdInitThree() {
+    var T = global.THREE;
+    var canvas = document.getElementById('idleAdCanvas');
+    if (!canvas) return;
+    var renderer = new T.WebGLRenderer({ canvas: canvas, antialias: false, alpha: true });
+    var w = canvas.clientWidth || global.innerWidth;
+    var h = canvas.clientHeight || global.innerHeight;
+    renderer.setPixelRatio(Math.min(1.5, global.devicePixelRatio || 1));
+    renderer.setSize(w, h, false);
+    var scene = new T.Scene();
+    var camera = new T.PerspectiveCamera(38, w / h, .1, 60);
+    camera.position.set(4.6, 2.2, 6.4);
+    camera.lookAt(0, .7, 0);
+    scene.add(new T.HemisphereLight(0xfff2dd, 0x2a2418, .95));
+    var key = new T.DirectionalLight(0xffffff, .9);
+    key.position.set(-5, 8, 6);
+    scene.add(key);
+    // reflective floor pad
+    var pad = new T.Mesh(new T.CylinderGeometry(3.4, 3.4, .06, 48), new T.MeshLambertMaterial({ color: 0x151a22 }));
+    pad.position.y = -.03;
+    scene.add(pad);
+    var ring = new T.Mesh(new T.TorusGeometry(3.45, .03, 8, 60), new T.MeshBasicMaterial({ color: 0xffd75e }));
+    ring.rotation.x = Math.PI / 2;
+    scene.add(ring);
+    idleAdThree = { renderer: renderer, scene: scene, camera: camera, carGroup: null, cfg: null, raf: 0 };
+    var spin = 0;
+    (function loop() {
+        if (!idleAdOpen || !idleAdThree) return;
+        spin += .008;
+        if (idleAdThree.carGroup) idleAdThree.carGroup.rotation.y = spin;
+        renderer.render(scene, camera);
+        idleAdThree.raf = global.requestAnimationFrame(loop);
+    })();
+}
+
+function idleAdSetCar(cfg) {
+    if (!idleAdThree) return;
+    if (idleAdThree.carGroup) {
+        idleAdThree.scene.remove(idleAdThree.carGroup);
+        idleAdThree.carGroup = null;
+    }
+    idleAdThree.carGroup = idleAdCarGroup(cfg);
+    idleAdThree.scene.add(idleAdThree.carGroup);
+    idleAdThree.cfg = cfg;
+}
 
 function idleAdBuild() {
     if (document.getElementById('idleAdOverlay')) return;
@@ -12393,8 +12533,7 @@ function idleAdBuild() {
     ov.id = 'idleAdOverlay';
     ov.innerHTML =
         '<div class="idle-ad-stage">' +
-            '<div class="idle-ad-road"></div>' +
-            '<div class="idle-ad-car"><span></span><span></span></div>' +
+            '<canvas id="idleAdCanvas"></canvas>' +
             '<div class="idle-ad-copy">' +
                 '<small data-idle-badge></small>' +
                 '<h2 data-idle-title></h2>' +
@@ -12402,20 +12541,17 @@ function idleAdBuild() {
                 '<div class="idle-ad-specs" data-idle-specs></div>' +
                 '<div class="idle-ad-foot" data-idle-foot></div>' +
             '</div>' +
+            '<div class="idle-ad-hint">move to dismiss</div>' +
             '<div class="idle-ad-dots" data-idle-dots></div>' +
-            '<button type="button" class="idle-ad-close" data-idle-close aria-label="Close ad">✕ Ad</button>' +
         '</div>';
     document.body.appendChild(ov);
-    ov.querySelector('[data-idle-close]').addEventListener('click', function (e) {
-        e.stopPropagation();
-        idleAdClose();
-    });
 }
 
 function idleAdRender(index) {
     var ov = document.getElementById('idleAdOverlay');
-    if (!ov) return;
-    var ad = IDLE_ADS[((index % IDLE_ADS.length) + IDLE_ADS.length) % IDLE_ADS.length];
+    if (!ov || !global.THREE) return;
+    idleAdIndex = ((index % IDLE_ADS.length) + IDLE_ADS.length) % IDLE_ADS.length;
+    var ad = IDLE_ADS[idleAdIndex];
     ov.className = 'idle-ad-visible ' + ad.cls;
     ov.querySelector('[data-idle-badge]').textContent = ad.badge;
     ov.querySelector('[data-idle-title]').textContent = ad.title;
@@ -12425,19 +12561,17 @@ function idleAdRender(index) {
     ov.querySelector('[data-idle-foot]').textContent = ad.foot;
     var dots = ov.querySelector('[data-idle-dots]');
     dots.innerHTML = IDLE_ADS.map(function (a, i2) {
-        return '<i class="' + (i2 === ((index % IDLE_ADS.length) + IDLE_ADS.length) % IDLE_ADS.length ? 'is-active' : '') + '"></i>';
+        return '<i class="' + (i2 === idleAdIndex ? 'is-active' : '') + '"></i>';
     }).join('');
+    idleAdSetCar(ad.car);
 }
-
-var idleAdRotateTimer = 0;
 
 function idleAdStartRotate() {
     idleAdStopRotate();
     idleAdRotateTimer = setInterval(function () {
         if (!idleAdOpen) { idleAdStopRotate(); return; }
         idleAdRender(idleAdIndex + 1);
-        idleAdIndex++;
-    }, 6500);
+    }, IDLE_AD_ROTATE);
 }
 function idleAdStopRotate() {
     if (idleAdRotateTimer) { clearInterval(idleAdRotateTimer); idleAdRotateTimer = 0; }
@@ -12445,20 +12579,43 @@ function idleAdStopRotate() {
 
 function idleAdShow() {
     if (idleAdOpen || document.hidden) { idleAdArm(); return; }
-    // Respect Focus Mode — no interruptions there.
     if (document.body.classList.contains('focus-mode')) { idleAdArm(); return; }
     idleAdBuild();
-    idleAdIndex = (idleAdIndex + 1) % IDLE_ADS.length;
-    idleAdRender(idleAdIndex);
     idleAdOpen = true;
-    idleAdStartRotate();
+    var start = function () {
+        if (!idleAdOpen) return;
+        var ov = document.getElementById('idleAdOverlay');
+        if (!ov) return;
+        var canvas = document.getElementById('idleAdCanvas');
+        if (canvas) {
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
+        }
+        idleAdInitThree();
+        idleAdRender(idleAdIndex + 1);
+        idleAdStartRotate();
+    };
+    idleAdLoadThree().then(start).catch(function () {
+        // no 3D — still show the copy-only ad
+        idleAdOpen = true;
+        idleAdRender(idleAdIndex + 1);
+        idleAdStartRotate();
+    });
 }
 
 function idleAdClose() {
-    var ov = document.getElementById('idleAdOverlay');
-    if (ov) ov.className = '';
     idleAdOpen = false;
     idleAdStopRotate();
+    if (idleAdThree) {
+        if (idleAdThree.raf) global.cancelAnimationFrame(idleAdThree.raf);
+        try { idleAdThree.renderer.dispose(); } catch (e) {}
+        var cv = idleAdThree.renderer.domElement;
+        if (cv && cv.parentNode) cv.parentNode.removeChild(cv);
+        try { if (idleAdThree.renderer.forceContextLoss) idleAdThree.renderer.forceContextLoss(); } catch (e) {}
+        idleAdThree = null;
+    }
+    var ov = document.getElementById('idleAdOverlay');
+    if (ov) ov.className = '';
     idleAdArm();
 }
 
@@ -12470,12 +12627,12 @@ function idleAdArm() {
     }, IDLE_AD_DELAY);
 }
 
-function idleAdActivity() {
-    if (idleAdOpen) return; // watching the ad is not "activity"
+function idleAdActivity(e) {
+    if (idleAdOpen) { idleAdClose(); return; } // any input while the ad plays dismisses it
     idleAdArm();
 }
 
-['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart', 'touchmove'].forEach(function (evt) {
+['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart', 'pointerdown'].forEach(function (evt) {
     document.addEventListener(evt, idleAdActivity, { passive: true });
 });
 document.addEventListener('visibilitychange', function () {
