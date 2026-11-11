@@ -13308,3 +13308,17 @@ html.is-light .radio-panel input[type=range]{filter:none}
 .g3d-tach.is-booting .g3d-warn{opacity:1!important;animation:g3dWarnBoot .12s steps(2) infinite alternate}
 @keyframes g3dWarnBoot{0%{filter:brightness(1.6)}100%{filter:brightness(.8)}}
 .g3d-tach.is-booting .g3d-cluster-gearline b{color:#8fd8ff}
+
+/* Holiday garage decoration: keep it clear of the tachometer */
+.is-holiday .game3d-garage::before{right:32%!important;bottom:6%!important;font-size:clamp(42px,6vw,84px)!important;opacity:.16!important}
+.is-holiday .game3d-garage::after{right:30%!important;bottom:3%!important;opacity:.18!important}
+
+/* Tach layout: breathing room between centre gear, NOS and the speed readout */
+.g3d-cluster{justify-content:flex-start}
+.g3d-cluster-gearline{margin-top:38%!important;margin-bottom:0!important}
+.g3d-cluster-gearline b{font-size:58px!important}
+.g3d-cluster-status{margin-top:2px;position:relative;z-index:3}
+.g3d-cluster-core{position:absolute;left:50%;transform:translateX(-50%);bottom:19%;margin:0;z-index:3}
+.g3d-cluster-speed{bottom:5%!important}
+.g3d-cluster-warnings{position:absolute;top:14%;left:50%;transform:translateX(-50%);width:78%;justify-content:center;gap:3px}
+.g3d-rpm-caption{top:auto!important;bottom:31%!important;transform:translate(-50%,0)!important;font-size:6.5px}

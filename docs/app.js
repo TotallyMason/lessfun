@@ -9371,8 +9371,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.57";
-const UPDATE_NOTES = "New tachometer: half-scale speed readout below the needle sweep, big centre gear, RPM ×1000 ticks 1–10 with red zone, faster self-test sweep";
+const APP_VERSION = "LessFun Public Beta 1.34.58";
+const UPDATE_NOTES = "Tach layout polish: tidy spacing and the holiday decoration no longer covers the gauge";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
