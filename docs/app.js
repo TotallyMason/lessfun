@@ -9373,8 +9373,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.52";
-const UPDATE_NOTES = "What's New sheet with full release history, plus iOS-style motion across the site";
+const APP_VERSION = "LessFun Public Beta 1.34.53";
+const UPDATE_NOTES = "New sports steering wheel in the cockpit: flat-bottom rim, alloy spokes, paddles and stitching";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;

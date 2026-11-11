@@ -2178,28 +2178,76 @@
         interiorSteeringWheel = new BABYLON.TransformNode('interiorSteeringWheel', scene);
         interiorSteeringWheel.parent = interiorRoot;
         interiorSteeringWheel.position.set(-0.34, 0.38, 0.61);
+        var stitchRingMat = new BABYLON.StandardMaterial('interiorWheelStitchMat', scene);
+        stitchRingMat.diffuseColor = new BABYLON.Color3(0.86, 0.8, 0.66);
+        stitchRingMat.emissiveColor = new BABYLON.Color3(0.24, 0.22, 0.18);
         var wheelMat = new BABYLON.PBRMaterial('interiorWheelLeather', scene);
         wheelMat.albedoColor = new BABYLON.Color3(0.12, 0.115, 0.11);
         wheelMat.metallic = 0.08;
         wheelMat.roughness = 0.52;
         wheelMat.emissiveColor = new BABYLON.Color3(0.012, 0.014, 0.016);
-        var wheel = BABYLON.MeshBuilder.CreateTorus('interiorWheel', { diameter: 0.30, thickness: 0.055, tessellation: 24 }, scene);
-        wheel.rotation.x = Math.PI / 2;
-        wheel.material = wheelMat;
-        wheel.parent = interiorSteeringWheel;
-        var hub = BABYLON.MeshBuilder.CreateCylinder('interiorWheelHub', { height: 0.035, diameter: 0.11, tessellation: 18 }, scene);
+        // Sports steering wheel: flat-bottom rim, thumb grips, alloy spokes,
+        // centre cap, shift paddles and a 12 o'clock stripe.
+        var rim = BABYLON.MeshBuilder.CreateTorus('interiorWheelRim', { diameter: 0.30, thickness: 0.042, tessellation: 32 }, scene);
+        rim.rotation.x = Math.PI / 2;
+        rim.material = wheelMat;
+        rim.parent = interiorSteeringWheel;
+        // flat bottom section (chunky D-shape)
+        var flatBottom = BABYLON.MeshBuilder.CreateBox('interiorWheelFlat', { width: 0.185, height: 0.052, depth: 0.042 }, scene);
+        flatBottom.position.set(0, -0.146, 0);
+        flatBottom.material = wheelMat;
+        flatBottom.parent = interiorSteeringWheel;
+        // thumb grips
+        [-1, 1].forEach(function (dir) {
+            var grip = BABYLON.MeshBuilder.CreateCylinder('interiorWheelGrip', { height: 0.085, diameter: 0.062, tessellation: 14 }, scene);
+            grip.rotation.z = Math.PI / 2;
+            grip.position.set(dir * 0.126, 0.046, 0);
+            grip.material = wheelMat;
+            grip.parent = interiorSteeringWheel;
+        });
+        // centre hub + cap
+        var hub = BABYLON.MeshBuilder.CreateCylinder('interiorWheelHub', { height: 0.04, diameter: 0.105, tessellation: 20 }, scene);
         hub.rotation.x = Math.PI / 2;
-        hub.position.z = 0.01;
+        hub.position.z = 0.012;
         hub.material = carbon;
         hub.parent = interiorSteeringWheel;
-        [-0.13, 0.13].forEach(function (offsetX) {
-            var spoke = BABYLON.MeshBuilder.CreateBox('interiorSpoke', { width: 0.13, height: 0.022, depth: 0.025 }, scene);
-            spoke.position.set(offsetX, 0, 0.01);
+        var cap = BABYLON.MeshBuilder.CreateCylinder('interiorWheelCap', { height: 0.012, diameter: 0.062, tessellation: 20 }, scene);
+        cap.rotation.x = Math.PI / 2;
+        cap.position.z = 0.034;
+        cap.material = aluminium;
+        cap.parent = interiorSteeringWheel;
+        // three alloy spokes (9, 3 and 6 o'clock)
+        [-1, 1].forEach(function (dir) {
+            var spoke = BABYLON.MeshBuilder.CreateBox('interiorSpoke', { width: 0.115, height: 0.024, depth: 0.022 }, scene);
+            spoke.position.set(dir * 0.082, 0.004, 0.008);
+            spoke.rotation.z = dir * 0.12;
             spoke.material = aluminium;
             spoke.parent = interiorSteeringWheel;
+            // spoke inlay strip
+            var inlay = BABYLON.MeshBuilder.CreateBox('interiorSpokeInlay', { width: 0.09, height: 0.008, depth: 0.026 }, scene);
+            inlay.position.set(dir * 0.082, 0.004, 0.008);
+            inlay.rotation.z = dir * 0.12;
+            inlay.material = carbon;
+            inlay.parent = interiorSteeringWheel;
         });
-        var wheelMarker = BABYLON.MeshBuilder.CreateBox('interiorWheelMarker', { width: 0.05, height: 0.016, depth: 0.018 }, scene);
-        wheelMarker.position.set(0, 0.145, 0.01);
+        var lowerSpoke = BABYLON.MeshBuilder.CreateBox('interiorSpokeLow', { width: 0.03, height: 0.09, depth: 0.02 }, scene);
+        lowerSpoke.position.set(0, -0.09, 0.008);
+        lowerSpoke.material = aluminium;
+        lowerSpoke.parent = interiorSteeringWheel;
+        // shift paddles behind the rim
+        [-1, 1].forEach(function (dir) {
+            var paddle = BABYLON.MeshBuilder.CreateBox('interiorPaddle', { width: 0.055, height: 0.012, depth: 0.075 }, scene);
+            paddle.position.set(dir * 0.125, 0.005, -0.035);
+            paddle.material = aluminium;
+            paddle.parent = interiorSteeringWheel;
+        });
+        // stitching ring + 12 o'clock marker
+        var stitchRing = BABYLON.MeshBuilder.CreateTorus('interiorWheelStitch', { diameter: 0.285, thickness: 0.004, tessellation: 32 }, scene);
+        stitchRing.rotation.x = Math.PI / 2;
+        stitchRing.material = stitchRingMat;
+        stitchRing.parent = interiorSteeringWheel;
+        var wheelMarker = BABYLON.MeshBuilder.CreateBox('interiorWheelMarker', { width: 0.046, height: 0.014, depth: 0.02 }, scene);
+        wheelMarker.position.set(0, 0.152, 0.006);
         wheelMarker.material = trimMat;
         wheelMarker.parent = interiorSteeringWheel;
 
