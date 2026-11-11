@@ -13137,3 +13137,7 @@ body.low-power .site-snow { opacity: 0.55; }
 .idle-ad-hint{position:absolute;bottom:52px;left:0;right:0;text-align:center;color:rgba(255,255,255,.5);font-size:9px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;z-index:4}
 #idleAdOverlay .idle-ad-dots{bottom:28px}
 #idleAdOverlay .idle-ad-copy{pointer-events:none}
+
+/* Redline GT training banner */
+.racer-training-banner{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:12;max-width:min(86vw,620px);padding:11px 18px;border-radius:999px;background:rgba(8,14,22,.82);border:1px solid rgba(95,231,255,.35);color:#eafaff;font-size:12px;font-weight:800;letter-spacing:.02em;text-align:center;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 10px 30px rgba(0,0,0,.35);pointer-events:none}
+@media (max-width:640px){.racer-training-banner{font-size:10.5px;padding:9px 12px;top:10px}}

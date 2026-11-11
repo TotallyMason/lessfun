@@ -839,6 +839,35 @@ function garagePlay(raceMode) {
     touchPresence();
 }
 
+function startRacerTraining() {
+    const garage = document.getElementById('g3dGarage');
+    if (garage) garage.style.display = 'none';
+    const shop = document.getElementById('g3dGarageShop');
+    if (shop) shop.style.display = 'none';
+    const wrap = document.querySelector('#modalGameBody .game3d-wrap');
+    if (wrap) wrap.classList.remove('is-garage');
+    garageSuppressed = true;
+    openGame(1);
+    if (window.Games3D) {
+        if (window.Games3D.setGarageMode) window.Games3D.setGarageMode(false);
+        window.Games3D.setPaused(false);
+    }
+    // wait for the fresh session to be ready, then start the course
+    let tries = 0;
+    const timer = setInterval(function () {
+        tries++;
+        const api = window.Games3D;
+        if (api && api.startTraining) {
+            const state = api.getTrainingState ? api.getTrainingState() : null;
+            if (api.startTraining() || (state && state.active)) {
+                clearInterval(timer);
+            }
+        }
+        if (tries > 40) clearInterval(timer);
+    }, 250);
+    touchPresence();
+}
+
 function renderGarageShop() {
     const content = document.getElementById('g3dShopContent');
     if (!content) return;
@@ -1213,6 +1242,7 @@ var GAME3D_METHODS = [
     'applyZombieAttack', 'reviveZombiePlayer', 'applyLootedCrate', 'setLocalRacerName',
     'setGraphicsPreset', 'setRenderScale', 'setMotionBlur', 'setShowFps', 'setShadows',
     'setCrashSlowmo', 'setSoundEnabled', 'setUnitSystem', 'teleportRacer', 'setGarageMode',
+    'startTraining', 'stopTraining', 'getTrainingState',
     'setGearMode', 'toggleFsd', 'setTerrain', 'setElevation', 'toggleShadowHelper',
     'getCurrentScore', 'lockPointer', 'getRacerState', 'getRacerInfo'
 ];
@@ -1687,6 +1717,7 @@ function openGameNow(id) {
                 '</div>' : '') +
             '<div class="game3d-toast" id="g3dToast"></div>' +
             (game.id === 1 ?
+                '<div class="racer-training-banner" id="racerTrainingBanner" style="display:none;"></div>' +
                 '<div class="game3d-garage" id="g3dGarage">' +
                     '<div class="game3d-garage-card">' +
                         '<span class="game3d-garage-kicker">REDLINE GT · ' + (IS_HOLIDAY_UI ? 'HOLIDAY GARAGE' : 'GARAGE') + '</span>' +
@@ -1698,6 +1729,7 @@ function openGameNow(id) {
                             '<button type="button" class="game3d-mp-primary" onclick="garagePlay()">Play</button>' +
                             '<button type="button" class="game3d-mp-secondary" onclick="openRaceChoice()">Race</button>' +
                             '<button type="button" class="game3d-mp-secondary" onclick="openShowroom()">Garage</button>' +
+                            '<button type="button" class="game3d-mp-secondary" onclick="startRacerTraining()">Training</button>' +
                         '</div>' +
                     '</div>' +
                     '<div class="game3d-race-choice" id="g3dRaceChoice" style="display:none;">' +
@@ -9300,8 +9332,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.45";
-const UPDATE_NOTES = "Loud engine audio, two new traffic models and real kit-based body upgrades in the Garage";
+const APP_VERSION = "LessFun Public Beta 1.34.46";
+const UPDATE_NOTES = "New Redline GT Training Course with tight turns, cone slalom and pedestrian awareness";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
