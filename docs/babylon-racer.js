@@ -106,13 +106,8 @@
         return cores <= 4 || mem <= 4;
     }
     function showToast(text) {
-        var el = $('g3dGaugeStatus');
-        if (el) {
-            el.textContent = text;
-            el.style.display = '';
-            if (toastTimer) clearTimeout(toastTimer);
-            toastTimer = setTimeout(function () { toastTimer = 0; }, 2600);
-        }
+        // The cluster hint line was removed; keep the API as a silent no-op.
+        void text;
     }
 
     function color3(hex) {
@@ -2545,7 +2540,6 @@
         setWorldMode('highway');
         syncCarVisual(0);
         resetRunWorld();
-        setText('g3dGaugeStatus', 'BABYLON + RAPIER · HDR READY');
     }
 
     function applyPendingGear() {
@@ -2974,7 +2968,6 @@
             setText('g3dGaugeNitro', nitroShown + '%');
             if (booting) {
                 setText('g3dGaugeGearBig', gearShown);
-                setText('g3dGaugeStatus', 'SYSTEM CHECK');
             }
             setRunCoins(coinsCollected);
             var needle = $('g3dNeedle');
@@ -2994,29 +2987,6 @@
             }
             var tachEl = document.getElementById('g3dTach');
             if (tachEl) tachEl.classList.toggle('is-booting', booting);
-            if (!toastTimer) {
-                if (!ready) setText('g3dGaugeStatus', 'LOADING RAPIER PHYSICS…');
-                else if (garage) setText('g3dGaugeStatus', 'GARAGE · PRESS PLAY TO DRIVE');
-                else if (runOver) setText('g3dGaugeStatus', 'CRASHED · PRESS PLAY AGAIN');
-                else if (paused) setText('g3dGaugeStatus', 'PAUSED');
-                else if (worldMode === 'city') setText('g3dGaugeStatus', 'CITY · NIGHT DRIVE');
-                else if (input.drift && displaySpeed > 9) setText('g3dGaugeStatus', 'DRIFT · ' + Math.round(driftScore));
-                else if (isSanta) {
-                    if (flyTime > 0) setText('g3dGaugeStatus', 'SANTA FLYING · ' + flyTime.toFixed(1) + 's');
-                    else if (flyCooldown > 0) setText('g3dGaugeStatus', 'FLY READY IN ' + Math.ceil(flyCooldown) + 's');
-                    else setText('g3dGaugeStatus', 'SPACE TO FLY · ' + coinsCollected + ' COINS');
-                }
-                else if (localRacerName) {
-                    var mp = multiplayerPlace();
-                    setText('g3dGaugeStatus', mp
-                        ? 'MP P' + mp.place + '/' + mp.total
-                        : 'MULTIPLAYER · WAITING FOR RACERS');
-                }
-                else if (currentGear === 'N' || currentGear === 'P') setText('g3dGaugeStatus', 'REV WITH W · Q/E P R N D');
-                else if (currentGear === 'R') setText('g3dGaugeStatus', 'REVERSE · Q/E P R N D');
-                else if (displaySpeed < 0.4) setText('g3dGaugeStatus', 'HOLD W TO START · Q/E P R N D');
-                else setText('g3dGaugeStatus', '');
-            }
             var brake = document.querySelector('.g3d-warn[data-warn="brake"]');
             if (brake) brake.classList.toggle('is-on', !!input.brake);
             var absLight = document.querySelector('.g3d-warn[data-warn="abs"]');
@@ -3312,8 +3282,7 @@
             if (!active) return;
             createPhysics();
             starting = false;
-            setText('g3dGaugeStatus', 'BABYLON + RAPIER · HDR READY');
-        }).catch(function (error) {
+            }).catch(function (error) {
             starting = false;
             fail(error);
             if (global.LessFunBabylonFallback) {
@@ -3593,7 +3562,6 @@
         clearTrainingCourse();
         buildTrainingCourse();
         trainingBanner(TRAINING_STEPS[0].text);
-        setText('g3dGaugeStatus', 'TRAINING COURSE · follow the lesson prompts');
         showToast('Training course started');
         return true;
     }

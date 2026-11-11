@@ -13338,3 +13338,10 @@ html.is-light .radio-panel input[type=range]{filter:none}
 }
 .g3d-cluster-core{bottom:15%!important}
 .g3d-rpm-caption{bottom:38%!important}
+
+/* Bigger RPM numbers, white speed readout pushed to the edge */
+.g3d-rpm-label{font-size:12px!important;font-weight:900!important}
+.g3d-rpm-label.is-red{font-size:13px!important}
+.g3d-cluster-speed{right:1.5%!important;bottom:27%!important}
+.g3d-cluster-speed strong{color:#f4f8fb!important;text-shadow:0 0 18px rgba(95,231,255,.28)!important;font-size:32px!important}
+.g3d-cluster-speed span{color:#8fd8ff!important;opacity:.9}

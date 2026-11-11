@@ -1546,7 +1546,6 @@ function openGameNow(id) {
                                 '<span class="g3d-warn" data-warn="dmg">DMG</span>' +
                             '</div>' +
                             '<div class="g3d-cluster-gearline"><b id="g3dGaugeGearBig">1</b><span>GEAR</span></div>' +
-                            '<div class="g3d-cluster-status" id="g3dGaugeStatus">HOLD W TO START</div>' +
                             '<div class="g3d-cluster-core"><span>NOS <b id="g3dGaugeNitro">100%</b></span></div>' +
                             '<div class="g3d-cluster-speed"><strong id="g3dGaugeSpeed">0</strong><span id="g3dGaugeUnit">mph</span></div>' +
                         '</div>' +
@@ -9371,8 +9370,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.59";
-const UPDATE_NOTES = "Speed readout moved into the red zone, bigger RPM numbers, warnings at the bottom, and the screen gauge now shows only in third person";
+const APP_VERSION = "LessFun Public Beta 1.34.60";
+const UPDATE_NOTES = "Bigger RPM numbers, white speed readout pushed far right, and the hint text under the gauge is gone for good";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
