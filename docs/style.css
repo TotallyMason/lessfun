@@ -279,7 +279,7 @@ h1 {
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
-.game-card h3 {
+.game-card .game-card-title, .game-card h3 {
     font-size: 19px;
     font-weight: 600;
     margin-bottom: 4px;
@@ -11348,8 +11348,8 @@ body {
 .game-card:nth-child(8) { animation-delay: 0.3s; }
 .game-card:nth-child(9) { animation-delay: 0.34s; }
 @keyframes iosCardIn {
-    from { opacity: 0; transform: translateY(18px) scale(0.985); filter: blur(6px); }
-    to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+    from { opacity: 0; transform: translateY(18px) scale(0.985); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 .game-card:hover { transform: translateY(-5px) scale(1.006); }
 .game-card:active { transform: translateY(-1px) scale(0.992); transition-duration: 0.18s; }
@@ -11650,7 +11650,8 @@ body.in-game .ai-dock { display: none !important; }
    Site loading splash
    ============================================================ */
 html.is-loading, html.is-loading body { overflow: hidden; }
-.site-loader { position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; background: #050507; overflow: hidden; opacity: 1; visibility: visible; transition: opacity 0.48s ease, visibility 0.48s ease, transform 0.48s cubic-bezier(0.22, 1, 0.36, 1); }
+.site-loader { position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; background: #050507; overflow: hidden; opacity: 1; visibility: visible; transition: opacity 0.48s ease, transform 0.48s cubic-bezier(0.22, 1, 0.36, 1); }
+.daily-gift-banner{min-height:96px}
 .site-loader.is-hiding { opacity: 0; visibility: hidden; transform: scale(1.015); }
 .site-loader-aurora { position: absolute; inset: -20%; background: radial-gradient(40% 40% at 24% 18%, rgba(90, 150, 255, 0.24), transparent 70%), radial-gradient(38% 38% at 78% 22%, rgba(255, 120, 190, 0.16), transparent 70%), radial-gradient(48% 46% at 50% 100%, rgba(64, 220, 190, 0.12), transparent 72%); filter: blur(55px) saturate(140%); animation: loaderAurora 6s ease-in-out infinite alternate; }
 @keyframes loaderAurora { 0% { transform: translate3d(-2%, -1%, 0) scale(1); } 100% { transform: translate3d(2%, 2%, 0) scale(1.08); } }

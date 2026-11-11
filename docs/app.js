@@ -707,7 +707,7 @@ function renderGames() {
         return `
         <div class="game-card${locked ? ' is-disabled' : ''}" onclick="cancelPreloadGame(); openGame(${game.id})" onpointerenter="schedulePreloadGame(${game.id})" onpointerleave="cancelPreloadGame()" onfocus="schedulePreloadGame(${game.id})" onblur="cancelPreloadGame()">
             <div class="game-icon">${getIcon(game.icon).replace('width="24" height="24"', 'width="28" height="28"')}</div>
-            <h3>${game.name}${siteSettings.featured_game && gameBySlug(siteSettings.featured_game) && gameBySlug(siteSettings.featured_game).id === game.id ? ' <span class="game-featured-tag">FEATURED</span>' : ''}</h3>
+            <h2 class="game-card-title">${game.name}${siteSettings.featured_game && gameBySlug(siteSettings.featured_game) && gameBySlug(siteSettings.featured_game).id === game.id ? ' <span class="game-featured-tag">FEATURED</span>' : ''}</h2>
             <p>${game.description}</p>
             ${locked ? '<span class="game-locked-tag">Temporarily unavailable</span>' : ''}
         </div>
@@ -9329,8 +9329,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.39";
-const UPDATE_NOTES = "Redline GT guardrails now have real collision";
+const APP_VERSION = "LessFun Public Beta 1.34.40";
+const UPDATE_NOTES = "Performance & accessibility pass: layout-shift fixes, faster preconnects, better update flow";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
@@ -9383,7 +9383,9 @@ async function checkForServerUpdate() {
         if (data && data.version && data.version !== APP_VERSION) {
             if (!updateShutdownActive) {
                 if (currentGameId != null) closeGame();
-                showUpdateShutdown('Update required', 'This version is no longer valid for play. Refresh to load the latest LessFun build.', false, true);
+                // Warm the HTTP cache for the fresh build so the refresh actually lands.
+                try { fetch('app.js?v=' + Date.now(), { cache: 'reload' }); fetch('index.html?v=' + Date.now(), { cache: 'reload' }); } catch (e) {}
+                showUpdateShutdown('Update ready', 'The latest build is downloaded. Click Refresh below — or close and reopen the app if refresh does not stick.', false, true);
             }
             return;
         }
