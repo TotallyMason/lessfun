@@ -9329,13 +9329,21 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.41";
-const UPDATE_NOTES = "Idle ads now show rotating 3D car models — any input dismisses them";
+const APP_VERSION = "LessFun Public Beta 1.34.42";
+const UPDATE_NOTES = "The update prompt can now be dismissed for 5 minutes";
 
 let updateShutdownTimer = 0;
+let updateSnoozeUntil = 0;
 let updateReloadTimer = 0;
 let updateShutdownActive = false;
 let serverUpdateCheckActive = false;
+
+function snoozeUpdate() {
+    updateSnoozeUntil = Date.now() + 5 * 60 * 1000;
+    hideUpdateShutdown();
+    if (window.Games3D && window.Games3D.setPaused) window.Games3D.setPaused(false);
+    if (typeof showGameToast === 'function') showGameToast('Update snoozed for 5 minutes.');
+}
 
 function showUpdateShutdown(title, text, reloading, showRefresh) {
     updateShutdownActive = true;
@@ -9343,9 +9351,11 @@ function showUpdateShutdown(title, text, reloading, showRefresh) {
     const titleEl = document.getElementById('updateShutdownTitle');
     const textEl = document.getElementById('updateShutdownText');
     const refreshBtn = document.getElementById('updateRefreshBtn');
+    const laterBtn = document.getElementById('updateLaterBtn');
     if (titleEl) titleEl.textContent = title;
     if (textEl) textEl.textContent = text;
     if (refreshBtn) refreshBtn.style.display = showRefresh ? 'inline-flex' : 'none';
+    if (laterBtn) laterBtn.style.display = showRefresh ? 'inline-flex' : 'none';
     if (overlay) overlay.style.display = 'flex';
     if (window.Games3D && window.Games3D.setPaused) window.Games3D.setPaused(true);
     if (!reloading && !updateShutdownTimer) {
@@ -9363,7 +9373,9 @@ function hideUpdateShutdown() {
     const overlay = document.getElementById('updateShutdown');
     if (overlay) overlay.style.display = 'none';
     const refreshBtn = document.getElementById('updateRefreshBtn');
+    const laterBtn = document.getElementById('updateLaterBtn');
     if (refreshBtn) refreshBtn.style.display = 'none';
+    if (laterBtn) laterBtn.style.display = 'none';
 }
 
 async function checkForServerUpdate() {
@@ -9380,6 +9392,7 @@ async function checkForServerUpdate() {
             if (!updateShutdownActive) showUpdateShutdown('LessFun is temporarily offline', data.message || 'The site is shut down for an update. It will reopen automatically.', false);
             return;
         }
+        if (Date.now() < updateSnoozeUntil) return; // user dismissed the nag for 5 minutes
         if (data && data.version && data.version !== APP_VERSION) {
             if (!updateShutdownActive) {
                 if (currentGameId != null) closeGame();
