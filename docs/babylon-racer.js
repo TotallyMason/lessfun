@@ -2945,7 +2945,7 @@
 
         if (hudTimer > 0.075) {
             hudTimer = 0;
-            if (speedHudTimer >= 0.4) {
+            if (speedHudTimer >= 0.2) {
                 speedHudTimer = 0;
                 setText('g3dGaugeSpeed', shown);
                 setText('g3dGaugeUnit', unit === 'kmh' ? 'km/h' : 'mph');
