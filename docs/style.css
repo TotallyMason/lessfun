@@ -13269,3 +13269,19 @@ html.is-light .updates-list strong{color:#0e1626!important}
 html.is-light .site-header{box-shadow:0 8px 30px rgba(20,32,54,.08)}
 html.is-light .footer,html.is-light footer{color:rgba(22,32,48,.55)!important}
 html.is-light .toggle-slider:before{background:#fff}
+
+/* Light theme: event hero + chips */
+html.is-light .snow-event,html.is-light .snow-event *{color:#101a2c}
+html.is-light .snow-event{background:linear-gradient(145deg,rgba(255,255,255,.95),rgba(235,242,255,.92))!important;border:1px solid rgba(16,24,40,.1)!important;box-shadow:0 14px 34px rgba(20,32,54,.10)!important}
+html.is-light .snow-event-copy > span{color:#0b6c8a}
+html.is-light .snow-event-copy h2{color:#0e1626}
+html.is-light .snow-event-copy p{color:rgba(22,32,48,.64)}
+html.is-light .snow-countdown{color:#a86b12}
+html.is-light .snow-leaderboard,html.is-light .snow-leaderboard *{color:#101a2c}
+html.is-light .snow-leaderboard{background:rgba(255,255,255,.92)!important;border:1px solid rgba(16,24,40,.1)!important}
+html.is-light .snow-event-actions .game-btn-3d.is-secondary{background:rgba(16,24,40,.06)!important;color:#0e1626!important;border-color:rgba(16,24,40,.14)!important}
+html.is-light .meggreatness,html.is-light .user-chip,html.is-light .profile-chip{background:rgba(16,24,40,.06);color:#0e1626!important}
+html.is-light .search-pill,html.is-light .games-search input{background:rgba(255,255,255,.9);color:#101a2c;border-color:rgba(16,24,40,.12)}
+html.is-light .radio-dock,html.is-light .radio-panel{background:rgba(255,255,255,.92)!important;color:#0e1626!important}
+html.is-light .radio-dock *,html.is-light .radio-panel *{color:#0e1626}
+html.is-light .radio-panel input[type=range]{filter:none}
