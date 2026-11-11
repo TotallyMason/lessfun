@@ -2314,6 +2314,28 @@
             world.createCollider(rapier.ColliderDesc.cuboid(b.w / 2, b.h / 2, b.d / 2), body);
         });
 
+        // Guardrail collision: invisible fixed cuboids chained along the curved
+        // highway, matching the visible rail ribbons (visual rails sit at
+        // highwayCurveX(z) ± (ROAD_WIDTH/2 + 0.5)). Chords are yaw-aligned so the
+        // curve stays smooth. Rails span y 0.02–0.86, so jumps still clear them.
+        var railSteps = 400;
+        [-1, 1].forEach(function (side) {
+            for (var ri = 0; ri < railSteps; ri++) {
+                var z0 = (ri / railSteps) * ROAD_LENGTH;
+                var z1 = ((ri + 1) / railSteps) * ROAD_LENGTH;
+                var x0 = highwayCurveX(z0) + side * (ROAD_WIDTH / 2 + 0.5);
+                var x1 = highwayCurveX(z1) + side * (ROAD_WIDTH / 2 + 0.5);
+                var mx = (x0 + x1) / 2;
+                var mz = (z0 + z1) / 2;
+                var yaw = Math.atan2(x1 - x0, z1 - z0);
+                var segLen = Math.hypot(x1 - x0, z1 - z0);
+                var railBody = world.createRigidBody(rapier.RigidBodyDesc.fixed()
+                    .setTranslation(mx, 0.45, mz)
+                    .setRotation({ x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) }));
+                world.createCollider(rapier.ColliderDesc.cuboid(0.22, 0.5, segLen / 2 + 0.1), railBody);
+            }
+        });
+
         chassis = world.createRigidBody(rapier.RigidBodyDesc.dynamic()
             .setTranslation(0, 0.92, spawnZ)
             .setLinearDamping(0.035)

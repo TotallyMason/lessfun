@@ -1316,7 +1316,7 @@ function ensureLucky() {
 function ensure2048() {
     if (window.Game2048) return Promise.resolve();
     if (!g2048Promise) {
-        g2048Promise = loadScriptOnce('game-2048.js?v=20261415').catch(function (error) { g2048Promise = null; throw error; });
+        g2048Promise = loadScriptOnce('game-2048.js?v=20261416').catch(function (error) { g2048Promise = null; throw error; });
     }
     return g2048Promise;
 }
@@ -9329,8 +9329,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.31";
-const UPDATE_NOTES = "Removed RC Parking and fixed multiplayer camera glitching between players";
+const APP_VERSION = "LessFun Public Beta 1.34.32";
+const UPDATE_NOTES = "Redline GT guardrails now have real collision";
 
 let updateShutdownTimer = 0;
 let updateReloadTimer = 0;
