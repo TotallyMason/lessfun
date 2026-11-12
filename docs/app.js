@@ -1535,6 +1535,7 @@ function openGameNow(id) {
                                 return '<span class="g3d-rpm-label' + (n >= 9 ? ' is-red' : '') + '" style="left:' + left.toFixed(2) + '%;top:' + top.toFixed(2) + '%;--a:' + a + 'deg">' + n + '</span>';
                             }).join('') +
                         '</div>' +
+                        '<div class="g3d-autosteer" id="g3dAutoSteer">AUTOSTEER</div>' +
                         '<div class="g3d-gauge-needle" id="g3dNeedle"></div>' +
                         '<div class="g3d-cluster">' +
                             '<div class="g3d-cluster-warnings" id="g3dWarnings">' +
@@ -9370,8 +9371,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.70";
-const UPDATE_NOTES = "Toll booms now block you: stop at the barrier and it opens automatically, then closes after you pass";
+const APP_VERSION = "LessFun Public Beta 1.34.71";
+const UPDATE_NOTES = "Autosteer on F: it holds your lane while you control throttle and brakes, and the brakes bite much harder";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;

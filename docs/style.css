@@ -13379,3 +13379,7 @@ html.is-light .radio-panel input[type=range]{filter:none}
 .g3d-gauges{left:18px!important;right:auto!important;bottom:14px!important}
 .g3d-tach{width:clamp(210px,22vw,262px)!important;height:clamp(210px,22vw,262px)!important}
 @media (max-width:900px){.g3d-gauges{left:8px!important;bottom:8px!important}}
+
+/* Autosteer indicator */
+.g3d-autosteer{position:absolute;bottom:12%;left:50%;transform:translateX(-50%);z-index:6;padding:3px 9px;border-radius:999px;background:rgba(95,231,255,.14);border:1px solid rgba(95,231,255,.35);color:#8fd8ff;font-size:6.5px;font-weight:900;letter-spacing:.16em;opacity:.35;transition:opacity .2s,background .2s}
+.g3d-autosteer.is-on{opacity:1;background:rgba(60,220,130,.2);border-color:rgba(60,220,130,.5);color:#9dffbf}

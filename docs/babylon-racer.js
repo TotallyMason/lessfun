@@ -58,6 +58,7 @@
     var training = false, trainingStep = 0, trainingRoot = null, trainingProps = [], trainingCooldown = 0, trainingHold = 0;
     var eject = null, crashFlashEl = null;
     var tollPlazas = [];
+    var autoSteer = false;
     var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.25;
     var laneCenters = [-9.16, -5.5, -1.83, 1.83, 5.5, 9.16];
     var traffic = [], coinPickups = [], trafficTimer = 0;
@@ -2842,7 +2843,7 @@
             vehicle.setWheelSteering(1, 0);
             for (var g = 0; g < 4; g++) {
                 vehicle.setWheelEngineForce(g, 0);
-                vehicle.setWheelBrake(g, runOver ? 48 : 22);
+                vehicle.setWheelBrake(g, runOver ? 60 : 30);
             }
             return;
         }
@@ -2853,12 +2854,12 @@
         } else if (currentGear === 'P') {
             // Park: no revving, no movement — hold the brakes.
             revLevel = Math.max(0, revLevel - dt * 3.2);
-            brakeForce = 40;
+            brakeForce = 58;
         } else if (currentGear === 'R') {
             revLevel += (throttle ? 1 : -1) * dt * (throttle ? 2.4 : 2.0);
             revLevel = clamp(revLevel, 0, 1);
             if (throttle) engineForce = -1450 * driveAccel;
-            if (brake) brakeForce = 26;
+            if (brake) brakeForce = 38;
         } else {
             if (!shiftingNow && pendingGearIndex === null && pendingGear === null) {
                 var nextAutoGear = gearIndex;
@@ -2886,7 +2887,7 @@
             }
             if (!boosting) nitro = Math.min(100, nitro + dt * 7.5);
             revLevel = clamp(0.10 + Math.min(1, forwardSpeed / Math.max(1, driveMaxSpeed * GEAR_TOPS[gearIndex - 1])) * 0.82 + (throttle ? 0.08 : 0), 0, 1);
-            if (brake) brakeForce = 33;
+            if (brake) brakeForce = 56;
         }
 
         // Anti-wheelie pitch control: the rear-drive launch is strong enough
@@ -2914,7 +2915,7 @@
         absActive = false;
         if (brake && currentGear === 'D' && forwardSpeed > 8) {
             absActive = true;
-            brakeForce = 17 + Math.abs(Math.sin(performance.now() * 0.043)) * 11;
+            brakeForce = 30 + Math.abs(Math.sin(performance.now() * 0.043)) * 14;
         }
 
         var steerMax = 0.46 - Math.min(0.36, forwardSpeed / 150);
@@ -2922,6 +2923,28 @@
         if (input.left) steerTarget += 1;
         if (input.right) steerTarget -= 1;
         if (input.pointerActive) steerTarget += input.pointerSteer;
+        if (autoSteer && forwardSpeed > 1.5) {
+            // Follow the road/lane automatically. Throttle and brakes stay manual.
+            var q = chassis.rotation();
+            var yaw = Math.atan2(2 * (q.w * q.y + q.x * q.z), 1 - 2 * (q.y * q.y + q.z * q.z));
+            var tz = chassis.translation().z;
+            var curveHere = highwayCurveX(tz);
+            var offsetNow = chassis.translation().x - curveHere;
+            // nearest lane centre
+            var bestLane = laneCenters[0], bestDist = 1e9;
+            for (var li = 0; li < laneCenters.length; li++) {
+                var dLane = Math.abs(laneCenters[li] - offsetNow);
+                if (dLane < bestDist) { bestDist = dLane; bestLane = laneCenters[li]; }
+            }
+            var lookZ = tz + 11;
+            var targetX = highwayCurveX(lookZ) + bestLane;
+            var dxT = targetX - chassis.translation().x;
+            var dzT = lookZ - tz;
+            // lateral offset in the car's frame (right positive)
+            var lateral = dxT * Math.cos(yaw) - dzT * Math.sin(yaw);
+            var auto = -clamp(lateral * 0.22, -1, 1);
+            steerTarget = clamp(auto, -1, 1);
+        }
         steerVisual += (steerTarget - steerVisual) * Math.min(1, dt * 10);
         var steerAngle = steerVisual * steerMax;
         vehicle.setWheelSteering(0, steerAngle);
@@ -3320,6 +3343,13 @@
                 else if (k === 'r') { resetCar(true); e.preventDefault(); }
                 else if (k === 'c') { cameraMode = (cameraMode + 1) % 2; applyViewMode(); showToast(cameraMode ? 'THIRD PERSON' : 'FIRST PERSON'); e.preventDefault(); }
                 else if (k === 'l') { headlightsOn = !headlightsOn; headlights.forEach(function (light) { light.setEnabled(headlightsOn); light.intensity = headlightsOn ? 4.5 : 0; }); e.preventDefault(); }
+                else if (k === 'f') {
+                    autoSteer = !autoSteer;
+                    var chip = document.getElementById('g3dAutoSteer');
+                    if (chip) chip.classList.toggle('is-on', autoSteer);
+                    showToast(autoSteer ? 'AUTOSTEER ON · throttle and brakes are still yours' : 'AUTOSTEER OFF');
+                    e.preventDefault();
+                }
             },
             up: function (e) {
                 var k = String(e.key || '').toLowerCase();
