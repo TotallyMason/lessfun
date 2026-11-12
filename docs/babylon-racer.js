@@ -2925,8 +2925,9 @@
         if (input.pointerActive) steerTarget += input.pointerSteer;
         if (autoSteer) {
             // A / D always select a lane, even when rolling slowly.
-            if (input.left && !autoPrevLeft && autoLane > 0) { autoLane -= 1; autoLaneTimer = 0.7; autoLaneFlash = 1.1; }
-            if (input.right && !autoPrevRight && autoLane < laneCenters.length - 1) { autoLane += 1; autoLaneTimer = 0.7; autoLaneFlash = 1.1; }
+            // A moves right in this cabin view, D moves left (matches what you see).
+            if (input.left && !autoPrevLeft && autoLane < laneCenters.length - 1) { autoLane += 1; autoLaneTimer = 0.7; autoLaneFlash = 1.1; }
+            if (input.right && !autoPrevRight && autoLane > 0) { autoLane -= 1; autoLaneTimer = 0.7; autoLaneFlash = 1.1; }
             autoPrevLeft = input.left;
             autoPrevRight = input.right;
             autoLaneFlash = Math.max(0, autoLaneFlash - dt);
