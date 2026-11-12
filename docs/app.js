@@ -9371,8 +9371,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.2";
-const UPDATE_NOTES = "Autosteer lane keys fixed: A now goes right and D goes left, matching the view";
+const APP_VERSION = "LessFun Public Beta 27.2.3";
+const UPDATE_NOTES = "Autosteer lane changes now glide smoothly instead of snapping";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;

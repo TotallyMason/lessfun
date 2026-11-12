@@ -58,7 +58,7 @@
     var training = false, trainingStep = 0, trainingRoot = null, trainingProps = [], trainingCooldown = 0, trainingHold = 0;
     var eject = null, crashFlashEl = null;
     var tollPlazas = [];
-    var autoSteer = false, autoLane = 3, autoLaneTimer = 0, autoPrevLeft = false, autoPrevRight = false, autoLaneFlash = 0;
+    var autoSteer = false, autoLane = 3, autoLaneTimer = 0, autoPrevLeft = false, autoPrevRight = false, autoLaneFlash = 0, autoOffset = laneCenters[3];
     var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.25;
     var laneCenters = [-9.16, -5.5, -1.83, 1.83, 5.5, 9.16];
     var traffic = [], coinPickups = [], trafficTimer = 0;
@@ -3005,12 +3005,21 @@
                 return;
             }
 
-            var lookZ = pos.z + 12;
-            var targetX = highwayCurveX(lookZ) + laneCenters[autoLane];
+            // Smooth lane transitions: ease the lateral offset toward the new lane
+            // instead of jumping the target sideways.
+            var wantedOffset = laneCenters[autoLane];
+            var blend = Math.min(1, dt * (autoLaneFlash > 0 ? 3.4 : 5.0));
+            autoOffset += (wantedOffset - autoOffset) * blend;
+            if (Math.abs(wantedOffset - autoOffset) < 0.02) autoOffset = wantedOffset;
+
+            var lookZ = pos.z + 13;
+            var targetX = highwayCurveX(lookZ) + autoOffset;
             var dxT = targetX - pos.x;
             var dzT = lookZ - pos.z;
             var lateral = dxT * Math.cos(yaw) - dzT * Math.sin(yaw);
-            steerTarget = clamp(lateral * (autoLaneFlash > 0 ? 0.42 : 0.24), -1, 1);
+            // gentle proportional steering, damped so it never saws back and forth
+            var steerCmd = clamp(lateral * 0.17, -1, 1);
+            steerTarget += (steerCmd - steerTarget) * Math.min(1, dt * 6.0);
         }
         steerVisual += (steerTarget - steerVisual) * Math.min(1, dt * 10);
         var steerAngle = steerVisual * steerMax;
