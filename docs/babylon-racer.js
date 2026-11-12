@@ -2924,15 +2924,12 @@
         if (input.right) steerTarget -= 1;
         if (input.pointerActive) steerTarget += input.pointerSteer;
         if (autoSteer && forwardSpeed > 1.5) {
-            // Lane-keeping autosteer. Corrects toward the centre of the chosen
-            // lane and changes lanes when slower traffic blocks the way.
             var q = chassis.rotation();
             var yaw = Math.atan2(2 * (q.w * q.y + q.x * q.z), 1 - 2 * (q.y * q.y + q.z * q.z));
             var pos = chassis.translation();
             var offsetNow = pos.x - highwayCurveX(pos.z);
 
-            // lock onto the nearest lane the first time
-            if (autoLaneTimer <= 0 && Math.abs(offsetNow - laneCenters[autoLane]) > 4.6) {
+            if (autoLaneTimer <= 0 && Math.abs(offsetNow - laneCenters[autoLane]) > 5.0) {
                 var bestLane = 3, bestDist = 1e9;
                 for (var li = 0; li < laneCenters.length; li++) {
                     var dLane = Math.abs(laneCenters[li] - offsetNow);
@@ -2942,46 +2939,47 @@
             }
             autoLaneTimer = Math.max(0, autoLaneTimer - dt);
 
-            // Find traffic directly ahead in this lane.
-            var blocked = false;
-            var nearestBlock = 999;
-            for (var ti = 0; ti < traffic.length; ti++) {
-                var other = traffic[ti];
-                if (!other || !other.root || !other.root.isEnabled()) continue;
-                var laneWorldX = highwayCurveX(pos.z) + laneCenters[autoLane];
-                var dxOther = other.root.position.x - laneWorldX;
-                var dzOther = other.root.position.z - pos.z;
-                if (Math.abs(dxOther) < 2.4 && dzOther > 3 && dzOther < 55) {
-                    blocked = true;
-                    nearestBlock = Math.min(nearestBlock, dzOther);
+            function laneBlocked(laneIdx, ahead, behind) {
+                var laneX = highwayCurveX(pos.z) + laneCenters[laneIdx];
+                for (var k = 0; k < traffic.length; k++) {
+                    var c = traffic[k];
+                    if (!c || !c.root || !c.root.isEnabled()) continue;
+                    if (Math.abs(c.root.position.x - laneX) > 2.7) continue;
+                    var dz = c.root.position.z - pos.z;
+                    if (dz > behind && dz < ahead) return dz;
+                }
+                return 0;
+            }
+
+            var gap = laneBlocked(autoLane, 80, -8);
+
+            if (gap > 0 && autoLaneTimer <= 0) {
+                var cands = [];
+                for (var dir = -1; dir <= 1; dir += 2) {
+                    var cand = autoLane + dir;
+                    if (cand < 0 || cand >= laneCenters.length) continue;
+                    if (laneBlocked(cand, 55, -14) === 0) cands.push(cand);
+                }
+                if (cands.length) {
+                    autoLane = cands[0];
+                    autoLaneTimer = 1.6;
                 }
             }
-            if (blocked && nearestBlock < 46 && autoLaneTimer <= 0) {
-                // pick the clearest neighbouring lane
-                var options = [autoLane - 1, autoLane + 1].filter(function (idx) { return idx >= 0 && idx < laneCenters.length; });
-                options.sort(function (a, b) { return Math.abs(a - autoLane) - Math.abs(b - autoLane); });
-                for (var oi = 0; oi < options.length; oi++) {
-                    var cand = options[oi];
-                    var laneX = highwayCurveX(pos.z) + laneCenters[cand];
-                    var free = true;
-                    for (var tj = 0; tj < traffic.length; tj++) {
-                        var car2 = traffic[tj];
-                        if (!car2 || !car2.root || !car2.root.isEnabled()) continue;
-                        if (Math.abs(car2.root.position.x - laneX) < 2.6 && car2.root.position.z - pos.z > -6 && car2.root.position.z - pos.z < 40) { free = false; break; }
-                    }
-                    if (free) { autoLane = cand; autoLaneTimer = 1.4; break; }
-                }
+
+            // Re-check the lane we're heading for; brake if the gap is closing.
+            var gapNow = laneBlocked(autoLane, 80, -8);
+            if (gapNow > 0 && gapNow < 30) {
+                // do not accelerate toward a blocker and scrub speed
+                throttle = false;
+                if (forwardSpeed > 6 && gapNow < 22) brake = true;
             }
 
             var lookZ = pos.z + 12;
             var targetX = highwayCurveX(lookZ) + laneCenters[autoLane];
             var dxT = targetX - pos.x;
             var dzT = lookZ - pos.z;
-            // signed lateral error: positive means the target lane is to our right
             var lateral = dxT * Math.cos(yaw) - dzT * Math.sin(yaw);
-            // positive steering turns LEFT in this vehicle model, so aim away from a right-hand error
-            var auto = clamp(lateral * 0.20, -1, 1);
-            steerTarget = auto;
+            steerTarget = clamp(lateral * 0.24, -1, 1);
         }
         steerVisual += (steerTarget - steerVisual) * Math.min(1, dt * 10);
         var steerAngle = steerVisual * steerMax;
