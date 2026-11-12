@@ -2094,16 +2094,22 @@
         for (var p = 0; p < 6; p++) {
             var z = startZ + p * 1500;
             var cx = highwayCurveX(z);
-            var plaza = { z: z, lanes: [], canopy: null, stripFrom: z - 100, stripTo: z - 88 };
-            // Rumble strips ~100 m before the booth
+            var plaza = { z: z, lanes: [], canopy: null, stripFrom: z - 100, stripTo: z - 10 };
+            // Rumble strips run from 100 m out all the way to 10 m before the booth.
             var stripMat = new BABYLON.StandardMaterial('tollStripMat', scene);
             stripMat.diffuseColor = new BABYLON.Color3(1, 0.72, 0.16);
             stripMat.emissiveColor = new BABYLON.Color3(0.35, 0.22, 0.03);
-            for (var st = 0; st < 10; st++) {
-                var strip = BABYLON.MeshBuilder.CreateBox('tollStrip' + p + '_' + st, { width: 19.5, height: 0.05, depth: 0.5 }, scene);
-                strip.position.set(cx, 0.05, z - 99 + st * 1.15);
-                strip.material = stripMat;
-                highwayMeshes.push(strip);
+            var stripParts = [];
+            for (var st = 0; st < 74; st++) {
+                var strip = BABYLON.MeshBuilder.CreateBox('tollStrip' + p + '_' + st, { width: 19.5, height: 0.05, depth: 0.55 }, scene);
+                strip.position.set(cx, 0.05, z - 99 + st * 1.2);
+                stripParts.push(strip);
+            }
+            var stripMerged = BABYLON.Mesh.MergeMeshes(stripParts, true, true, undefined, false, false);
+            if (stripMerged) {
+                stripMerged.material = stripMat;
+                stripMerged.isPickable = false;
+                highwayMeshes.push(stripMerged);
             }
             // booths every 5.5m across the road
             var offsets = [-8.25, -2.75, 2.75, 8.25];
