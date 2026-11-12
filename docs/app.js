@@ -9381,8 +9381,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.29";
-const UPDATE_NOTES = "AS heads for open toll gates quickly and the ad car is now a pseudo-3D render with roof, shadows and reflections";
+const APP_VERSION = "LessFun Public Beta 27.2.30";
+const UPDATE_NOTES = "Rumble strips now scrub speed as well as shaking the car";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;

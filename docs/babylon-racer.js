@@ -2253,6 +2253,12 @@
                 try { chassis.applyImpulse({ x: 0, y: wob * 0.004, z: 0 }, true); } catch (e) {}
                 var av = chassis.angvel();
                 try { chassis.setAngvel({ x: av.x + Math.sin(performance.now() * 0.06) * 0.05, y: av.y, z: av.z }, true); } catch (e) {}
+                // Rumble strips scrub speed: the faster you hit them, the more they cost.
+                try {
+                    var lv = chassis.linvel();
+                    var drag = Math.min(0.55, 0.10 + spd / 140);
+                    chassis.setLinvel({ x: lv.x * (1 - drag * dt), y: lv.y, z: lv.z * (1 - drag * dt) }, true);
+                } catch (e) {}
             }
         } else {
             rumbleShake = Math.max(0, rumbleShake - dt * 2.2);
