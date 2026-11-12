@@ -3217,6 +3217,32 @@
                 return nearest;
             }
 
+            // Head for an open toll gate if one is coming up.
+            for (var tpi = 0; tpi < tollPlazas.length; tpi++) {
+                var plazaAhead = tollPlazas[tpi];
+                var dzPlaza = plazaAhead.z - pos.z;
+                if (dzPlaza > 0 && dzPlaza < 160 && autoLaneTimer <= 0) {
+                    var bestOpen = -1, bestOpenDist = 1e9;
+                    for (var gli = 0; gli < laneCenters.length; gli++) {
+                        var gateX = highwayCurveX(plazaAhead.z) + laneCenters[gli];
+                        var gateLane = null;
+                        for (var gl = 0; gl < plazaAhead.lanes.length; gl++) {
+                            if (Math.abs(plazaAhead.lanes[gl].x - gateX) < 2.2) { gateLane = plazaAhead.lanes[gl]; break; }
+                        }
+                        if (gateLane && (gateLane.etc || gateLane.anim > 0.55 || gateLane.broken)) {
+                            var dGate = Math.abs(laneCenters[gli] - offsetNow);
+                            if (dGate < bestOpenDist) { bestOpenDist = dGate; bestOpen = gli; }
+                        }
+                    }
+                    if (bestOpen >= 0 && bestOpen !== autoLane) {
+                        autoLane = bestOpen;
+                        autoLaneTimer = 0.6;
+                        autoLaneFlash = 1.1;
+                    }
+                    break;
+                }
+            }
+
             var gap = nearestInLane(autoLane, -10, 90);
 
             // Lane change only when the target lane is genuinely clear.
@@ -3272,7 +3298,7 @@
             // Speed-aware lane keeping: look further ahead the faster we go,
             // with less steering authority at speed so it cannot over-correct.
             var look = 9 + Math.min(18, forwardSpeed * 0.55);
-            var blend = Math.min(1, dt * (autoLaneFlash > 0 ? 4.2 : 6.5));
+            var blend = Math.min(1, dt * (autoLaneFlash > 0 ? 8.0 : 6.5));
             autoOffset += (laneCenters[autoLane] - autoOffset) * blend;
             if (Math.abs(laneCenters[autoLane] - autoOffset) < 0.02) autoOffset = laneCenters[autoLane];
 

@@ -9381,8 +9381,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.28";
-const UPDATE_NOTES = "Ad layout polish: bigger hero car, taller spec panel, cleaner hint and dots";
+const APP_VERSION = "LessFun Public Beta 27.2.29";
+const UPDATE_NOTES = "AS heads for open toll gates quickly and the ad car is now a pseudo-3D render with roof, shadows and reflections";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
@@ -12601,8 +12601,12 @@ function idleAdBuild() {
             '<div class="idle-ad-glow"></div>' +
             '<div class="idle-ad-road"><i></i><i></i><i></i></div>' +
             '<div class="idle-ad-car">' +
+                '<span class="ia-shadow"></span>' +
                 '<span class="ia-body"></span>' +
                 '<span class="ia-cabin"></span>' +
+                '<span class="ia-roof"></span>' +
+                '<span class="ia-hood"></span>' +
+                '<span class="ia-skirt"></span>' +
                 '<span class="ia-light ia-light-f"></span>' +
                 '<span class="ia-light ia-light-r"></span>' +
                 '<span class="ia-wheel ia-wheel-fl"></span>' +

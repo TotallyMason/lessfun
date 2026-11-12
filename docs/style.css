@@ -13471,3 +13471,16 @@ body.battery-saver .site-snow{display:none}
 .idle-ad-hint{bottom:58px!important}
 .idle-ad-progress{bottom:0!important;height:4px!important}
 @media (max-width:640px){.idle-ad-car{bottom:21%!important;height:min(26vw,130px)!important}.idle-ad-copy{transform:translateY(-14%)!important}}
+
+/* Pseudo-3D hero car: perspective body, roof, hood highlight, reflections */
+.idle-ad-car{perspective:900px;transform-style:preserve-3d}
+.idle-ad-car .ia-shadow{position:absolute;left:6%;right:6%;bottom:-2%;height:16%;border-radius:50%;background:radial-gradient(ellipse at center,rgba(0,0,0,.62),transparent 70%);filter:blur(6px)}
+.idle-ad-car .ia-body{transform:rotateY(-16deg) rotateX(3deg);box-shadow:inset 0 -18px 30px rgba(0,0,0,.45),inset 0 10px 18px rgba(255,255,255,.28)}
+.idle-ad-car .ia-cabin{transform:rotateY(-16deg) translateZ(14px);box-shadow:inset 0 -8px 16px rgba(0,0,0,.5)}
+.idle-ad-car .ia-roof{position:absolute;left:24%;right:28%;bottom:84%;height:7%;border-radius:50% 50% 8px 8px/70% 70% 6px 6px;background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(180,190,205,.45));transform:rotateY(-16deg) translateZ(16px);opacity:.8}
+.idle-ad-sunset .idle-ad-car .ia-roof{background:linear-gradient(180deg,rgba(255,190,170,.9),rgba(160,40,60,.6))}
+.idle-ad-night .idle-ad-car .ia-roof{background:linear-gradient(180deg,rgba(190,215,255,.9),rgba(30,70,150,.6))}
+.idle-ad-car .ia-hood{position:absolute;left:2%;right:2%;bottom:52%;height:14%;border-radius:40px 40px 6px 6px/22px 22px 6px 6px;background:linear-gradient(180deg,rgba(255,255,255,.45),rgba(255,255,255,0) 70%);transform:rotateY(-16deg);opacity:.55;pointer-events:none}
+.idle-ad-car .ia-skirt{position:absolute;left:6%;right:6%;bottom:10px;height:8%;border-radius:0 0 10px 10px;background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,.75));transform:rotateY(-16deg)}
+/* floor reflection under the car */
+.idle-ad-stage:after{content:"";position:absolute;left:50%;bottom:6%;width:min(58vw,520px);height:16vh;transform:translateX(-50%);background:radial-gradient(ellipse at 50% 0%,rgba(255,255,255,.18),transparent 70%);filter:blur(4px);pointer-events:none}
