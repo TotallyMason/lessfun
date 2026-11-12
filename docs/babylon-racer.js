@@ -1132,8 +1132,10 @@
         part('bumperR', spec.w * 0.92, 0.12, 0.14, 0, spec.y - spec.bodyH * 0.42, -spec.l / 2 - 0.02, trafficShared.trim);
         part('headL', 0.38, 0.11, 0.08, -spec.w * 0.30, spec.y - spec.bodyH * 0.05, spec.l / 2 + 0.08, trafficShared.head);
         part('headR', 0.38, 0.11, 0.08, spec.w * 0.30, spec.y - spec.bodyH * 0.05, spec.l / 2 + 0.08, trafficShared.head);
-        part('tailL', 0.38, 0.10, 0.08, -spec.w * 0.30, spec.y - spec.bodyH * 0.02, -spec.l / 2 - 0.08, trafficShared.tail);
-        part('tailR', 0.38, 0.10, 0.08, spec.w * 0.30, spec.y - spec.bodyH * 0.02, -spec.l / 2 - 0.08, trafficShared.tail);
+        var brakeMat = trafficShared.tail.clone('trafficBrake_' + paintKey + '_' + Math.random().toString(36).slice(2, 7));
+        brakeMat.emissiveColor = new BABYLON.Color3(0.55, 0.03, 0.03);
+        part('tailL', 0.38, 0.10, 0.08, -spec.w * 0.30, spec.y - spec.bodyH * 0.02, -spec.l / 2 - 0.08, brakeMat);
+        part('tailR', 0.38, 0.10, 0.08, spec.w * 0.30, spec.y - spec.bodyH * 0.02, -spec.l / 2 - 0.08, brakeMat);
 
         var wheels = [];
         var wheelR = style === 'truck' || style === 'bus' ? 0.46 : 0.34;
@@ -1149,7 +1151,7 @@
                 wheels.push(wheel);
             }
         }
-        return { root: root, spec: spec, style: style, wheels: wheels, speed: 18, lane: 2, cool: 0, paint: paint };
+        return { root: root, spec: spec, style: style, wheels: wheels, speed: 18, lane: 2, cool: 0, paint: paint, brakeMat: brakeMat, cruise: 18, braking: false };
     }
 
     function createTrafficBody(car) {
@@ -1515,6 +1517,33 @@
             car.root.position.x += (trafficTargetX - car.root.position.x) * Math.min(1, dt * 2.8);
             for (var w = 0; w < car.wheels.length; w++) car.wheels[w].rotation.x += car.speed * dt * 3.2;
             car.cool = Math.max(0, car.cool - dt);
+
+            // Simple car-following so traffic brakes realistically.
+            var leadGap = 999;
+            for (var oi = 0; oi < traffic.length; oi++) {
+                var other = traffic[oi];
+                if (other === car || other.lane !== car.lane) continue;
+                var gapZ = other.root.position.z - car.root.position.z;
+                if (gapZ > 0 && gapZ < leadGap) leadGap = gapZ;
+            }
+            if (!car.cruise) car.cruise = car.speed;
+            var desired = car.cruise;
+            if (leadGap < 16) desired = Math.min(desired, Math.max(6, car.cruise * (leadGap / 16)));
+            if (leadGap < 8) desired = Math.min(desired, 6);
+            var accelRate = desired > car.speed ? 2.6 : 8.5;
+            var prevSpeed = car.speed;
+            car.speed += clamp(desired - car.speed, -accelRate * dt, accelRate * dt);
+            var slowing = car.speed < prevSpeed - 0.02;
+            car.braking = slowing || leadGap < 9;
+            if (car.brakeMat) {
+                var glow = car.braking ? 1.6 : 0.55;
+                car.brakeMat.emissiveColor.set(glow, 0.03, 0.03);
+            }
+            // hazard blink when really hard on the brakes
+            if (car.braking && leadGap < 7) {
+                var blink = (Math.sin(performance.now() * 0.012) > 0);
+                if (car.brakeMat) car.brakeMat.emissiveColor.set(blink ? 2.4 : 0.4, 0.02, 0.02);
+            }
             if (car.root.position.z < pz - 100 || car.root.position.z > pz + 1050 || car.root.position.z > ROAD_LENGTH - 80) {
                 placeTrafficCar(car, pz, 520 + Math.random() * 280);
             }

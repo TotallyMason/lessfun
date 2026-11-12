@@ -9372,8 +9372,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.11";
-const UPDATE_NOTES = "Wipers removed — rain only, with wet-grip handling and rumble strips unchanged";
+const APP_VERSION = "LessFun Public Beta 27.2.12";
+const UPDATE_NOTES = "Traffic now brakes for the car ahead and lights up its brake lights (with hazards when hard on the brakes)";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
