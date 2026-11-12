@@ -3144,6 +3144,41 @@
             if (input.right) steerTarget -= 1;
             if (input.pointerActive) steerTarget += input.pointerSteer;
         }
+        function computeAutoDesired(pos, speedNow) {
+            var dsWanted = driveMaxSpeed;
+            var laneX = highwayCurveX(pos.z) + laneCenters[autoLane];
+            var nearest = 0, best = 1e9;
+            for (var k = 0; k < traffic.length; k++) {
+                var c = traffic[k];
+                if (!c || !c.root || !c.root.isEnabled()) continue;
+                if (Math.abs(c.root.position.x - laneX) > 2.6) continue;
+                var dzc = c.root.position.z - pos.z;
+                if (dzc > -10 && dzc < 95 && dzc < best) { best = dzc; nearest = dzc; }
+            }
+            if (nearest > 0) dsWanted = Math.min(dsWanted, Math.max(5, nearest / 2.4));
+            var curveAhead = Math.abs(highwayCurveX(pos.z + 45) - highwayCurveX(pos.z)) / 45;
+            if (curveAhead > 0.012) dsWanted = Math.min(dsWanted, Math.max(9, 15 / curveAhead));
+            dsWanted = Math.min(dsWanted, driveMaxSpeed * (1 - rainIntensity * 0.28));
+            for (var tp = 0; tp < tollPlazas.length; tp++) {
+                var dzToll = tollPlazas[tp].z - pos.z;
+                if (dzToll > 6 && dzToll < 95) {
+                    var closedBoom = false;
+                    for (var tl = 0; tl < tollPlazas[tp].lanes.length; tl++) {
+                        var laneT = tollPlazas[tp].lanes[tl];
+                        if (!laneT.etc && laneT.anim < 0.5 && Math.abs(pos.x - laneT.x) < 2.4) closedBoom = true;
+                    }
+                    if (closedBoom) dsWanted = Math.min(dsWanted, Math.max(0, dzToll / 3.2));
+                }
+            }
+            autoDesired = clamp(dsWanted, 0, driveMaxSpeed);
+            return autoDesired;
+        }
+
+        if (autoSteer && chassis) {
+            var posDS = chassis.translation();
+            var velDS = chassis.linvel();
+            computeAutoDesired(posDS, Math.hypot(velDS.x, velDS.z));
+        }
         if (autoSteer) {
             // A / D are lane requests only (A = right, D = left in this view).
             if (input.left && !autoPrevLeft && autoLane < laneCenters.length - 1) { autoLane += 1; autoLaneTimer = 0.55; autoLaneFlash = 1.0; }
@@ -3201,32 +3236,7 @@
                 }
             }
 
-            // Desired speed: traffic, curve severity, rain and tolls all feed in.
-            var ds = driveMaxSpeed;
-            var gapNow = nearestInLane(autoLane, -10, 95);
-            if (gapNow > 0) {
-                // ~2.4 s following distance
-                ds = Math.min(ds, Math.max(5, gapNow / 2.4));
-            }
-            var curveAhead = Math.abs(highwayCurveX(pos.z + 45) - highwayCurveX(pos.z)) / 45;
-            if (curveAhead > 0.012) {
-                ds = Math.min(ds, Math.max(9, 15 / curveAhead));
-            }
-            ds = Math.min(ds, driveMaxSpeed * (1 - rainIntensity * 0.28));
-            for (var tp = 0; tp < tollPlazas.length; tp++) {
-                var dzToll = tollPlazas[tp].z - pos.z;
-                if (dzToll > 6 && dzToll < 95) {
-                    var closedBoom = false;
-                    for (var tl = 0; tl < tollPlazas[tp].lanes.length; tl++) {
-                        var laneT = tollPlazas[tp].lanes[tl];
-                        if (!laneT.etc && laneT.anim < 0.5 && Math.abs(pos.x - laneT.x) < 2.4) closedBoom = true;
-                    }
-                    if (closedBoom) ds = Math.min(ds, Math.max(0, dzToll / 3.2));
-                }
-            }
-            if (ds > driveMaxSpeed) ds = driveMaxSpeed;
-            autoDesired = ds;
-
+            var ds = autoDesired;
             if (forwardSpeed > ds + 1.4) {
                 throttle = false;
                 brake = true;
@@ -3577,7 +3587,7 @@
                 setText('g3dGaugeSpeed', shownOut);
                 var dsEl = document.getElementById('g3dAutoDS');
                 if (dsEl) {
-                    if (autoSteer && autoDesired > 0) {
+                    if (autoSteer) {
                         var dsShown = Math.round(autoDesired * scale / SPEED_SCALE);
                         dsEl.textContent = 'DS: ' + dsShown;
                         dsEl.style.display = 'block';
