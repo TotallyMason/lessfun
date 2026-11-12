@@ -61,7 +61,7 @@
     var rainSystem = null, rainIntensity = 0, rainTarget = 0, weatherTimer = 25, rainChip = null;
     var tunnels = [], tunnelDark = 0, baseSunIntensity = 0.62, hemi = null;
     var autoSteer = false, autoLane = 3, autoLaneTimer = 0, autoPrevLeft = false, autoPrevRight = false, autoLaneFlash = 0, autoOffset = 1.83;
-    var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.25, baseGrip = 3.25;
+    var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.85, baseGrip = 3.85;
     var laneCenters = [-9.16, -5.5, -1.83, 1.83, 5.5, 9.16];
     var traffic = [], coinPickups = [], trafficTimer = 0;
     var remoteRacers = {}, localRacerName = '';
@@ -3254,10 +3254,23 @@
         vehicle.setWheelEngineForce(2, rearForce);
         vehicle.setWheelEngineForce(3, rearForce);
 
+        // Stability assist: braking while turning used to spin the car. Add grip
+        // and damp the yaw rate so it tracks the corner instead of snapping.
+        var stability = 0;
+        if (brake && Math.abs(steerVisual) > 0.12 && forwardSpeed > 7) {
+            stability = clamp((forwardSpeed - 7) / 35, 0, 1);
+        }
         for (var i = 0; i < 4; i++) {
             vehicle.setWheelBrake(i, brakeForce);
             var rear = i >= 2;
-            vehicle.setWheelFrictionSlip(i, input.drift && rear ? 0.95 : driveGrip);
+            var slip = input.drift && rear ? 0.95 : driveGrip;
+            if (stability > 0) slip *= 1 + stability * 0.45;
+            vehicle.setWheelFrictionSlip(i, slip);
+        }
+        if (stability > 0) {
+            var avNow = chassis.angvel();
+            var damp = 1 - Math.min(0.22, 0.06 + stability * 0.20);
+            try { chassis.setAngvel({ x: avNow.x, y: avNow.y * damp, z: avNow.z }, true); } catch (e) {}
         }
 
         // Light aerodynamic drag; keeps the car from coasting forever.
@@ -3797,7 +3810,7 @@
         var topMph = (selectedCar ? (selectedCar.topSpeed || 192) : 200) * upgradeTop;
         driveMaxSpeed = clamp(topMph / 2.23694, 32, 145) * 2;
         driveAccel = clamp(num(perf.accel, 1) || 1, 0.55, 2.4);
-        driveGrip = clamp(3.25 * (num(perf.grip, 1) || 1), 2.2, 5.3);
+        driveGrip = clamp(3.85 * (num(perf.grip, 1) || 1), 2.8, 5.8);
         baseGrip = driveGrip;
         traffic = [];
         coinPickups = [];

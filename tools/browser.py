@@ -431,9 +431,6 @@ class LessFunBrowser(QMainWindow):
         self.home_action = QAction("Home", self)
         self.home_action.setToolTip("LessFun home")
         self.home_action.triggered.connect(lambda: self.view.load(QUrl(HOME_URL)))
-        self.google_action = QAction("Google", self)
-        self.google_action.setToolTip("Open Google")
-        self.google_action.triggered.connect(lambda: self.view.load(QUrl("https://www.google.com")))
         self.fullscreen_action = QAction("Full Screen", self)
         self.fullscreen_action.setToolTip("Full screen (⌃⌘F)")
         self.fullscreen_action.triggered.connect(self.toggle_fullscreen)
@@ -450,7 +447,6 @@ class LessFunBrowser(QMainWindow):
         toolbar.addAction(self.reload_action)
         toolbar.addAction(self.hard_reload_action)
         toolbar.addAction(self.home_action)
-        toolbar.addAction(self.google_action)
 
         spacer = QWidget(self)
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)

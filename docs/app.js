@@ -9372,8 +9372,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.14";
-const UPDATE_NOTES = "Rumble strips are now muted instead of bright yellow";
+const APP_VERSION = "LessFun Public Beta 27.2.15";
+const UPDATE_NOTES = "More grip and a stability assist: braking while steering no longer spins you out";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
