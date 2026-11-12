@@ -1535,7 +1535,7 @@ function openGameNow(id) {
                                 return '<span class="g3d-rpm-label' + (n >= 9 ? ' is-red' : '') + '" style="left:' + left.toFixed(2) + '%;top:' + top.toFixed(2) + '%;--a:' + a + 'deg">' + n + '</span>';
                             }).join('') +
                         '</div>' +
-                        '<div class="g3d-autosteer" id="g3dAutoSteer">AUTOSTEER</div>' +
+                        '<div class="g3d-autosteer" id="g3dAutoSteer" title="Autosteer (F)">AS</div>' +
                         '<div class="g3d-rain" id="g3dRain">RAIN</div>' +
                         '<div class="g3d-auto-ds" id="g3dAutoDS">DS: --</div>' +
                         '<div class="g3d-gauge-needle" id="g3dNeedle"></div>' +
@@ -9382,8 +9382,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.19";
-const UPDATE_NOTES = "DS now appears as soon as autosteer is on, even at a standstill";
+const APP_VERSION = "LessFun Public Beta 27.2.20";
+const UPDATE_NOTES = "Autosteer chip renamed AS, DS is grey under the speed and capped to the car top speed";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;

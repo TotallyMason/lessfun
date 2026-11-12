@@ -3589,6 +3589,8 @@
                 if (dsEl) {
                     if (autoSteer) {
                         var dsShown = Math.round(autoDesired * scale / SPEED_SCALE);
+                        var maxShown = Math.round(driveMaxSpeed * scale / SPEED_SCALE);
+                        if (dsShown > maxShown) dsShown = maxShown;
                         dsEl.textContent = 'DS: ' + dsShown;
                         dsEl.style.display = 'block';
                     } else {
