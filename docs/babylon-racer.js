@@ -58,7 +58,7 @@
     var training = false, trainingStep = 0, trainingRoot = null, trainingProps = [], trainingCooldown = 0, trainingHold = 0;
     var eject = null, crashFlashEl = null;
     var tollPlazas = [], rumbleShake = 0;
-    var rainSystem = null, rainIntensity = 0, rainTarget = 0, weatherTimer = 25, wiperL = null, wiperR = null, rainChip = null;
+    var rainSystem = null, rainIntensity = 0, rainTarget = 0, weatherTimer = 25, rainChip = null;
     var autoSteer = false, autoLane = 3, autoLaneTimer = 0, autoPrevLeft = false, autoPrevRight = false, autoLaneFlash = 0, autoOffset = 1.83;
     var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.25, baseGrip = 3.25;
     var laneCenters = [-9.16, -5.5, -1.83, 1.83, 5.5, 9.16];
@@ -2010,27 +2010,6 @@
         rainSystem = ps;
     }
 
-    function ensureWipers() {
-        if (wiperL) return;
-        var rubber = new BABYLON.PBRMaterial('wiperRubber', scene);
-        rubber.albedoColor = new BABYLON.Color3(0.05, 0.052, 0.058);
-        rubber.metallic = 0.1;
-        rubber.roughness = 0.85;
-        function makeWiper(name, x) {
-            var pivot = new BABYLON.TransformNode(name + 'Pivot', scene);
-            pivot.parent = interiorRoot;
-            pivot.position.set(x, 0.60, 0.86);
-            var blade = BABYLON.MeshBuilder.CreateBox(name, { width: 0.5, height: 0.016, depth: 0.02 }, scene);
-            blade.position.set(0.25, 0, 0);
-            blade.material = rubber;
-            blade.parent = pivot;
-            pivot.setEnabled(false);
-            return pivot;
-        }
-        wiperL = makeWiper('wiperL', -0.42);
-        wiperR = makeWiper('wiperR', 0.02);
-    }
-
     function updateWeather(dt) {
         if (!rainChip) rainChip = document.getElementById('g3dRain');
         weatherTimer -= dt;
@@ -2047,22 +2026,6 @@
             rainSystem.emitRate = (opts && opts.rainEnabled === false) ? 0 : rainIntensity * (isLowPower() ? 320 : 720);
             var cp = chassis ? chassis.translation() : { x: 0, y: 0, z: spawnZ };
             rainSystem.emitter = new BABYLON.Vector3(cp.x, 13, cp.z + 18);
-        }
-        // wipers sweep in first person while it rains
-        if (rainIntensity > 0.15 
-            && cameraMode === 0 && !garage) {
-            ensureWipers();
-        }
-        if (wiperL) {
-            var on = rainIntensity > 0.15 && cameraMode === 0 && !garage;
-            wiperL.setEnabled(on);
-            if (wiperR) wiperR.setEnabled(on);
-            if (on) {
-                var t = performance.now() * 0.0035;
-                var sweep = Math.sin(t);
-                wiperL.rotation.y = sweep * 0.85 - 0.2;
-                if (wiperR) wiperR.rotation.y = Math.sin(t + 0.06) * 0.85 - 0.2;
-            }
         }
         // wet road: less grip, longer braking
         driveGrip = baseGrip * (1 - rainIntensity * 0.22);
