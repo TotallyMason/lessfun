@@ -58,7 +58,7 @@
     var training = false, trainingStep = 0, trainingRoot = null, trainingProps = [], trainingCooldown = 0, trainingHold = 0;
     var eject = null, crashFlashEl = null;
     var tollPlazas = [];
-    var autoSteer = false;
+    var autoSteer = false, autoLane = 3, autoLaneTimer = 0;
     var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.25;
     var laneCenters = [-9.16, -5.5, -1.83, 1.83, 5.5, 9.16];
     var traffic = [], coinPickups = [], trafficTimer = 0;
@@ -2924,26 +2924,64 @@
         if (input.right) steerTarget -= 1;
         if (input.pointerActive) steerTarget += input.pointerSteer;
         if (autoSteer && forwardSpeed > 1.5) {
-            // Follow the road/lane automatically. Throttle and brakes stay manual.
+            // Lane-keeping autosteer. Corrects toward the centre of the chosen
+            // lane and changes lanes when slower traffic blocks the way.
             var q = chassis.rotation();
             var yaw = Math.atan2(2 * (q.w * q.y + q.x * q.z), 1 - 2 * (q.y * q.y + q.z * q.z));
-            var tz = chassis.translation().z;
-            var curveHere = highwayCurveX(tz);
-            var offsetNow = chassis.translation().x - curveHere;
-            // nearest lane centre
-            var bestLane = laneCenters[0], bestDist = 1e9;
-            for (var li = 0; li < laneCenters.length; li++) {
-                var dLane = Math.abs(laneCenters[li] - offsetNow);
-                if (dLane < bestDist) { bestDist = dLane; bestLane = laneCenters[li]; }
+            var pos = chassis.translation();
+            var offsetNow = pos.x - highwayCurveX(pos.z);
+
+            // lock onto the nearest lane the first time
+            if (autoLaneTimer <= 0 && Math.abs(offsetNow - laneCenters[autoLane]) > 4.6) {
+                var bestLane = 3, bestDist = 1e9;
+                for (var li = 0; li < laneCenters.length; li++) {
+                    var dLane = Math.abs(laneCenters[li] - offsetNow);
+                    if (dLane < bestDist) { bestDist = dLane; bestLane = li; }
+                }
+                autoLane = bestLane;
             }
-            var lookZ = tz + 11;
-            var targetX = highwayCurveX(lookZ) + bestLane;
-            var dxT = targetX - chassis.translation().x;
-            var dzT = lookZ - tz;
-            // lateral offset in the car's frame (right positive)
+            autoLaneTimer = Math.max(0, autoLaneTimer - dt);
+
+            // Find traffic directly ahead in this lane.
+            var blocked = false;
+            var nearestBlock = 999;
+            for (var ti = 0; ti < traffic.length; ti++) {
+                var other = traffic[ti];
+                if (!other || !other.root || !other.root.isEnabled()) continue;
+                var laneWorldX = highwayCurveX(pos.z) + laneCenters[autoLane];
+                var dxOther = other.root.position.x - laneWorldX;
+                var dzOther = other.root.position.z - pos.z;
+                if (Math.abs(dxOther) < 2.4 && dzOther > 3 && dzOther < 55) {
+                    blocked = true;
+                    nearestBlock = Math.min(nearestBlock, dzOther);
+                }
+            }
+            if (blocked && nearestBlock < 46 && autoLaneTimer <= 0) {
+                // pick the clearest neighbouring lane
+                var options = [autoLane - 1, autoLane + 1].filter(function (idx) { return idx >= 0 && idx < laneCenters.length; });
+                options.sort(function (a, b) { return Math.abs(a - autoLane) - Math.abs(b - autoLane); });
+                for (var oi = 0; oi < options.length; oi++) {
+                    var cand = options[oi];
+                    var laneX = highwayCurveX(pos.z) + laneCenters[cand];
+                    var free = true;
+                    for (var tj = 0; tj < traffic.length; tj++) {
+                        var car2 = traffic[tj];
+                        if (!car2 || !car2.root || !car2.root.isEnabled()) continue;
+                        if (Math.abs(car2.root.position.x - laneX) < 2.6 && car2.root.position.z - pos.z > -6 && car2.root.position.z - pos.z < 40) { free = false; break; }
+                    }
+                    if (free) { autoLane = cand; autoLaneTimer = 1.4; break; }
+                }
+            }
+
+            var lookZ = pos.z + 12;
+            var targetX = highwayCurveX(lookZ) + laneCenters[autoLane];
+            var dxT = targetX - pos.x;
+            var dzT = lookZ - pos.z;
+            // signed lateral error: positive means the target lane is to our right
             var lateral = dxT * Math.cos(yaw) - dzT * Math.sin(yaw);
-            var auto = -clamp(lateral * 0.22, -1, 1);
-            steerTarget = clamp(auto, -1, 1);
+            // positive steering turns LEFT in this vehicle model, so aim away from a right-hand error
+            var auto = clamp(lateral * 0.20, -1, 1);
+            steerTarget = auto;
         }
         steerVisual += (steerTarget - steerVisual) * Math.min(1, dt * 10);
         var steerAngle = steerVisual * steerMax;
