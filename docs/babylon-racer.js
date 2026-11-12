@@ -4125,6 +4125,7 @@
             var p = chassis.translation();
             var offset = p.x - highwayCurveX(p.z);
             return { x: p.x, z: p.z, offset: offset, lane: autoLane, laneCenter: laneCenters[autoLane], steer: steerVisual, auto: autoSteer };
+        },
         captureGaragePhoto: captureGaragePhoto,
         startTraining: startTraining,
         stopTraining: stopTraining,
