@@ -2023,7 +2023,7 @@
                 arm.material = boomMat;
                 pivot.rotation.z = li === etcIndex ? 1.15 : 0;   // ETC lane open, others down
                 highwayMeshes.push(arm);
-                plaza.lanes.push({ x: bx, z: z - 1.2, pivot: pivot, arm: arm, open: li === etcIndex, broken: false });
+                plaza.lanes.push({ x: bx, z: z - 1.2, pivot: pivot, arm: arm, open: li === etcIndex, etc: li === etcIndex, broken: false, anim: li === etcIndex ? 1 : 0, target: li === etcIndex ? 1 : 0, wait: 0 });
             });
             // canopy across the whole plaza
             var canopy = BABYLON.MeshBuilder.CreateBox('tollCanopy' + p, { width: 22, height: 0.36, depth: 6.2 }, scene);
@@ -2041,32 +2041,49 @@
     }
 
     function updateTolls(dt) {
-        if (!tollPlazas.length || !chassis || runOver) return;
+        if (!tollPlazas.length || !chassis) return;
         var t = chassis.translation();
         var v = chassis.linvel();
+        var speed = Math.hypot(v.x, v.z);
         for (var i = 0; i < tollPlazas.length; i++) {
             var plaza = tollPlazas[i];
-            if (Math.abs(t.z - plaza.z) > 8) continue;
             for (var j = 0; j < plaza.lanes.length; j++) {
                 var lane = plaza.lanes[j];
-                if (lane.open || lane.broken) continue;
-                if (Math.abs(t.x - lane.x) < 2.3 && t.z > lane.z - 1.6 && t.z < lane.z + 0.6 && v.z > 2) {
-                    lane.broken = true;
-                    // nudge straight through: boom snaps up and away with debris
-                    lane.pivot.rotation.z = 1.35;
-                    playCrashSound();
-                    for (var d = 0; d < 6; d++) {
-                        var piece = BABYLON.MeshBuilder.CreateBox('tollShard', { width: 0.22, height: 0.1, depth: 0.1 }, scene);
-                        piece.position.set(lane.x + 1.2 + Math.random(), 1.1, lane.z + Math.random() * 0.6);
-                        piece.material = lane.arm.material;
-                        highwayMeshes.push(piece);
-                        if (impactSparks) {
-                            impactSparks.emitRate = 40;
-                            impactSparkTimer = 0.35;
-                        }
-                    }
-                    showToast('TOLL BOOM SMASHED · use the ETC lane');
+                if (lane.etc) { lane.anim = 1; lane.pivot.rotation.z = 1.35; continue; }
+                var dz = t.z - lane.z;
+                var inLane = Math.abs(t.x - lane.x) < 2.3;
+
+                // Auto-open when you pull up and stop at a closed barrier.
+                if (inLane && dz < -1.6 && dz > -9 && speed < 3.0) {
+                    lane.target = 1;
+                    lane.wait = 0;
                 }
+                // Auto-close again once you're through and a little way past.
+                if (dz > 3.5) {
+                    lane.wait += dt;
+                    if (lane.wait > 0.9) lane.target = 0;
+                }
+
+                // Animate the boom smoothly.
+                var diff = lane.target - lane.anim;
+                if (Math.abs(diff) > 0.001) {
+                    lane.anim += diff * Math.min(1, dt * 7.5);
+                    if (Math.abs(lane.target - lane.anim) < 0.01) lane.anim = lane.target;
+                }
+                lane.pivot.rotation.z = lane.anim * 1.35;
+
+                // Closed boom physically stops you from driving through.
+                if (lane.anim < 0.55 && inLane && dz > -1.9 && dz < 1.1 && v.z > 0.4) {
+                    var pushZ = lane.z - 2.05;
+                    try { chassis.setTranslation({ x: t.x, y: t.y, z: pushZ }, true); } catch (e) {}
+                    try { chassis.setLinvel({ x: v.x * 0.08, y: v.y, z: -0.4 }, true); } catch (e) {}
+                    if (!lane.bumpCool || lane.bumpCool <= 0) {
+                        lane.bumpCool = 1.6;
+                        playCrashSound();
+                        showToast('STOP AT THE BARRIER · it opens when you halt');
+                    }
+                }
+                if (lane.bumpCool > 0) lane.bumpCool = Math.max(0, lane.bumpCool - dt);
             }
         }
     }

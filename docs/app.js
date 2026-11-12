@@ -9370,8 +9370,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.69";
-const UPDATE_NOTES = "Toll plazas along the highway with an open ETC lane and booms you can smash through";
+const APP_VERSION = "LessFun Public Beta 1.34.70";
+const UPDATE_NOTES = "Toll booms now block you: stop at the barrier and it opens automatically, then closes after you pass";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
