@@ -59,6 +59,7 @@
     var eject = null, crashFlashEl = null;
     var tollPlazas = [], rumbleShake = 0;
     var rainSystem = null, rainIntensity = 0, rainTarget = 0, weatherTimer = 25, rainChip = null;
+    var tunnels = [], tunnelDark = 0, baseSunIntensity = 0.62, hemi = null;
     var autoSteer = false, autoLane = 3, autoLaneTimer = 0, autoPrevLeft = false, autoPrevRight = false, autoLaneFlash = 0, autoOffset = 1.83;
     var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.25, baseGrip = 3.25;
     var laneCenters = [-9.16, -5.5, -1.83, 1.83, 5.5, 9.16];
@@ -557,7 +558,7 @@
 
         createSky();
 
-        var hemi = new BABYLON.HemisphericLight('skyFill', new BABYLON.Vector3(0, 1, 0), scene);
+        hemi = new BABYLON.HemisphericLight('skyFill', new BABYLON.Vector3(0, 1, 0), scene);
         hemi.intensity = 0.13;
         hemi.diffuse = new BABYLON.Color3(0.34, 0.48, 0.78);
         hemi.groundColor = new BABYLON.Color3(0.018, 0.022, 0.04);
@@ -677,6 +678,7 @@
         createPines();
         createMountains();
         createRoadSigns();
+        createTunnels();
         createTollPlazas();
         loadStreetLampModel(low);
     }
@@ -2058,6 +2060,92 @@
         }
         // wet road: less grip, longer braking
         driveGrip = baseGrip * (1 - rainIntensity * 0.22);
+    }
+
+    function createTunnels() {
+        tunnels = [];
+        var concrete = new BABYLON.PBRMaterial('tunnelConcrete', scene);
+        concrete.albedoColor = new BABYLON.Color3(0.22, 0.23, 0.25);
+        concrete.metallic = 0.05;
+        concrete.roughness = 0.9;
+        var lining = new BABYLON.PBRMaterial('tunnelLining', scene);
+        lining.albedoColor = new BABYLON.Color3(0.14, 0.155, 0.17);
+        lining.metallic = 0.15;
+        lining.roughness = 0.75;
+        var lampMat = new BABYLON.StandardMaterial('tunnelLamp', scene);
+        lampMat.diffuseColor = new BABYLON.Color3(1, 0.95, 0.8);
+        lampMat.emissiveColor = new BABYLON.Color3(1, 0.86, 0.55);
+        lampMat.disableLighting = true;
+
+        for (var t = 0; t < 3; t++) {
+            var z0 = spawnZ + 1250 + t * 2600;
+            var len = 240, step = 10, segs = Math.floor(len / step);
+            var parts = [];
+            var lamps = [];
+            for (var i = 0; i <= segs; i++) {
+                var z = z0 + i * step;
+                var cx = highwayCurveX(z);
+                // side walls
+                var wl = BABYLON.MeshBuilder.CreateBox('tunnelWallL', { width: 0.7, height: 6.4, depth: step + 0.4 }, scene);
+                wl.position.set(cx - 12.6, 3.2, z);
+                parts.push(wl);
+                var wr = BABYLON.MeshBuilder.CreateBox('tunnelWallR', { width: 0.7, height: 6.4, depth: step + 0.4 }, scene);
+                wr.position.set(cx + 12.6, 3.2, z);
+                parts.push(wr);
+                // ceiling
+                var ce = BABYLON.MeshBuilder.CreateBox('tunnelCeil', { width: 26, height: 0.7, depth: step + 0.4 }, scene);
+                ce.position.set(cx, 6.5, z);
+                parts.push(ce);
+                // ceiling lamp every 20 m
+                if (i % 2 === 0) {
+                    var lamp = BABYLON.MeshBuilder.CreateBox('tunnelLampMesh', { width: 2.2, height: 0.08, depth: 0.5 }, scene);
+                    lamp.position.set(cx, 6.05, z);
+                    lamp.material = lampMat;
+                    lamps.push(lamp);
+                }
+            }
+            var merged = BABYLON.Mesh.MergeMeshes(parts, true, true, undefined, false, false);
+            if (merged) {
+                merged.material = lining;
+                merged.isPickable = false;
+                merged.receiveShadows = false;
+                highwayMeshes.push(merged);
+            }
+            lamps.forEach(function (l) { l.isPickable = false; highwayMeshes.push(l); });
+            // portal frames
+            [-1, 1].forEach(function (end) {
+                var pz = z0 + (end > 0 ? len : 0);
+                var pcx = highwayCurveX(pz);
+                var portal = BABYLON.MeshBuilder.CreateBox('tunnelPortal', { width: 27, height: 1.2, depth: 1.6 }, scene);
+                portal.position.set(pcx, 7.0, pz);
+                portal.material = concrete;
+                highwayMeshes.push(portal);
+                [ -13, 13 ].forEach(function (ox) {
+                    var post = BABYLON.MeshBuilder.CreateBox('tunnelPortalPost', { width: 1.4, height: 7.2, depth: 1.6 }, scene);
+                    post.position.set(pcx + ox, 3.6, pz);
+                    post.material = concrete;
+                    highwayMeshes.push(post);
+                });
+            });
+            tunnels.push({ from: z0, to: z0 + len });
+        }
+    }
+
+    function updateTunnels(dt) {
+        if (!chassis || !sun) return;
+        var p = chassis.translation();
+        var inside = false;
+        for (var i = 0; i < tunnels.length; i++) {
+            if (p.z > tunnels[i].from + 4 && p.z < tunnels[i].to - 4) { inside = true; break; }
+        }
+        tunnelDark += ((inside ? 1 : 0) - tunnelDark) * Math.min(1, dt * 3.2);
+        sun.intensity = baseSunIntensity * (1 - tunnelDark * 0.86);
+        if (hemi) hemi.intensity = (isLowPower() ? 0.55 : 0.62) * (1 - tunnelDark * 0.7);
+        // headlights come on automatically in the dark
+        if (tunnelDark > 0.5 && !headlightsOn) {
+            headlightsOn = true;
+            headlights.forEach(function (light) { light.setEnabled(true); light.intensity = 4.5; });
+        }
     }
 
     function createTollPlazas() {
@@ -3491,6 +3579,7 @@
             stepPhysics(dt);
             updateTraffic(dt);
             updateTolls(dt);
+            updateTunnels(dt);
             updateWeather(dt);
             updateCoins(dt);
         } else if (!paused) {

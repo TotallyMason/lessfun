@@ -9372,8 +9372,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.12";
-const UPDATE_NOTES = "Traffic now brakes for the car ahead and lights up its brake lights (with hazards when hard on the brakes)";
+const APP_VERSION = "LessFun Public Beta 27.2.13";
+const UPDATE_NOTES = "Tunnels on the highway: ceiling lamps, portal frames, darkness and automatic headlights";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
