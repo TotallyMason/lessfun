@@ -1874,8 +1874,17 @@ function openGameNow(id) {
             snowStorm: snowStormMode,
             onScore: function (name, score) { saveScore(name, score); },
             onCoins: function (amount) { awardRunCoins(amount); },
-            onGameOver: function (score, seconds) { handleGameOver(score, seconds); }
+            onGameOver: function (score, seconds) { handleGameOver(score, seconds); },
+            onReady: function () {
+                // Everything is loaded and the first frame is ready — only now
+                // dismiss the loader, then stop showing loading states.
+                if (gameOpenToken) { /* token guard */ }
+                setViewLoaderDetail('Ready');
+                hideViewLoader();
+            }
         });
+        // Safety net: never leave the loader up if a driver never reports ready.
+        setTimeout(function () { hideViewLoader(); }, 9000);
         applyRenderScaleSetting();
         applySoundSetting();
         applyUnitSetting();
@@ -9372,8 +9381,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.16";
-const UPDATE_NOTES = "Safer autosteer with adaptive braking and look-ahead, and attention pause now fully stops the game render loop";
+const APP_VERSION = "LessFun Public Beta 27.2.17";
+const UPDATE_NOTES = "Games now keep the loader until the world is actually ready, then fully stop loading";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;

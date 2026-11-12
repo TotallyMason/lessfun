@@ -40,7 +40,7 @@
     var resizeObs = null, active = false, failed = false;
     var rapier = null, world = null, chassis = null, vehicle = null;
     var rapierPromise = null, ready = false, starting = false;
-    var raf = 0, lastFrame = 0, accumulator = 0, hudTimer = 0, speedHudTimer = 0, gaugeBoot = 0, suspended = false;
+    var raf = 0, lastFrame = 0, accumulator = 0, hudTimer = 0, speedHudTimer = 0, gaugeBoot = 0, suspended = false, readyAnnounced = false;
     var paused = false, garage = false, cameraMode = 0;
     var distance = 0, displaySpeed = 0, unit = 'mph', sound = true;
     var nitro = 100, driftScore = 0, steerVisual = 0;
@@ -2992,6 +2992,10 @@
         }
         ready = true;
         gaugeBoot = 0.95;
+        if (!readyAnnounced && opts && typeof opts.onReady === 'function') {
+            readyAnnounced = true;
+            try { opts.onReady(); } catch (e) {}
+        }
         Object.keys(remoteRacers).forEach(function (id) { createRemoteBody(remoteRacers[id]); });
         worldMode = 'highway';
         setWorldMode('highway');
@@ -3789,6 +3793,7 @@
         active = true;
         starting = true;
         ready = false;
+        readyAnnounced = false;
         paused = false;
         garage = false;
         unit = (global.localStorage && localStorage.getItem('lessfun_units')) === 'kmh' ? 'kmh' : 'mph';
