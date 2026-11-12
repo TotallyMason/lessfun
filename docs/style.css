@@ -13484,3 +13484,9 @@ body.battery-saver .site-snow{display:none}
 .idle-ad-car .ia-skirt{position:absolute;left:6%;right:6%;bottom:10px;height:8%;border-radius:0 0 10px 10px;background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,.75));transform:rotateY(-16deg)}
 /* floor reflection under the car */
 .idle-ad-stage:after{content:"";position:absolute;left:50%;bottom:6%;width:min(58vw,520px);height:16vh;transform:translateX(-50%);background:radial-gradient(ellipse at 50% 0%,rgba(255,255,255,.18),transparent 70%);filter:blur(4px);pointer-events:none}
+
+/* Real rendered garage photo as the ad hero */
+.idle-ad-photo{display:none;width:100%;height:100%;object-fit:contain;border-radius:20px;filter:drop-shadow(0 26px 40px rgba(0,0,0,.55))}
+.idle-ad-car.has-photo .idle-ad-photo{display:block}
+.idle-ad-car.has-photo > span{display:none!important}
+.idle-ad-car.has-photo{height:min(30vw,300px)!important;bottom:20%!important}

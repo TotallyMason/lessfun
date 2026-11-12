@@ -857,6 +857,8 @@ function captureGaragePhoto() {
             run.then(function (dataUrl) {
                 clearInterval(timer);
                 if (!dataUrl) { host.style.display = 'none'; return; }
+                window.__garageCarPhoto = dataUrl;
+                try { wallet.garagePhoto = dataUrl.length < 900000 ? dataUrl : ''; } catch (e) {}
                 host.innerHTML = '<img src="' + dataUrl + '" alt="Your car in 3D">';
             }).catch(function () { clearInterval(timer); host.style.display = 'none'; });
         } else if (tries > 30) {
@@ -9381,8 +9383,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.30";
-const UPDATE_NOTES = "Rumble strips now scrub speed as well as shaking the car";
+const APP_VERSION = "LessFun Public Beta 27.2.31";
+const UPDATE_NOTES = "Ads now show the car from your garage, with its real rendered 3D photo, paint, specs and $ price — and the highway is wider";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
@@ -12422,53 +12424,36 @@ var idleAdRotateTimer = 0;
 var idleAdThree = null;      // { renderer, scene, camera, carGroup, raf }
 var IDLE_AD_DELAY = 10000;
 var IDLE_AD_ROTATE = 7000;
-var IDLE_ADS = [
-    {
-        cls: 'idle-ad-sunset',
-        badge: 'AD · TURBO X9 COUPE',
-        title: 'TURBO X9',
-        tagline: 'Zero to legend in 3.1 seconds.',
-        specs: ['0–100 KM/H · 3.1 S', 'TOP SPEED · 341 KM/H', 'TWIN-TURBO V8 · 740 HP', 'ACTIVE AERO · STANDARD', 'FROM $89,900'],
-        foot: 'TURBO MOTORS — DRIVE THE IMPOSSIBLE',
-        car: { body: 0xd42b3c, cabin: 0x1d222c, wheels: 0x111318, kind: 'coupe' }
-    },
-    {
-        cls: 'idle-ad-night',
-        badge: 'AD · AERO EV SALOON',
-        title: 'AERO EV',
-        tagline: 'Silence has never moved this fast.',
-        specs: ['RANGE · 640 KM', '0–100 KM/H · 2.9 S', 'ULTRA-FAST CHARGE · 18 MIN', 'PANORAMIC GLASS ROOF', 'FROM $74,500'],
-        foot: 'AERO — THE FUTURE IS QUIET',
-        car: { body: 0x4f8cff, cabin: 0x0e1730, wheels: 0x0c0f16, kind: 'sedan' }
-    },
-    {
-        cls: 'idle-ad-garage',
-        badge: 'AD · DUNE CRUISER 4×4',
-        title: 'DUNE CRUISER',
-        tagline: 'The city ends. The Dune Cruiser begins.',
-        specs: ['GROUND CLEARANCE · 320 MM', 'WADING DEPTH · 900 MM', 'LOCKING DIFFS · FRONT + REAR', '7 SEATS · EVERY TERRAIN', 'FROM $61,200'],
-        foot: 'CRUISER OFF-ROAD — GO FURTHER',
-        car: { body: 0x7a8f5a, cabin: 0x1c2418, wheels: 0x10120e, kind: 'suv' }
-    },
-    {
-        cls: 'idle-ad-sunset',
-        badge: 'AD · VELOCITÉ S9 ROADSTER',
-        title: 'VELOCITÉ S9',
-        tagline: 'Drop the top. Raise the pulse.',
-        specs: ['V10 · 620 HP', '0–100 KM/H · 3.4 S', 'CARBON MONOCOQUE · 1,290 KG', 'TRACK MODE · INCLUDED', 'FROM $112,000'],
-        foot: 'VELOCITÉ — BORN ON THE CIRCUIT',
-        car: { body: 0xf2a33c, cabin: 0x22201a, wheels: 0x141210, kind: 'roadster' }
-    },
-    {
-        cls: 'idle-ad-night',
-        badge: 'AD · HYPERION SS HYPERCAR',
-        title: 'HYPERION SS',
-        tagline: 'Eight cylinders of compressed thunder.',
-        specs: ['QUAD-TURBO W16 · 1,578 HP', '0–100 KM/H · 2.4 S', 'TOP SPEED · 440 KM/H', 'ONLY 500 EVER MADE', 'PRICE ON REQUEST'],
-        foot: 'HYPERION — ENGINEERED EXTREMES',
-        car: { body: 0x1b2f6e, cabin: 0x0a1024, wheels: 0x0a0c12, kind: 'hyper' }
-    }
-];
+function buildGarageAds() {
+    var car = (typeof getEquippedCar === 'function' && getEquippedCar()) || null;
+    if (!car && typeof CAR_CATALOG !== 'undefined' && CAR_CATALOG.length) car = CAR_CATALOG[0];
+    var name = car ? ((car.brand || '') + ' ' + (car.model || '')).trim() : 'Your Garage Car';
+    var paint = car && car.threeColor != null ? car.threeColor : 0xc2280b;
+    var colorHex = '#' + ('000000' + Number(paint).toString(16)).slice(-6);
+    var topKmh = car && car.topSpeed ? Math.round(car.topSpeed * 1.60934) : 240;
+    var zero = car && car.zeroTo60 ? Number(car.zeroTo60).toFixed(1) : '3.2';
+    var price = car && car.price ? Number(car.price) : 80000;
+    var priceUsd = '$' + price.toLocaleString('en-US');
+    var hp = car && car.horsepower ? car.horsepower : 600;
+    var cls = ['idle-ad-night', 'idle-ad-sunset', 'idle-ad-garage'][(Date.now() / 1000 | 0) % 3];
+    return [{
+        cls: cls,
+        badge: 'AD · FROM YOUR GARAGE',
+        title: name.toUpperCase(),
+        tagline: 'Straight out of your garage — ' + hp + ' hp of it.',
+        specs: [
+            '0–100 KM/H · ' + zero + ' S',
+            'TOP SPEED · ' + topKmh + ' KM/H',
+            'POWER · ' + hp + ' HP',
+            'YOUR PAINT · ' + colorHex.toUpperCase(),
+            'PRICE · ' + priceUsd
+        ],
+        foot: 'YOUR GARAGE · BUILT IN LESSFUN',
+        color: colorHex,
+        photo: (window.__garageCarPhoto || '')
+    }];
+}
+var IDLE_ADS = [];
 
 function idleAdLoadThree() {
     if (idleAdThree) return Promise.resolve();
@@ -12601,6 +12586,7 @@ function idleAdBuild() {
             '<div class="idle-ad-glow"></div>' +
             '<div class="idle-ad-road"><i></i><i></i><i></i></div>' +
             '<div class="idle-ad-car">' +
+                '<img class="idle-ad-photo" alt="">' +
                 '<span class="ia-shadow"></span>' +
                 '<span class="ia-body"></span>' +
                 '<span class="ia-cabin"></span>' +
@@ -12647,6 +12633,21 @@ function idleAdRender(index) {
         prog.style.animation = 'idleAdProgress 7s linear forwards';
     }
     ov.querySelector('.idle-ad-stage').className = 'idle-ad-stage ' + ad.cls;
+    var carEl = ov.querySelector('.idle-ad-car');
+    var photoEl = ov.querySelector('.idle-ad-photo');
+    if (carEl && photoEl) {
+        if (ad.photo) {
+            photoEl.src = ad.photo;
+            carEl.classList.add('has-photo');
+        } else {
+            carEl.classList.remove('has-photo');
+            photoEl.removeAttribute('src');
+        }
+        var bodyEl = carEl.querySelector('.ia-body');
+        if (bodyEl && ad.color) {
+            bodyEl.style.background = 'linear-gradient(165deg,#ffffff 0%,' + ad.color + ' 46%,rgba(0,0,0,.75) 100%)';
+        }
+    }
     var dots = ov.querySelector('[data-idle-dots]');
     dots.innerHTML = IDLE_ADS.map(function (a, i2) {
         return '<i class="' + (i2 === idleAdIndex ? 'is-active' : '') + '"></i>';
@@ -12666,6 +12667,7 @@ function idleAdStopRotate() {
 }
 
 function idleAdShow() {
+    IDLE_ADS = buildGarageAds();
     if (idleAdOpen || document.hidden) { idleAdArm(); return; }
     if (document.body.classList.contains('focus-mode')) { idleAdArm(); return; }
     idleAdBuild();

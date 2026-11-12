@@ -11,7 +11,7 @@
     var HDR_URL = 'https://assets.babylonjs.com/environments/environmentSpecular.env';
     var START_Z = 200;
     var ROAD_LENGTH = 24000;
-    var ROAD_WIDTH = 22;
+    var ROAD_WIDTH = 27;
     var SPEED_SCALE = 2;
 
     var engine = null, scene = null, camera = null, canvas = null, container = null;
@@ -62,7 +62,7 @@
     var tunnels = [], tunnelDark = 0, baseSunIntensity = 0.62, hemi = null;
     var autoSteer = false, autoLane = 3, autoLaneTimer = 0, autoPrevLeft = false, autoPrevRight = false, autoLaneFlash = 0, autoOffset = 1.83, autoDesired = 0;
     var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.85, baseGrip = 3.85;
-    var laneCenters = [-9.16, -5.5, -1.83, 1.83, 5.5, 9.16];
+    var laneCenters = [-11.25, -6.75, -2.25, 2.25, 6.75, 11.25];
     var traffic = [], coinPickups = [], trafficTimer = 0;
     var remoteRacers = {}, localRacerName = '';
     var runOver = false, runSeconds = 0, coinsCollected = 0, coinsAwarded = false, scoreSubmitted = false;
@@ -2182,7 +2182,7 @@
             stripMat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
             var stripParts = [];
             for (var st = 0; st < 74; st++) {
-                var strip = BABYLON.MeshBuilder.CreateBox('tollStrip' + p + '_' + st, { width: 19.5, height: 0.05, depth: 0.55 }, scene);
+                var strip = BABYLON.MeshBuilder.CreateBox('tollStrip' + p + '_' + st, { width: 24.5, height: 0.05, depth: 0.55 }, scene);
                 strip.position.set(cx, 0.05, z - 99 + st * 1.2);
                 stripParts.push(strip);
             }
@@ -2193,7 +2193,7 @@
                 highwayMeshes.push(stripMerged);
             }
             // booths every 5.5m across the road
-            var offsets = [-8.25, -2.75, 2.75, 8.25];
+            var offsets = [-10.1, -3.4, 3.4, 10.1];
             var etcIndex = p % offsets.length;
             offsets.forEach(function (off, li) {
                 var bx = cx + off;
