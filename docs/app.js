@@ -9381,8 +9381,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.25";
-const UPDATE_NOTES = "Fixed the real AS crash: an undefined gap variable threw every frame and froze the car";
+const APP_VERSION = "LessFun Public Beta 27.2.26";
+const UPDATE_NOTES = "Reverted autosteer to the pre-DS version that drove properly";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;

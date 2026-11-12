@@ -3217,32 +3217,6 @@
                 return nearest;
             }
 
-            // Approaching a toll? Steer for an open (ETC) gate if one exists.
-            for (var tpi = 0; tpi < tollPlazas.length; tpi++) {
-                var plazaAhead = tollPlazas[tpi];
-                var dzPlaza = plazaAhead.z - pos.z;
-                if (dzPlaza > 0 && dzPlaza < 150 && autoLaneTimer <= 0) {
-                    var bestOpen = -1, bestOpenDist = 1e9;
-                    for (var gli = 0; gli < laneCenters.length; gli++) {
-                        var gateX = highwayCurveX(plazaAhead.z) + laneCenters[gli];
-                        var gateLane = null;
-                        for (var gl = 0; gl < plazaAhead.lanes.length; gl++) {
-                            if (Math.abs(plazaAhead.lanes[gl].x - gateX) < 2.2) { gateLane = plazaAhead.lanes[gl]; break; }
-                        }
-                        if (gateLane && (gateLane.etc || gateLane.anim > 0.55 || gateLane.broken)) {
-                            var dGate = Math.abs(laneCenters[gli] - offsetNow);
-                            if (dGate < bestOpenDist) { bestOpenDist = dGate; bestOpen = gli; }
-                        }
-                    }
-                    if (bestOpen >= 0 && bestOpen !== autoLane) {
-                        autoLane = bestOpen;
-                        autoLaneTimer = 1.1;
-                        autoLaneFlash = 1.0;
-                    }
-                    break;
-                }
-            }
-
             var gap = nearestInLane(autoLane, -10, 90);
 
             // Lane change only when the target lane is genuinely clear.
@@ -3262,12 +3236,16 @@
                 }
             }
 
-            var ds = autoDesired;
-            if (forwardSpeed > ds + 1.4) {
-                throttle = false;
-                brake = true;
-            } else if (forwardSpeed > ds + 0.4) {
-                throttle = false;
+            // Adaptive speed control: brake smoothly, never slam into a car.
+            var gapNow = nearestInLane(autoLane, -10, 90);
+            if (gapNow > 0) {
+                var closing = forwardSpeed > 1 ? (gapNow / forwardSpeed) : 99;
+                if (gapNow < 38 && closing < 3.2) {
+                    throttle = false;
+                    brake = true;
+                } else if (gapNow < 60) {
+                    throttle = false;
+                }
             }
 
             // Spin recovery before lane-following.
@@ -3293,9 +3271,6 @@
 
             // Speed-aware lane keeping: look further ahead the faster we go,
             // with less steering authority at speed so it cannot over-correct.
-            // Distance to the nearest car ahead in our lane (0 when clear).
-            var gapNow = nearestInLane(autoLane, -10, 95);
-
             var look = 9 + Math.min(18, forwardSpeed * 0.55);
             var blend = Math.min(1, dt * (autoLaneFlash > 0 ? 4.2 : 6.5));
             autoOffset += (laneCenters[autoLane] - autoOffset) * blend;
@@ -3307,15 +3282,8 @@
             var dzT = lookZ - pos.z;
             var lateral = dxT * Math.cos(yaw) - dzT * Math.sin(yaw);
             var authority = clamp(1.15 - forwardSpeed / 90, 0.45, 1.0);
-            // Emergency: if a car is very close ahead or we are far off the lane,
-            // steer much harder and faster.
-            var danger = 0;
-            if (gapNow > 0 && gapNow < 20) danger = 1;
-            else if (Math.abs(lateral) > 3.5) danger = 0.7;
-            else if (gapNow > 0 && gapNow < 34) danger = 0.45;
-            authority = clamp(authority + danger * 0.55, 0.45, 1.6);
-            var steerCmd = clamp(lateral * (0.26 + danger * 0.30) * authority, -1, 1);
-            steerTarget += (steerCmd - steerTarget) * Math.min(1, dt * (10 + danger * 22));
+            var steerCmd = clamp(lateral * 0.26 * authority, -1, 1);
+            steerTarget += (steerCmd - steerTarget) * Math.min(1, dt * 10);
         }
         steerVisual += (steerTarget - steerVisual) * Math.min(1, dt * 10);
         var steerAngle = steerVisual * steerMax;
