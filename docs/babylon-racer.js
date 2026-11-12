@@ -58,7 +58,7 @@
     var training = false, trainingStep = 0, trainingRoot = null, trainingProps = [], trainingCooldown = 0, trainingHold = 0;
     var eject = null, crashFlashEl = null;
     var tollPlazas = [];
-    var autoSteer = false, autoLane = 3, autoLaneTimer = 0;
+    var autoSteer = false, autoLane = 3, autoLaneTimer = 0, autoPrevLeft = false, autoPrevRight = false, autoLaneFlash = 0;
     var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.25;
     var laneCenters = [-9.16, -5.5, -1.83, 1.83, 5.5, 9.16];
     var traffic = [], coinPickups = [], trafficTimer = 0;
@@ -2972,6 +2972,35 @@
                 // do not accelerate toward a blocker and scrub speed
                 throttle = false;
                 if (forwardSpeed > 6 && gapNow < 22) brake = true;
+            }
+
+            // A / D ask for a lane change instead of steering directly.
+            if (input.left && !autoPrevLeft && autoLane > 0) { autoLane -= 1; autoLaneTimer = 0.8; autoLaneFlash = 0.9; }
+            if (input.right && !autoPrevRight && autoLane < laneCenters.length - 1) { autoLane += 1; autoLaneTimer = 0.8; autoLaneFlash = 0.9; }
+            autoPrevLeft = input.left;
+            autoPrevRight = input.right;
+            autoLaneFlash = Math.max(0, autoLaneFlash - dt);
+
+            // Spin recovery: if the car is sliding sideways, aim it back along the
+            // road and cut throttle instead of chasing the lane target.
+            var vel = chassis.linvel();
+            var spd = Math.hypot(vel.x, vel.z);
+            var slip = 0;
+            if (spd > 2) {
+                var velYaw = Math.atan2(vel.x, vel.z);
+                slip = velYaw - yaw;
+                while (slip > Math.PI) slip -= Math.PI * 2;
+                while (slip < -Math.PI) slip += Math.PI * 2;
+            }
+            if (Math.abs(slip) > 0.45) {
+                throttle = false;
+                brake = false;
+                var roadYawNow = Math.atan2(highwayCurveX(pos.z + 14) - highwayCurveX(pos.z), 14);
+                var straighten = ((roadYawNow - yaw) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
+                steerTarget = clamp(straighten * 1.25, -1, 1);
+                var ang = chassis.angvel();
+                try { chassis.setAngvel({ x: ang.x, y: ang.y * (1 - Math.min(0.5, dt * 4.2)), z: ang.z }, true); } catch (e) {}
+                return;
             }
 
             var lookZ = pos.z + 12;
