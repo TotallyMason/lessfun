@@ -58,7 +58,7 @@
     var training = false, trainingStep = 0, trainingRoot = null, trainingProps = [], trainingCooldown = 0, trainingHold = 0;
     var eject = null, crashFlashEl = null;
     var tollPlazas = [];
-    var autoSteer = false, autoLane = 3, autoLaneTimer = 0, autoPrevLeft = false, autoPrevRight = false, autoLaneFlash = 0, autoOffset = laneCenters[3];
+    var autoSteer = false, autoLane = 3, autoLaneTimer = 0, autoPrevLeft = false, autoPrevRight = false, autoLaneFlash = 0, autoOffset = 1.83;
     var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.25;
     var laneCenters = [-9.16, -5.5, -1.83, 1.83, 5.5, 9.16];
     var traffic = [], coinPickups = [], trafficTimer = 0;
