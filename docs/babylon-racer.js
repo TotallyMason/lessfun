@@ -58,8 +58,9 @@
     var training = false, trainingStep = 0, trainingRoot = null, trainingProps = [], trainingCooldown = 0, trainingHold = 0;
     var eject = null, crashFlashEl = null;
     var tollPlazas = [], rumbleShake = 0;
+    var rainSystem = null, rainIntensity = 0, rainTarget = 0, weatherTimer = 25, wiperL = null, wiperR = null, rainChip = null;
     var autoSteer = false, autoLane = 3, autoLaneTimer = 0, autoPrevLeft = false, autoPrevRight = false, autoLaneFlash = 0, autoOffset = 1.83;
-    var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.25;
+    var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.25, baseGrip = 3.25;
     var laneCenters = [-9.16, -5.5, -1.83, 1.83, 5.5, 9.16];
     var traffic = [], coinPickups = [], trafficTimer = 0;
     var remoteRacers = {}, localRacerName = '';
@@ -1970,6 +1971,103 @@
         }
     }
 
+    function ensureRain() {
+        if (rainSystem) return;
+        // streak sprite
+        var tex = new BABYLON.DynamicTexture('rainStreak', { width: 8, height: 64 }, scene, false);
+        var rc = tex.getContext();
+        var grad = rc.createLinearGradient(0, 0, 0, 64);
+        grad.addColorStop(0, 'rgba(190,225,255,0)');
+        grad.addColorStop(0.35, 'rgba(200,232,255,0.85)');
+        grad.addColorStop(1, 'rgba(190,225,255,0)');
+        rc.fillStyle = grad;
+        rc.fillRect(3, 0, 2, 64);
+        tex.update(false);
+        tex.hasAlpha = true;
+        var ps = new BABYLON.ParticleSystem('rain', isLowPower() ? 420 : 900, scene);
+        ps.particleTexture = tex;
+        ps.emitter = new BABYLON.Vector3(0, 12, 0);
+        ps.minEmitBox = new BABYLON.Vector3(-26, 0, -60);
+        ps.maxEmitBox = new BABYLON.Vector3(26, 0, 60);
+        ps.color1 = new BABYLON.Color4(0.72, 0.82, 0.95, 0.55);
+        ps.color2 = new BABYLON.Color4(0.62, 0.72, 0.9, 0.45);
+        ps.colorDead = new BABYLON.Color4(0.6, 0.7, 0.9, 0.0);
+        ps.minSize = 0.06;
+        ps.maxSize = 0.13;
+        ps.minLifeTime = 0.45;
+        ps.maxLifeTime = 0.8;
+        ps.emitRate = 0;
+        ps.blendMode = BABYLON.ParticleSystem.BLENDMODE_STANDARD;
+        ps.gravity = new BABYLON.Vector3(0, -55, 6);
+        ps.direction1 = new BABYLON.Vector3(-1, -10, 3);
+        ps.direction2 = new BABYLON.Vector3(1, -14, 7);
+        ps.minAngularSpeed = 0;
+        ps.maxAngularSpeed = 0;
+        ps.minEmitPower = 1;
+        ps.maxEmitPower = 2;
+        ps.updateSpeed = 0.016;
+        ps.start();
+        rainSystem = ps;
+    }
+
+    function ensureWipers() {
+        if (wiperL) return;
+        var rubber = new BABYLON.PBRMaterial('wiperRubber', scene);
+        rubber.albedoColor = new BABYLON.Color3(0.05, 0.052, 0.058);
+        rubber.metallic = 0.1;
+        rubber.roughness = 0.85;
+        function makeWiper(name, x) {
+            var pivot = new BABYLON.TransformNode(name + 'Pivot', scene);
+            pivot.parent = interiorRoot;
+            pivot.position.set(x, 0.60, 0.86);
+            var blade = BABYLON.MeshBuilder.CreateBox(name, { width: 0.5, height: 0.016, depth: 0.02 }, scene);
+            blade.position.set(0.25, 0, 0);
+            blade.material = rubber;
+            blade.parent = pivot;
+            pivot.setEnabled(false);
+            return pivot;
+        }
+        wiperL = makeWiper('wiperL', -0.42);
+        wiperR = makeWiper('wiperR', 0.02);
+    }
+
+    function updateWeather(dt) {
+        if (!rainChip) rainChip = document.getElementById('g3dRain');
+        weatherTimer -= dt;
+        if (weatherTimer <= 0) {
+            weatherTimer = 55 + Math.random() * 70;
+            rainTarget = rainTarget > 0.5 ? 0 : 1;
+            if (rainChip) {
+                rainChip.classList.toggle('is-on', rainTarget > 0.5);
+            }
+        }
+        rainIntensity += (rainTarget - rainIntensity) * Math.min(1, dt * 0.35);
+        if (rainIntensity > 0.02) ensureRain();
+        if (rainSystem) {
+            rainSystem.emitRate = (opts && opts.rainEnabled === false) ? 0 : rainIntensity * (isLowPower() ? 320 : 720);
+            var cp = chassis ? chassis.translation() : { x: 0, y: 0, z: spawnZ };
+            rainSystem.emitter = new BABYLON.Vector3(cp.x, 13, cp.z + 18);
+        }
+        // wipers sweep in first person while it rains
+        if (rainIntensity > 0.15 
+            && cameraMode === 0 && !garage) {
+            ensureWipers();
+        }
+        if (wiperL) {
+            var on = rainIntensity > 0.15 && cameraMode === 0 && !garage;
+            wiperL.setEnabled(on);
+            if (wiperR) wiperR.setEnabled(on);
+            if (on) {
+                var t = performance.now() * 0.0035;
+                var sweep = Math.sin(t);
+                wiperL.rotation.y = sweep * 0.85 - 0.2;
+                if (wiperR) wiperR.rotation.y = Math.sin(t + 0.06) * 0.85 - 0.2;
+            }
+        }
+        // wet road: less grip, longer braking
+        driveGrip = baseGrip * (1 - rainIntensity * 0.22);
+    }
+
     function createTollPlazas() {
         tollPlazas = [];
         var steel = new BABYLON.PBRMaterial('tollSteel', scene);
@@ -3395,6 +3493,7 @@
             stepPhysics(dt);
             updateTraffic(dt);
             updateTolls(dt);
+            updateWeather(dt);
             updateCoins(dt);
         } else if (!paused) {
             updateCoins(dt);
@@ -3611,6 +3710,7 @@
         driveMaxSpeed = clamp(topMph / 2.23694, 32, 145) * 2;
         driveAccel = clamp(num(perf.accel, 1) || 1, 0.55, 2.4);
         driveGrip = clamp(3.25 * (num(perf.grip, 1) || 1), 2.2, 5.3);
+        baseGrip = driveGrip;
         traffic = [];
         coinPickups = [];
         trafficTimer = 0;
@@ -4199,6 +4299,7 @@
             var offset = p.x - highwayCurveX(p.z);
             return { x: p.x, z: p.z, offset: offset, lane: autoLane, laneCenter: laneCenters[autoLane], steer: steerVisual, auto: autoSteer };
         },
+        getWeather: function () { return { rain: rainIntensity }; },
         captureGaragePhoto: captureGaragePhoto,
         startTraining: startTraining,
         stopTraining: stopTraining,

@@ -13396,3 +13396,7 @@ html.is-light .radio-panel input[type=range]{filter:none}
 body.attention-idle .game3d-hud,body.attention-idle .g3d-gauges{filter:brightness(.6)}
 body.battery-saver .site-snow{display:none}
 @media (prefers-reduced-motion: reduce){.attention-eye{animation:none}}
+
+/* Rain indicator */
+.g3d-rain{position:absolute;top:12%;left:50%;transform:translateX(-50%);z-index:6;padding:3px 9px;border-radius:999px;background:rgba(120,180,255,.12);border:1px solid rgba(120,180,255,.35);color:#a9d4ff;font-size:6.5px;font-weight:900;letter-spacing:.16em;opacity:0;transition:opacity .3s}
+.g3d-rain.is-on{opacity:.95}
