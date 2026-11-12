@@ -9381,8 +9381,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.26";
-const UPDATE_NOTES = "Reverted autosteer to the pre-DS version that drove properly";
+const APP_VERSION = "LessFun Public Beta 27.2.27";
+const UPDATE_NOTES = "Idle ads rebuilt as premium car commercials with a CSS hero car, moving road and progress bar";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
@@ -12598,7 +12598,18 @@ function idleAdBuild() {
     ov.id = 'idleAdOverlay';
     ov.innerHTML =
         '<div class="idle-ad-stage">' +
-            '<canvas id="idleAdCanvas"></canvas>' +
+            '<div class="idle-ad-glow"></div>' +
+            '<div class="idle-ad-road"><i></i><i></i><i></i></div>' +
+            '<div class="idle-ad-car">' +
+                '<span class="ia-body"></span>' +
+                '<span class="ia-cabin"></span>' +
+                '<span class="ia-light ia-light-f"></span>' +
+                '<span class="ia-light ia-light-r"></span>' +
+                '<span class="ia-wheel ia-wheel-fl"></span>' +
+                '<span class="ia-wheel ia-wheel-fr"></span>' +
+                '<span class="ia-wheel ia-wheel-rl"></span>' +
+                '<span class="ia-wheel ia-wheel-rr"></span>' +
+            '</div>' +
             '<div class="idle-ad-copy">' +
                 '<small data-idle-badge></small>' +
                 '<h2 data-idle-title></h2>' +
@@ -12606,6 +12617,7 @@ function idleAdBuild() {
                 '<div class="idle-ad-specs" data-idle-specs></div>' +
                 '<div class="idle-ad-foot" data-idle-foot></div>' +
             '</div>' +
+            '<div class="idle-ad-progress"><i></i></div>' +
             '<div class="idle-ad-hint">move to dismiss</div>' +
             '<div class="idle-ad-dots" data-idle-dots></div>' +
         '</div>';
@@ -12624,6 +12636,13 @@ function idleAdRender(index) {
     ov.querySelector('[data-idle-specs]').innerHTML =
         '<div class="idle-ad-specs-scroll">' + ad.specs.map(function (sp) { return '<span>' + sp + '</span>'; }).join('') + '</div>';
     ov.querySelector('[data-idle-foot]').textContent = ad.foot;
+    var prog = ov.querySelector('.idle-ad-progress i');
+    if (prog) {
+        prog.style.animation = 'none';
+        void prog.offsetWidth;
+        prog.style.animation = 'idleAdProgress 7s linear forwards';
+    }
+    ov.querySelector('.idle-ad-stage').className = 'idle-ad-stage ' + ad.cls;
     var dots = ov.querySelector('[data-idle-dots]');
     dots.innerHTML = IDLE_ADS.map(function (a, i2) {
         return '<i class="' + (i2 === idleAdIndex ? 'is-active' : '') + '"></i>';
