@@ -2587,8 +2587,8 @@
             if (centerScreenTex) {
                 var c2 = centerScreenTex.getContext();
                 c2.fillStyle = '#050d16'; c2.fillRect(0, 0, 320, 160);
-                c2.fillStyle = '#5fe7ff'; c2.font = '900 23px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
-                c2.textAlign = 'left'; c2.fillText('REDLINE GT', 20, 42);
+                c2.fillStyle = '#5fe7ff'; c2.font = '900 20px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+                c2.textAlign = 'left'; c2.fillText('WASHING MACHINE', 18, 36);
                 c2.fillStyle = 'rgba(143,216,255,0.62)'; c2.font = '800 12px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
                 c2.fillText('CITY NAVIGATION · ONLINE', 20, 68);
                 c2.fillStyle = 'rgba(255,255,255,0.10)'; c2.fillRect(20, 88, 280, 2);
@@ -2923,6 +2923,14 @@
         if (input.left) steerTarget += 1;
         if (input.right) steerTarget -= 1;
         if (input.pointerActive) steerTarget += input.pointerSteer;
+        if (autoSteer) {
+            // A / D always select a lane, even when rolling slowly.
+            if (input.left && !autoPrevLeft && autoLane > 0) { autoLane -= 1; autoLaneTimer = 0.7; autoLaneFlash = 1.1; }
+            if (input.right && !autoPrevRight && autoLane < laneCenters.length - 1) { autoLane += 1; autoLaneTimer = 0.7; autoLaneFlash = 1.1; }
+            autoPrevLeft = input.left;
+            autoPrevRight = input.right;
+            autoLaneFlash = Math.max(0, autoLaneFlash - dt);
+        }
         if (autoSteer && forwardSpeed > 1.5) {
             var q = chassis.rotation();
             var yaw = Math.atan2(2 * (q.w * q.y + q.x * q.z), 1 - 2 * (q.y * q.y + q.z * q.z));
@@ -2974,13 +2982,6 @@
                 if (forwardSpeed > 6 && gapNow < 22) brake = true;
             }
 
-            // A / D ask for a lane change instead of steering directly.
-            if (input.left && !autoPrevLeft && autoLane > 0) { autoLane -= 1; autoLaneTimer = 0.8; autoLaneFlash = 0.9; }
-            if (input.right && !autoPrevRight && autoLane < laneCenters.length - 1) { autoLane += 1; autoLaneTimer = 0.8; autoLaneFlash = 0.9; }
-            autoPrevLeft = input.left;
-            autoPrevRight = input.right;
-            autoLaneFlash = Math.max(0, autoLaneFlash - dt);
-
             // Spin recovery: if the car is sliding sideways, aim it back along the
             // road and cut throttle instead of chasing the lane target.
             var vel = chassis.linvel();
@@ -3008,7 +3009,7 @@
             var dxT = targetX - pos.x;
             var dzT = lookZ - pos.z;
             var lateral = dxT * Math.cos(yaw) - dzT * Math.sin(yaw);
-            steerTarget = clamp(lateral * 0.24, -1, 1);
+            steerTarget = clamp(lateral * (autoLaneFlash > 0 ? 0.42 : 0.24), -1, 1);
         }
         steerVisual += (steerTarget - steerVisual) * Math.min(1, dt * 10);
         var steerAngle = steerVisual * steerMax;

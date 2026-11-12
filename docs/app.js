@@ -6,7 +6,7 @@ const supabaseClient = (typeof window !== 'undefined' && window.supabase) ? wind
 const IS_HOLIDAY_UI = document.documentElement.classList.contains('is-holiday');
 
 const games = [
-    { id: 1, name: "Redline GT", description: "Weave through highway traffic in a coastal supercar run", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · A D / ← → steer · Q/E P R N D · Shift/N nitrous · X drift · C camera · L high beams · Space fly in Santa's Sleigh" },
+    { id: 1, name: "Washing Machine", description: "Weave through highway traffic in a coastal supercar run", icon: "beach", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · A D / ← → steer · Q/E P R N D · Shift/N nitrous · X drift · C camera · L high beams · Space fly in Santa's Sleigh" },
     { id: 2, name: "Tunnel Rush", description: "Thread the neon tunnel at warp speed", icon: "tunnel", controls: "Left / Right or drag to rotate" },
     { id: 3, name: "Cube Stack", description: "Stack the tower as high as you can", icon: "blocks", controls: "Tap or press Space to drop" },
     { id: 4, name: "Dead Coast", description: "Drive 10 km through the dead coast, scavenging food, water, fuel, and car parts", icon: "skull", hasBrake: true, hasThrottle: true, controls: "W / ↑ throttle · S / ↓ brake · A D / ← → steer · C camera · drag to steer on mobile · survive 10 km" },
@@ -1762,7 +1762,7 @@ function openGameNow(id) {
                 '<div class="game3d-garage-shop" id="g3dGarageShop" style="display:none;">' +
                     '<div class="game3d-garage-shop-inner">' +
                         '<div class="game3d-garage-shop-head">' +
-                            '<div><span class="game3d-garage-kicker">REDLINE GT · GARAGE</span><h2>Parts &amp; cosmetics</h2></div>' +
+                            '<div><span class="game3d-garage-kicker">WASHING MACHINE · GARAGE</span><h2>Parts &amp; cosmetics</h2></div>' +
                             '<button type="button" class="game3d-mp-x" onclick="closeGarageShop()">×</button>' +
                         '</div>' +
                         '<div class="game3d-garage-shop-balance" id="g3dShopBalance">— Coins</div>' +
@@ -9371,8 +9371,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.75";
-const UPDATE_NOTES = "With autosteer on, A/D change lanes and the car recovers from spins";
+const APP_VERSION = "LessFun Public Beta 27.2.1";
+const UPDATE_NOTES = "Renamed to Washing Machine, and A/D lane changes now work at any speed";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
