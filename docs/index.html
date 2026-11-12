@@ -18,8 +18,8 @@
         } catch (e) { document.documentElement.classList.add('is-dark'); }
     })();
     </script>
-    <link rel="stylesheet" href="style.css?v=20261484">
-    <link rel="preload" href="app.js?v=20261484" as="script">
+    <link rel="stylesheet" href="style.css?v=20261485">
+    <link rel="preload" href="app.js?v=20261485" as="script">
 </head>
 <body>
     <div id="siteLoader" class="site-loader" role="status" aria-live="polite" aria-label="Loading LessFun">
@@ -1065,7 +1065,7 @@
                     <div class="settings-item">
                         <div>
                             <h3>Version</h3>
-                            <p>LessFun Public Beta 27.2.23</p>
+                            <p>LessFun Public Beta 27.2.24</p>
                         </div>
                     </div>
                     <div class="settings-item">
@@ -1312,6 +1312,7 @@
                             <li><strong>1.34.47</strong> — The Garage now shows a real rendered photo of your 3D car (with a loading state). Speedometer readings are honest (no more 3x exaggeration), Park no longer revs, and revving in Neutral moves the needle without moving the car. Garage top-speed chips follow your chosen mph/km/h unit.</li>
                             <li><strong>1.34.48</strong> — Training is now a prebuilt marked track that ends with a perpendicular parking bay and a parallel-parking gap between two cars, then the chequered finish.</li>
                             <li><strong>1.34.49</strong> — Racing mode removed from Redline GT (free drive, multiplayer and training remain). Cockpit interior upgraded with seats, door cards, air vents, pedals, centre console, shifter, visors and rear-view mirror.</li>
+                            <li><strong>27.2.24</strong> — Stability pass: attention-aware pause now only dims and shows its overlay instead of controlling the game engine, and idle ads no longer create a second WebGL context. This removes the post-autosteer crashes and the stuck-at-0 km/h state.</li>
                             <li><strong>27.2.23</strong> — Removed the DS readout entirely. Also fixed a real crash: the idle-ad overlay referenced an undefined <code>global</code> object, and AS no longer pins the throttle off at a standstill.</li>
                             <li><strong>27.2.22</strong> — DS is hard-capped at the car’s catalog top speed with an absolute ceiling of 320 km/h, so it can never read 520 again, and it sits lower under the speed.</li>
                             <li><strong>27.2.21</strong> — AS now steers for an open/ETC toll gate when one is ahead, steers much harder in emergencies, the DS readout is capped to the car’s top speed and moved lower, and the whole game is km/h only.</li>
@@ -1724,8 +1725,8 @@
     <div id="globalToast" class="global-toast"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=20261484"></script>
-    <script src="christmas.js?v=20261484"></script>
-    <script src="easter.js?v=20261484" defer></script>
+    <script src="app.js?v=20261485"></script>
+    <script src="christmas.js?v=20261485"></script>
+    <script src="easter.js?v=20261485" defer></script>
 </body>
 </html>

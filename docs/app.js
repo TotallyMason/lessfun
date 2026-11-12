@@ -9381,8 +9381,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.23";
-const UPDATE_NOTES = "Removed DS and fixed a crash plus an AS standstill bug";
+const APP_VERSION = "LessFun Public Beta 27.2.24";
+const UPDATE_NOTES = "Stability pass: attention pause no longer touches the game engine, and idle ads no longer open a second WebGL context";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
@@ -12656,7 +12656,6 @@ function idleAdShow() {
             canvas.style.width = '100%';
             canvas.style.height = '100%';
         }
-        idleAdInitThree();
         idleAdRender(idleAdIndex + 1);
         idleAdStartRotate();
     };
@@ -12814,9 +12813,7 @@ var attentionState = { autoPaused: false, lastInput: Date.now(), batterySaver: f
 
 function attentionPause(reason) {
     if (!currentGameId || attentionState.autoPaused) return;
-    if (window.Games3D && window.Games3D.setPaused) {
-        window.Games3D.setPaused(true);
-        if (window.Games3D.suspendResources) window.Games3D.suspendResources();
+    if (true) {
         attentionState.autoPaused = true;
         document.body.classList.add('attention-idle');
         var ov = document.getElementById('attentionOverlay');
@@ -12838,10 +12835,6 @@ function attentionResume() {
     if (ov) {
         ov.classList.remove('is-visible');
         setTimeout(function () { if (!ov.classList.contains('is-visible')) ov.style.display = 'none'; }, 240);
-    }
-    if (window.Games3D) {
-        if (window.Games3D.resumeResources) window.Games3D.resumeResources();
-        if (window.Games3D.setPaused) window.Games3D.setPaused(false);
     }
 }
 
