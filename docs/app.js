@@ -9381,8 +9381,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.27";
-const UPDATE_NOTES = "Idle ads rebuilt as premium car commercials with a CSS hero car, moving road and progress bar";
+const APP_VERSION = "LessFun Public Beta 27.2.28";
+const UPDATE_NOTES = "Ad layout polish: bigger hero car, taller spec panel, cleaner hint and dots";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;

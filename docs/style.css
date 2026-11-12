@@ -13461,3 +13461,13 @@ body.battery-saver .site-snow{display:none}
 .idle-ad-hint{bottom:34px!important;z-index:6}
 @media (max-width:640px){.idle-ad-car{bottom:30%;height:min(24vw,120px)}.idle-ad-copy{transform:translateY(-8%)}}
 @media (prefers-reduced-motion: reduce){.idle-ad-car,.idle-ad-road:before,.idle-ad-road:after,.idle-ad-car .ia-wheel,.idle-ad-progress i{animation:none!important}}
+
+/* Ad layout polish */
+.idle-ad-car{bottom:17%!important;height:min(21vw,200px)!important;width:min(62vw,580px)!important}
+.idle-ad-copy{transform:translateY(-24%)!important}
+.idle-ad-specs{height:118px!important;margin-bottom:14px!important}
+.idle-ad-specs-scroll span{padding:10px 14px!important;font-size:clamp(11px,1.7vw,14px)!important}
+.idle-ad-dots{bottom:42px!important}
+.idle-ad-hint{bottom:58px!important}
+.idle-ad-progress{bottom:0!important;height:4px!important}
+@media (max-width:640px){.idle-ad-car{bottom:21%!important;height:min(26vw,130px)!important}.idle-ad-copy{transform:translateY(-14%)!important}}
