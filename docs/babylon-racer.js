@@ -3217,6 +3217,32 @@
                 return nearest;
             }
 
+            // Approaching a toll? Steer for an open (ETC) gate if one exists.
+            for (var tpi = 0; tpi < tollPlazas.length; tpi++) {
+                var plazaAhead = tollPlazas[tpi];
+                var dzPlaza = plazaAhead.z - pos.z;
+                if (dzPlaza > 0 && dzPlaza < 150 && autoLaneTimer <= 0) {
+                    var bestOpen = -1, bestOpenDist = 1e9;
+                    for (var gli = 0; gli < laneCenters.length; gli++) {
+                        var gateX = highwayCurveX(plazaAhead.z) + laneCenters[gli];
+                        var gateLane = null;
+                        for (var gl = 0; gl < plazaAhead.lanes.length; gl++) {
+                            if (Math.abs(plazaAhead.lanes[gl].x - gateX) < 2.2) { gateLane = plazaAhead.lanes[gl]; break; }
+                        }
+                        if (gateLane && (gateLane.etc || gateLane.anim > 0.55 || gateLane.broken)) {
+                            var dGate = Math.abs(laneCenters[gli] - offsetNow);
+                            if (dGate < bestOpenDist) { bestOpenDist = dGate; bestOpen = gli; }
+                        }
+                    }
+                    if (bestOpen >= 0 && bestOpen !== autoLane) {
+                        autoLane = bestOpen;
+                        autoLaneTimer = 1.1;
+                        autoLaneFlash = 1.0;
+                    }
+                    break;
+                }
+            }
+
             var gap = nearestInLane(autoLane, -10, 90);
 
             // Lane change only when the target lane is genuinely clear.
@@ -3278,8 +3304,15 @@
             var dzT = lookZ - pos.z;
             var lateral = dxT * Math.cos(yaw) - dzT * Math.sin(yaw);
             var authority = clamp(1.15 - forwardSpeed / 90, 0.45, 1.0);
-            var steerCmd = clamp(lateral * 0.26 * authority, -1, 1);
-            steerTarget += (steerCmd - steerTarget) * Math.min(1, dt * 10);
+            // Emergency: if a car is very close ahead or we are far off the lane,
+            // steer much harder and faster.
+            var danger = 0;
+            if (gapNow > 0 && gapNow < 20) danger = 1;
+            else if (Math.abs(lateral) > 3.5) danger = 0.7;
+            else if (gapNow > 0 && gapNow < 34) danger = 0.45;
+            authority = clamp(authority + danger * 0.55, 0.45, 1.6);
+            var steerCmd = clamp(lateral * (0.26 + danger * 0.30) * authority, -1, 1);
+            steerTarget += (steerCmd - steerTarget) * Math.min(1, dt * (10 + danger * 22));
         }
         steerVisual += (steerTarget - steerVisual) * Math.min(1, dt * 10);
         var steerAngle = steerVisual * steerMax;
@@ -3588,10 +3621,14 @@
                 var dsEl = document.getElementById('g3dAutoDS');
                 if (dsEl) {
                     if (autoSteer) {
-                        var dsShown = Math.round(autoDesired * scale / SPEED_SCALE);
-                        var maxShown = Math.round(driveMaxSpeed * scale / SPEED_SCALE);
-                        if (dsShown > maxShown) dsShown = maxShown;
-                        dsEl.textContent = 'DS: ' + dsShown;
+                        var dsShownKmh = Math.round(autoDesired * 3.6);
+                        var carTopKmh = Math.round(driveMaxSpeed * 3.6 / SPEED_SCALE);
+                        if (selectedCar && selectedCar.topSpeed) {
+                            carTopKmh = Math.min(carTopKmh, Math.round(selectedCar.topSpeed * 1.60934));
+                        }
+                        if (dsShownKmh > carTopKmh) dsShownKmh = carTopKmh;
+                        if (dsShownKmh < 0) dsShownKmh = 0;
+                        dsEl.textContent = 'DS: ' + dsShownKmh;
                         dsEl.style.display = 'block';
                     } else {
                         dsEl.style.display = 'none';
@@ -3839,7 +3876,7 @@
         readyAnnounced = false;
         paused = false;
         garage = false;
-        unit = (global.localStorage && localStorage.getItem('lessfun_units')) === 'kmh' ? 'kmh' : 'mph';
+        unit = 'kmh';
         currentGear = 'D';
         gearLabel = '1';
         cameraMode = 0;
@@ -4384,7 +4421,7 @@
     function setBrake(on) { input.brake = !!on; }
     function setDrift(on) { input.drift = !!on; }
     function setNitro(on) { input.nitro = !!on; }
-    function setUnitSystem(value) { unit = value === 'kmh' ? 'kmh' : 'mph'; }
+    function setUnitSystem(value) { unit = 'kmh'; }
     function setSoundEnabled(on) {
         sound = !!on;
         if (audioMaster && audioCtx) {

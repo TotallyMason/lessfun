@@ -13407,3 +13407,6 @@ body.battery-saver .site-snow{display:none}
 /* AS chip + grey DS directly under the speed */
 .g3d-autosteer{padding:3px 8px;font-size:7px;letter-spacing:.12em}
 .g3d-auto-ds{top:23.5%!important;font-size:9px;font-weight:800;color:rgba(190,200,212,.78)!important;text-shadow:none!important;letter-spacing:.1em}
+
+/* DS sits lower under the speed */
+.g3d-auto-ds{top:27%!important}

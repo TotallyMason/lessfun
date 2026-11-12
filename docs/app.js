@@ -1550,7 +1550,7 @@ function openGameNow(id) {
                             '</div>' +
                             '<div class="g3d-cluster-gearline"><b id="g3dGaugeGearBig">1</b><span>GEAR</span></div>' +
                             '<div class="g3d-cluster-core"><span>NOS <b id="g3dGaugeNitro">100%</b></span></div>' +
-                            '<div class="g3d-cluster-speed"><strong id="g3dGaugeSpeed">0</strong><span id="g3dGaugeUnit">mph</span></div>' +
+                            '<div class="g3d-cluster-speed"><strong id="g3dGaugeSpeed">0</strong><span id="g3dGaugeUnit">km/h</span></div>' +
                         '</div>' +
                     '</div>' +
                 '</div>' : '') +
@@ -4168,7 +4168,7 @@ function applyUnitSetting() {
 }
 
 function setUnitSetting(value) {
-    unitSetting = value === 'kmh' ? 'kmh' : 'mph';
+    unitSetting = 'kmh';
     try { localStorage.setItem('lessfun_units', unitSetting); } catch (e) {}
     applyUnitSetting();
     if (currentGameId === 1 && window.Games3D) {
@@ -7402,10 +7402,10 @@ let walletMutated = false;
 let storeStatusTimer = 0;
 let lastRunCoins = 0;
 let soundSetting = true;
-let unitSetting = 'mph';
+let unitSetting = 'kmh';
 try {
     soundSetting = localStorage.getItem('lessfun_sound') !== 'false';
-    unitSetting = localStorage.getItem('lessfun_units') === 'kmh' ? 'kmh' : 'mph';
+    unitSetting = 'kmh';
 } catch (e) {}
 
 function shellIcon(size) {
@@ -9382,8 +9382,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.20";
-const UPDATE_NOTES = "Autosteer chip renamed AS, DS is grey under the speed and capped to the car top speed";
+const APP_VERSION = "LessFun Public Beta 27.2.21";
+const UPDATE_NOTES = "AS aims for open toll gates, emergency steering is much faster, DS is capped and lower, and everything is km/h only";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
