@@ -40,7 +40,7 @@
     var resizeObs = null, active = false, failed = false;
     var rapier = null, world = null, chassis = null, vehicle = null;
     var rapierPromise = null, ready = false, starting = false;
-    var raf = 0, lastFrame = 0, accumulator = 0, hudTimer = 0, speedHudTimer = 0, gaugeBoot = 0;
+    var raf = 0, lastFrame = 0, accumulator = 0, hudTimer = 0, speedHudTimer = 0, gaugeBoot = 0, suspended = false;
     var paused = false, garage = false, cameraMode = 0;
     var distance = 0, displaySpeed = 0, unit = 'mph', sound = true;
     var nitro = 100, driftScore = 0, steerVisual = 0;
@@ -3141,10 +3141,9 @@
             if (input.pointerActive) steerTarget += input.pointerSteer;
         }
         if (autoSteer) {
-            // A / D always select a lane, even when rolling slowly.
-            // A moves right in this cabin view, D moves left (matches what you see).
-            if (input.left && !autoPrevLeft && autoLane < laneCenters.length - 1) { autoLane += 1; autoLaneTimer = 0.7; autoLaneFlash = 1.1; }
-            if (input.right && !autoPrevRight && autoLane > 0) { autoLane -= 1; autoLaneTimer = 0.7; autoLaneFlash = 1.1; }
+            // A / D are lane requests only (A = right, D = left in this view).
+            if (input.left && !autoPrevLeft && autoLane < laneCenters.length - 1) { autoLane += 1; autoLaneTimer = 0.55; autoLaneFlash = 1.0; }
+            if (input.right && !autoPrevRight && autoLane > 0) { autoLane -= 1; autoLaneTimer = 0.55; autoLaneFlash = 1.0; }
             autoPrevLeft = input.left;
             autoPrevRight = input.right;
             autoLaneFlash = Math.max(0, autoLaneFlash - dt);
@@ -3165,43 +3164,52 @@
             }
             autoLaneTimer = Math.max(0, autoLaneTimer - dt);
 
-            function laneBlocked(laneIdx, ahead, behind) {
+            // Distance to the nearest car in a lane (0 when clear).
+            function nearestInLane(laneIdx, from, to) {
                 var laneX = highwayCurveX(pos.z) + laneCenters[laneIdx];
+                var nearest = 0, best = 1e9;
                 for (var k = 0; k < traffic.length; k++) {
                     var c = traffic[k];
                     if (!c || !c.root || !c.root.isEnabled()) continue;
-                    if (Math.abs(c.root.position.x - laneX) > 2.7) continue;
+                    if (Math.abs(c.root.position.x - laneX) > 2.6) continue;
                     var dz = c.root.position.z - pos.z;
-                    if (dz > behind && dz < ahead) return dz;
+                    if (dz > from && dz < to && dz < best) { best = dz; nearest = dz; }
                 }
-                return 0;
+                return nearest;
             }
 
-            var gap = laneBlocked(autoLane, 80, -8);
+            var gap = nearestInLane(autoLane, -10, 90);
 
+            // Lane change only when the target lane is genuinely clear.
             if (gap > 0 && autoLaneTimer <= 0) {
-                var cands = [];
-                for (var dir = -1; dir <= 1; dir += 2) {
+                var options = [];
+                [1, -1].forEach(function (dir) {
                     var cand = autoLane + dir;
-                    if (cand < 0 || cand >= laneCenters.length) continue;
-                    if (laneBlocked(cand, 55, -14) === 0) cands.push(cand);
-                }
-                if (cands.length) {
-                    autoLane = cands[0];
-                    autoLaneTimer = 1.6;
+                    if (cand < 0 || cand >= laneCenters.length) return;
+                    var ahead = nearestInLane(cand, 0, 45);
+                    var behind = nearestInLane(cand, -22, 0);
+                    if (ahead === 0 && behind === 0) options.push(cand);
+                });
+                if (options.length) {
+                    autoLane = options[0];
+                    autoLaneTimer = 1.4;
+                    autoLaneFlash = 1.0;
                 }
             }
 
-            // Re-check the lane we're heading for; brake if the gap is closing.
-            var gapNow = laneBlocked(autoLane, 80, -8);
-            if (gapNow > 0 && gapNow < 30) {
-                // do not accelerate toward a blocker and scrub speed
-                throttle = false;
-                if (forwardSpeed > 6 && gapNow < 22) brake = true;
+            // Adaptive speed control: brake smoothly, never slam into a car.
+            var gapNow = nearestInLane(autoLane, -10, 90);
+            if (gapNow > 0) {
+                var closing = forwardSpeed > 1 ? (gapNow / forwardSpeed) : 99;
+                if (gapNow < 38 && closing < 3.2) {
+                    throttle = false;
+                    brake = true;
+                } else if (gapNow < 60) {
+                    throttle = false;
+                }
             }
 
-            // Spin recovery: if the car is sliding sideways, aim it back along the
-            // road and cut throttle instead of chasing the lane target.
+            // Spin recovery before lane-following.
             var vel = chassis.linvel();
             var spd = Math.hypot(vel.x, vel.z);
             var slip = 0;
@@ -3211,32 +3219,32 @@
                 while (slip > Math.PI) slip -= Math.PI * 2;
                 while (slip < -Math.PI) slip += Math.PI * 2;
             }
-            if (Math.abs(slip) > 0.45) {
+            if (Math.abs(slip) > 0.35) {
                 throttle = false;
                 brake = false;
-                var roadYawNow = Math.atan2(highwayCurveX(pos.z + 14) - highwayCurveX(pos.z), 14);
-                var straighten = ((roadYawNow - yaw) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
-                steerTarget = clamp(straighten * 1.25, -1, 1);
+                var roadYawSpin = Math.atan2(highwayCurveX(pos.z + 14) - highwayCurveX(pos.z), 14);
+                var straighten = ((roadYawSpin - yaw) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
+                steerTarget = clamp(straighten * 1.35, -1, 1);
                 var ang = chassis.angvel();
-                try { chassis.setAngvel({ x: ang.x, y: ang.y * (1 - Math.min(0.5, dt * 4.2)), z: ang.z }, true); } catch (e) {}
+                try { chassis.setAngvel({ x: ang.x, y: ang.y * (1 - Math.min(0.6, dt * 5.0)), z: ang.z }, true); } catch (e) {}
                 return;
             }
 
-            // Smooth lane transitions: ease the lateral offset toward the new lane
-            // instead of jumping the target sideways.
-            var wantedOffset = laneCenters[autoLane];
-            var blend = Math.min(1, dt * (autoLaneFlash > 0 ? 8.5 : 7.0));
-            autoOffset += (wantedOffset - autoOffset) * blend;
-            if (Math.abs(wantedOffset - autoOffset) < 0.02) autoOffset = wantedOffset;
+            // Speed-aware lane keeping: look further ahead the faster we go,
+            // with less steering authority at speed so it cannot over-correct.
+            var look = 9 + Math.min(18, forwardSpeed * 0.55);
+            var blend = Math.min(1, dt * (autoLaneFlash > 0 ? 4.2 : 6.5));
+            autoOffset += (laneCenters[autoLane] - autoOffset) * blend;
+            if (Math.abs(laneCenters[autoLane] - autoOffset) < 0.02) autoOffset = laneCenters[autoLane];
 
-            var lookZ = pos.z + 13;
+            var lookZ = pos.z + look;
             var targetX = highwayCurveX(lookZ) + autoOffset;
             var dxT = targetX - pos.x;
             var dzT = lookZ - pos.z;
             var lateral = dxT * Math.cos(yaw) - dzT * Math.sin(yaw);
-            // gentle proportional steering, damped so it never saws back and forth
-            var steerCmd = clamp(lateral * 0.34, -1, 1);
-            steerTarget += (steerCmd - steerTarget) * Math.min(1, dt * 14.0);
+            var authority = clamp(1.15 - forwardSpeed / 90, 0.45, 1.0);
+            var steerCmd = clamp(lateral * 0.26 * authority, -1, 1);
+            steerTarget += (steerCmd - steerTarget) * Math.min(1, dt * 10);
         }
         steerVisual += (steerTarget - steerVisual) * Math.min(1, dt * 10);
         var steerAngle = steerVisual * steerMax;
@@ -3584,8 +3592,27 @@
         }
     }
 
+    function suspendResources() {
+        if (!active || suspended) return;
+        suspended = true;
+        try { if (engine) engine.stopRenderLoop(); } catch (e) {}
+        if (raf) { cancelAnimationFrame(raf); raf = 0; }
+        try { if (audioCtx && audioMaster) audioMaster.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05); } catch (e) {}
+        paused = true;
+    }
+
+    function resumeResources() {
+        if (!active || !suspended) return;
+        suspended = false;
+        paused = false;
+        lastFrame = performance.now();
+        accumulator = 0;
+        try { if (audioCtx && audioMaster) audioMaster.gain.setTargetAtTime(sound ? 1.0 : 0, audioCtx.currentTime, 0.08); } catch (e) {}
+        try { if (engine) engine.runRenderLoop(frame); } catch (e) {}
+    }
+
     function frame() {
-        if (!active) return;
+        if (!active || suspended) return;
         var now = performance.now();
         var dt = Math.min(0.05, Math.max(0.001, (now - lastFrame) / 1000));
         lastFrame = now;
@@ -4401,6 +4428,8 @@
             return { x: p.x, z: p.z, offset: offset, lane: autoLane, laneCenter: laneCenters[autoLane], steer: steerVisual, auto: autoSteer };
         },
         getWeather: function () { return { rain: rainIntensity }; },
+        suspendResources: suspendResources,
+        resumeResources: resumeResources,
         captureGaragePhoto: captureGaragePhoto,
         startTraining: startTraining,
         stopTraining: stopTraining,

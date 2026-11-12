@@ -1269,7 +1269,7 @@ var GAME3D_METHODS = [
     'applyZombieAttack', 'reviveZombiePlayer', 'applyLootedCrate', 'setLocalRacerName',
     'setGraphicsPreset', 'setRenderScale', 'setMotionBlur', 'setShowFps', 'setShadows',
     'setCrashSlowmo', 'setSoundEnabled', 'setUnitSystem', 'teleportRacer', 'setGarageMode',
-    'startTraining', 'stopTraining', 'getTrainingState',
+    'startTraining', 'stopTraining', 'getTrainingState', 'suspendResources', 'resumeResources',
     'setGearMode', 'toggleFsd', 'setTerrain', 'setElevation', 'toggleShadowHelper',
     'getCurrentScore', 'lockPointer', 'getRacerState', 'getRacerInfo'
 ];
@@ -9372,8 +9372,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.15";
-const UPDATE_NOTES = "More grip and a stability assist: braking while steering no longer spins you out";
+const APP_VERSION = "LessFun Public Beta 27.2.16";
+const UPDATE_NOTES = "Safer autosteer with adaptive braking and look-ahead, and attention pause now fully stops the game render loop";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
@@ -12807,6 +12807,7 @@ function attentionPause(reason) {
     if (!currentGameId || attentionState.autoPaused) return;
     if (window.Games3D && window.Games3D.setPaused) {
         window.Games3D.setPaused(true);
+        if (window.Games3D.suspendResources) window.Games3D.suspendResources();
         attentionState.autoPaused = true;
         document.body.classList.add('attention-idle');
         var ov = document.getElementById('attentionOverlay');
@@ -12829,7 +12830,10 @@ function attentionResume() {
         ov.classList.remove('is-visible');
         setTimeout(function () { if (!ov.classList.contains('is-visible')) ov.style.display = 'none'; }, 240);
     }
-    if (window.Games3D && window.Games3D.setPaused) window.Games3D.setPaused(false);
+    if (window.Games3D) {
+        if (window.Games3D.resumeResources) window.Games3D.resumeResources();
+        if (window.Games3D.setPaused) window.Games3D.setPaused(false);
+    }
 }
 
 ['mousemove', 'mousedown', 'keydown', 'touchstart', 'wheel'].forEach(function (evt) {
