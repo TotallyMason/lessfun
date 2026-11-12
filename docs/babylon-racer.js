@@ -3622,10 +3622,14 @@
                 if (dsEl) {
                     if (autoSteer) {
                         var dsShownKmh = Math.round(autoDesired * 3.6);
-                        var carTopKmh = Math.round(driveMaxSpeed * 3.6 / SPEED_SCALE);
+                        var carTopKmh = 320;
                         if (selectedCar && selectedCar.topSpeed) {
-                            carTopKmh = Math.min(carTopKmh, Math.round(selectedCar.topSpeed * 1.60934));
+                            carTopKmh = Math.round(selectedCar.topSpeed * 1.60934);
+                        } else {
+                            carTopKmh = Math.round(driveMaxSpeed * 3.6 / SPEED_SCALE);
                         }
+                        // Never let the target exceed the car or a sane ceiling.
+                        carTopKmh = Math.min(carTopKmh, 320);
                         if (dsShownKmh > carTopKmh) dsShownKmh = carTopKmh;
                         if (dsShownKmh < 0) dsShownKmh = 0;
                         dsEl.textContent = 'DS: ' + dsShownKmh;

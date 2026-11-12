@@ -13410,3 +13410,6 @@ body.battery-saver .site-snow{display:none}
 
 /* DS sits lower under the speed */
 .g3d-auto-ds{top:27%!important}
+
+/* DS further down under the speed */
+.g3d-auto-ds{top:30.5%!important}

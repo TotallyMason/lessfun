@@ -9382,8 +9382,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.21";
-const UPDATE_NOTES = "AS aims for open toll gates, emergency steering is much faster, DS is capped and lower, and everything is km/h only";
+const APP_VERSION = "LessFun Public Beta 27.2.22";
+const UPDATE_NOTES = "DS is hard-capped at the car top speed (max 320 km/h) and sits lower under the speed";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
