@@ -2878,10 +2878,10 @@
             var boosting = input.nitro && nitro > 0 && throttle;
             var maxSpeed = boosting ? nitroMax : driveMaxSpeed;
             if (throttle && forwardSpeed < maxSpeed) {
-                var falloff = 1 - (forwardSpeed / maxSpeed) * 0.88;
-                engineForce = 8400 * driveAccel * gearPull * falloff;
+                var falloff = 1 - (forwardSpeed / maxSpeed) * 0.45;
+                engineForce = 26000 * driveAccel * gearPull * falloff;
                 if (boosting) {
-                    engineForce += 6400 * driveAccel;
+                    engineForce += 19000 * driveAccel;
                     nitro = Math.max(0, nitro - dt * 26);
                 }
             }
@@ -3574,7 +3574,7 @@
         var upgradeTop = selectedCar ? clamp(perfTop / baseTopFactor, 0.88, 1.4) : clamp(perfTop, 1.0, 1.6);
         var topMph = (selectedCar ? (selectedCar.topSpeed || 192) : 200) * upgradeTop;
         driveMaxSpeed = clamp(topMph / 2.23694, 32, 145) * 2;
-        driveAccel = clamp(num(perf.accel, 1) || 1, 0.55, 2.4);
+        driveAccel = clamp(num(perf.accel, 1) || 1, 0.95, 2.6);
         driveGrip = clamp(3.25 * (num(perf.grip, 1) || 1), 2.2, 5.3);
         traffic = [];
         coinPickups = [];
