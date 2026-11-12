@@ -2920,9 +2920,13 @@
 
         var steerMax = 0.46 - Math.min(0.36, forwardSpeed / 150);
         var steerTarget = 0;
-        if (input.left) steerTarget += 1;
-        if (input.right) steerTarget -= 1;
-        if (input.pointerActive) steerTarget += input.pointerSteer;
+        // With autosteer engaged the keys are lane requests only — they never
+        // feed steering directly.
+        if (!autoSteer) {
+            if (input.left) steerTarget += 1;
+            if (input.right) steerTarget -= 1;
+            if (input.pointerActive) steerTarget += input.pointerSteer;
+        }
         if (autoSteer) {
             // A / D always select a lane, even when rolling slowly.
             // A moves right in this cabin view, D moves left (matches what you see).

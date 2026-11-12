@@ -9371,8 +9371,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.6";
-const UPDATE_NOTES = "Reverted the acceleration boost; autosteer now reacts much faster";
+const APP_VERSION = "LessFun Public Beta 27.2.7";
+const UPDATE_NOTES = "With autosteer on, A/D only change lanes and no longer steer the car";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
