@@ -13383,3 +13383,16 @@ html.is-light .radio-panel input[type=range]{filter:none}
 /* Autosteer indicator */
 .g3d-autosteer{position:absolute;bottom:12%;left:50%;transform:translateX(-50%);z-index:6;padding:3px 9px;border-radius:999px;background:rgba(95,231,255,.14);border:1px solid rgba(95,231,255,.35);color:#8fd8ff;font-size:6.5px;font-weight:900;letter-spacing:.16em;opacity:.35;transition:opacity .2s,background .2s}
 .g3d-autosteer.is-on{opacity:1;background:rgba(60,220,130,.2);border-color:rgba(60,220,130,.5);color:#9dffbf}
+
+/* Attention-aware pause overlay + dim */
+.attention-overlay{position:fixed;inset:0;z-index:9300;display:none;align-items:center;justify-content:center;background:rgba(3,6,12,.62);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);opacity:0;transition:opacity .3s ease}
+.attention-overlay.is-visible{opacity:1}
+.attention-card{display:flex;flex-direction:column;align-items:center;gap:8px;padding:26px 34px;border-radius:24px;background:rgba(18,23,33,.92);border:1px solid rgba(95,231,255,.22);box-shadow:0 30px 80px rgba(0,0,0,.55);color:#eafaff;text-align:center}
+.attention-eye{font-size:24px;color:#5fe7ff;animation:attentionBlink 3.2s ease-in-out infinite}
+.attention-card strong{font-size:22px;font-weight:900;letter-spacing:-.02em}
+.attention-card small{font-size:11.5px;color:rgba(226,242,252,.62)}
+.attention-hint{font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:rgba(143,216,255,.6);margin-top:4px}
+@keyframes attentionBlink{0%,100%{opacity:1}48%{opacity:1}52%{opacity:.15}56%{opacity:1}}
+body.attention-idle .game3d-hud,body.attention-idle .g3d-gauges{filter:brightness(.6)}
+body.battery-saver .site-snow{display:none}
+@media (prefers-reduced-motion: reduce){.attention-eye{animation:none}}

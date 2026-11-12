@@ -57,7 +57,7 @@
     var selectedCar = null, carCosmetics = null;
     var training = false, trainingStep = 0, trainingRoot = null, trainingProps = [], trainingCooldown = 0, trainingHold = 0;
     var eject = null, crashFlashEl = null;
-    var tollPlazas = [];
+    var tollPlazas = [], rumbleShake = 0;
     var autoSteer = false, autoLane = 3, autoLaneTimer = 0, autoPrevLeft = false, autoPrevRight = false, autoLaneFlash = 0, autoOffset = 1.83;
     var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.25;
     var laneCenters = [-9.16, -5.5, -1.83, 1.83, 5.5, 9.16];
@@ -1996,7 +1996,17 @@
         for (var p = 0; p < 6; p++) {
             var z = startZ + p * 1500;
             var cx = highwayCurveX(z);
-            var plaza = { z: z, lanes: [], canopy: null };
+            var plaza = { z: z, lanes: [], canopy: null, stripFrom: z - 100, stripTo: z - 88 };
+            // Rumble strips ~100 m before the booth
+            var stripMat = new BABYLON.StandardMaterial('tollStripMat', scene);
+            stripMat.diffuseColor = new BABYLON.Color3(1, 0.72, 0.16);
+            stripMat.emissiveColor = new BABYLON.Color3(0.35, 0.22, 0.03);
+            for (var st = 0; st < 10; st++) {
+                var strip = BABYLON.MeshBuilder.CreateBox('tollStrip' + p + '_' + st, { width: 19.5, height: 0.05, depth: 0.5 }, scene);
+                strip.position.set(cx, 0.05, z - 99 + st * 1.15);
+                strip.material = stripMat;
+                highwayMeshes.push(strip);
+            }
             // booths every 5.5m across the road
             var offsets = [-8.25, -2.75, 2.75, 8.25];
             var etcIndex = p % offsets.length;
@@ -2044,6 +2054,24 @@
     function updateTolls(dt) {
         if (!tollPlazas.length || !chassis) return;
         var t = chassis.translation();
+        // Which side of the strips are we on?
+        var onStrips = false;
+        for (var si = 0; si < tollPlazas.length; si++) {
+            var pz = tollPlazas[si];
+            if (t.z > pz.stripFrom && t.z < pz.stripTo) { onStrips = true; break; }
+        }
+        if (onStrips) {
+            var spd = Math.hypot(chassis.linvel().x, chassis.linvel().z);
+            if (spd > 3) {
+                rumbleShake = Math.min(1, 0.35 + spd / 40);
+                var wob = Math.sin(performance.now() * 0.045) * 240 * (0.4 + spd / 30);
+                try { chassis.applyImpulse({ x: 0, y: wob * 0.004, z: 0 }, true); } catch (e) {}
+                var av = chassis.angvel();
+                try { chassis.setAngvel({ x: av.x + Math.sin(performance.now() * 0.06) * 0.05, y: av.y, z: av.z }, true); } catch (e) {}
+            }
+        } else {
+            rumbleShake = Math.max(0, rumbleShake - dt * 2.2);
+        }
         var v = chassis.linvel();
         var speed = Math.hypot(v.x, v.z);
         for (var i = 0; i < tollPlazas.length; i++) {
@@ -3222,6 +3250,9 @@
             } else if (input.throttle) {
                 targetPowerShake = 0.026 + revLevel * 0.032;
             }
+        }
+        if (rumbleShake > 0.001) {
+            targetPowerShake += rumbleShake * 0.035 * (0.6 + Math.sin(performance.now() * 0.07) * 0.4);
         }
         var shakeResponse = targetPowerShake > powerShakeLevel ? 3.4 : 2.1;
         powerShakeLevel += (targetPowerShake - powerShakeLevel) * Math.min(1, dt * shakeResponse);

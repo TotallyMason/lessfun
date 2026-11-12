@@ -9371,8 +9371,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.7";
-const UPDATE_NOTES = "With autosteer on, A/D only change lanes and no longer steer the car";
+const APP_VERSION = "LessFun Public Beta 27.2.8";
+const UPDATE_NOTES = "Rumble strips before tolls felt through the suspension, plus attention-aware pausing when you look away or idle";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
@@ -12795,3 +12795,84 @@ function initThemeMode() {
 
 document.addEventListener('DOMContentLoaded', initThemeMode);
 if (document.readyState !== 'loading') initThemeMode();
+
+/* ============================================================
+   Attention awareness (Tier 1)
+   Pauses when you look away or go idle; resumes on activity.
+   ============================================================ */
+var attentionState = { autoPaused: false, lastInput: Date.now(), batterySaver: false, tick: 0 };
+
+function attentionPause(reason) {
+    if (!currentGameId || attentionState.autoPaused) return;
+    if (window.Games3D && window.Games3D.setPaused) {
+        window.Games3D.setPaused(true);
+        attentionState.autoPaused = true;
+        document.body.classList.add('attention-idle');
+        var ov = document.getElementById('attentionOverlay');
+        if (ov) {
+            var txt = ov.querySelector('small');
+            if (txt) txt.textContent = reason || 'Come back — your run is paused';
+            ov.style.display = 'flex';
+            requestAnimationFrame(function () { ov.classList.add('is-visible'); });
+        }
+    }
+}
+
+function attentionResume() {
+    attentionState.lastInput = Date.now();
+    if (!attentionState.autoPaused) return;
+    attentionState.autoPaused = false;
+    document.body.classList.remove('attention-idle');
+    var ov = document.getElementById('attentionOverlay');
+    if (ov) {
+        ov.classList.remove('is-visible');
+        setTimeout(function () { if (!ov.classList.contains('is-visible')) ov.style.display = 'none'; }, 240);
+    }
+    if (window.Games3D && window.Games3D.setPaused) window.Games3D.setPaused(false);
+}
+
+['mousemove', 'mousedown', 'keydown', 'touchstart', 'wheel'].forEach(function (evt) {
+    document.addEventListener(evt, function () {
+        attentionState.lastInput = Date.now();
+        if (attentionState.autoPaused) attentionResume();
+    }, { passive: true });
+});
+
+document.addEventListener('visibilitychange', function () {
+    if (document.hidden) {
+        attentionPause('Tab hidden — your run is paused');
+    } else {
+        attentionResume();
+    }
+});
+window.addEventListener('blur', function () { attentionPause('Window unfocused — your run is paused'); });
+window.addEventListener('focus', attentionResume);
+
+setInterval(function () {
+    if (!currentGameId) return;
+    if (document.hidden) return;
+    if (!attentionState.autoPaused && Date.now() - attentionState.lastInput > 30000) {
+        attentionPause('Idle — move the mouse or press a key to continue');
+    }
+}, 2000);
+
+function initBatterySaver() {
+    if (!navigator.getBattery) return;
+    navigator.getBattery().then(function (b) {
+        function update() {
+            var low = !b.charging && b.level <= 0.2;
+            if (low === attentionState.batterySaver) return;
+            attentionState.batterySaver = low;
+            document.body.classList.toggle('battery-saver', low);
+            if (window.Games3D && window.Games3D.setRenderScale) {
+                try { window.Games3D.setRenderScale(low ? 0.72 : 1); } catch (e) {}
+            }
+        }
+        update();
+        b.addEventListener('levelchange', update);
+        b.addEventListener('chargingchange', update);
+    }).catch(function () {});
+}
+
+document.addEventListener('DOMContentLoaded', initBatterySaver);
+if (document.readyState !== 'loading') initBatterySaver();
