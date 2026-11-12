@@ -60,7 +60,7 @@
     var tollPlazas = [], rumbleShake = 0;
     var rainSystem = null, rainIntensity = 0, rainTarget = 0, weatherTimer = 25, rainChip = null;
     var tunnels = [], tunnelDark = 0, baseSunIntensity = 0.62, hemi = null;
-    var autoSteer = false, autoLane = 3, autoLaneTimer = 0, autoPrevLeft = false, autoPrevRight = false, autoLaneFlash = 0, autoOffset = 1.83;
+    var autoSteer = false, autoLane = 3, autoLaneTimer = 0, autoPrevLeft = false, autoPrevRight = false, autoLaneFlash = 0, autoOffset = 1.83, autoDesired = 0;
     var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.85, baseGrip = 3.85;
     var laneCenters = [-9.16, -5.5, -1.83, 1.83, 5.5, 9.16];
     var traffic = [], coinPickups = [], trafficTimer = 0;
@@ -3201,16 +3201,37 @@
                 }
             }
 
-            // Adaptive speed control: brake smoothly, never slam into a car.
-            var gapNow = nearestInLane(autoLane, -10, 90);
+            // Desired speed: traffic, curve severity, rain and tolls all feed in.
+            var ds = driveMaxSpeed;
+            var gapNow = nearestInLane(autoLane, -10, 95);
             if (gapNow > 0) {
-                var closing = forwardSpeed > 1 ? (gapNow / forwardSpeed) : 99;
-                if (gapNow < 38 && closing < 3.2) {
-                    throttle = false;
-                    brake = true;
-                } else if (gapNow < 60) {
-                    throttle = false;
+                // ~2.4 s following distance
+                ds = Math.min(ds, Math.max(5, gapNow / 2.4));
+            }
+            var curveAhead = Math.abs(highwayCurveX(pos.z + 45) - highwayCurveX(pos.z)) / 45;
+            if (curveAhead > 0.012) {
+                ds = Math.min(ds, Math.max(9, 15 / curveAhead));
+            }
+            ds = Math.min(ds, driveMaxSpeed * (1 - rainIntensity * 0.28));
+            for (var tp = 0; tp < tollPlazas.length; tp++) {
+                var dzToll = tollPlazas[tp].z - pos.z;
+                if (dzToll > 6 && dzToll < 95) {
+                    var closedBoom = false;
+                    for (var tl = 0; tl < tollPlazas[tp].lanes.length; tl++) {
+                        var laneT = tollPlazas[tp].lanes[tl];
+                        if (!laneT.etc && laneT.anim < 0.5 && Math.abs(pos.x - laneT.x) < 2.4) closedBoom = true;
+                    }
+                    if (closedBoom) ds = Math.min(ds, Math.max(0, dzToll / 3.2));
                 }
+            }
+            if (ds > driveMaxSpeed) ds = driveMaxSpeed;
+            autoDesired = ds;
+
+            if (forwardSpeed > ds + 1.4) {
+                throttle = false;
+                brake = true;
+            } else if (forwardSpeed > ds + 0.4) {
+                throttle = false;
             }
 
             // Spin recovery before lane-following.
@@ -3554,6 +3575,16 @@
                     shownOut = Math.round(Math.sin(Math.min(1, bootProg) * Math.PI) * (unit === 'kmh' ? 160 : 100));
                 }
                 setText('g3dGaugeSpeed', shownOut);
+                var dsEl = document.getElementById('g3dAutoDS');
+                if (dsEl) {
+                    if (autoSteer && autoDesired > 0) {
+                        var dsShown = Math.round(autoDesired * scale / SPEED_SCALE);
+                        dsEl.textContent = 'DS: ' + dsShown;
+                        dsEl.style.display = 'block';
+                    } else {
+                        dsEl.style.display = 'none';
+                    }
+                }
                 setText('g3dGaugeUnit', unit === 'kmh' ? 'km/h' : 'mph');
                 updateInteriorScreens(shown, gear, engineRpm);
             }
