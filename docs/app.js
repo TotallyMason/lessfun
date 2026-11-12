@@ -9371,8 +9371,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 1.34.72";
-const UPDATE_NOTES = "Autosteer fixed: it holds the lane properly and changes lanes around slower traffic";
+const APP_VERSION = "LessFun Public Beta 1.34.73";
+const UPDATE_NOTES = "Autosteer now centres on your lane and changes lanes around slower traffic";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
