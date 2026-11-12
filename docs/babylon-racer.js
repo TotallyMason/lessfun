@@ -3293,6 +3293,9 @@
 
             // Speed-aware lane keeping: look further ahead the faster we go,
             // with less steering authority at speed so it cannot over-correct.
+            // Distance to the nearest car ahead in our lane (0 when clear).
+            var gapNow = nearestInLane(autoLane, -10, 95);
+
             var look = 9 + Math.min(18, forwardSpeed * 0.55);
             var blend = Math.min(1, dt * (autoLaneFlash > 0 ? 4.2 : 6.5));
             autoOffset += (laneCenters[autoLane] - autoOffset) * blend;
