@@ -2878,10 +2878,10 @@
             var boosting = input.nitro && nitro > 0 && throttle;
             var maxSpeed = boosting ? nitroMax : driveMaxSpeed;
             if (throttle && forwardSpeed < maxSpeed) {
-                var falloff = 1 - (forwardSpeed / maxSpeed) * 0.45;
-                engineForce = 26000 * driveAccel * gearPull * falloff;
+                var falloff = 1 - (forwardSpeed / maxSpeed) * 0.88;
+                engineForce = 8400 * driveAccel * gearPull * falloff;
                 if (boosting) {
-                    engineForce += 19000 * driveAccel;
+                    engineForce += 6400 * driveAccel;
                     nitro = Math.max(0, nitro - dt * 26);
                 }
             }
@@ -3008,7 +3008,7 @@
             // Smooth lane transitions: ease the lateral offset toward the new lane
             // instead of jumping the target sideways.
             var wantedOffset = laneCenters[autoLane];
-            var blend = Math.min(1, dt * (autoLaneFlash > 0 ? 3.4 : 5.0));
+            var blend = Math.min(1, dt * (autoLaneFlash > 0 ? 8.5 : 7.0));
             autoOffset += (wantedOffset - autoOffset) * blend;
             if (Math.abs(wantedOffset - autoOffset) < 0.02) autoOffset = wantedOffset;
 
@@ -3018,8 +3018,8 @@
             var dzT = lookZ - pos.z;
             var lateral = dxT * Math.cos(yaw) - dzT * Math.sin(yaw);
             // gentle proportional steering, damped so it never saws back and forth
-            var steerCmd = clamp(lateral * 0.17, -1, 1);
-            steerTarget += (steerCmd - steerTarget) * Math.min(1, dt * 6.0);
+            var steerCmd = clamp(lateral * 0.34, -1, 1);
+            steerTarget += (steerCmd - steerTarget) * Math.min(1, dt * 14.0);
         }
         steerVisual += (steerTarget - steerVisual) * Math.min(1, dt * 10);
         var steerAngle = steerVisual * steerMax;
@@ -3574,7 +3574,7 @@
         var upgradeTop = selectedCar ? clamp(perfTop / baseTopFactor, 0.88, 1.4) : clamp(perfTop, 1.0, 1.6);
         var topMph = (selectedCar ? (selectedCar.topSpeed || 192) : 200) * upgradeTop;
         driveMaxSpeed = clamp(topMph / 2.23694, 32, 145) * 2;
-        driveAccel = clamp(num(perf.accel, 1) || 1, 0.95, 2.6);
+        driveAccel = clamp(num(perf.accel, 1) || 1, 0.55, 2.4);
         driveGrip = clamp(3.25 * (num(perf.grip, 1) || 1), 2.2, 5.3);
         traffic = [];
         coinPickups = [];
