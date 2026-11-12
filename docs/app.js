@@ -1537,7 +1537,6 @@ function openGameNow(id) {
                         '</div>' +
                         '<div class="g3d-autosteer" id="g3dAutoSteer" title="Autosteer (F)">AS</div>' +
                         '<div class="g3d-rain" id="g3dRain">RAIN</div>' +
-                        '<div class="g3d-auto-ds" id="g3dAutoDS">DS: --</div>' +
                         '<div class="g3d-gauge-needle" id="g3dNeedle"></div>' +
                         '<div class="g3d-cluster">' +
                             '<div class="g3d-cluster-warnings" id="g3dWarnings">' +
@@ -9382,8 +9381,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.22";
-const UPDATE_NOTES = "DS is hard-capped at the car top speed (max 320 km/h) and sits lower under the speed";
+const APP_VERSION = "LessFun Public Beta 27.2.23";
+const UPDATE_NOTES = "Removed DS and fixed a crash plus an AS standstill bug";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;
@@ -12487,7 +12486,7 @@ function idleAdLoadThree() {
 }
 
 function idleAdCarGroup(cfg) {
-    var T = global.THREE;
+    var T = window.THREE;
     var g = new T.Group();
     var bodyMat = new T.MeshLambertMaterial({ color: cfg.body });
     var cabinMat = new T.MeshLambertMaterial({ color: cfg.cabin });
@@ -12548,13 +12547,13 @@ function idleAdCarGroup(cfg) {
 }
 
 function idleAdInitThree() {
-    var T = global.THREE;
+    var T = window.THREE;
     var canvas = document.getElementById('idleAdCanvas');
     if (!canvas) return;
     var renderer = new T.WebGLRenderer({ canvas: canvas, antialias: false, alpha: true });
-    var w = canvas.clientWidth || global.innerWidth;
+    var w = canvas.clientWidth || window.innerWidth;
     var h = canvas.clientHeight || global.innerHeight;
-    renderer.setPixelRatio(Math.min(1.5, global.devicePixelRatio || 1));
+    renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1));
     renderer.setSize(w, h, false);
     var scene = new T.Scene();
     var camera = new T.PerspectiveCamera(38, w / h, .1, 60);
@@ -12578,7 +12577,7 @@ function idleAdInitThree() {
         spin += .008;
         if (idleAdThree.carGroup) idleAdThree.carGroup.rotation.y = spin;
         renderer.render(scene, camera);
-        idleAdThree.raf = global.requestAnimationFrame(loop);
+        idleAdThree.raf = window.requestAnimationFrame(loop);
     })();
 }
 
@@ -12615,7 +12614,7 @@ function idleAdBuild() {
 
 function idleAdRender(index) {
     var ov = document.getElementById('idleAdOverlay');
-    if (!ov || !global.THREE) return;
+    if (!ov || !window.THREE) return;
     idleAdIndex = ((index % IDLE_ADS.length) + IDLE_ADS.length) % IDLE_ADS.length;
     var ad = IDLE_ADS[idleAdIndex];
     ov.className = 'idle-ad-visible ' + ad.cls;
@@ -12673,7 +12672,7 @@ function idleAdClose() {
     idleAdOpen = false;
     idleAdStopRotate();
     if (idleAdThree) {
-        if (idleAdThree.raf) global.cancelAnimationFrame(idleAdThree.raf);
+        if (idleAdThree.raf) window.cancelAnimationFrame(idleAdThree.raf);
         try { idleAdThree.renderer.dispose(); } catch (e) {}
         var cv = idleAdThree.renderer.domElement;
         if (cv && cv.parentNode) cv.parentNode.removeChild(cv);

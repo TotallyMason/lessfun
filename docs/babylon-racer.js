@@ -3618,26 +3618,7 @@
                     shownOut = Math.round(Math.sin(Math.min(1, bootProg) * Math.PI) * (unit === 'kmh' ? 160 : 100));
                 }
                 setText('g3dGaugeSpeed', shownOut);
-                var dsEl = document.getElementById('g3dAutoDS');
-                if (dsEl) {
-                    if (autoSteer) {
-                        var dsShownKmh = Math.round(autoDesired * 3.6);
-                        var carTopKmh = 320;
-                        if (selectedCar && selectedCar.topSpeed) {
-                            carTopKmh = Math.round(selectedCar.topSpeed * 1.60934);
-                        } else {
-                            carTopKmh = Math.round(driveMaxSpeed * 3.6 / SPEED_SCALE);
-                        }
-                        // Never let the target exceed the car or a sane ceiling.
-                        carTopKmh = Math.min(carTopKmh, 320);
-                        if (dsShownKmh > carTopKmh) dsShownKmh = carTopKmh;
-                        if (dsShownKmh < 0) dsShownKmh = 0;
-                        dsEl.textContent = 'DS: ' + dsShownKmh;
-                        dsEl.style.display = 'block';
-                    } else {
-                        dsEl.style.display = 'none';
-                    }
-                }
+
                 setText('g3dGaugeUnit', unit === 'kmh' ? 'km/h' : 'mph');
                 updateInteriorScreens(shown, gear, engineRpm);
             }
