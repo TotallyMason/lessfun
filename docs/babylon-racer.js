@@ -2177,8 +2177,9 @@
             var plaza = { z: z, lanes: [], canopy: null, stripFrom: z - 100, stripTo: z - 10 };
             // Rumble strips run from 100 m out all the way to 10 m before the booth.
             var stripMat = new BABYLON.StandardMaterial('tollStripMat', scene);
-            stripMat.diffuseColor = new BABYLON.Color3(1, 0.72, 0.16);
-            stripMat.emissiveColor = new BABYLON.Color3(0.35, 0.22, 0.03);
+            stripMat.diffuseColor = new BABYLON.Color3(0.42, 0.32, 0.09);
+            stripMat.emissiveColor = new BABYLON.Color3(0.06, 0.04, 0.008);
+            stripMat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
             var stripParts = [];
             for (var st = 0; st < 74; st++) {
                 var strip = BABYLON.MeshBuilder.CreateBox('tollStrip' + p + '_' + st, { width: 19.5, height: 0.05, depth: 0.55 }, scene);
