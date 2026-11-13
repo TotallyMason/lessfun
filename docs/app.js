@@ -9384,7 +9384,7 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.41";
+const APP_VERSION = "LessFun Public Beta 27.2.42";
 const UPDATE_NOTES = "Warning lights moved directly under the km/h readout";
 
 let updateShutdownTimer = 0;
@@ -12414,329 +12414,147 @@ function radioPresenceConnect() {
 
 
 /* ============================================================
-   Idle ads — fullscreen 3D car commercials after 10s of no input.
-   Moving the mouse or pressing any key instantly dismisses them.
-   All cars/brands are fictional (no real trademarks).
+   Always-on display — after 10 s with no input the screen fades
+   into a quiet lock-screen clock. The wallpaper is drawn for the
+   device you are on (tall phones vs wide desktops).
    ============================================================ */
-var idleAdTimer = 0;
-var idleAdOpen = false;
-var idleAdIndex = -1;
-var idleAdRotateTimer = 0;
-var idleAdThree = null;      // { renderer, scene, camera, carGroup, raf }
-var IDLE_AD_DELAY = 10000;
-var IDLE_AD_ROTATE = 7000;
-function buildGarageAds() {
-    // Ads now always show our supercar render rather than the garage car.
-    var cars = [
-        { cls: 'idle-ad-sunset', title: 'TURBO X9', color: '#e0313f',
-          tagline: 'Zero to legend in 3.1 seconds.',
-          specs: ['0–100 KM/H · 3.1 S', 'TOP SPEED · 341 KM/H', 'TWIN-TURBO V8 · 740 HP', 'ACTIVE AERO · STANDARD', 'PRICE · $89,900'],
-          foot: 'TURBO MOTORS — DRIVE THE IMPOSSIBLE' },
-        { cls: 'idle-ad-night', title: 'AERO EV', color: '#3f7bff',
-          tagline: 'Silence has never moved this fast.',
-          specs: ['0–100 KM/H · 2.9 S', 'RANGE · 640 KM', 'ULTRA-FAST CHARGE · 18 MIN', 'DUAL MOTOR AWD', 'PRICE · $74,500'],
-          foot: 'AERO — THE FUTURE IS QUIET' },
-        { cls: 'idle-ad-garage', title: 'DUNE CRUISER', color: '#4e7a45',
-          tagline: 'The city ends. The Dune Cruiser begins.',
-          specs: ['GROUND CLEARANCE · 320 MM', 'WADING DEPTH · 900 MM', 'LOCKING DIFFS · FRONT + REAR', '7 SEATS · EVERY TERRAIN', 'PRICE · $61,200'],
-          foot: 'CRUISER OFF-ROAD — GO FURTHER' },
-        { cls: 'idle-ad-sunset', title: 'VELOCITÉ S9', color: '#f0a33c',
-          tagline: 'Drop the top. Raise the pulse.',
-          specs: ['V10 · 620 HP', '0–100 KM/H · 3.4 S', 'CARBON MONOCOQUE · 1,290 KG', 'TRACK MODE · INCLUDED', 'PRICE · $112,000'],
-          foot: 'VELOCITÉ — BORN ON THE CIRCUIT' },
-        { cls: 'idle-ad-night', title: 'HYPERION SS', color: '#1b2f6e',
-          tagline: 'Eight litres of compressed thunder.',
-          specs: ['QUAD-TURBO W16 · 1,578 HP', '0–100 KM/H · 2.4 S', 'TOP SPEED · 440 KM/H', 'ONLY 500 EVER MADE', 'PRICE ON REQUEST'],
-          foot: 'HYPERION — ENGINEERED EXTREMES' }
-    ];
-    var i = Math.floor(Date.now() / 7000) % cars.length;
-    var pick = cars[i];
-    return [{
-        cls: pick.cls,
-        badge: 'AD · PROMOTED',
-        title: pick.title,
-        tagline: pick.tagline,
-        specs: pick.specs,
-        foot: pick.foot,
-        color: pick.color,
-        photo: ''
-    }];
-}
-var IDLE_ADS = [];
+var aodTimer = 0;
+var aodOpen = false;
+var aodClockTimer = 0;
+var IDLE_AOD_DELAY = 10000;
+var AOD_LOCK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V7a5 5 0 0 1 10 0v3" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><rect x="4.4" y="10" width="15.2" height="10.6" rx="3.1" fill="currentColor"/></svg>';
+var AOD_HEAD_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14v-2a8 8 0 0 1 16 0v2" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/><rect x="2.6" y="13.4" width="4.3" height="6.6" rx="2.1" fill="currentColor"/><rect x="17.1" y="13.4" width="4.3" height="6.6" rx="2.1" fill="currentColor"/></svg>';
+var AOD_RING_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.6" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".85"/><circle cx="12" cy="12" r="5.6" fill="none" stroke="currentColor" stroke-width="1.7" opacity=".7"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></svg>';
 
-function idleAdLoadThree() {
-    if (idleAdThree) return Promise.resolve();
-    return new Promise(function (resolve, reject) {
-        var existing = document.querySelector('script[data-idle-three]');
-        if (existing) { existing.addEventListener('load', function () { resolve(); }); return; }
-        var sc = document.createElement('script');
-        sc.src = 'https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js';
-        sc.async = true;
-        sc.setAttribute('data-idle-three', '1');
-        sc.onload = function () { resolve(); };
-        sc.onerror = reject;
-        document.head.appendChild(sc);
-    });
+function aodMoonInfo(now) {
+    var synodic = 29.530588853;
+    var known = Date.UTC(2000, 0, 6, 18, 14) / 86400000;
+    var days = now.getTime() / 86400000 - known;
+    var age = ((days % synodic) + synodic) % synodic;
+    var frac = age / synodic;
+    var illum = Math.round((1 - Math.cos(frac * Math.PI * 2)) / 2 * 100);
+    var names = ['New Moon', 'Waxing Crescent', 'First Quarter', 'Waxing Gibbous',
+                 'Full Moon', 'Waning Gibbous', 'Last Quarter', 'Waning Crescent'];
+    var idx = Math.round(frac * 8) % 8;
+    var toFull = ((0.5 - frac + 1) % 1) * synodic;
+    return { name: names[idx], illum: illum, toFull: Math.max(1, Math.round(toFull)), frac: frac };
 }
 
-function idleAdCarGroup(cfg) {
-    var T = window.THREE;
-    var g = new T.Group();
-    var bodyMat = new T.MeshLambertMaterial({ color: cfg.body });
-    var cabinMat = new T.MeshLambertMaterial({ color: cfg.cabin });
-    var wheelMat = new T.MeshLambertMaterial({ color: cfg.wheels });
-    var glassMat = new T.MeshLambertMaterial({ color: 0x9fd8ff, transparent: true, opacity: .55 });
-    var kind = cfg.kind;
-    var bodyW = 2.1, bodyH = .42, bodyL = 4.6, wheelR = .38;
-    var rideY = .06;
-    if (kind === 'suv') { bodyH = .62; bodyL = 4.4; wheelR = .46; rideY = .18; }
-    if (kind === 'hyper') { bodyH = .34; bodyL = 4.5; wheelR = .4; }
-    if (kind === 'roadster') { bodyH = .38; bodyL = 4.4; wheelR = .36; }
-    if (kind === 'sedan') { bodyH = .46; bodyL = 4.8; wheelR = .36; }
-    // main body (lower)
-    var body = new T.Mesh(new T.BoxGeometry(bodyW, bodyH, bodyL), bodyMat);
-    body.position.y = wheelR + rideY;
-    g.add(body);
-    // tapered nose
-    var nose = new T.Mesh(new T.BoxGeometry(bodyW * .82, bodyH * .72, bodyL * .3), bodyMat);
-    nose.position.set(0, body.position.y - bodyH * .1, bodyL / 2 - bodyL * .13);
-    g.add(nose);
-    // cabin / greenhouse
-    var cabL = kind === 'suv' ? bodyL * .42 : bodyL * .38;
-    var cabin = new T.Mesh(new T.BoxGeometry(bodyW * .78, kind === 'hyper' ? .3 : .4, cabL), cabinMat);
-    cabin.position.set(0, body.position.y + bodyH / 2 + (kind === 'hyper' ? .12 : .18), kind === 'hyper' ? -bodyL * .05 : -bodyL * .08);
-    g.add(cabin);
-    if (kind === 'hyper' || kind === 'roadster') {
-        var spoiler = new T.Mesh(new T.BoxGeometry(bodyW * .9, .06, .34), bodyMat);
-        spoiler.position.set(0, body.position.y + bodyH / 2 + .22, -bodyL / 2 + .2);
-        g.add(spoiler);
-        var wingL = new T.Mesh(new T.BoxGeometry(.06, .2, .1), cabinMat);
-        wingL.position.set(bodyW * .34, body.position.y + bodyH / 2 + .1, -bodyL / 2 + .2);
-        var wingR = wingL.clone();
-        wingR.position.x = -bodyW * .34;
-        g.add(wingL); g.add(wingR);
+function aodUpdateClock() {
+    var now = new Date();
+    var dateEl = document.getElementById('aodDate');
+    var timeEl = document.getElementById('aodTime');
+    if (dateEl) {
+        dateEl.textContent = now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
     }
-    if (kind === 'suv') {
-        var rack = new T.Mesh(new T.BoxGeometry(bodyW * .7, .08, cabL * .8), cabinMat);
-        rack.position.set(0, body.position.y + bodyH / 2 + .42, -bodyL * .06);
-        g.add(rack);
+    if (timeEl) {
+        var hours = now.getHours() % 12;
+        if (hours === 0) hours = 12;
+        timeEl.textContent = hours + ':' + String(now.getMinutes()).padStart(2, '0');
     }
-    // wheels
-    var wheelGeo = new T.CylinderGeometry(wheelR, wheelR, .3, 14);
-    var positions = [
-        [ bodyW / 2 + .04, bodyL * .32 ], [ -bodyW / 2 - .04, bodyL * .32 ],
-        [ bodyW / 2 + .04, -bodyL * .32 ], [ -bodyW / 2 - .04, -bodyL * .32 ]
-    ];
-    positions.forEach(function (p) {
-        var w = new T.Mesh(wheelGeo, wheelMat);
-        w.rotation.z = Math.PI / 2;
-        w.position.set(p[0], wheelR, p[1]);
-        g.add(w);
-    });
-    // headlights glow strip
-    var light = new T.Mesh(new T.BoxGeometry(bodyW * .7, .08, .06), glassMat);
-    light.position.set(0, body.position.y + bodyH * .1, bodyL / 2 + .02);
-    g.add(light);
-    return g;
+    var moon = aodMoonInfo(now);
+    var nameEl = document.getElementById('aodMoonName');
+    var riseEl = document.getElementById('aodMoonRise');
+    var nextEl = document.getElementById('aodMoonNext');
+    var shade = document.getElementById('aodMoonShade');
+    if (nameEl) nameEl.textContent = moon.name;
+    if (riseEl) riseEl.textContent = 'Light ' + moon.illum + '%';
+    if (nextEl) nextEl.textContent = 'FULL MOON IN ' + moon.toFull + (moon.toFull === 1 ? ' DAY' : ' DAYS');
+    if (shade) shade.style.transform = 'translateX(' + Math.round((moon.illum / 100) * 200) + '%)';
 }
 
-function idleAdInitThree() {
-    var T = window.THREE;
-    var canvas = document.getElementById('idleAdCanvas');
-    if (!canvas) return;
-    var renderer = new T.WebGLRenderer({ canvas: canvas, antialias: false, alpha: true });
-    var w = canvas.clientWidth || window.innerWidth;
-    var h = canvas.clientHeight || global.innerHeight;
-    renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1));
-    renderer.setSize(w, h, false);
-    var scene = new T.Scene();
-    var camera = new T.PerspectiveCamera(38, w / h, .1, 60);
-    camera.position.set(4.6, 2.2, 6.4);
-    camera.lookAt(0, .7, 0);
-    scene.add(new T.HemisphereLight(0xfff2dd, 0x2a2418, .95));
-    var key = new T.DirectionalLight(0xffffff, .9);
-    key.position.set(-5, 8, 6);
-    scene.add(key);
-    // reflective floor pad
-    var pad = new T.Mesh(new T.CylinderGeometry(3.4, 3.4, .06, 48), new T.MeshLambertMaterial({ color: 0x151a22 }));
-    pad.position.y = -.03;
-    scene.add(pad);
-    var ring = new T.Mesh(new T.TorusGeometry(3.45, .03, 8, 60), new T.MeshBasicMaterial({ color: 0xffd75e }));
-    ring.rotation.x = Math.PI / 2;
-    scene.add(ring);
-    idleAdThree = { renderer: renderer, scene: scene, camera: camera, carGroup: null, cfg: null, raf: 0 };
-    var spin = 0;
-    (function loop() {
-        if (!idleAdOpen || !idleAdThree) return;
-        spin += .008;
-        if (idleAdThree.carGroup) idleAdThree.carGroup.rotation.y = spin;
-        renderer.render(scene, camera);
-        idleAdThree.raf = window.requestAnimationFrame(loop);
-    })();
-}
-
-function idleAdSetCar(cfg) {
-    if (!idleAdThree) return;
-    if (idleAdThree.carGroup) {
-        idleAdThree.scene.remove(idleAdThree.carGroup);
-        idleAdThree.carGroup = null;
-    }
-    idleAdThree.carGroup = idleAdCarGroup(cfg);
-    idleAdThree.scene.add(idleAdThree.carGroup);
-    idleAdThree.cfg = cfg;
-}
-
-function idleAdBuild() {
-    if (document.getElementById('idleAdOverlay')) return;
+function aodBuild() {
+    if (document.getElementById('aodOverlay')) return;
     var ov = document.createElement('div');
-    ov.id = 'idleAdOverlay';
+    ov.id = 'aodOverlay';
+    ov.setAttribute('aria-hidden', 'true');
     ov.innerHTML =
-        '<div class="idle-ad-stage">' +
-            '<div class="idle-ad-glow"></div>' +
-            '<div class="idle-ad-road"><i></i><i></i><i></i></div>' +
-            '<div class="idle-ad-car">' +
-                '<img class="idle-ad-photo" alt="">' +
-                '<span class="ia-shadow"></span>' +
-                '<span class="ia-body"></span>' +
-                '<span class="ia-cabin"></span>' +
-                '<span class="ia-roof"></span>' +
-                '<span class="ia-hood"></span>' +
-                '<span class="ia-skirt"></span>' +
-                '<span class="ia-light ia-light-f"></span>' +
-                '<span class="ia-light ia-light-r"></span>' +
-                '<span class="ia-wheel ia-wheel-fl"></span>' +
-                '<span class="ia-wheel ia-wheel-fr"></span>' +
-                '<span class="ia-wheel ia-wheel-rl"></span>' +
-                '<span class="ia-wheel ia-wheel-rr"></span>' +
+        '<div class="aod-wall" aria-hidden="true">' +
+            '<span class="aod-wall-sky"></span>' +
+            '<span class="aod-wall-glow"></span>' +
+            '<span class="aod-wall-stars"></span>' +
+            '<span class="aod-wall-grid"></span>' +
+            '<span class="aod-wall-road"><i></i></span>' +
+            '<span class="aod-wall-car">' +
+                '<i class="aod-car-glow"></i>' +
+                '<i class="aod-car-body"></i>' +
+                '<i class="aod-car-hood"></i>' +
+                '<i class="aod-car-cabin"></i>' +
+                '<i class="aod-car-wing"></i>' +
+                '<i class="aod-wheel aod-wheel-f"></i>' +
+                '<i class="aod-wheel aod-wheel-r"></i>' +
+            '</span>' +
+            '<span class="aod-wall-brand">LESSFUN</span>' +
+        '</div>' +
+        '<div class="aod-ui">' +
+            '<div class="aod-status"><span class="aod-lock">' + AOD_LOCK_SVG + '</span></div>' +
+            '<div class="aod-date" id="aodDate"></div>' +
+            '<div class="aod-time" id="aodTime">9:41</div>' +
+            '<div class="aod-widgets">' +
+                '<div class="aod-moon">' +
+                    '<span class="aod-moon-orb"><i id="aodMoonShade"></i></span>' +
+                    '<div class="aod-moon-copy">' +
+                        '<span id="aodMoonName">Waxing Gibbous</span>' +
+                        '<span id="aodMoonRise">Light 62%</span>' +
+                        '<b id="aodMoonNext">FULL MOON IN 8 DAYS</b>' +
+                    '</div>' +
+                '</div>' +
+                '<span class="aod-bubble aod-bubble-a">' + AOD_HEAD_SVG + '</span>' +
+                '<span class="aod-bubble aod-bubble-b">' + AOD_RING_SVG + '</span>' +
             '</div>' +
-            '<div class="idle-ad-copy">' +
-                '<small data-idle-badge></small>' +
-                '<h2 data-idle-title></h2>' +
-                '<p data-idle-tagline></p>' +
-                '<div class="idle-ad-specs" data-idle-specs></div>' +
-                '<div class="idle-ad-foot" data-idle-foot></div>' +
-            '</div>' +
-            '<div class="idle-ad-progress"><i></i></div>' +
-            '<div class="idle-ad-hint">move to dismiss</div>' +
-            '<div class="idle-ad-dots" data-idle-dots></div>' +
+            '<div class="aod-hint">move or press a key to wake</div>' +
+            '<div class="aod-home"></div>' +
         '</div>';
     document.body.appendChild(ov);
 }
 
-function idleAdRender(index) {
-    var ov = document.getElementById('idleAdOverlay');
-    if (!ov || !window.THREE) return;
-    idleAdIndex = ((index % IDLE_ADS.length) + IDLE_ADS.length) % IDLE_ADS.length;
-    var ad = IDLE_ADS[idleAdIndex];
-    ov.className = 'idle-ad-visible ' + ad.cls;
-    ov.querySelector('[data-idle-badge]').textContent = ad.badge;
-    ov.querySelector('[data-idle-title]').textContent = ad.title;
-    ov.querySelector('[data-idle-tagline]').textContent = ad.tagline;
-    ov.querySelector('[data-idle-specs]').innerHTML =
-        '<div class="idle-ad-specs-scroll">' + ad.specs.map(function (sp) { return '<span>' + sp + '</span>'; }).join('') + '</div>';
-    ov.querySelector('[data-idle-foot]').textContent = ad.foot;
-    var prog = ov.querySelector('.idle-ad-progress i');
-    if (prog) {
-        prog.style.animation = 'none';
-        void prog.offsetWidth;
-        prog.style.animation = 'idleAdProgress 7s linear forwards';
+function aodShow() {
+    aodBuild();
+    var ov = document.getElementById('aodOverlay');
+    if (!ov) return;
+    aodOpen = true;
+    aodUpdateClock();
+    ov.classList.add('is-on');
+    ov.setAttribute('aria-hidden', 'false');
+    if (aodClockTimer) clearInterval(aodClockTimer);
+    aodClockTimer = setInterval(aodUpdateClock, 1000);
+}
+
+function aodHide() {
+    aodOpen = false;
+    if (aodClockTimer) { clearInterval(aodClockTimer); aodClockTimer = 0; }
+    var ov = document.getElementById('aodOverlay');
+    if (ov) {
+        ov.classList.remove('is-on');
+        ov.setAttribute('aria-hidden', 'true');
     }
-    ov.querySelector('.idle-ad-stage').className = 'idle-ad-stage ' + ad.cls;
-    var carEl = ov.querySelector('.idle-ad-car');
-    var photoEl = ov.querySelector('.idle-ad-photo');
-    if (carEl && photoEl) {
-        carEl.classList.remove('has-photo');
-        photoEl.removeAttribute('src');
-        var bodyEl = carEl.querySelector('.ia-body');
-        if (bodyEl && ad.color) {
-            bodyEl.style.background = 'linear-gradient(165deg,#ffffff 0%,' + ad.color + ' 46%,rgba(0,0,0,.75) 100%)';
-        }
-    }
-    var dots = ov.querySelector('[data-idle-dots]');
-    dots.innerHTML = IDLE_ADS.map(function (a, i2) {
-        return '<i class="' + (i2 === idleAdIndex ? 'is-active' : '') + '"></i>';
-    }).join('');
-    idleAdSetCar(ad.car);
 }
 
-function idleAdStartRotate() {
-    idleAdStopRotate();
-    idleAdRotateTimer = setInterval(function () {
-        if (!idleAdOpen) { idleAdStopRotate(); return; }
-        idleAdRender(idleAdIndex + 1);
-    }, IDLE_AD_ROTATE);
-}
-function idleAdStopRotate() {
-    if (idleAdRotateTimer) { clearInterval(idleAdRotateTimer); idleAdRotateTimer = 0; }
+function aodArm() {
+    if (aodTimer) clearTimeout(aodTimer);
+    aodTimer = setTimeout(function () {
+        aodTimer = 0;
+        aodShow();
+    }, IDLE_AOD_DELAY);
 }
 
-function idleAdShow() {
-    IDLE_ADS = buildGarageAds();
-    if (idleAdOpen || document.hidden) { idleAdArm(); return; }
-    if (document.body.classList.contains('focus-mode')) { idleAdArm(); return; }
-    idleAdBuild();
-    idleAdOpen = true;
-    var start = function () {
-        if (!idleAdOpen) return;
-        var ov = document.getElementById('idleAdOverlay');
-        if (!ov) return;
-        var canvas = document.getElementById('idleAdCanvas');
-        if (canvas) {
-            canvas.style.width = '100%';
-            canvas.style.height = '100%';
-        }
-        idleAdRender(idleAdIndex + 1);
-        idleAdStartRotate();
-    };
-    idleAdLoadThree().then(start).catch(function () {
-        // no 3D — still show the copy-only ad
-        idleAdOpen = true;
-        idleAdRender(idleAdIndex + 1);
-        idleAdStartRotate();
-    });
-}
-
-function idleAdClose() {
-    idleAdOpen = false;
-    idleAdStopRotate();
-    if (idleAdThree) {
-        if (idleAdThree.raf) window.cancelAnimationFrame(idleAdThree.raf);
-        try { idleAdThree.renderer.dispose(); } catch (e) {}
-        var cv = idleAdThree.renderer.domElement;
-        if (cv && cv.parentNode) cv.parentNode.removeChild(cv);
-        try { if (idleAdThree.renderer.forceContextLoss) idleAdThree.renderer.forceContextLoss(); } catch (e) {}
-        idleAdThree = null;
-    }
-    var ov = document.getElementById('idleAdOverlay');
-    if (ov) ov.className = '';
-    idleAdArm();
-}
-
-function idleAdArm() {
-    if (idleAdTimer) clearTimeout(idleAdTimer);
-    idleAdTimer = setTimeout(function () {
-        idleAdTimer = 0;
-        idleAdShow();
-    }, IDLE_AD_DELAY);
-}
-
-function idleAdActivity(e) {
-    if (idleAdOpen) { idleAdClose(); return; } // any input while the ad plays dismisses it
-    idleAdArm();
+function aodActivity() {
+    if (aodOpen) aodHide();
+    aodArm();
 }
 
 ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart', 'pointerdown'].forEach(function (evt) {
-    document.addEventListener(evt, idleAdActivity, { passive: true });
+    document.addEventListener(evt, aodActivity, { passive: true });
 });
 document.addEventListener('visibilitychange', function () {
     if (document.hidden) {
-        if (idleAdTimer) { clearTimeout(idleAdTimer); idleAdTimer = 0; }
-        if (idleAdOpen) idleAdClose();
+        if (aodTimer) { clearTimeout(aodTimer); aodTimer = 0; }
+        if (aodOpen) aodHide();
     } else {
-        idleAdArm();
+        aodArm();
     }
 });
-idleAdArm();
+aodArm();
 
 /* ============================================================
    What's New — full release history sheet

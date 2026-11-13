@@ -13087,56 +13087,11 @@ body.low-power .site-snow { opacity: 0.55; }
 }
 
 /* ============================================================
-   Idle ads — fullscreen promos after 10s of no input
    ============================================================ */
-/* Idle ads — fullscreen promos after 10s of no input */
-#idleAdOverlay{position:fixed;inset:0;z-index:9999;display:none;pointer-events:auto}
-#idleAdOverlay.idle-ad-visible{display:block}
-.idle-ad-stage{position:absolute;inset:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
-.idle-ad-sunset .idle-ad-stage{background:linear-gradient(180deg,#2b1055 0%,#7b2d8b 38%,#ff6b6b 66%,#ffb347 82%,#ffd97a 100%)}
-.idle-ad-night .idle-ad-stage{background:linear-gradient(180deg,#050a18 0%,#0d1b3e 45%,#1c2f63 75%,#31427c 100%)}
-.idle-ad-garage .idle-ad-stage{background:linear-gradient(180deg,#101418 0%,#1d2530 50%,#2b3644 100%)}
-.idle-ad-road{position:absolute;left:-10%;right:-10%;bottom:0;height:34%;background:linear-gradient(180deg,#20242c,#12151b);transform:perspective(300px) rotateX(52deg);transform-origin:bottom;overflow:hidden}
-.idle-ad-road:before{content:"";position:absolute;top:0;left:0;right:0;height:6px;background:repeating-linear-gradient(90deg,#ffd75e 0 60px,transparent 60px 120px);animation:idleAdRoad 0.7s linear infinite}
-@keyframes idleAdRoad{0%{transform:translateX(0)}100%{transform:translateX(-120px)}}
-.idle-ad-car{position:absolute;bottom:24%;left:50%;transform:translateX(-50%);width:min(46vw,420px);height:min(12vw,110px);animation:idleAdBounce 1.1s ease-in-out infinite}
-@keyframes idleAdBounce{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-6px)}}
-.idle-ad-car span{position:absolute;bottom:0;left:0;width:100%;height:52%;border-radius:44px 60px 10px 10px/60px 70px 8px 8px;background:linear-gradient(160deg,#ff5f6d,#8b1e3f);box-shadow:0 18px 44px rgba(0,0,0,.45)}
-.idle-ad-car span:last-child{bottom:42%;left:18%;width:58%;height:46%;border-radius:26px 40px 6px 6px/40px 52px 6px 6px;background:linear-gradient(160deg,#2a2f3c,#4b5568)}
-.idle-ad-night .idle-ad-car span{background:linear-gradient(160deg,#4f8cff,#12275e)}
-.idle-ad-night .idle-ad-car span:last-child{background:linear-gradient(160deg,#0e1730,#22335e)}
-.idle-ad-garage .idle-ad-car span{background:linear-gradient(160deg,#7ce38b,#1f7a4d)}
-.idle-ad-garage .idle-ad-car span:last-child{background:linear-gradient(160deg,#101820,#243244)}
-.idle-ad-copy{position:relative;z-index:3;text-align:center;color:#fff;padding:0 20px;transform:translateY(-8%)}
-.idle-ad-copy small{display:inline-block;padding:6px 12px;border-radius:999px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.22);font-size:9px;font-weight:900;letter-spacing:.2em}
-.idle-ad-copy h2{font-size:clamp(38px,9vw,96px);font-weight:900;letter-spacing:-.05em;margin:16px 0 10px;text-shadow:0 10px 40px rgba(0,0,0,.45)}
-.idle-ad-copy p{font-size:clamp(13px,2.2vw,18px);max-width:520px;margin:0 auto 26px;color:rgba(255,255,255,.85);line-height:1.5}
-.idle-ad-copy button{border:0;padding:14px 30px;border-radius:999px;background:#ffd75e;color:#241a04;font:inherit;font-size:14px;font-weight:900;letter-spacing:.06em;cursor:pointer;box-shadow:0 12px 34px rgba(0,0,0,.35);transition:transform .15s}
-.idle-ad-copy button:hover{transform:scale(1.05)}
-.idle-ad-close{position:absolute;top:16px;right:18px;z-index:5;width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(0,0,0,.35);color:#fff;font-size:16px;cursor:pointer}
-.idle-ad-close:hover{background:rgba(0,0,0,.6)}
-@media (prefers-reduced-motion: reduce){.idle-ad-car,.idle-ad-road:before{animation:none}}
 
 /* Auto-scrolling car-ad spec ticker + carousel dots */
-.idle-ad-specs{width:min(84vw,460px);height:118px;margin:6px auto 14px;overflow:hidden;border-radius:16px;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.32);position:relative}
-.idle-ad-specs-scroll{position:absolute;left:0;right:0;animation:idleSpecScroll 12s linear infinite}
-.idle-ad-specs-scroll span{display:block;padding:11px 16px;font-size:clamp(12px,1.8vw,15px);font-weight:800;letter-spacing:.14em;color:#fff;border-bottom:1px solid rgba(255,255,255,.12);text-shadow:0 2px 8px rgba(0,0,0,.5)}
-.idle-ad-specs-scroll span:nth-child(even){color:#ffd75e}
 @keyframes idleSpecScroll{0%{top:0}100%{top:-50%}}
-.idle-ad-specs:after{content:"";position:absolute;left:0;right:0;bottom:0;height:34px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.55));pointer-events:none}
-.idle-ad-foot{font-size:9px;font-weight:900;letter-spacing:.26em;color:rgba(255,255,255,.65)}
-.idle-ad-dots{position:absolute;bottom:26px;left:0;right:0;display:flex;justify-content:center;gap:8px;z-index:4}
-.idle-ad-dots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.32);transition:background .2s,transform .2s}
-.idle-ad-dots i.is-active{background:#ffd75e;transform:scale(1.25)}
-.idle-ad-close{font-size:12px;width:auto;padding:0 14px}
-@media (prefers-reduced-motion: reduce){.idle-ad-specs-scroll{animation:none}}
 
-/* 3D car stage inside idle ads */
-#idleAdOverlay .idle-ad-stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1}
-#idleAdOverlay .idle-ad-copy{z-index:3;transform:none;padding-top:6vh}
-.idle-ad-hint{position:absolute;bottom:52px;left:0;right:0;text-align:center;color:rgba(255,255,255,.5);font-size:9px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;z-index:4}
-#idleAdOverlay .idle-ad-dots{bottom:28px}
-#idleAdOverlay .idle-ad-copy{pointer-events:none}
 
 /* Redline GT training banner */
 .racer-training-banner{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:12;max-width:min(86vw,620px);padding:11px 18px;border-radius:999px;background:rgba(8,14,22,.82);border:1px solid rgba(95,231,255,.35);color:#eafaff;font-size:12px;font-weight:800;letter-spacing:.02em;text-align:center;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 10px 30px rgba(0,0,0,.35);pointer-events:none}
@@ -13415,91 +13370,23 @@ body.battery-saver .site-snow{display:none}
 .g3d-auto-ds{top:30.5%!important}
 
 /* ============================================================
-   Idle ads — premium commercial treatment
    ============================================================ */
-.idle-ad-stage{position:absolute;inset:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
-.idle-ad-sunset .idle-ad-stage{background:linear-gradient(178deg,#1b0b33 0%,#5b1f6e 30%,#c2405f 56%,#ff8a4c 76%,#ffd27a 100%)}
-.idle-ad-night .idle-ad-stage{background:linear-gradient(178deg,#03060f 0%,#0a1730 42%,#16305e 72%,#3a5ca8 100%)}
-.idle-ad-garage .idle-ad-stage{background:linear-gradient(178deg,#0b0f14 0%,#151d27 48%,#26313d 100%)}
-.idle-ad-glow{position:absolute;left:50%;top:38%;width:70vw;height:70vw;max-width:820px;max-height:820px;transform:translate(-50%,-50%);background:radial-gradient(circle,rgba(255,255,255,.22),transparent 62%);filter:blur(20px);pointer-events:none}
 /* perspective road with moving dashes */
-.idle-ad-road{position:absolute;left:-20%;right:-20%;bottom:0;height:38%;background:linear-gradient(180deg,#14181f,#080a0e);transform:perspective(420px) rotateX(58deg);transform-origin:bottom;overflow:hidden;box-shadow:0 -30px 80px rgba(0,0,0,.45)}
-.idle-ad-road:before{content:"";position:absolute;left:0;right:0;top:0;height:8px;background:repeating-linear-gradient(90deg,rgba(255,215,94,.85) 0 70px,transparent 70px 150px);animation:idleAdRoad 1.1s linear infinite}
-.idle-ad-road:after{content:"";position:absolute;left:0;right:0;top:46%;height:3px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.35) 0 34px,transparent 34px 110px);animation:idleAdRoad 1.6s linear infinite}
-@keyframes idleAdRoad{0%{transform:translateX(0)}100%{transform:translateX(-150px)}}
 /* CSS hero car */
-.idle-ad-car{position:absolute;bottom:26%;left:50%;width:min(58vw,540px);height:min(17vw,170px);transform:translateX(-50%);animation:idleAdFloat 3.2s ease-in-out infinite;filter:drop-shadow(0 26px 40px rgba(0,0,0,.55))}
-@keyframes idleAdFloat{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-6px)}}
-.idle-ad-car .ia-body{position:absolute;left:0;right:0;bottom:14px;height:46%;border-radius:70px 46px 14px 14px/60px 52px 12px 12px;background:linear-gradient(165deg,#f7f9fc 0%,#b9c2cf 38%,#7c8797 70%,#4a5462 100%)}
-.idle-ad-sunset .idle-ad-car .ia-body{background:linear-gradient(165deg,#ff7a5c,#c0263f 52%,#6d0f26)}
-.idle-ad-night .idle-ad-car .ia-body{background:linear-gradient(165deg,#5f8dff,#1b3c8f 55%,#0b1733)}
-.idle-ad-garage .idle-ad-car .ia-body{background:linear-gradient(165deg,#8ef0a8,#1f7a4d 55%,#0b3320)}
-.idle-ad-car .ia-cabin{position:absolute;left:20%;right:24%;bottom:52%;height:40%;border-radius:60px 54px 8px 8px/44px 44px 6px 6px;background:linear-gradient(170deg,#2b3340,#101720 70%);border-bottom:3px solid rgba(255,255,255,.18)}
-.idle-ad-sunset .idle-ad-car .ia-cabin{background:linear-gradient(170deg,#4a1420,#1b060d 70%)}
-.idle-ad-night .idle-ad-car .ia-cabin{background:linear-gradient(170deg,#22355e,#070d1c 70%)}
-.idle-ad-car .ia-light{position:absolute;bottom:38%;height:8%;width:9%;border-radius:8px 10px 10px 8px;background:linear-gradient(90deg,#fff8dc,#ffd85e);box-shadow:0 0 22px rgba(255,224,120,.85)}
-.idle-ad-car .ia-light-f{right:1.5%}
-.idle-ad-car .ia-light-r{left:1.5%;background:linear-gradient(90deg,#ff5a5a,#a80f1a);box-shadow:0 0 18px rgba(255,60,60,.8)}
-.idle-ad-car .ia-wheel{position:absolute;bottom:0;width:16%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 50% 50%,#2b3038 0 32%,#0b0e12 33% 100%);box-shadow:inset 0 0 0 3px rgba(255,255,255,.12),0 6px 14px rgba(0,0,0,.5);animation:iaWheel 0.9s linear infinite}
-.idle-ad-car .ia-wheel:after{content:"";position:absolute;inset:34%;border-radius:50%;background:linear-gradient(140deg,#c8ced8,#7c8797)}
 @keyframes iaWheel{to{transform:rotate(360deg)}}
-.idle-ad-car .ia-wheel-fl{left:12%}
-.idle-ad-car .ia-wheel-fr{right:12%}
-.idle-ad-car .ia-wheel-rl{left:12%;display:none}
-.idle-ad-car .ia-wheel-rr{right:12%;display:none}
 /* copy panel */
-.idle-ad-copy{position:relative;z-index:4;text-align:center;color:#fff;padding:0 22px;transform:translateY(-16%);max-width:min(92vw,760px)}
-.idle-ad-copy small{display:inline-block;padding:6px 12px;border-radius:999px;background:rgba(0,0,0,.42);border:1px solid rgba(255,255,255,.22);font-size:9px;font-weight:900;letter-spacing:.22em}
-.idle-ad-copy h2{font-size:clamp(34px,7.6vw,84px);font-weight:900;letter-spacing:-.055em;line-height:.95;margin:14px 0 8px;text-shadow:0 14px 44px rgba(0,0,0,.5)}
-.idle-ad-copy p{font-size:clamp(12px,2vw,17px);max-width:520px;margin:0 auto 18px;color:rgba(255,255,255,.88);line-height:1.45}
-.idle-ad-specs{width:min(84vw,470px);height:104px;margin:0 auto 12px;overflow:hidden;border-radius:16px;border:1px solid rgba(255,255,255,.16);background:rgba(10,14,20,.45);backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px);position:relative}
-.idle-ad-foot{font-size:9px;font-weight:900;letter-spacing:.28em;color:rgba(255,255,255,.72)}
-.idle-ad-progress{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.12);z-index:6}
-.idle-ad-progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,#5fe7ff,#ffd75e)}
-@keyframes idleAdProgress{from{width:0}to{width:100%}}
-.idle-ad-dots{position:absolute;bottom:22px;left:0;right:0;display:flex;justify-content:center;gap:8px;z-index:6}
-.idle-ad-hint{bottom:34px!important;z-index:6}
-@media (max-width:640px){.idle-ad-car{bottom:30%;height:min(24vw,120px)}.idle-ad-copy{transform:translateY(-8%)}}
-@media (prefers-reduced-motion: reduce){.idle-ad-car,.idle-ad-road:before,.idle-ad-road:after,.idle-ad-car .ia-wheel,.idle-ad-progress i{animation:none!important}}
 
 /* Ad layout polish */
-.idle-ad-car{bottom:17%!important;height:min(21vw,200px)!important;width:min(62vw,580px)!important}
-.idle-ad-copy{transform:translateY(-24%)!important}
-.idle-ad-specs{height:118px!important;margin-bottom:14px!important}
-.idle-ad-specs-scroll span{padding:10px 14px!important;font-size:clamp(11px,1.7vw,14px)!important}
-.idle-ad-dots{bottom:42px!important}
-.idle-ad-hint{bottom:58px!important}
-.idle-ad-progress{bottom:0!important;height:4px!important}
-@media (max-width:640px){.idle-ad-car{bottom:21%!important;height:min(26vw,130px)!important}.idle-ad-copy{transform:translateY(-14%)!important}}
 
 /* Pseudo-3D hero car: perspective body, roof, hood highlight, reflections */
-.idle-ad-car{perspective:900px;transform-style:preserve-3d}
-.idle-ad-car .ia-shadow{position:absolute;left:6%;right:6%;bottom:-2%;height:16%;border-radius:50%;background:radial-gradient(ellipse at center,rgba(0,0,0,.62),transparent 70%);filter:blur(6px)}
-.idle-ad-car .ia-body{transform:rotateY(-16deg) rotateX(3deg);box-shadow:inset 0 -18px 30px rgba(0,0,0,.45),inset 0 10px 18px rgba(255,255,255,.28)}
-.idle-ad-car .ia-cabin{transform:rotateY(-16deg) translateZ(14px);box-shadow:inset 0 -8px 16px rgba(0,0,0,.5)}
-.idle-ad-car .ia-roof{position:absolute;left:24%;right:28%;bottom:84%;height:7%;border-radius:50% 50% 8px 8px/70% 70% 6px 6px;background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(180,190,205,.45));transform:rotateY(-16deg) translateZ(16px);opacity:.8}
-.idle-ad-sunset .idle-ad-car .ia-roof{background:linear-gradient(180deg,rgba(255,190,170,.9),rgba(160,40,60,.6))}
-.idle-ad-night .idle-ad-car .ia-roof{background:linear-gradient(180deg,rgba(190,215,255,.9),rgba(30,70,150,.6))}
-.idle-ad-car .ia-hood{position:absolute;left:2%;right:2%;bottom:52%;height:14%;border-radius:40px 40px 6px 6px/22px 22px 6px 6px;background:linear-gradient(180deg,rgba(255,255,255,.45),rgba(255,255,255,0) 70%);transform:rotateY(-16deg);opacity:.55;pointer-events:none}
-.idle-ad-car .ia-skirt{position:absolute;left:6%;right:6%;bottom:10px;height:8%;border-radius:0 0 10px 10px;background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,.75));transform:rotateY(-16deg)}
 /* floor reflection under the car */
-.idle-ad-stage:after{content:"";position:absolute;left:50%;bottom:6%;width:min(58vw,520px);height:16vh;transform:translateX(-50%);background:radial-gradient(ellipse at 50% 0%,rgba(255,255,255,.18),transparent 70%);filter:blur(4px);pointer-events:none}
 
 /* Real rendered garage photo as the ad hero */
-.idle-ad-photo{display:none;width:100%;height:100%;object-fit:contain;border-radius:20px;filter:drop-shadow(0 26px 40px rgba(0,0,0,.55))}
-.idle-ad-car.has-photo .idle-ad-photo{display:block}
-.idle-ad-car.has-photo > span{display:none!important}
-.idle-ad-car.has-photo{height:min(30vw,300px)!important;bottom:20%!important}
 
 /* Warning lights sit directly under the km/h readout */
 .g3d-cluster-warnings{top:26%!important;bottom:auto!important;width:86%!important}
 
 /* Supercar silhouette for the ad hero */
-.idle-ad-car{height:min(18vw,168px)!important;bottom:19%!important;width:min(64vw,600px)!important}
-.idle-ad-car .ia-body{bottom:12px!important;height:40%!important;border-radius:90px 58px 12px 12px/52px 44px 10px 10px!important}
-.idle-ad-car .ia-cabin{left:26%!important;right:30%!important;bottom:48%!important;height:32%!important;border-radius:44px 40px 6px 6px/34px 34px 5px 5px!important}
-.idle-ad-car .ia-roof{left:30%!important;right:36%!important;bottom:78%!important;height:5%!important}
-.idle-ad-car:after{content:"";position:absolute;left:58%;right:2%;bottom:58%;height:6%;border-radius:6px;background:linear-gradient(180deg,rgba(20,24,30,.95),rgba(8,10,14,.95));box-shadow:0 3px 0 rgba(255,255,255,.18);transform:rotate(-3deg)}
 
 /* Warning lights pulse gently instead of sitting on solid */
 .g3d-warn.is-on{animation:g3dWarnPulse 2s ease-in-out infinite;border-color:rgba(255,120,90,.55)!important}
@@ -13511,3 +13398,119 @@ body.battery-saver .site-snow{display:none}
 .g3d-tach.is-booting .g3d-warn{animation:g3dWarnBoot .12s steps(2) infinite alternate}
 @media (prefers-reduced-motion: reduce){.g3d-warn.is-on{animation:none;opacity:1}}
 
+
+/* ============================================================
+   Always-on display — fades in after 10 s with no input.
+   Wallpaper is composed for the current device shape.
+   ============================================================ */
+#aodOverlay{position:fixed;inset:0;z-index:9998;opacity:0;visibility:hidden;pointer-events:none;overflow:hidden;background:#04070f;
+    transition:opacity 1.15s cubic-bezier(.4,0,.2,1),visibility 0s linear 1.15s}
+#aodOverlay.is-on{opacity:1;visibility:visible;pointer-events:auto;
+    transition:opacity 1.15s cubic-bezier(.4,0,.2,1)}
+
+.aod-wall{position:absolute;inset:0;overflow:hidden}
+.aod-wall-sky{position:absolute;inset:0;background:
+    radial-gradient(120% 85% at 78% 14%,rgba(42,126,138,.52),transparent 62%),
+    radial-gradient(90% 65% at 12% 82%,rgba(255,92,64,.17),transparent 66%),
+    linear-gradient(180deg,#03060d 0%,#061322 44%,#0a2430 70%,#061019 100%)}
+.aod-wall-glow{position:absolute;left:52%;top:52%;width:132vmax;height:62vmin;transform:translate(-50%,-50%);
+    background:radial-gradient(ellipse at center,rgba(80,208,220,.20),transparent 64%);filter:blur(16px)}
+.aod-wall-stars{position:absolute;inset:0;opacity:.6;background-repeat:no-repeat;background-image:
+    radial-gradient(1.3px 1.3px at 12% 16%,rgba(255,255,255,.8),transparent 62%),
+    radial-gradient(1.1px 1.1px at 26% 9%,rgba(210,244,255,.7),transparent 62%),
+    radial-gradient(1.5px 1.5px at 41% 21%,rgba(255,255,255,.62),transparent 62%),
+    radial-gradient(1px 1px at 58% 8%,rgba(200,240,255,.7),transparent 62%),
+    radial-gradient(1.4px 1.4px at 73% 18%,rgba(255,255,255,.75),transparent 62%),
+    radial-gradient(1px 1px at 88% 11%,rgba(205,245,255,.7),transparent 62%),
+    radial-gradient(1.2px 1.2px at 67% 30%,rgba(255,255,255,.5),transparent 62%),
+    radial-gradient(1px 1px at 33% 33%,rgba(190,235,250,.55),transparent 62%)}
+.aod-wall-grid{position:absolute;left:-12%;right:-12%;bottom:0;height:40%;opacity:.5;
+    background-image:linear-gradient(rgba(120,220,235,.16) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(120,220,235,.13) 1px,transparent 1px);
+    background-size:64px 64px;
+    transform:perspective(440px) rotateX(64deg);transform-origin:bottom;
+    -webkit-mask-image:linear-gradient(transparent,#000 48%);mask-image:linear-gradient(transparent,#000 48%)}
+.aod-wall-road{position:absolute;left:50%;bottom:-3%;width:168%;height:33%;transform:translateX(-50%);
+    background:linear-gradient(180deg,rgba(4,8,12,0),rgba(3,6,10,.92) 34%,#020407);
+    clip-path:polygon(37% 0,63% 0,100% 100%,0 100%)}
+.aod-wall-road i{position:absolute;left:50%;top:16%;bottom:8%;width:5px;transform:translateX(-50%);
+    background:repeating-linear-gradient(180deg,rgba(255,214,120,.65) 0 20px,transparent 20px 50px);
+    opacity:.5;filter:blur(.4px)}
+.aod-wall-car{position:absolute;left:50%;bottom:15%;width:clamp(240px,42vmin,600px);height:clamp(66px,11.5vmin,164px);
+    transform:translateX(-50%);filter:drop-shadow(0 28px 38px rgba(0,0,0,.7))}
+.aod-car-glow{position:absolute;left:16%;right:16%;bottom:-6%;height:30%;border-radius:50%;
+    background:radial-gradient(ellipse at center,rgba(255,96,64,.45),transparent 70%);filter:blur(12px)}
+.aod-car-body{position:absolute;left:0;right:0;bottom:16%;height:48%;
+    border-radius:54% 36% 14px 14px/72% 46% 12px 12px;
+    background:linear-gradient(168deg,#5d7a90 0%,#223546 42%,#0b131c 100%);
+    box-shadow:inset 0 6px 14px rgba(196,238,252,.3),inset 0 -16px 24px rgba(0,0,0,.6)}
+.aod-car-hood{position:absolute;left:6%;right:34%;bottom:56%;height:14%;border-radius:60% 40% 6px 6px/70% 50% 6px 6px;
+    background:linear-gradient(180deg,rgba(190,232,248,.24),rgba(190,232,248,0));opacity:.7}
+.aod-car-cabin{position:absolute;left:30%;right:26%;bottom:60%;height:30%;
+    border-radius:48% 44% 8px 8px/60% 58% 6px 6px;
+    background:linear-gradient(165deg,#0e1a26 0%,#152634 60%,#0a121b 100%);
+    box-shadow:inset 0 3px 8px rgba(150,220,240,.24)}
+.aod-car-wing{position:absolute;left:60%;right:2%;bottom:66%;height:7%;border-radius:6px;
+    background:linear-gradient(180deg,#0b131c,#1d2c3a);box-shadow:0 3px 0 rgba(190,232,248,.22);transform:rotate(-2deg)}
+.aod-wheel{position:absolute;bottom:-2%;width:21%;aspect-ratio:1;border-radius:50%;
+    background:radial-gradient(circle at 40% 36%,#2b3a46 0 26%,#0a1017 62%);
+    border:2px solid rgba(150,205,225,.22);box-shadow:0 8px 16px rgba(0,0,0,.65)}
+.aod-wheel-f{left:12%}
+.aod-wheel-r{right:12%}
+.aod-wheel:after{content:"";position:absolute;inset:30%;border-radius:50%;border:2px solid rgba(180,225,240,.30)}
+.aod-wall-brand{position:absolute;left:50%;bottom:6.5%;transform:translateX(-50%);
+    font:900 clamp(9px,1.35vmin,14px)/1 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+    letter-spacing:.6em;color:rgba(190,235,245,.32);text-indent:.6em}
+
+.aod-ui{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+    padding:max(16px,env(safe-area-inset-top)) clamp(16px,3vw,40px) max(12px,env(safe-area-inset-bottom));
+    color:#eef8fd;text-align:center;
+    transform:translateY(10px) scale(.995);filter:blur(7px);
+    transition:transform 1.25s cubic-bezier(.2,.7,.2,1),filter 1.25s ease;transition-delay:.06s}
+#aodOverlay.is-on .aod-ui{transform:none;filter:none}
+.aod-status{height:clamp(26px,5.5vmin,46px);display:flex;align-items:center;justify-content:center;margin-top:clamp(2px,1.6vmin,14px)}
+.aod-lock{display:block;width:clamp(19px,2.4vmin,25px);height:clamp(19px,2.4vmin,25px);color:#eaf8fd;opacity:.88}
+.aod-lock svg{display:block;width:100%;height:100%}
+.aod-date{font-size:clamp(15px,2.5vmin,24px);font-weight:600;letter-spacing:.005em;opacity:.94;
+    text-shadow:0 3px 18px rgba(0,0,0,.4)}
+.aod-time{font-size:clamp(66px,24vmin,152px);font-weight:250;line-height:.94;letter-spacing:-.045em;
+    font-variant-numeric:tabular-nums;margin-top:clamp(2px,1vmin,8px);
+    text-shadow:0 12px 48px rgba(0,0,0,.45)}
+.aod-widgets{width:min(90vw,452px);display:flex;align-items:center;gap:clamp(10px,2vmin,18px);
+    margin-top:clamp(16px,3.2vmin,32px);padding:0 4px}
+.aod-moon{display:flex;align-items:center;gap:11px;flex:1;text-align:left;min-width:0}
+.aod-moon-orb{position:relative;width:clamp(21px,3vmin,30px);height:clamp(21px,3vmin,30px);border-radius:50%;
+    flex:none;overflow:hidden;background:radial-gradient(circle at 34% 28%,#ffffff,#d3ecf5 58%,#8fb4c4);
+    box-shadow:0 0 16px rgba(220,246,255,.65)}
+.aod-moon-orb i{position:absolute;inset:0;border-radius:50%;background:#07111c;
+    transition:transform 1.2s ease}
+.aod-moon-copy{display:flex;flex-direction:column;line-height:1.3;min-width:0;
+    font-size:clamp(10px,1.55vmin,13px)}
+.aod-moon-copy span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.92}
+.aod-moon-copy b{font-weight:800;font-size:clamp(8.5px,1.35vmin,11px);letter-spacing:.10em;opacity:.66;margin-top:2px}
+.aod-bubble{width:clamp(44px,7vmin,70px);height:clamp(44px,7vmin,70px);border-radius:50%;flex:none;
+    display:grid;place-items:center;color:#eaf8fd;
+    background:radial-gradient(circle at 32% 26%,rgba(255,255,255,.17),rgba(255,255,255,.03) 62%);
+    border:1px solid rgba(220,245,255,.42);
+    box-shadow:inset 0 0 22px rgba(160,225,235,.14),0 6px 22px rgba(0,0,0,.28)}
+.aod-bubble svg{width:46%;height:46%;display:block}
+.aod-hint{margin-top:auto;font-size:clamp(8.5px,1.35vmin,11px);letter-spacing:.24em;text-transform:uppercase;
+    color:rgba(230,247,252,.42);padding-top:12px}
+.aod-home{width:min(34vw,178px);height:5px;border-radius:999px;background:rgba(240,251,255,.66);
+    margin-top:clamp(8px,1.6vmin,14px);box-shadow:0 0 12px rgba(220,245,255,.25)}
+
+@media (orientation:portrait){
+    .aod-wall-car{bottom:19%;width:min(80vw,430px);height:clamp(74px,13vw,136px)}
+    .aod-wall-grid{height:46%}
+    .aod-wall-brand{bottom:5%}
+    .aod-hint{letter-spacing:.18em}
+}
+@media (min-width:1100px){
+    .aod-wall-car{width:min(46vmin,640px)}
+    .aod-widgets{margin-top:clamp(20px,3.4vh,38px)}
+}
+@media (prefers-reduced-motion:reduce){
+    #aodOverlay,#aodOverlay.is-on{transition-duration:.01s}
+    .aod-ui,#aodOverlay.is-on .aod-ui{transition-duration:.01s}
+    .aod-moon-orb i{transition:none}
+}

@@ -1057,7 +1057,7 @@
         clone.setEnabled(true);
         clone.isPickable = false;
         car.root.getChildMeshes().forEach(function (m) {
-            if (m !== clone && m.name.indexOf('remoteNamePlane') !== 0) m.setEnabled(false);
+            if (m !== clone && m.name.indexOf('remoteNamePlane') !== 0 && m.name.indexOf('trafficIndicator') !== 0) m.setEnabled(false);
         });
         car.modelClone = clone;
     }
@@ -1143,6 +1143,17 @@
         part('tailL', 0.38, 0.10, 0.08, -spec.w * 0.30, spec.y - spec.bodyH * 0.02, -spec.l / 2 - 0.08, brakeMat);
         part('tailR', 0.38, 0.10, 0.08, spec.w * 0.30, spec.y - spec.bodyH * 0.02, -spec.l / 2 - 0.08, brakeMat);
 
+        // Amber turn signals so the car can show intent while it hesitates.
+        var indMatL = new BABYLON.StandardMaterial('trafficIndL_' + Math.random().toString(36).slice(2, 7), scene);
+        var indMatR = new BABYLON.StandardMaterial('trafficIndR_' + Math.random().toString(36).slice(2, 7), scene);
+        [indMatL, indMatR].forEach(function (m) {
+            m.diffuseColor = new BABYLON.Color3(0.42, 0.26, 0.06);
+            m.emissiveColor = new BABYLON.Color3(0.10, 0.05, 0.01);
+            m.disableLighting = true;
+        });
+        part('trafficIndicatorL', 0.20, 0.09, 0.07, -spec.w * 0.34, spec.y - spec.bodyH * 0.02, -spec.l / 2 - 0.075, indMatL);
+        part('trafficIndicatorR', 0.20, 0.09, 0.07, spec.w * 0.34, spec.y - spec.bodyH * 0.02, -spec.l / 2 - 0.075, indMatR);
+
         var wheels = [];
         var wheelR = style === 'truck' || style === 'bus' ? 0.46 : 0.34;
         var wheelX = spec.w / 2 - 0.12;
@@ -1157,7 +1168,13 @@
                 wheels.push(wheel);
             }
         }
-        return { root: root, spec: spec, style: style, wheels: wheels, speed: 18, lane: 2, cool: 0, paint: paint, brakeMat: brakeMat, cruise: 18, braking: false };
+        return {
+            root: root, spec: spec, style: style, wheels: wheels, speed: 18, lane: 2, cool: 0,
+            paint: paint, brakeMat: brakeMat, cruise: 18, braking: false,
+            indMatL: indMatL, indMatR: indMatR, aiBlink: Math.random() * 10,
+            aiState: 'drive', aiThink: 0, aiPlan: '', aiTargetLane: -1,
+            aiSignalSide: 0, aiCooldown: 1 + Math.random() * 2, boost: 0
+        };
     }
 
     function createTrafficBody(car) {
@@ -1175,6 +1192,14 @@
         car.root.position.set(highwayCurveX(spawnZPos) + laneCenters[car.lane], 0, spawnZPos);
         car.root.position.z = Math.max(spawnZ + 90, car.root.position.z);
         car.speed = (100 + Math.random() * 40) / 3.6;
+        car.cruise = car.speed * (0.94 + Math.random() * 0.12);
+        car.aiState = 'drive';
+        car.aiThink = 0;
+        car.aiPlan = '';
+        car.aiTargetLane = -1;
+        car.aiSignalSide = 0;
+        car.aiCooldown = 1 + Math.random() * 2.5;
+        car.boost = 0;
     }
 
     function makeCoinPickup(index) {
@@ -1513,6 +1538,17 @@
         });
     }
 
+    function trafficLaneClear(car, lane) {
+        if (lane < 0 || lane >= laneCenters.length) return false;
+        for (var i = 0; i < traffic.length; i++) {
+            var other = traffic[i];
+            if (other === car || other.lane !== lane) continue;
+            var gap = other.root.position.z - car.root.position.z;
+            if (gap > -16 && gap < 16) return false;
+        }
+        return true;
+    }
+
     function updateTraffic(dt) {
         if (!chassis) return;
         if (worldMode !== 'highway') {
@@ -1537,11 +1573,82 @@
                 var gapZ = other.root.position.z - car.root.position.z;
                 if (gapZ > 0 && gapZ < leadGap) leadGap = gapZ;
             }
+            // ---- Reactive traffic ----
+            // A player tucked in right behind makes the AI either pick up the
+            // pace or move over. It always signals and hesitates first.
+            var gapBehind = car.root.position.z - pz;
+            var playerInLane = Math.abs(p.x - car.root.position.x) < 2.4;
+            var tailgated = !garage && !runOver && !paused && playerInLane &&
+                gapBehind > 0 && gapBehind < 15 && displaySpeed > car.speed - 2.5;
+            if (car.aiCooldown > 0) car.aiCooldown = Math.max(0, car.aiCooldown - dt);
+
+            if (tailgated && car.aiState === 'drive' && car.aiCooldown <= 0) {
+                car.aiState = 'hesitate';
+                car.aiThink = 0.55 + Math.random() * 1.05;
+                var lumbering = car.style === 'truck' || car.style === 'bus';
+                car.aiPlan = Math.random() < (lumbering ? 0.34 : 0.62) ? 'lane' : 'boost';
+                car.aiTargetLane = -1;
+                if (car.aiPlan === 'lane') {
+                    var side = Math.random() < 0.5 ? -1 : 1;
+                    var options = [car.lane + side, car.lane - side];
+                    for (var oi2 = 0; oi2 < options.length; oi2++) {
+                        if (trafficLaneClear(car, options[oi2])) {
+                            car.aiTargetLane = options[oi2];
+                            break;
+                        }
+                    }
+                    if (car.aiTargetLane < 0) {
+                        car.aiPlan = 'boost';
+                    } else {
+                        car.aiSignalSide = car.aiTargetLane > car.lane ? 1 : -1;
+                    }
+                }
+                car.aiCooldown = 5 + Math.random() * 3;
+            }
+
+            if (car.aiState === 'hesitate') {
+                car.aiThink -= dt;
+                if (car.aiThink <= 0) {
+                    if (car.aiPlan === 'lane' && car.aiTargetLane >= 0 && trafficLaneClear(car, car.aiTargetLane)) {
+                        car.lane = car.aiTargetLane;
+                        car.aiState = 'change';
+                        car.aiThink = 0.9 + Math.random() * 0.5;
+                    } else {
+                        car.aiState = 'drive';
+                        car.aiPlan = '';
+                        car.aiSignalSide = 0;
+                    }
+                }
+            } else if (car.aiState === 'change') {
+                car.aiThink -= dt;
+                var laneCentre = highwayCurveX(car.root.position.z) + laneCenters[car.lane];
+                if (car.aiThink <= 0 && Math.abs(car.root.position.x - laneCentre) < 0.6) {
+                    car.aiState = 'drive';
+                    car.aiSignalSide = 0;
+                }
+            }
+
+            if (tailgated && car.aiState !== 'hesitate') {
+                car.boost = Math.min(1, car.boost + dt * 1.7);
+            } else {
+                car.boost = Math.max(0, car.boost - dt * 0.4);
+            }
+
+            car.aiBlink = (car.aiBlink || 0) + dt;
+            var signalOn = Math.sin(car.aiBlink * 18) > 0.15;
+            if (car.indMatL && car.indMatR) {
+                var leftOn = car.aiSignalSide < 0 && signalOn;
+                var rightOn = car.aiSignalSide > 0 && signalOn;
+                car.indMatL.emissiveColor.set(leftOn ? 1 : 0.10, leftOn ? 0.55 : 0.05, 0.01);
+                car.indMatR.emissiveColor.set(rightOn ? 1 : 0.10, rightOn ? 0.55 : 0.05, 0.01);
+            }
+
             if (!car.cruise) car.cruise = car.speed;
-            var desired = car.cruise;
+            var desired = car.cruise * (1 + car.boost * 0.30);
+            if (car.aiState === 'hesitate') desired = Math.min(desired, Math.max(4, car.speed - 1.2));
             if (leadGap < 16) desired = Math.min(desired, Math.max(6, car.cruise * (leadGap / 16)));
             if (leadGap < 8) desired = Math.min(desired, 6);
-            var accelRate = desired > car.speed ? 2.6 : 8.5;
+            var accelRate = desired > car.speed ? (2.6 + car.boost * 2.4) : 8.5;
             var prevSpeed = car.speed;
             car.speed += clamp(desired - car.speed, -accelRate * dt, accelRate * dt);
             var slowing = car.speed < prevSpeed - 0.02;
