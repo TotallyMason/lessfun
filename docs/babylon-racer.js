@@ -65,6 +65,7 @@
     var rainSystem = null, rainIntensity = 0, rainTarget = 0, weatherTimer = 25, rainChip = null;
     var tunnels = [], tunnelDark = 0, baseSunIntensity = 0.62, hemi = null;
     var autoSteer = false, autoLane = 3, autoLaneTimer = 0, autoPrevLeft = false, autoPrevRight = false, autoLaneFlash = 0, autoOffset = 1.83, autoDesired = 0;
+    var asLaneLines = null;
     var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.85, baseGrip = 3.85, tyreHeat = 0;
     var heatMode = 'idle', accelHold = 0, brakeHold = 0, coastHold = 0;
     var laneCenters = [-11.25, -6.75, -2.25, 2.25, 6.75, 11.25];
@@ -1997,6 +1998,77 @@
         driftSmoke = ps;
     }
 
+    // Two thin blue guide lines that show the lane Autosteer is holding.
+    function createAsLaneLines() {
+        if (!scene || asLaneLines) return;
+        var segs = 64;
+        function makeLine(width, alpha) {
+            var mesh = new BABYLON.Mesh('asLaneLine', scene);
+            var positions = new Float32Array((segs + 1) * 2 * 3);
+            var indices = [];
+            for (var i = 0; i < segs; i++) {
+                var a = i * 2, b = a + 1, c = a + 2, d = a + 3;
+                indices.push(a, b, c, b, d, c);
+            }
+            mesh.setVerticesData(BABYLON.VertexBuffer.PositionKind, positions, true);
+            mesh.setIndices(indices);
+            var mat = new BABYLON.StandardMaterial('asLaneLineMat' + width, scene);
+            mat.emissiveColor = new BABYLON.Color3(0.10, 0.52, 1.0);
+            mat.diffuseColor = new BABYLON.Color3(0, 0, 0);
+            mat.specularColor = new BABYLON.Color3(0, 0, 0);
+            mat.disableLighting = true;
+            mat.alpha = alpha;
+            mat.backFaceCulling = false;
+            mat.fogEnabled = false;
+            mesh.material = mat;
+            mesh.isPickable = false;
+            mesh.alwaysSelectAsActiveMesh = true;
+            mesh.isVisible = false;
+            return { mesh: mesh, positions: positions, width: width };
+        }
+        // inner core + soft outer glow, one pair per lane edge
+        asLaneLines = {
+            segs: segs,
+            lines: [
+                [makeLine(0.13, 0.92), makeLine(0.13, 0.92)],
+                [makeLine(0.34, 0.10), makeLine(0.34, 0.10)]
+            ]
+        };
+    }
+
+    function updateAsLaneLines() {
+        if (!asLaneLines || !chassis) return;
+        var show = autoSteer && !garage && !runOver;
+        for (var g = 0; g < 2; g++) {
+            asLaneLines.lines[g][0].mesh.isVisible = show;
+            asLaneLines.lines[g][1].mesh.isVisible = show;
+        }
+        if (!show) return;
+        var p = chassis.translation();
+        var behind = 16, ahead = 155, half = 2.22;
+        for (var g2 = 0; g2 < 2; g2++) {
+            for (var side = 0; side < 2; side++) {
+                var line = asLaneLines.lines[g2][side];
+                var centre = autoOffset + (side === 0 ? -half : half);
+                var pos = line.positions;
+                var hw = line.width * 0.5;
+                for (var i = 0; i <= asLaneLines.segs; i++) {
+                    var t = i / asLaneLines.segs;
+                    var z = p.z - behind + t * (ahead + behind);
+                    var x = highwayCurveX(z) + centre;
+                    var o = i * 6;
+                    pos[o] = x - hw;
+                    pos[o + 1] = 0.055;
+                    pos[o + 2] = z;
+                    pos[o + 3] = x + hw;
+                    pos[o + 4] = 0.055;
+                    pos[o + 5] = z;
+                }
+                line.mesh.setVerticesData(BABYLON.VertexBuffer.PositionKind, pos, true);
+            }
+        }
+    }
+
     function createMotionBlur() {
         if (!BABYLON.Effect.ShadersStore['lessfunMotionBlurFragmentShader']) {
             BABYLON.Effect.ShadersStore['lessfunMotionBlurFragmentShader'] =
@@ -3034,6 +3106,7 @@
             glowLayer = new BABYLON.GlowLayer('racerGlow', scene, { mainTextureRatio: isLowPower() ? 0.35 : 0.5 });
             glowLayer.intensity = 0.72;
         } catch (e) {}
+        createAsLaneLines();
         createMotionBlur();
         createVhs();
         camPos = new BABYLON.Vector3(0, 4.2, -11);
@@ -3940,6 +4013,7 @@
         updateAudio();
         updateTraining();
         updateCamera(dt);
+        updateAsLaneLines();
         updateHud(dt);
         if (scene) scene.render();
     }
@@ -4292,6 +4366,7 @@
         wallImpactCool = 0;
         motionBlurPost = null;
         vhsPost = null;
+        asLaneLines = null;
         glowLayer = null;
         powerShakeLevel = 0;
         camPos = null;
