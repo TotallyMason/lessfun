@@ -3348,8 +3348,8 @@
         } else {
             coastHold += dt; accelHold = 0; brakeHold = 0;
         }
-        if (accelHold >= 5 || brakeHold >= 5) heatMode = 'heating';
-        if (coastHold >= 5) heatMode = 'cooling';
+        if (accelHold >= 10 || brakeHold >= 10) heatMode = 'heating';
+        if (coastHold >= 2) heatMode = 'cooling';
 
         var lateralLoad = Math.abs(steerVisual) * forwardSpeed;
         if (heatMode === 'heating') {
