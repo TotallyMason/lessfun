@@ -73,6 +73,7 @@
     var autoLeadGap = 0, autoLeadSpeed = 0, autoTgrip = 1, autoCurveSlow = 0;
     var asLaneLines = null, asGuideOffset = 0;
     var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.85, baseGrip = 3.85, tyreHeat = 0;
+    var engineDamage = 0, transDamage = 0, bodyDamage = 0;
     var heatMode = 'idle', accelHold = 0, brakeHold = 0, coastHold = 0;
     var laneCenters = [-11.25, -6.75, -2.25, 2.25, 6.75, 11.25];
     var traffic = [], coinPickups = [], trafficTimer = 0;
@@ -1281,6 +1282,9 @@
         manualGearTimer = 0;
         revLevel = 0;
         tyreHeat = 0;
+        engineDamage = 0;
+        transDamage = 0;
+        bodyDamage = 0;
         heatMode = 'idle';
         accelHold = 0;
         brakeHold = 0;
@@ -1706,6 +1710,12 @@
                 // back while keeping most of its forward momentum.
                 var v = chassis.linvel();
                 var closing = Math.max(0, displaySpeed - car.speed);
+                if (closing > 3) {
+                    var hitDmg = Math.min(0.30, closing * 0.008);
+                    bodyDamage = Math.min(1, bodyDamage + hitDmg);
+                    engineDamage = Math.min(1, engineDamage + hitDmg * 0.45);
+                    transDamage = Math.min(1, transDamage + hitDmg * 0.25);
+                }
                 var dirX = p.x >= car.root.position.x ? 1 : -1;
                 var lateralKick = Math.min(16, 4.5 + closing * 0.45);
                 var forwardKeep = Math.max(0.76, 1 - Math.min(0.22, 0.07 + closing * 0.003));
@@ -3404,6 +3414,8 @@
             brakeForce = 30 + Math.abs(Math.sin(performance.now() * 0.043)) * 14;
         }
 
+        if (engineRpm > 7350 && currentGear === 'D') transDamage = Math.min(1, transDamage + dt * 0.12);
+        engineForce *= (1 - engineDamage * 0.30 - transDamage * 0.15);
         var steerMax = 0.46 - Math.min(0.36, forwardSpeed / 150);
         var steerTarget = 0;
         // With autosteer engaged the keys are lane requests only — they never
@@ -4128,7 +4140,7 @@
                     needle: document.getElementById('g3dNeedle'),
                     tach: document.getElementById('g3dTach')
                 };
-                ['abs','brake','eng','trans','tire','dmg'].forEach(function (name) {
+                ['abs','brake','eng','trans','tire','dmg','as','fcw','tc','esc','grip','high','light'].forEach(function (name) {
                     hudCache.warn[name] = document.querySelector('.g3d-warn[data-warn="' + name + '"]');
                 });
             }
@@ -4138,6 +4150,51 @@
             if (brake) brake.classList.toggle('is-on', !!input.brake);
             var absLight = hudCache.warn.abs;
             if (absLight) absLight.classList.toggle('is-on', !!absActive);
+
+            // ---- Extra telltales ----
+            var pW = chassis ? chassis.translation() : null;
+            var vW = chassis ? chassis.linvel() : null;
+            var spdW = vW ? Math.hypot(vW.x, vW.z) : 0;
+
+            var fcwOn = false;
+            if (pW && spdW > 3) {
+                for (var ti = 0; ti < traffic.length; ti++) {
+                    var tcCar = traffic[ti];
+                    if (!tcCar || !tcCar.root || !tcCar.root.isEnabled()) continue;
+                    var dzT = tcCar.root.position.z - pW.z;
+                    if (dzT <= 0 || dzT > 50) continue;
+                    if (Math.abs(tcCar.root.position.x - pW.x) > 2.6) continue;
+                    var closingW = spdW - (tcCar.speed || 0);
+                    var ttc = closingW > 0.5 ? dzT / closingW : 99;
+                    if (ttc < 1.9 || dzT < 9) { fcwOn = true; break; }
+                }
+            }
+            var escOn = false;
+            if (pW && vW && spdW > 6) {
+                var rW = chassis.rotation();
+                var yawW = Math.atan2(2 * (rW.w * rW.y + rW.x * rW.z), 1 - 2 * (rW.y * rW.y + rW.z * rW.z));
+                var slipW = Math.atan2(vW.x, vW.z) - yawW;
+                while (slipW > Math.PI) slipW -= Math.PI * 2;
+                while (slipW < -Math.PI) slipW += Math.PI * 2;
+                escOn = Math.abs(slipW) > 0.18;
+            }
+            var tcOn = slipAmount > 0.22 || (input.throttle && displaySpeed < 9 && engineRpm > 3600);
+            var warnSet = {
+                eng: engineDamage > 0.28,
+                trans: transDamage > 0.28,
+                dmg: bodyDamage > 0.28,
+                as: !!autoSteer,
+                fcw: fcwOn,
+                tc: tcOn,
+                esc: escOn,
+                grip: tyreHeat > 0.45,
+                high: !!headlightsOn,
+                light: !headlightsOn && tunnelDark > 0.22
+            };
+            Object.keys(warnSet).forEach(function (name) {
+                var el = hudCache.warn[name];
+                if (el) el.classList.toggle('is-on', warnSet[name]);
+            });
         }
     }
 

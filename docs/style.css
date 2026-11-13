@@ -13512,3 +13512,23 @@ body.battery-saver .site-snow{display:none}
 @media (max-width: 640px) {
     .g3d-as-status { top: 96px; font-size: 8px; padding: 5px 10px; }
 }
+
+/* Extra telltale colours */
+.g3d-warn[data-warn="as"].is-on {
+    background: #66e0a3; border-color: rgba(102, 224, 163, 0.75) !important;
+    box-shadow: 0 0 8px rgba(102, 224, 163, 0.55);
+}
+.g3d-warn[data-warn="high"].is-on {
+    background: #7fc4ff; border-color: rgba(127, 196, 255, 0.8) !important;
+    box-shadow: 0 0 8px rgba(127, 196, 255, 0.55);
+}
+.g3d-warn[data-warn="fcw"].is-on {
+    background: #ff4a5c; border-color: #ff4a5c;
+}
+.g3d-warn[data-warn="tc"].is-on,
+.g3d-warn[data-warn="esc"].is-on,
+.g3d-warn[data-warn="grip"].is-on,
+.g3d-warn[data-warn="light"].is-on {
+    background: #ffd166; border-color: #ffd166;
+}
+.g3d-cluster-warnings .g3d-warn { font-size: 4.6px; padding: 1px 2.4px; }

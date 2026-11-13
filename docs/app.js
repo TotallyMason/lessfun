@@ -1556,6 +1556,13 @@ function openGameNow(id) {
                                 '<span class="g3d-warn" data-warn="trans">TRANS</span>' +
                                 '<span class="g3d-warn" data-warn="tire">TIRE</span>' +
                                 '<span class="g3d-warn" data-warn="dmg">DMG</span>' +
+                                '<span class="g3d-warn" data-warn="as">AS</span>' +
+                                '<span class="g3d-warn" data-warn="fcw">FCW</span>' +
+                                '<span class="g3d-warn" data-warn="tc">TC</span>' +
+                                '<span class="g3d-warn" data-warn="esc">ESC</span>' +
+                                '<span class="g3d-warn" data-warn="grip">GRIP</span>' +
+                                '<span class="g3d-warn" data-warn="high">HIGH</span>' +
+                                '<span class="g3d-warn" data-warn="light">LIGHTS</span>' +
                             '</div>' +
                             '<div class="g3d-cluster-gearline"><b id="g3dGaugeGearBig">1</b><span>GEAR</span></div>' +
                             '<div class="g3d-cluster-core"><span>NOS <b id="g3dGaugeNitro">100%</b></span></div>' +
@@ -9393,7 +9400,7 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.59";
+const APP_VERSION = "LessFun Public Beta 27.2.60";
 const UPDATE_NOTES = "Warning lights moved directly under the km/h readout";
 
 let updateShutdownTimer = 0;
