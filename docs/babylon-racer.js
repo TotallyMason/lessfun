@@ -3511,7 +3511,7 @@
             // Throttle/brake deliberately do NOT reset this: only steering
             // input proves the driver is holding the wheel. Wall-clock time
             // means the nudge still arrives after 5 s at any frame rate.
-            if (input.left || input.right || input.pointerActive) autoLastSteerAt = performance.now();
+            if (input.left || input.right || input.pointerActive || input.throttle || input.brake || input.drift) autoLastSteerAt = performance.now();
             autoNudge = autoLastSteerAt > 0 && performance.now() - autoLastSteerAt > 5000 && autoOverride < 0.15;
             autoWasOn = true;
 
