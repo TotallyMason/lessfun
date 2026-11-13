@@ -3837,7 +3837,10 @@
             chassis.setLinvel({ x: 0, y: 0, z: 0 }, true);
             resetRunWorld();
         }
-        if (t.y < -3 || Math.abs(t.x) > 60 || t.z < -20) resetCar(false);
+        // Use distance from the road centre, not raw world X, so the stronger
+        // curves never trigger a false "off the map" reset.
+        var roadOffset = t.x - highwayCurveX(t.z);
+        if (t.y < -3 || Math.abs(roadOffset) > ROAD_WIDTH / 2 + 26 || t.z < -20) resetCar(false);
         var q = chassis.rotation();
         var upY = 1 - 2 * (q.x * q.x + q.z * q.z);
         if (upY < 0.25 && displaySpeed < 3.0) {
