@@ -9383,8 +9383,8 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.31";
-const UPDATE_NOTES = "Ads now show the car from your garage, with its real rendered 3D photo, paint, specs and $ price — and the highway is wider";
+const APP_VERSION = "LessFun Public Beta 27.2.32";
+const UPDATE_NOTES = "Tyre temperature: hard driving heats the tyres and gradually costs grip, with the TIRE light at high heat";
 
 let updateShutdownTimer = 0;
 let updateSnoozeUntil = 0;

@@ -61,7 +61,7 @@
     var rainSystem = null, rainIntensity = 0, rainTarget = 0, weatherTimer = 25, rainChip = null;
     var tunnels = [], tunnelDark = 0, baseSunIntensity = 0.62, hemi = null;
     var autoSteer = false, autoLane = 3, autoLaneTimer = 0, autoPrevLeft = false, autoPrevRight = false, autoLaneFlash = 0, autoOffset = 1.83, autoDesired = 0;
-    var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.85, baseGrip = 3.85;
+    var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.85, baseGrip = 3.85, tyreHeat = 0;
     var laneCenters = [-11.25, -6.75, -2.25, 2.25, 6.75, 11.25];
     var traffic = [], coinPickups = [], trafficTimer = 0;
     var remoteRacers = {}, localRacerName = '';
@@ -1234,6 +1234,7 @@
         gearIndex = 1;
         manualGearTimer = 0;
         revLevel = 0;
+        tyreHeat = 0;
         gearShiftTimer = 0;
         pendingGear = null;
         pendingGearIndex = null;
@@ -3333,6 +3334,15 @@
         vehicle.setWheelEngineForce(2, rearForce);
         vehicle.setWheelEngineForce(3, rearForce);
 
+        // Tyre heat: builds with speed, cornering load, drift and hard braking.
+        var lateralLoad = Math.abs(steerVisual) * forwardSpeed;
+        var heatRate = forwardSpeed * 0.0055 + lateralLoad * 0.0042;
+        if (input.drift) heatRate += 0.09;
+        if (brake && forwardSpeed > 12) heatRate += 0.05;
+        if (throttle && forwardSpeed < driveMaxSpeed * 0.25) heatRate += 0.03;
+        tyreHeat = clamp(tyreHeat + heatRate * dt, 0, 1);
+        var tyreGripFactor = 1 - tyreHeat * 0.30;
+
         // Stability assist: braking while turning used to spin the car. Add grip
         // and damp the yaw rate so it tracks the corner instead of snapping.
         var stability = 0;
@@ -3342,7 +3352,7 @@
         for (var i = 0; i < 4; i++) {
             vehicle.setWheelBrake(i, brakeForce);
             var rear = i >= 2;
-            var slip = input.drift && rear ? 0.95 : driveGrip;
+            var slip = input.drift && rear ? 0.95 : driveGrip * tyreGripFactor;
             if (stability > 0) slip *= 1 + stability * 0.45;
             vehicle.setWheelFrictionSlip(i, slip);
         }
@@ -3657,6 +3667,8 @@
             }
             var tachEl = document.getElementById('g3dTach');
             if (tachEl) tachEl.classList.toggle('is-booting', booting);
+            var tyreWarn = document.querySelector('.g3d-warn[data-warn="tire"]');
+            if (tyreWarn) tyreWarn.classList.toggle('is-on', tyreHeat > 0.65);
             var brake = document.querySelector('.g3d-warn[data-warn="brake"]');
             if (brake) brake.classList.toggle('is-on', !!input.brake);
             var absLight = document.querySelector('.g3d-warn[data-warn="abs"]');
@@ -4501,6 +4513,7 @@
             return { x: p.x, z: p.z, offset: offset, lane: autoLane, laneCenter: laneCenters[autoLane], steer: steerVisual, auto: autoSteer };
         },
         getWeather: function () { return { rain: rainIntensity }; },
+        getTyreHeat: function () { return tyreHeat; },
         suspendResources: suspendResources,
         resumeResources: resumeResources,
         captureGaragePhoto: captureGaragePhoto,
