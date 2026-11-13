@@ -32,7 +32,7 @@
     function highwayCurveX(z) {
         var d = z - START_Z;
         // Gentle sweeping curves: clearly curved, without the snake-like feel.
-        return Math.sin(d / 600) * 22.0 + Math.sin(d / 260) * 5.5;
+        return Math.sin(d / 700) * 18.0 + Math.sin(d / 300) * 4.5;
     }
     var smokeTexture = null, driftSmoke = null, driftEmitter = null;
     var isSanta = false, flyTime = 0, flyCooldown = 0;
@@ -70,7 +70,7 @@
     var autoLeftHold = 0, autoRightHold = 0, autoNextPlan = 0, autoOvertake = false, autoReturnLane = 0;
     var autoBlockedTimer = 0, autoStatusText = '';
     var autoTapRequest = 0, autoLastSteerAt = 0, autoSteerDownAt = { left: 0, right: 0 }, autoWasOn = false;
-    var autoLeadGap = 0, autoLeadSpeed = 0, autoTgrip = 1;
+    var autoLeadGap = 0, autoLeadSpeed = 0, autoTgrip = 1, autoCurveSlow = 0;
     var asLaneLines = null, asGuideOffset = 0;
     var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.85, baseGrip = 3.85, tyreHeat = 0;
     var heatMode = 'idle', accelHold = 0, brakeHold = 0, coastHold = 0;
@@ -3512,6 +3512,7 @@
 
         if (!autoSteer) {
             autoWasOn = false;
+            autoCurveSlow = 0;
             autoHands = 0; autoNudge = false; autoOverride = 0; autoRecover = 0;
             autoSignalTimer = 0; autoSignal = 0; autoPendingLane = -1;
             autoChanging = false; autoChangeT = 1;
@@ -3670,31 +3671,28 @@
                     var ang = chassis.angvel();
                     try { chassis.setAngvel({ x: ang.x, y: ang.y * (1 - Math.min(0.6, dt * 5.0)), z: ang.z }, true); } catch (e) {}
                 } else {
-                    var look = clamp(10 + forwardSpeed * 0.85, 12, 40);
-                    var lookZ = pos.z + look;
-                    var roadYawNow = Math.atan2(highwayCurveX(pos.z + 16) - highwayCurveX(pos.z), 16);
-                    var roadYawLook = Math.atan2(highwayCurveX(lookZ) - highwayCurveX(lookZ - 16), 16);
-                    var targetX = clamp(highwayCurveX(lookZ) + autoOffset,
-                        highwayCurveX(lookZ) - asEdge, highwayCurveX(lookZ) + asEdge);
-                    var lateral = (targetX - pos.x) * Math.cos(yaw) - (lookZ - pos.z) * Math.sin(yaw);
-                    var headingErr = asWrap(roadYawLook - yaw);
+                    // Direct lane-error + road-heading control. This tracks the
+                    // lane itself rather than a distant pursuit point, so bends
+                    // cannot open up a gap before the wheel reacts.
+                    var laneErr = laneCenters[autoLane] - offsetNow;
+                    var roadYawNow = Math.atan2(highwayCurveX(pos.z + 14) - highwayCurveX(pos.z - 14), 28);
+                    var roadYawAhead = Math.atan2(highwayCurveX(pos.z + 30) - highwayCurveX(pos.z - 30), 60);
+                    var desiredHeading = roadYawNow + clamp(laneErr * 0.065, -0.24, 0.24);
+                    var headingErr = asWrap(desiredHeading - yaw);
                     var yawRate = chassis.angvel().y;
-                    var authority = clamp(1.18 - forwardSpeed / 100, 0.45, 1.0);
-                    var curvature = asWrap(roadYawLook - roadYawNow) / Math.max(8, look * 0.6);
+                    var curvature = asWrap(roadYawAhead - roadYawNow) / 30;
                     var steerFF = Math.atan(2.75 * curvature) / Math.max(0.2, steerMax);
-                    // Match the yaw rate the bend actually needs instead of
-                    // only reacting after the car has already drifted wide.
-                    var desiredYawRate = forwardSpeed * curvature;
-                    var steerCmd = lateral * 0.22 * authority
-                        + headingErr * 1.15
-                        + (desiredYawRate - yawRate) * 0.45
-                        + steerFF;
+                    var steerCmd = headingErr * 2.1 - yawRate * 0.34 + steerFF;
 
                     // Never ask the tyres for more lateral grip than they have.
-                    var maxLat = 7.4 * asGrip * (autoRecover > 0 ? 0.62 : 1);
+                    var maxLat = 8.5 * asGrip * (autoRecover > 0 ? 0.62 : 1);
                     var latCap = Math.atan(2.75 * maxLat / Math.max(30, forwardSpeed * forwardSpeed));
-                    var cmdCap = clamp(latCap / Math.max(0.2, steerMax), 0.14, 1);
+                    var cmdCap = clamp(latCap / Math.max(0.2, steerMax), 0.18, 1);
                     steerCmd = clamp(steerCmd, -cmdCap, cmdCap);
+                    // If it is being asked to correct hard, shed a little speed
+                    // so the front tyres can actually deliver the turn.
+                    if (Math.abs(laneErr) > 2.2) autoCurveSlow = 1;
+                    else if (Math.abs(laneErr) < 0.8) autoCurveSlow = 0;
 
                     // Barrier corridor: push back toward the road if drifting out.
                     if (asBarrier) {
@@ -3710,6 +3708,7 @@
             autoLeadGap = 0; autoLeadSpeed = 0;
             var leadS = asLead(autoLane, -4, 110);
             var targetSpeed = autoDesired;
+            if (autoCurveSlow) targetSpeed = Math.min(targetSpeed, driveMaxSpeed * 0.78);
             if (autoRecover > 0) targetSpeed = Math.min(targetSpeed, driveMaxSpeed * 0.55);
             targetSpeed *= (0.78 + 0.22 * asGrip);
             if (asBarrier) targetSpeed = Math.min(targetSpeed, driveMaxSpeed * 0.55);
