@@ -4170,15 +4170,16 @@
                 }
             }
             var escOn = false;
+            var slipW = 0;
             if (pW && vW && spdW > 6) {
                 var rW = chassis.rotation();
                 var yawW = Math.atan2(2 * (rW.w * rW.y + rW.x * rW.z), 1 - 2 * (rW.y * rW.y + rW.z * rW.z));
-                var slipW = Math.atan2(vW.x, vW.z) - yawW;
+                slipW = Math.atan2(vW.x, vW.z) - yawW;
                 while (slipW > Math.PI) slipW -= Math.PI * 2;
                 while (slipW < -Math.PI) slipW += Math.PI * 2;
                 escOn = Math.abs(slipW) > 0.11;
             }
-            var tcOn = slipAmount > 0.14 || (input.throttle && displaySpeed < 12 && engineRpm > 3000);
+            var tcOn = Math.abs(slipW) > 0.08 || (input.throttle && displaySpeed < 12 && engineRpm > 3000) || (input.drift && displaySpeed > 8);
             var warnSet = {
                 eng: engineDamage > 0.08,
                 trans: transDamage > 0.08,
