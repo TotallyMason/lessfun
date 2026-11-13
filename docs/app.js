@@ -964,6 +964,11 @@ function openGarageStore() {
     showView('garage');
 }
 
+window.mobileSteer = function (dir, on) {
+    if (!window.Games3D || !window.Games3D.setMobileMove) return;
+    window.Games3D.setMobileMove(on ? dir : 0);
+};
+
 function mobileHold(control, on) {
     if (!window.Games3D) return;
     if (control === 'nitro' && window.Games3D.setNitro) window.Games3D.setNitro(!!on);
@@ -1523,6 +1528,7 @@ function openGameNow(id) {
             '</div>' +
             '<div id="g3dCanvas" class="game3d-canvas"></div>' +
             (game.id === 1 ? '<div class="g3d-fps" id="g3dFps" aria-hidden="true">-- FPS</div>' : '') +
+            (game.id === 1 ? '<div class="g3d-mobile-speed" id="g3dMobileSpeed"><b id="g3dMSpeed">0</b><span>km/h</span><em id="g3dMGear">1</em></div>' : '') +
 
             (game.id === 1 ?
                 '<div class="g3d-gauges" id="g3dGauges">' +
@@ -1636,9 +1642,11 @@ function openGameNow(id) {
                     '<div class="game3d-pedal-row"><span>THR</span><div class="game3d-pedal-track is-throttle"><i id="g3dThrottleFill"></i></div></div>' +
                     '<div class="game3d-pedal-row"><span>BRK</span><div class="game3d-pedal-track is-brake"><i id="g3dBrakeFill"></i></div></div>' +
                 '</div>' : '') +
-            (game.hasThrottle && game.id !== 4 ?
+            ((game.id === 1 || game.id === 4) ?
                 '<div class="game3d-touch-controls">' +
-                    '<button type="button" class="game3d-touch-btn is-nitro" onpointerdown="event.preventDefault();mobileHold(\'nitro\',true)" onpointerup="mobileHold(\'nitro\',false)" onpointercancel="mobileHold(\'nitro\',false)" onpointerleave="mobileHold(\'nitro\',false)">NOS</button>' +
+                    '<button type="button" class="game3d-touch-btn is-steer is-steer-left" aria-label="Steer left" onpointerdown="event.preventDefault();mobileSteer(-1,true)" onpointerup="mobileSteer(-1,false)" onpointercancel="mobileSteer(-1,false)" onpointerleave="mobileSteer(-1,false)">‹</button>' +
+                    '<button type="button" class="game3d-touch-btn is-steer is-steer-right" aria-label="Steer right" onpointerdown="event.preventDefault();mobileSteer(1,true)" onpointerup="mobileSteer(1,false)" onpointercancel="mobileSteer(1,false)" onpointerleave="mobileSteer(1,false)">›</button>' +
+                    (game.id === 1 ? '<button type="button" class="game3d-touch-btn is-nitro" onpointerdown="event.preventDefault();mobileHold(\'nitro\',true)" onpointerup="mobileHold(\'nitro\',false)" onpointercancel="mobileHold(\'nitro\',false)" onpointerleave="mobileHold(\'nitro\',false)">NOS</button>' : '') +
                 '</div>' : '') +
             '<button class="game3d-msg-btn" id="g3dMsgBtn" type="button" onclick="toggleDmSidebar()">Messages</button>' +
 
@@ -9385,7 +9393,7 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.45";
+const APP_VERSION = "LessFun Public Beta 27.2.46";
 const UPDATE_NOTES = "Warning lights moved directly under the km/h readout";
 
 let updateShutdownTimer = 0;
@@ -12413,149 +12421,6 @@ function radioPresenceConnect() {
     return radioPresenceChannel;
 }
 
-
-/* ============================================================
-   Always-on display — after 10 s with no input the screen fades
-   into a quiet lock-screen clock. The wallpaper is drawn for the
-   device you are on (tall phones vs wide desktops).
-   ============================================================ */
-var aodTimer = 0;
-var aodOpen = false;
-var aodClockTimer = 0;
-var IDLE_AOD_DELAY = 10000;
-var AOD_LOCK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V7a5 5 0 0 1 10 0v3" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><rect x="4.4" y="10" width="15.2" height="10.6" rx="3.1" fill="currentColor"/></svg>';
-var AOD_HEAD_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14v-2a8 8 0 0 1 16 0v2" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/><rect x="2.6" y="13.4" width="4.3" height="6.6" rx="2.1" fill="currentColor"/><rect x="17.1" y="13.4" width="4.3" height="6.6" rx="2.1" fill="currentColor"/></svg>';
-var AOD_RING_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.6" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".85"/><circle cx="12" cy="12" r="5.6" fill="none" stroke="currentColor" stroke-width="1.7" opacity=".7"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></svg>';
-
-function aodMoonInfo(now) {
-    var synodic = 29.530588853;
-    var known = Date.UTC(2000, 0, 6, 18, 14) / 86400000;
-    var days = now.getTime() / 86400000 - known;
-    var age = ((days % synodic) + synodic) % synodic;
-    var frac = age / synodic;
-    var illum = Math.round((1 - Math.cos(frac * Math.PI * 2)) / 2 * 100);
-    var names = ['New Moon', 'Waxing Crescent', 'First Quarter', 'Waxing Gibbous',
-                 'Full Moon', 'Waning Gibbous', 'Last Quarter', 'Waning Crescent'];
-    var idx = Math.round(frac * 8) % 8;
-    var toFull = ((0.5 - frac + 1) % 1) * synodic;
-    return { name: names[idx], illum: illum, toFull: Math.max(1, Math.round(toFull)), frac: frac };
-}
-
-function aodUpdateClock() {
-    var now = new Date();
-    var dateEl = document.getElementById('aodDate');
-    var timeEl = document.getElementById('aodTime');
-    if (dateEl) {
-        dateEl.textContent = now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
-    }
-    if (timeEl) {
-        var hours = now.getHours() % 12;
-        if (hours === 0) hours = 12;
-        timeEl.textContent = hours + ':' + String(now.getMinutes()).padStart(2, '0');
-    }
-    var moon = aodMoonInfo(now);
-    var nameEl = document.getElementById('aodMoonName');
-    var riseEl = document.getElementById('aodMoonRise');
-    var nextEl = document.getElementById('aodMoonNext');
-    var shade = document.getElementById('aodMoonShade');
-    if (nameEl) nameEl.textContent = moon.name;
-    if (riseEl) riseEl.textContent = 'Light ' + moon.illum + '%';
-    if (nextEl) nextEl.textContent = 'FULL MOON IN ' + moon.toFull + (moon.toFull === 1 ? ' DAY' : ' DAYS');
-    if (shade) shade.style.transform = 'translateX(' + Math.round((moon.illum / 100) * 200) + '%)';
-}
-
-function aodBuild() {
-    if (document.getElementById('aodOverlay')) return;
-    var ov = document.createElement('div');
-    ov.id = 'aodOverlay';
-    ov.setAttribute('aria-hidden', 'true');
-    ov.innerHTML =
-        '<div class="aod-wall" aria-hidden="true">' +
-            '<span class="aod-wall-sky"></span>' +
-            '<span class="aod-wall-glow"></span>' +
-            '<span class="aod-wall-stars"></span>' +
-            '<span class="aod-wall-grid"></span>' +
-            '<span class="aod-wall-road"><i></i></span>' +
-            '<span class="aod-wall-car">' +
-                '<i class="aod-car-glow"></i>' +
-                '<i class="aod-car-body"></i>' +
-                '<i class="aod-car-hood"></i>' +
-                '<i class="aod-car-cabin"></i>' +
-                '<i class="aod-car-wing"></i>' +
-                '<i class="aod-wheel aod-wheel-f"></i>' +
-                '<i class="aod-wheel aod-wheel-r"></i>' +
-            '</span>' +
-            '<span class="aod-wall-brand">LESSFUN</span>' +
-        '</div>' +
-        '<div class="aod-ui">' +
-            '<div class="aod-status"><span class="aod-lock">' + AOD_LOCK_SVG + '</span></div>' +
-            '<div class="aod-date" id="aodDate"></div>' +
-            '<div class="aod-time" id="aodTime">9:41</div>' +
-            '<div class="aod-widgets">' +
-                '<div class="aod-moon">' +
-                    '<span class="aod-moon-orb"><i id="aodMoonShade"></i></span>' +
-                    '<div class="aod-moon-copy">' +
-                        '<span id="aodMoonName">Waxing Gibbous</span>' +
-                        '<span id="aodMoonRise">Light 62%</span>' +
-                        '<b id="aodMoonNext">FULL MOON IN 8 DAYS</b>' +
-                    '</div>' +
-                '</div>' +
-                '<span class="aod-bubble aod-bubble-a">' + AOD_HEAD_SVG + '</span>' +
-                '<span class="aod-bubble aod-bubble-b">' + AOD_RING_SVG + '</span>' +
-            '</div>' +
-            '<div class="aod-hint">move or press a key to wake</div>' +
-            '<div class="aod-home"></div>' +
-        '</div>';
-    document.body.appendChild(ov);
-}
-
-function aodShow() {
-    aodBuild();
-    var ov = document.getElementById('aodOverlay');
-    if (!ov) return;
-    aodOpen = true;
-    aodUpdateClock();
-    ov.classList.add('is-on');
-    ov.setAttribute('aria-hidden', 'false');
-    if (aodClockTimer) clearInterval(aodClockTimer);
-    aodClockTimer = setInterval(aodUpdateClock, 1000);
-}
-
-function aodHide() {
-    aodOpen = false;
-    if (aodClockTimer) { clearInterval(aodClockTimer); aodClockTimer = 0; }
-    var ov = document.getElementById('aodOverlay');
-    if (ov) {
-        ov.classList.remove('is-on');
-        ov.setAttribute('aria-hidden', 'true');
-    }
-}
-
-function aodArm() {
-    if (aodTimer) clearTimeout(aodTimer);
-    aodTimer = setTimeout(function () {
-        aodTimer = 0;
-        aodShow();
-    }, IDLE_AOD_DELAY);
-}
-
-function aodActivity() {
-    if (aodOpen) aodHide();
-    aodArm();
-}
-
-['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart', 'pointerdown'].forEach(function (evt) {
-    document.addEventListener(evt, aodActivity, { passive: true });
-});
-document.addEventListener('visibilitychange', function () {
-    if (document.hidden) {
-        if (aodTimer) { clearTimeout(aodTimer); aodTimer = 0; }
-        if (aodOpen) aodHide();
-    } else {
-        aodArm();
-    }
-});
-aodArm();
 
 /* ============================================================
    What's New — full release history sheet

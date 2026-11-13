@@ -30,6 +30,7 @@
     var hudTimer = 0;
 
     var sim = {};
+    var viewMode = 'side';
 
     function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
     function lerp(a, b, t) { return a + (b - a) * t; }
@@ -628,6 +629,11 @@
         ctx.clearRect(0, 0, W, H);
         ctx.save();
         ctx.translate(shakeX, shakeY);
+        if (viewMode === 'cockpit') {
+            drawCockpitView();
+            ctx.restore();
+            return;
+        }
         drawSky();
         drawGround();
         drawRunway();
@@ -637,6 +643,198 @@
         drawAircraft();
         drawParticles(false);
         ctx.restore();
+    }
+
+    /* ---------------- cockpit / first-person view ---------------- */
+    function cockpitProject(x, y, z) {
+        var depth = x - sim.x;
+        if (depth < 1.2) return null;
+        var focal = H * 1.12;
+        var horizon = H * 0.52 + Math.tan(sim.pitch) * focal;
+        return {
+            x: W * 0.5 + (z * focal) / depth,
+            y: horizon - ((y - (sim.y + 1.9)) * focal) / depth,
+            d: depth
+        };
+    }
+
+    function projectQuad(pts, fill, stroke) {
+        var p = [];
+        for (var i = 0; i < pts.length; i++) {
+            var q = cockpitProject(pts[i][0], pts[i][1], pts[i][2]);
+            if (!q) return;
+            p.push(q);
+        }
+        ctx.beginPath();
+        ctx.moveTo(p[0].x, p[0].y);
+        for (var j = 1; j < p.length; j++) ctx.lineTo(p[j].x, p[j].y);
+        ctx.closePath();
+        if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+        if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
+    }
+
+    function drawCockpitView() {
+        var horizon = clamp(H * 0.52 + Math.tan(sim.pitch) * H * 1.12, H * 0.26, H * 0.78);
+        var gy = sim.y;
+
+        // sky
+        var sky = ctx.createLinearGradient(0, 0, 0, horizon);
+        sky.addColorStop(0, '#071226');
+        sky.addColorStop(0.45, '#173452');
+        sky.addColorStop(0.82, '#736079');
+        sky.addColorStop(1, '#dca078');
+        ctx.fillStyle = sky;
+        ctx.fillRect(0, 0, W, Math.max(1, horizon));
+
+        // ground / coastal plain
+        var grd = ctx.createLinearGradient(0, horizon, 0, H);
+        grd.addColorStop(0, '#39403a');
+        grd.addColorStop(0.35, '#232c23');
+        grd.addColorStop(1, '#0c120e');
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, horizon, W, H - horizon);
+
+        // distant city silhouette
+        ctx.fillStyle = 'rgba(10, 18, 24, 0.75)';
+        for (var i = 0; i < 30; i++) {
+            var bw = 10 + ((i * 29) % 26);
+            var bh = 6 + ((i * 17) % 26);
+            var bx = (i * 57 + 20) % (W + 80) - 40;
+            ctx.fillRect(bx, horizon - bh, bw, bh + 1);
+        }
+
+        // runway surface (world x >= 0)
+        var startX = Math.max(0, sim.x + 2);
+        var farX = sim.x + 2600;
+        if (farX > startX) {
+            var l = -22.5, r = 22.5;
+            projectQuad([[startX, 0, l], [farX, 0, l], [farX, 0, r], [startX, 0, r]], '#1a1d21');
+            projectQuad([[startX, 0, l - 3.2], [farX, 0, l - 3.2], [farX, 0, l], [startX, 0, l]], '#2a3028');
+            projectQuad([[startX, 0, r], [farX, 0, r], [farX, 0, r + 3.2], [startX, 0, r + 3.2]], '#2a3028');
+
+            // centreline dashes
+            ctx.fillStyle = 'rgba(232, 238, 242, 0.42)';
+            var cx0 = Math.ceil(startX / 32) * 32;
+            for (var cx = cx0; cx < startX + 1400; cx += 32) {
+                var p1 = cockpitProject(cx, 0.02, -0.9);
+                var p2 = cockpitProject(cx + 15, 0.02, -0.9);
+                var p3 = cockpitProject(cx + 15, 0.02, 0.9);
+                var p4 = cockpitProject(cx, 0.02, 0.9);
+                if (!p1 || !p2 || !p3 || !p4) continue;
+                ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.lineTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y); ctx.closePath(); ctx.fill();
+            }
+
+            // threshold piano keys
+            if (sim.x < 260) {
+                for (var k = 0; k < 8; k++) {
+                    var z0 = -20 + k * 5.1;
+                    projectQuad([[0, 0.03, z0], [16, 0.03, z0], [16, 0.03, z0 + 2.6], [0, 0.03, z0 + 2.6]],
+                        k % 2 ? 'rgba(238, 243, 246, 0.72)' : 'rgba(238, 243, 246, 0.28)');
+                }
+            }
+
+            // aiming point blocks
+            if (sim.x < 500) {
+                [[-9, -3], [3, 9]].forEach(function (zz) {
+                    projectQuad([[300, 0.03, zz[0]], [322, 0.03, zz[0]], [322, 0.03, zz[1]], [300, 0.03, zz[1]]], 'rgba(238, 243, 246, 0.6)');
+                });
+            }
+        }
+
+        // edge lights + approach lights
+        var lightStart = Math.max(-1000, sim.x + 8);
+        var lightEnd = Math.min(farX, sim.x + 1500);
+        for (var x = Math.ceil(lightStart / 60) * 60; x < lightEnd; x += 60) {
+            var onRunway = x >= 0;
+            var zEdge = onRunway ? 23.2 : 5.5;
+            var yEdge = onRunway ? 0.7 : 0.8;
+            [projectLamp(x, yEdge, -zEdge), projectLamp(x, yEdge, zEdge)].forEach(function (pp) {
+                if (!pp) return;
+                ctx.fillStyle = onRunway ? 'rgba(255, 224, 150, 0.9)' : 'rgba(255, 240, 200, 0.55)';
+                ctx.beginPath(); ctx.arc(pp.x, pp.y, Math.max(1, 2.6 * (40 / Math.max(20, pp.d))), 0, Math.PI * 2); ctx.fill();
+            });
+        }
+
+        // PAPI
+        var ideal = Math.max(0, -sim.x) * Math.tan(GS_ANGLE);
+        var err = sim.y - ideal;
+        var whites = sim.onGround ? 2 : (err > 9 ? 4 : (err < -9 ? 0 : 2));
+        for (var pi = 0; pi < 4; pi++) {
+            var pp2 = projectLamp(46, 1.2 + pi * 0.9, 26 + pi * 1.7);
+            if (!pp2) continue;
+            ctx.fillStyle = pi >= 4 - whites ? 'rgba(255, 248, 214, 0.98)' : 'rgba(255, 82, 82, 0.98)';
+            ctx.beginPath(); ctx.arc(pp2.x, pp2.y, 3.2, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,255,0.25)';
+            ctx.beginPath(); ctx.arc(pp2.x, pp2.y, 6.2, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // flight-path marker (where the nose is pointed)
+        var fp = cockpitProject(sim.x + 160, sim.y + Math.tan(sim.pitch) * 160, 0);
+        if (fp) {
+            ctx.strokeStyle = 'rgba(120, 240, 255, 0.8)';
+            ctx.lineWidth = 1.4;
+            ctx.beginPath(); ctx.arc(fp.x, fp.y, 6, 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(fp.x - 15, fp.y); ctx.lineTo(fp.x - 7, fp.y); ctx.moveTo(fp.x + 7, fp.y); ctx.lineTo(fp.x + 15, fp.y); ctx.stroke();
+        }
+
+        // cockpit frame
+        ctx.fillStyle = '#05080b';
+        ctx.fillRect(0, 0, W, H * 0.055);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(W * 0.10, 0);
+        ctx.lineTo(W * 0.055, H * 0.72);
+        ctx.lineTo(0, H * 0.8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(W, 0);
+        ctx.lineTo(W * 0.90, 0);
+        ctx.lineTo(W * 0.945, H * 0.72);
+        ctx.lineTo(W, H * 0.8);
+        ctx.closePath();
+        ctx.fill();
+
+        // glare shield + dashboard
+        ctx.beginPath();
+        ctx.moveTo(0, H);
+        ctx.lineTo(0, H * 0.855);
+        ctx.quadraticCurveTo(W * 0.5, H * 0.735, W, H * 0.855);
+        ctx.lineTo(W, H);
+        ctx.closePath();
+        ctx.fillStyle = '#080b0e';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(130, 190, 210, 0.16)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(0, H * 0.855);
+        ctx.quadraticCurveTo(W * 0.5, H * 0.735, W, H * 0.855);
+        ctx.stroke();
+
+        // yoke silhouette
+        ctx.strokeStyle = '#12171c';
+        ctx.lineWidth = 10;
+        ctx.beginPath();
+        ctx.arc(W * 0.5, H * 1.02, Math.min(W, H) * 0.13, Math.PI * 1.08, Math.PI * 1.92);
+        ctx.stroke();
+        ctx.fillStyle = '#101419';
+        ctx.beginPath();
+        ctx.roundRect ? ctx.roundRect(W * 0.5 - 34, H * 0.93, 68, 26, 9) : ctx.rect(W * 0.5 - 34, H * 0.93, 68, 26);
+        ctx.fill();
+    }
+
+    function projectLamp(x, y, z) {
+        var p = cockpitProject(x, y, z);
+        if (!p) return null;
+        if (p.x < -40 || p.x > W + 40 || p.y < -40 || p.y > H + 40) return null;
+        return p;
+    }
+
+    function toggleView() {
+        viewMode = viewMode === 'side' ? 'cockpit' : 'side';
+        var tag = document.getElementById('lsimViewTag');
+        if (tag) tag.textContent = viewMode === 'cockpit' ? 'BOEING 737 · COCKPIT' : 'BOEING 737 · SIDE VIEW';
+        toast(viewMode === 'cockpit' ? 'COCKPIT VIEW · C to switch' : 'SIDE VIEW · C to switch');
     }
 
     function drawSky() {
@@ -1398,7 +1596,7 @@
                     '<canvas id="lsimCanvas" class="lsim-canvas"></canvas>' +
                     '<div class="lsim-vignette"></div>' +
                     '<div class="lsim-top">' +
-                        '<div class="lsim-brand"><span class="lsim-tag">BOEING 737 · SIDE VIEW</span><strong>Runway 09 Approach</strong></div>' +
+                        '<div class="lsim-brand"><span class="lsim-tag" id="lsimViewTag">BOEING 737 · SIDE VIEW</span><strong>Runway 09 Approach</strong></div>' +
                         '<div class="lsim-state" id="lsimState">FINAL APPROACH</div>' +
                         '<div class="lsim-score-pill"><small>SCORE</small><strong id="lsimScore">0</strong></div>' +
                     '</div>' +
@@ -1422,12 +1620,13 @@
                         '<div class="lsim-sys-row lsim-part-row"><span>ARM</span><div class="lsim-bar is-arm"><i id="lsimArmBar"></i></div><b id="lsimArmVal">0%</b></div>' +
                         '<div class="lsim-papi-line" id="lsimPapiText">ON GLIDESLOPE</div>' +
                     '</div>' +
-                    '<div class="lsim-hint">W/S pitch · A/D throttle · Space brake · F flaps · G gear · R restart · land then add power to take off</div>' +
+                    '<div class="lsim-hint">W/S pitch · A/D throttle · Space brake · F flaps · G gear · C cockpit view · R restart · land then add power to take off</div>' +
                     '<div class="lsim-controls">' +
                         '<div class="lsim-control-group"><button type="button" class="lsim-btn" onpointerdown="event.preventDefault();landingHold(\'up\',true)" onpointerup="landingHold(\'up\',false)" onpointercancel="landingHold(\'up\',false)" onpointerleave="landingHold(\'up\',false)">▲ Pitch</button><button type="button" class="lsim-btn" onpointerdown="event.preventDefault();landingHold(\'down\',true)" onpointerup="landingHold(\'down\',false)" onpointercancel="landingHold(\'down\',false)" onpointerleave="landingHold(\'down\',false)">▼ Pitch</button></div>' +
                         '<div class="lsim-control-group"><button type="button" class="lsim-btn" onpointerdown="event.preventDefault();landingHold(\'slow\',true)" onpointerup="landingHold(\'slow\',false)" onpointercancel="landingHold(\'slow\',false)" onpointerleave="landingHold(\'slow\',false)">THR −</button><button type="button" class="lsim-btn" onpointerdown="event.preventDefault();landingHold(\'fast\',true)" onpointerup="landingHold(\'fast\',false)" onpointercancel="landingHold(\'fast\',false)" onpointerleave="landingHold(\'fast\',false)">THR +</button></div>' +
                         '<button type="button" class="lsim-btn is-wide" onpointerdown="event.preventDefault();landingHold(\'brake\',true)" onpointerup="landingHold(\'brake\',false)" onpointercancel="landingHold(\'brake\',false)" onpointerleave="landingHold(\'brake\',false)">Brakes</button>' +
                         '<button type="button" class="lsim-btn" onclick="landingFlaps()">Flaps</button>' +
+                        '<button type="button" class="lsim-btn" onclick="landingView()">View</button>' +
                         '<button type="button" class="lsim-btn" onclick="landingGear()">Gear</button>' +
                         '<button type="button" class="lsim-btn" onclick="landingRestart()">Restart</button>' +
                     '</div>' +
@@ -1494,6 +1693,7 @@
         else if (k === 'f') cycleFlaps();
         else if (k === 'g') toggleGear();
         else if (k === 'h') toggleGuide();
+        else if (k === 'c') toggleView();
         else if (k === 'r') restart();
     }
 
@@ -1522,6 +1722,7 @@
         else btnState(name, on);
     };
     window.landingFlaps = cycleFlaps;
+    window.landingView = toggleView;
     window.landingGear = toggleGear;
     window.landingRestart = restart;
     window.landingCleanup = landingCleanup;

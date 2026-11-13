@@ -42,8 +42,6 @@
     var rapierPromise = null, ready = false, starting = false;
     var raf = 0, lastFrame = 0, accumulator = 0, hudTimer = 0, speedHudTimer = 0, gaugeBoot = 0, suspended = false, readyAnnounced = false;
     var hudCache = null;
-    // Adaptive render pacing: only draw the frames this moment actually needs.
-    var schedDisplayHz = 60, schedTargetHz = 60, schedLastRender = 0, schedRafLast = 0, schedSamples = [];
     var fpsFrames = 0, fpsWindowStart = 0, fpsShown = -1;
     var paused = false, garage = false, cameraMode = 0;
     var distance = 0, displaySpeed = 0, unit = 'mph', sound = true;
@@ -65,7 +63,7 @@
     var rainSystem = null, rainIntensity = 0, rainTarget = 0, weatherTimer = 25, rainChip = null;
     var tunnels = [], tunnelDark = 0, baseSunIntensity = 0.62, hemi = null;
     var autoSteer = false, autoLane = 3, autoLaneTimer = 0, autoPrevLeft = false, autoPrevRight = false, autoLaneFlash = 0, autoOffset = 1.83, autoDesired = 0;
-    var asLaneLines = null;
+    var asLaneLines = null, asGuideOffset = 0;
     var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.85, baseGrip = 3.85, tyreHeat = 0;
     var heatMode = 'idle', accelHold = 0, brakeHold = 0, coastHold = 0;
     var laneCenters = [-11.25, -6.75, -2.25, 2.25, 6.75, 11.25];
@@ -2020,6 +2018,7 @@
             mat.alpha = alpha;
             mat.backFaceCulling = false;
             mat.fogEnabled = false;
+            mat.zOffset = -4;
             mesh.material = mat;
             mesh.isPickable = false;
             mesh.alwaysSelectAsActiveMesh = true;
@@ -2030,8 +2029,8 @@
         asLaneLines = {
             segs: segs,
             lines: [
-                [makeLine(0.13, 0.92), makeLine(0.13, 0.92)],
-                [makeLine(0.34, 0.10), makeLine(0.34, 0.10)]
+                [makeLine(0.17, 1.0), makeLine(0.17, 1.0)],
+                [makeLine(0.44, 0.12), makeLine(0.44, 0.12)]
             ]
         };
     }
@@ -2045,11 +2044,15 @@
         }
         if (!show) return;
         var p = chassis.translation();
+        // Anchor the guides to the lane the car is actually in, not just the
+        // lane Autosteer is aiming for, so both lines stay around the car.
+        var actualOffset = p.x - highwayCurveX(p.z);
+        asGuideOffset += (actualOffset - asGuideOffset) * 0.30;
         var behind = 16, ahead = 155, half = 2.22;
         for (var g2 = 0; g2 < 2; g2++) {
             for (var side = 0; side < 2; side++) {
                 var line = asLaneLines.lines[g2][side];
-                var centre = autoOffset + (side === 0 ? -half : half);
+                var centre = asGuideOffset + (side === 0 ? -half : half);
                 var pos = line.positions;
                 var hw = line.width * 0.5;
                 for (var i = 0; i <= asLaneLines.segs; i++) {
@@ -2058,10 +2061,10 @@
                     var x = highwayCurveX(z) + centre;
                     var o = i * 6;
                     pos[o] = x - hw;
-                    pos[o + 1] = 0.055;
+                    pos[o + 1] = 0.09;
                     pos[o + 2] = z;
                     pos[o + 3] = x + hw;
-                    pos[o + 4] = 0.055;
+                    pos[o + 4] = 0.09;
                     pos[o + 5] = z;
                 }
                 line.mesh.setVerticesData(BABYLON.VertexBuffer.PositionKind, pos, true);
@@ -3833,6 +3836,10 @@
                     shownOut = Math.round(Math.sin(Math.min(1, bootProg) * Math.PI) * (unit === 'kmh' ? 160 : 100));
                 }
                 setText('g3dGaugeSpeed', shownOut);
+                var mobileSpeed = document.getElementById('g3dMSpeed');
+                if (mobileSpeed) mobileSpeed.textContent = String(shownOut);
+                var mobileGear = document.getElementById('g3dMGear');
+                if (mobileGear) mobileGear.textContent = gear;
 
                 setText('g3dGaugeUnit', unit === 'kmh' ? 'km/h' : 'mph');
                 updateInteriorScreens(shown, gear, engineRpm);
@@ -3903,9 +3910,6 @@
         paused = false;
         lastFrame = performance.now();
         accumulator = 0;
-        schedLastRender = 0;
-        schedRafLast = 0;
-        schedSamples = [];
         fpsFrames = 0;
         fpsWindowStart = 0;
         fpsShown = -1;
@@ -3913,56 +3917,10 @@
         try { if (engine) engine.runRenderLoop(frame); } catch (e) {}
     }
 
-    // Estimate the real refresh rate of the display from rAF arrival times.
-    function measureDisplayHz(now) {
-        if (schedRafLast) {
-            var gap = now - schedRafLast;
-            if (gap > 3.5 && gap < 36) {
-                schedSamples.push(1000 / gap);
-                if (schedSamples.length > 40) schedSamples.shift();
-                if (schedSamples.length > 3) {
-                    var sorted = schedSamples.slice().sort(function (a, b) { return a - b; });
-                    schedDisplayHz = sorted[Math.floor(sorted.length / 2)];
-                }
-            }
-        }
-        schedRafLast = now;
-    }
-
-    // How many frames per second does this moment actually need?
-    // Stationary = 1 fps. Moving scales with speed, inputs and nitro,
-    // capped at 120 and never above what the display can present.
-    function neededRenderHz() {
-        var cap = Math.min(120, Math.max(30, schedDisplayHz));
-        if (paused) return 1;
-        if (garage || eject) return cap;
-        var speedFrac = clamp(displaySpeed / Math.max(1, driveMaxSpeed), 0, 1);
-        var still = displaySpeed < 0.35 && !input.throttle && !input.brake && !input.drift &&
-            !input.left && !input.right && !input.pointerActive &&
-            Math.abs(steerVisual) < 0.02 && !runOver;
-        if (still) return 1;
-        var hz = 20 + speedFrac * 100;
-        if (input.throttle || input.brake) hz += 18;
-        if (input.nitro && nitro > 0 && input.throttle) hz += 14;
-        if (input.drift) hz += 10;
-        return Math.min(cap, Math.max(20, Math.round(hz)));
-    }
-
     function frame() {
         if (!active || suspended) return;
         var now = performance.now();
-        measureDisplayHz(now);
-        schedTargetHz = neededRenderHz();
-        // Skip this rAF tick when the current moment does not need a new frame.
-        // lastFrame is deliberately not advanced, so the next real frame gets
-        // the full elapsed delta and physics stays in real time.
-        var capHz = Math.min(120, Math.max(30, schedDisplayHz));
-        if (schedTargetHz < capHz - 1 && schedLastRender) {
-            var interval = 1000 / schedTargetHz;
-            if (now - schedLastRender < interval - 1.5) return;
-        }
-        schedLastRender = now;
-        // Live FPS counter sampling (rendered frames only).
+        // Live FPS counter sampling.
         fpsFrames++;
         if (!fpsWindowStart) fpsWindowStart = now;
         if (now - fpsWindowStart >= 500) {
@@ -4030,9 +3988,6 @@
                 if (tag === 'input' || tag === 'textarea' || tag === 'select' || (e.target && e.target.isContentEditable)) return;
                 var k = String(e.key || '').toLowerCase();
                 if (!k) return;
-                // Wake the renderer immediately so stationary 1 fps mode still
-                // reacts to camera/light/gear changes without waiting a second.
-                if (!e.repeat) schedLastRender = 0;
                 if (k === 'w' || k === 'arrowup') { input.throttle = true; e.preventDefault(); }
                 else if (k === 's' || k === 'arrowdown') { input.brake = true; e.preventDefault(); }
                 else if (k === 'a' || k === 'arrowleft') { input.left = true; e.preventDefault(); }
@@ -4051,6 +4006,19 @@
                 else if (k === 'l') { headlightsOn = !headlightsOn; headlights.forEach(function (light) { light.setEnabled(headlightsOn); light.intensity = headlightsOn ? 4.5 : 0; }); e.preventDefault(); }
                 else if (k === 'f') {
                     autoSteer = !autoSteer;
+                    if (autoSteer && chassis) {
+                        var pp = chassis.translation();
+                        var offNow = pp.x - highwayCurveX(pp.z);
+                        asGuideOffset = offNow;
+                        autoOffset = offNow;
+                        var bestLane = 0, bestDist = 1e9;
+                        for (var li = 0; li < laneCenters.length; li++) {
+                            var ld = Math.abs(laneCenters[li] - offNow);
+                            if (ld < bestDist) { bestDist = ld; bestLane = li; }
+                        }
+                        autoLane = bestLane;
+                        autoLaneTimer = 0.5;
+                    }
                     var chip = document.getElementById('g3dAutoSteer');
                     if (chip) chip.classList.toggle('is-on', autoSteer);
                     showToast(autoSteer ? 'AUTOSTEER ON · throttle and brakes are still yours' : 'AUTOSTEER OFF');
@@ -4779,9 +4747,7 @@
             maxMph: Math.round(driveMaxSpeed * 2.23694),
             nitro: Math.round(nitro),
             audio: !!(audioCtx && audioCtx.state === 'running'),
-            audioLoops: Object.keys(audioLoops).length,
-            renderHz: schedTargetHz,
-            displayHz: Math.round(schedDisplayHz)
+            audioLoops: Object.keys(audioLoops).length
         };
     }
     function getCurrentScore() { return runScore(); }
