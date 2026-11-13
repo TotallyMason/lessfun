@@ -1711,10 +1711,10 @@
                 var v = chassis.linvel();
                 var closing = Math.max(0, displaySpeed - car.speed);
                 if (closing > 3) {
-                    var hitDmg = Math.min(0.30, closing * 0.008);
+                    var hitDmg = Math.min(0.40, closing * 0.014);
                     bodyDamage = Math.min(1, bodyDamage + hitDmg);
-                    engineDamage = Math.min(1, engineDamage + hitDmg * 0.45);
-                    transDamage = Math.min(1, transDamage + hitDmg * 0.25);
+                    engineDamage = Math.min(1, engineDamage + hitDmg * 0.60);
+                    transDamage = Math.min(1, transDamage + hitDmg * 0.35);
                 }
                 var dirX = p.x >= car.root.position.x ? 1 : -1;
                 var lateralKick = Math.min(16, 4.5 + closing * 0.45);
@@ -3414,7 +3414,7 @@
             brakeForce = 30 + Math.abs(Math.sin(performance.now() * 0.043)) * 14;
         }
 
-        if (engineRpm > 7350 && currentGear === 'D') transDamage = Math.min(1, transDamage + dt * 0.12);
+        if (engineRpm > 7100 && currentGear === 'D') transDamage = Math.min(1, transDamage + dt * 0.28);
         engineForce *= (1 - engineDamage * 0.30 - transDamage * 0.15);
         var steerMax = 0.46 - Math.min(0.36, forwardSpeed / 150);
         var steerTarget = 0;
@@ -4166,7 +4166,7 @@
                     if (Math.abs(tcCar.root.position.x - pW.x) > 2.6) continue;
                     var closingW = spdW - (tcCar.speed || 0);
                     var ttc = closingW > 0.5 ? dzT / closingW : 99;
-                    if (ttc < 1.9 || dzT < 9) { fcwOn = true; break; }
+                    if (ttc < 2.6 || dzT < 14) { fcwOn = true; break; }
                 }
             }
             var escOn = false;
@@ -4176,20 +4176,20 @@
                 var slipW = Math.atan2(vW.x, vW.z) - yawW;
                 while (slipW > Math.PI) slipW -= Math.PI * 2;
                 while (slipW < -Math.PI) slipW += Math.PI * 2;
-                escOn = Math.abs(slipW) > 0.18;
+                escOn = Math.abs(slipW) > 0.11;
             }
-            var tcOn = slipAmount > 0.22 || (input.throttle && displaySpeed < 9 && engineRpm > 3600);
+            var tcOn = slipAmount > 0.14 || (input.throttle && displaySpeed < 12 && engineRpm > 3000);
             var warnSet = {
-                eng: engineDamage > 0.28,
-                trans: transDamage > 0.28,
-                dmg: bodyDamage > 0.28,
+                eng: engineDamage > 0.08,
+                trans: transDamage > 0.08,
+                dmg: bodyDamage > 0.08,
                 as: !!autoSteer,
                 fcw: fcwOn,
                 tc: tcOn,
                 esc: escOn,
-                grip: tyreHeat > 0.45,
+                grip: tyreHeat > 0.28,
                 high: !!headlightsOn,
-                light: !headlightsOn && tunnelDark > 0.22
+                light: !headlightsOn && tunnelDark > 0.10
             };
             Object.keys(warnSet).forEach(function (name) {
                 var el = hudCache.warn[name];
