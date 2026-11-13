@@ -1523,6 +1523,14 @@ function openGameNow(id) {
             '</div>' +
             '<div id="g3dCanvas" class="game3d-canvas"></div>' +
             (game.id === 1 ?
+                '<div class="tyre-widget" id="tyreWidget" aria-hidden="true">' +
+                    '<div class="tw-body"></div>' +
+                    '<i class="tw-wheel tw-fl" data-wheel="0"></i>' +
+                    '<i class="tw-wheel tw-fr" data-wheel="1"></i>' +
+                    '<i class="tw-wheel tw-rl" data-wheel="2"></i>' +
+                    '<i class="tw-wheel tw-rr" data-wheel="3"></i>' +
+                '</div>' : '') +
+            (game.id === 1 ?
                 '<div class="g3d-gauges" id="g3dGauges">' +
                     '<div class="g3d-tach g3d-tach-cluster" id="g3dTach">' +
                         '<div class="g3d-tach-ticks"></div>' +
@@ -9383,7 +9391,7 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.36";
+const APP_VERSION = "LessFun Public Beta 27.2.37";
 const UPDATE_NOTES = "Warning lights moved directly under the km/h readout";
 
 let updateShutdownTimer = 0;

@@ -13510,3 +13510,15 @@ body.battery-saver .site-snow{display:none}
 }
 .g3d-tach.is-booting .g3d-warn{animation:g3dWarnBoot .12s steps(2) infinite alternate}
 @media (prefers-reduced-motion: reduce){.g3d-warn.is-on{animation:none;opacity:1}}
+
+/* Transparent tyre-health car widget (top left) */
+.tyre-widget{position:absolute;top:14px;left:14px;z-index:6;width:74px;height:44px;pointer-events:none;opacity:.92;transition:opacity .2s}
+.tyre-widget .tw-body{position:absolute;left:10px;right:10px;top:9px;bottom:9px;border:1.4px solid rgba(233,246,255,.55);border-radius:9px 10px 6px 6px;background:rgba(255,255,255,.05);backdrop-filter:blur(3px)}
+.tyre-widget .tw-body:after{content:"";position:absolute;left:18%;right:18%;top:-1px;height:38%;border:1.4px solid rgba(233,246,255,.4);border-bottom:0;border-radius:7px 7px 0 0;background:rgba(255,255,255,.04)}
+.tyre-widget .tw-wheel{position:absolute;width:9px;height:14px;border-radius:3px;background:#35d06a;box-shadow:0 0 6px rgba(53,208,106,.6);transition:background .5s linear,box-shadow .5s linear}
+.tyre-widget .tw-fl{left:1px;top:7px}
+.tyre-widget .tw-fr{right:1px;top:7px}
+.tyre-widget .tw-rl{left:1px;bottom:7px}
+.tyre-widget .tw-rr{right:1px;bottom:7px}
+.tyre-widget.is-hot{opacity:1}
+@media (max-width:640px){.tyre-widget{transform:scale(.86);transform-origin:top left;top:10px;left:10px}}

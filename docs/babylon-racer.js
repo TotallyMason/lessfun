@@ -3685,6 +3685,19 @@
             }
             var tachEl = document.getElementById('g3dTach');
             if (tachEl) tachEl.classList.toggle('is-booting', booting);
+            // Tyre widget: four wheels fading green -> amber -> red with heat.
+            var tw = document.getElementById('tyreWidget');
+            if (tw) {
+                var hue = Math.round(120 - clamp(tyreHeat, 0, 1) * 120);
+                var lit = 'hsl(' + hue + ',78%,52%)';
+                var glow = 'hsla(' + hue + ',80%,55%,' + (0.35 + tyreHeat * 0.5).toFixed(2) + ')';
+                var wheels = tw.querySelectorAll('.tw-wheel');
+                for (var wi = 0; wi < wheels.length; wi++) {
+                    wheels[wi].style.background = lit;
+                    wheels[wi].style.boxShadow = '0 0 7px ' + glow;
+                }
+                tw.classList.toggle('is-hot', tyreHeat > 0.65);
+            }
             var tyreWarn = document.querySelector('.g3d-warn[data-warn="tire"]');
             if (tyreWarn) tyreWarn.classList.toggle('is-on', tyreHeat > 0.65);
             var brake = document.querySelector('.g3d-warn[data-warn="brake"]');
