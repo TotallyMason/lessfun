@@ -4444,7 +4444,7 @@
         readyAnnounced = false;
         hudCache = null;
         paused = false;
-        garage = false;
+        garage = !!(opts && opts.garage);
         unit = 'kmh';
         currentGear = 'D';
         gearLabel = '1';
@@ -4537,6 +4537,7 @@
         initAudio();
         try {
             createScene();
+            applyViewMode();
         } catch (error) {
             fail(error);
             if (global.LessFunBabylonFallback) setTimeout(function () { if (failed) global.LessFunBabylonFallback(); }, 600);
