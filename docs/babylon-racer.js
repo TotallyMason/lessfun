@@ -79,9 +79,12 @@
     var coinMaterial = null;
 
     var VEHICLE_MODEL_FILES = {
+        // NOTE: the Ferrari GLB has a baked 120-degree root rotation that the
+        // merge step cannot normalise, so it appeared tilted and floating.
+        // Exotic traffic now uses the stable wedge coupe instead.
         sedan: 'town', sport: 'wedge', suv: 'suv', van: 'minivan',
         truck: 'truck', bus: 'bus', taxi: 'taxi', muscle: 'muscle',
-        hatch: 'hatchback', exotic: 'ferrari'
+        hatch: 'hatchback', exotic: 'wedge'
     };
 
     var TRAFFIC_SPECS = {
@@ -1081,7 +1084,11 @@
                     mn = [Math.min(mn[0], a.x), Math.min(mn[1], a.y), Math.min(mn[2], a.z)];
                     mx = [Math.max(mx[0], c.x), Math.max(mx[1], c.y), Math.max(mx[2], c.z)];
                 });
-                var dx = mx[0] - mn[0], dz = mx[2] - mn[2];
+                var dx = mx[0] - mn[0], dy = mx[1] - mn[1], dz = mx[2] - mn[2];
+                // Reject badly oriented assets (e.g. a Z-up model) rather than
+                // spawning tilted floating cars. A car is never taller than it
+                // is long by this much.
+                if (dy > Math.max(dx, dz) * 0.62) return null;
                 var spec = TRAFFIC_SPECS[style] || TRAFFIC_SPECS.sedan;
                 var length = Math.max(dx, dz);
                 var scale = spec.l / Math.max(0.1, length);
