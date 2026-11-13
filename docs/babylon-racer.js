@@ -3172,6 +3172,7 @@
         createExhaustSmoke();
         createDriftSmoke();
         createImpactFx();
+        loadRealCarModel();
 
         // Subtle cinematic pass: ACES, bloom, FXAA. Skip bloom on low-power GPUs.
         try {
