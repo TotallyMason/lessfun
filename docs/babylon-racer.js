@@ -2503,33 +2503,17 @@
         if (!chassis || garage || runOver || worldMode !== 'highway') return;
         var p = chassis.translation();
         var off = p.x - highwayCurveX(p.z);
-        var spd = Math.hypot(chassis.linvel().x, chassis.linvel().z);
         for (var i = 0; i < serviceStations.length; i++) {
             var st = serviceStations[i];
-            st.msgCool = Math.max(0, st.msgCool - dt);
-            var near = Math.abs(p.z - st.z) < 8.5 && Math.abs(off - st.off) < 3.6;
-            if (!near) { st.timer = 0; st.needExit = false; continue; }
+            var near = Math.abs(p.z - st.z) < 10 && Math.abs(off - st.off) < 4.5;
+            if (!near) { st.needExit = false; continue; }
             if (st.needExit) continue;
-            if (spd > 6) {
-                if (st.msgCool <= 0) { st.msgCool = 4; showToast('SERVICE · SLOW TO A STOP'); }
-                st.timer = 0;
-                continue;
-            }
-            st.timer += dt;
-            if (st.timer < 2) continue;
-            if (coinsCollected < 25) {
-                if (st.msgCool <= 0) { st.msgCool = 4; showToast('SERVICE · NEED 25 COINS'); }
-                st.timer = 0;
-                continue;
-            }
-            coinsCollected -= 25;
-            setRunCoins(coinsCollected);
+            // Free, instant full service on entering the bay.
             engineDamage = 0; transDamage = 0; bodyDamage = 0;
             tyreHeat = 0; heatMode = 'idle'; accelHold = 0; brakeHold = 0; coastHold = 0;
             nitro = 100;
-            st.timer = 0;
             st.needExit = true;
-            showToast('FULL SERVICE · REPAIRED, TYRES COOLED, NOS REFILLED');
+            showToast('FREE SERVICE · FULLY REPAIRED');
             playTone(660, 0.12, 'sine', 0.08, 320);
         }
     }
@@ -3902,10 +3886,10 @@
                     var yawRate = chassis.angvel().y;
                     var curvature = asWrap(roadYawAhead - roadYawNow) / 30;
                     var steerFF = Math.atan(2.75 * curvature) / Math.max(0.2, steerMax);
-                    var steerCmd = headingErr * 3.1 - yawRate * 0.38 + steerFF;
+                    var steerCmd = headingErr * 3.8 - yawRate * 0.42 + steerFF;
 
                     // Never ask the tyres for more lateral grip than they have.
-                    var maxLat = 9.5 * asGrip * (autoRecover > 0 ? 0.62 : 1);
+                    var maxLat = 12.0 * asGrip * (autoRecover > 0 ? 0.65 : 1);
                     var latCap = Math.atan(2.75 * maxLat / Math.max(30, forwardSpeed * forwardSpeed));
                     var cmdCap = clamp(latCap / Math.max(0.2, steerMax), 0.18, 1);
                     steerCmd = clamp(steerCmd, -cmdCap, cmdCap);
@@ -3919,7 +3903,7 @@
                         steerCmd += (offsetNow > 0 ? -1 : 1) * 0.55;
                         steerCmd = clamp(steerCmd, -1, 1);
                     }
-                    var rate = autoRecover > 0 ? 10.0 : 22.0;
+                    var rate = autoRecover > 0 ? 18.0 : 40.0;
                     steerTarget += (steerCmd - steerTarget) * Math.min(1, dt * rate);
                 }
             }
@@ -3966,7 +3950,7 @@
             if (stEl) stEl.classList.remove('is-on');
         }
 
-        steerVisual += (steerTarget - steerVisual) * Math.min(1, dt * 22);
+        steerVisual += (steerTarget - steerVisual) * Math.min(1, dt * 32);
         var steerAngle = steerVisual * steerMax;
         vehicle.setWheelSteering(0, steerAngle);
         vehicle.setWheelSteering(1, steerAngle);
