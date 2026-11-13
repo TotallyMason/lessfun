@@ -32,7 +32,7 @@
     function highwayCurveX(z) {
         var d = z - START_Z;
         // Gentle sweeping curves: clearly curved, without the snake-like feel.
-        return Math.sin(d / 500) * 32.0 + Math.sin(d / 220) * 8.5;
+        return Math.sin(d / 600) * 22.0 + Math.sin(d / 260) * 5.5;
     }
     var smokeTexture = null, driftSmoke = null, driftEmitter = null;
     var isSanta = false, flyTime = 0, flyCooldown = 0;
@@ -3670,7 +3670,7 @@
                     var ang = chassis.angvel();
                     try { chassis.setAngvel({ x: ang.x, y: ang.y * (1 - Math.min(0.6, dt * 5.0)), z: ang.z }, true); } catch (e) {}
                 } else {
-                    var look = clamp(9 + forwardSpeed * 0.78, 10, 34);
+                    var look = clamp(10 + forwardSpeed * 0.85, 12, 40);
                     var lookZ = pos.z + look;
                     var roadYawNow = Math.atan2(highwayCurveX(pos.z + 16) - highwayCurveX(pos.z), 16);
                     var roadYawLook = Math.atan2(highwayCurveX(lookZ) - highwayCurveX(lookZ - 16), 16);
@@ -3679,10 +3679,16 @@
                     var lateral = (targetX - pos.x) * Math.cos(yaw) - (lookZ - pos.z) * Math.sin(yaw);
                     var headingErr = asWrap(roadYawLook - yaw);
                     var yawRate = chassis.angvel().y;
-                    var authority = clamp(1.15 - forwardSpeed / 95, 0.42, 1.0);
+                    var authority = clamp(1.18 - forwardSpeed / 100, 0.45, 1.0);
                     var curvature = asWrap(roadYawLook - roadYawNow) / Math.max(8, look * 0.6);
                     var steerFF = Math.atan(2.75 * curvature) / Math.max(0.2, steerMax);
-                    var steerCmd = lateral * 0.20 * authority + headingErr * 0.95 - yawRate * 0.20 + steerFF;
+                    // Match the yaw rate the bend actually needs instead of
+                    // only reacting after the car has already drifted wide.
+                    var desiredYawRate = forwardSpeed * curvature;
+                    var steerCmd = lateral * 0.22 * authority
+                        + headingErr * 1.15
+                        + (desiredYawRate - yawRate) * 0.45
+                        + steerFF;
 
                     // Never ask the tyres for more lateral grip than they have.
                     var maxLat = 7.4 * asGrip * (autoRecover > 0 ? 0.62 : 1);
