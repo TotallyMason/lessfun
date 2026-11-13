@@ -13490,3 +13490,6 @@ body.battery-saver .site-snow{display:none}
 .idle-ad-car.has-photo .idle-ad-photo{display:block}
 .idle-ad-car.has-photo > span{display:none!important}
 .idle-ad-car.has-photo{height:min(30vw,300px)!important;bottom:20%!important}
+
+/* Warning lights sit directly under the km/h readout */
+.g3d-cluster-warnings{top:26%!important;bottom:auto!important;width:86%!important}
