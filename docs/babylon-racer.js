@@ -1204,10 +1204,12 @@
     function placeTrafficCar(car, pz, offset) {
         car.lane = Math.floor(Math.random() * laneCenters.length);
         var spawnZPos = pz + offset + Math.random() * 35;
-        car.root.position.set(highwayCurveX(spawnZPos) + laneCenters[car.lane], 0, spawnZPos);
+        car.laneOffset = laneCenters[car.lane];
+        car.root.position.set(highwayCurveX(spawnZPos) + car.laneOffset, 0, spawnZPos);
         car.root.position.z = Math.max(spawnZ + 90, car.root.position.z);
         car.speed = (100 + Math.random() * 40) / 3.6;
         car.cruise = car.speed * (0.94 + Math.random() * 0.12);
+        car.laneOffset = laneCenters[car.lane];
         car.aiState = 'drive';
         car.aiThink = 0;
         car.aiPlan = '';
@@ -1522,7 +1524,8 @@
             var dx = rr.targetX - rr.root.position.x;
             rr.root.position.x += dx * Math.min(1, dt * 7.5);
             rr.root.position.z += (targetZ - rr.root.position.z) * Math.min(1, dt * 10);
-            rr.root.rotation.y = clamp(dx * 0.18, -0.38, 0.38);
+            var rrHeading = Math.atan2(highwayCurveX(rr.root.position.z + 5) - highwayCurveX(rr.root.position.z - 5), 10);
+            rr.root.rotation.y = rrHeading + clamp(dx * 0.18, -0.38, 0.38);
             rr.bumpCool = Math.max(0, (rr.bumpCool || 0) - dt);
             for (var w = 0; w < rr.wheels.length; w++) rr.wheels[w].rotation.x += rr.remoteSpeed * dt * 3.2;
             var visible = Math.abs(targetZ - pz) < 1500;
@@ -1575,8 +1578,17 @@
         for (var i = 0; i < traffic.length; i++) {
             var car = traffic[i];
             car.root.position.z += car.speed * dt;
-            var trafficTargetX = highwayCurveX(car.root.position.z) + laneCenters[car.lane];
-            car.root.position.x += (trafficTargetX - car.root.position.x) * Math.min(1, dt * 4.6);
+            // Follow the road exactly, and smooth only the lane-change offset.
+            // The old world-X lerp lagged on bends and made cars scrub across
+            // lanes and into the barriers.
+            if (car.laneOffset == null) car.laneOffset = laneCenters[car.lane];
+            var laneTargetOffset = laneCenters[car.lane];
+            car.laneOffset += (laneTargetOffset - car.laneOffset) * Math.min(1, dt * 3.4);
+            car.root.position.x = highwayCurveX(car.root.position.z) + car.laneOffset;
+            var curveHeading = Math.atan2(
+                highwayCurveX(car.root.position.z + 5) - highwayCurveX(car.root.position.z - 5), 10);
+            var laneYaw = clamp((laneTargetOffset - car.laneOffset) * 0.055, -0.16, 0.16);
+            car.root.rotation.y = curveHeading + laneYaw;
             for (var w = 0; w < car.wheels.length; w++) car.wheels[w].rotation.x += car.speed * dt * 3.2;
             car.cool = Math.max(0, car.cool - dt);
 
@@ -1681,8 +1693,9 @@
                 placeTrafficCar(car, pz, 520 + Math.random() * 280);
             }
             if (car.body) {
+                var tYaw = car.root.rotation.y;
                 car.body.setNextKinematicTranslation({ x: car.root.position.x, y: 0.62, z: car.root.position.z });
-                car.body.setNextKinematicRotation({ x: 0, y: 0, z: 0, w: 1 });
+                car.body.setNextKinematicRotation({ x: 0, y: Math.sin(tYaw / 2), z: 0, w: Math.cos(tYaw / 2) });
             }
             if (runOver || garage || paused) continue;
             var dx = Math.abs(p.x - car.root.position.x);
