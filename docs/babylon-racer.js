@@ -1770,6 +1770,14 @@
         } catch (e) {}
         BABYLON.SceneLoader.ImportMeshAsync('', 'models/', 'ferrari.glb', scene).then(function (res) {
             if (!active || !carRoot || isSanta) return;
+            // Attaching the high-poly model mid-run could stall low-end GPUs.
+            // Only use it in the garage/showroom; an active run keeps the
+            // lightweight procedural car.
+            if (!garage) {
+                realCarLoading = false;
+                res.meshes.forEach(function (m) { try { m.dispose(); } catch (e) {} });
+                return;
+            }
             var root = res.meshes[0];
             if (!root) return;
             root.parent = carRoot;
@@ -3151,7 +3159,6 @@
         createContactShadow();
         createCar();
         createInterior();
-        loadVehicleModelLibrary();
         createExhaustSmoke();
         createDriftSmoke();
         createImpactFx();
@@ -3682,10 +3689,10 @@
                     var yawRate = chassis.angvel().y;
                     var curvature = asWrap(roadYawAhead - roadYawNow) / 30;
                     var steerFF = Math.atan(2.75 * curvature) / Math.max(0.2, steerMax);
-                    var steerCmd = headingErr * 2.1 - yawRate * 0.34 + steerFF;
+                    var steerCmd = headingErr * 2.7 - yawRate * 0.30 + steerFF;
 
                     // Never ask the tyres for more lateral grip than they have.
-                    var maxLat = 8.5 * asGrip * (autoRecover > 0 ? 0.62 : 1);
+                    var maxLat = 9.5 * asGrip * (autoRecover > 0 ? 0.62 : 1);
                     var latCap = Math.atan(2.75 * maxLat / Math.max(30, forwardSpeed * forwardSpeed));
                     var cmdCap = clamp(latCap / Math.max(0.2, steerMax), 0.18, 1);
                     steerCmd = clamp(steerCmd, -cmdCap, cmdCap);
@@ -3699,7 +3706,7 @@
                         steerCmd += (offsetNow > 0 ? -1 : 1) * 0.55;
                         steerCmd = clamp(steerCmd, -1, 1);
                     }
-                    var rate = autoRecover > 0 ? 4.5 : 8.5;
+                    var rate = autoRecover > 0 ? 7.5 : 15.0;
                     steerTarget += (steerCmd - steerTarget) * Math.min(1, dt * rate);
                 }
             }
@@ -3746,7 +3753,7 @@
             if (stEl) stEl.classList.remove('is-on');
         }
 
-        steerVisual += (steerTarget - steerVisual) * Math.min(1, dt * 10);
+        steerVisual += (steerTarget - steerVisual) * Math.min(1, dt * 16);
         var steerAngle = steerVisual * steerMax;
         vehicle.setWheelSteering(0, steerAngle);
         vehicle.setWheelSteering(1, steerAngle);
