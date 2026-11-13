@@ -31,8 +31,8 @@
     var CITY_X = 0, CITY_Z = 50000;
     function highwayCurveX(z) {
         var d = z - START_Z;
-        // Bigger, tighter sweeps than the old near-straight road.
-        return Math.sin(d / 320) * 50.0 + Math.sin(d / 150) * 12.0;
+        // Gentle sweeping curves: clearly curved, without the snake-like feel.
+        return Math.sin(d / 500) * 32.0 + Math.sin(d / 220) * 8.5;
     }
     var smokeTexture = null, driftSmoke = null, driftEmitter = null;
     var isSanta = false, flyTime = 0, flyCooldown = 0;
