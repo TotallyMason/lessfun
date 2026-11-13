@@ -580,7 +580,7 @@ function showView(view) {
         if (document.getElementById('usersView')) {
             document.getElementById('usersView').style.display = 'block';
             document.getElementById('nav-users').classList.add('active');
-            renderViewDeferred('Opening Friends…', function () { return loadAvatarCache().then(function () { renderFriends(); partyRender(); }); });
+            renderViewDeferred('Opening Friends…', function () { return loadAvatarCache().then(function () { renderFriends(); partyRender(); return loadNotifications(false); }).then(function () { renderFriendGifts(); }); });
         }
     }
     else if (view === 'store') {
@@ -9433,7 +9433,7 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.73";
+const APP_VERSION = "LessFun Public Beta 27.2.74";
 const UPDATE_NOTES = "Warning lights moved directly under the km/h readout";
 
 let updateShutdownTimer = 0;
@@ -10185,7 +10185,7 @@ function showTopNotification(html, icon, onClick) {
     card.innerHTML = '<span class="top-notification-icon">' + (icon || '🔔') + '</span><span class="top-notification-text">' + html + '</span>';
     card.onclick = function () {
         if (onClick) onClick();
-        else openNotifications();
+        else { showView('users'); loadNotifications(false).then(renderFriendGifts); }
         dismissTopNotification(card);
     };
     host.appendChild(card);
@@ -10245,11 +10245,39 @@ async function loadNotifications(quiet) {
             });
         }
         updateNotifBadge();
+        renderFriendGifts();
         if (!quiet && document.getElementById('notificationsModal') && document.getElementById('notificationsModal').style.display !== 'none') {
             renderNotifications();
         }
     } catch (e) {}
     notifLoading = false;
+}
+
+function renderFriendGifts() {
+    const list = document.getElementById('friendsGiftList');
+    const count = document.getElementById('friendsGiftsCount');
+    if (count) count.textContent = String(notifRows.length);
+    if (!list) return;
+    const me = friendUsername();
+    if (!me) {
+        list.innerHTML = '<p class="friends-empty">Sign in to see Coin gifts.</p>';
+        return;
+    }
+    if (!notifRows.length) {
+        list.innerHTML = '<p class="friends-empty">No Coin gifts yet. Gifts from other players will appear here.</p>';
+        return;
+    }
+    list.innerHTML = notifRows.map(function (row) {
+        const date = new Date(row.created_at);
+        return '<div class="notif-row' + (row.seen ? '' : ' is-unread') + '">' +
+            '<span class="notif-icon">🎁</span>' +
+            '<div class="notif-main">' +
+                '<strong>' + escapeHtml(row.sender || 'Someone') + '</strong> sent you ' +
+                '<strong>' + escapeHtml((Number(row.amount) || 0).toLocaleString()) + ' Coins</strong>' +
+                '<span class="notif-time">' + escapeHtml(isNaN(date.getTime()) ? '' : date.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })) + '</span>' +
+            '</div>' +
+        '</div>';
+    }).join('');
 }
 
 function renderNotifications() {
