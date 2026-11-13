@@ -13493,3 +13493,10 @@ body.battery-saver .site-snow{display:none}
 
 /* Warning lights sit directly under the km/h readout */
 .g3d-cluster-warnings{top:26%!important;bottom:auto!important;width:86%!important}
+
+/* Supercar silhouette for the ad hero */
+.idle-ad-car{height:min(18vw,168px)!important;bottom:19%!important;width:min(64vw,600px)!important}
+.idle-ad-car .ia-body{bottom:12px!important;height:40%!important;border-radius:90px 58px 12px 12px/52px 44px 10px 10px!important}
+.idle-ad-car .ia-cabin{left:26%!important;right:30%!important;bottom:48%!important;height:32%!important;border-radius:44px 40px 6px 6px/34px 34px 5px 5px!important}
+.idle-ad-car .ia-roof{left:30%!important;right:36%!important;bottom:78%!important;height:5%!important}
+.idle-ad-car:after{content:"";position:absolute;left:58%;right:2%;bottom:58%;height:6%;border-radius:6px;background:linear-gradient(180deg,rgba(20,24,30,.95),rgba(8,10,14,.95));box-shadow:0 3px 0 rgba(255,255,255,.18);transform:rotate(-3deg)}
