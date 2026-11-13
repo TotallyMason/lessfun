@@ -21,7 +21,7 @@
     var interiorRoot = null, interiorLight = null, interiorFill = null, interiorGaugeLight = null, interiorScreenTex = null, centerScreenTex = null, interiorSteeringWheel = null;
     var debris = [], debrisPaintMat = null, debrisCarbonMat = null, debrisTireMat = null;
     var headlights = [], headlightsOn = false;
-    var motionBlurPost = null, motionBlurStrength = 0.02;
+    var motionBlurPost = null, motionBlurStrength = 0.075;
     var vhsPost = null, glowLayer = null;
     var realCarRoot = null, realCarLoading = false, carPaintHex = 0xc2280b;
     var proceduralLampMeshes = [];
@@ -1896,11 +1896,11 @@
                 'uniform float strength;' +
                 'void main(void){' +
                 '  vec2 dir = vUV - vec2(0.5);' +
-                '  float amount = strength * (0.35 + length(dir) * 1.8);' +
+                '  float amount = strength * (0.55 + length(dir) * 2.6);' +
                 '  vec4 sum = vec4(0.0); float weights = 0.0;' +
-                '  for (int i = 0; i < 6; i++) {' +
-                '    float t = float(i) / 5.0;' +
-                '    float w = 1.0 - t * 0.45;' +
+                '  for (int i = 0; i < 10; i++) {' +
+                '    float t = float(i) / 9.0;' +
+                '    float w = 1.0 - t * 0.55;' +
                 '    sum += texture2D(textureSampler, vUV - dir * amount * t) * w;' +
                 '    weights += w;' +
                 '  }' +
@@ -3756,7 +3756,7 @@
         }
         wallImpactCool = Math.max(0, wallImpactCool - dt);
         var speedFrac = clamp(displaySpeed / Math.max(1, driveMaxSpeed), 0, 1);
-        motionBlurStrength = 0.012 + speedFrac * 0.070 + (input.nitro && nitro > 0 ? 0.022 : 0);
+        motionBlurStrength = 0.075 + speedFrac * 0.150 + (input.nitro && nitro > 0 ? 0.060 : 0);
         updateRemoteRacers(dt);
         syncCarVisual(dt);
         updateAudio();
