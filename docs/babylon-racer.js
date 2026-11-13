@@ -32,7 +32,7 @@
     function highwayCurveX(z) {
         var d = z - START_Z;
         // Gentle sweeping curves: clearly curved, without the snake-like feel.
-        return Math.sin(d / 700) * 18.0 + Math.sin(d / 300) * 4.5;
+        return Math.sin(d / 850) * 12.0 + Math.sin(d / 360) * 3.0;
     }
     var smokeTexture = null, driftSmoke = null, driftEmitter = null;
     var isSanta = false, flyTime = 0, flyCooldown = 0;
@@ -3526,7 +3526,7 @@
             // input proves the driver is holding the wheel. Wall-clock time
             // means the nudge still arrives after 5 s at any frame rate.
             if (input.left || input.right || input.pointerActive || input.throttle || input.brake || input.drift) autoLastSteerAt = performance.now();
-            autoNudge = autoLastSteerAt > 0 && performance.now() - autoLastSteerAt > 5000 && autoOverride < 0.15;
+            autoNudge = autoLastSteerAt > 0 && performance.now() - autoLastSteerAt > 5000 && autoOverride < 0.15 && !input.throttle && !input.brake;
             autoWasOn = true;
 
             if (input.left) autoLeftHold += dt; else autoLeftHold = 0;
@@ -4226,8 +4226,8 @@
                 if (tag === 'input' || tag === 'textarea' || tag === 'select' || (e.target && e.target.isContentEditable)) return;
                 var k = String(e.key || '').toLowerCase();
                 if (!k) return;
-                if (k === 'w' || k === 'arrowup') { input.throttle = true; e.preventDefault(); }
-                else if (k === 's' || k === 'arrowdown') { input.brake = true; e.preventDefault(); }
+                if (k === 'w' || k === 'arrowup') { input.throttle = true; autoLastSteerAt = performance.now(); e.preventDefault(); }
+                else if (k === 's' || k === 'arrowdown') { input.brake = true; autoLastSteerAt = performance.now(); e.preventDefault(); }
                 else if (k === 'a' || k === 'arrowleft') { input.left = true; autoSteerDownAt.left = performance.now(); e.preventDefault(); }
                 else if (k === 'd' || k === 'arrowright') { input.right = true; autoSteerDownAt.right = performance.now(); e.preventDefault(); }
                 else if (k === ' ') {
@@ -4923,8 +4923,8 @@
     }
 
     function setGear(mode) { setGearMode(mode); }
-    function setThrottle(on) { input.throttle = !!on; if (on && currentGear === 'P') setGearMode('D'); }
-    function setBrake(on) { input.brake = !!on; }
+    function setThrottle(on) { input.throttle = !!on; if (on) autoLastSteerAt = performance.now(); if (on && currentGear === 'P') setGearMode('D'); }
+    function setBrake(on) { input.brake = !!on; if (on) autoLastSteerAt = performance.now(); }
     function setDrift(on) { input.drift = !!on; }
     function setNitro(on) { input.nitro = !!on; }
     function setUnitSystem(value) { unit = 'kmh'; }
