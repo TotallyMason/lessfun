@@ -12,6 +12,7 @@
     var best = 0;
     var over = false;
     var moving = false;
+    var mergeTimer = 0;
 
     function injectStyles() {
         if (document.getElementById(STYLE_ID)) return;
@@ -31,7 +32,7 @@
 .g2048-hint{font-size:10.5px;color:rgba(245,239,226,.5);line-height:1.4}
 .g2048-new{border:0;padding:9px 16px;border-radius:12px;background:#8f7a66;color:#f9f6f1;font:inherit;font-size:11px;font-weight:800;letter-spacing:.06em;cursor:pointer}
 .g2048-new:hover{background:#9f8b77}
-.g2048-board{position:relative;width:100%;aspect-ratio:1;border-radius:14px;background:rgba(143,122,102,.35);padding:calc(100% * .02);box-sizing:border-box}
+.g2048-board{position:relative;touch-action:none;width:100%;aspect-ratio:1;border-radius:14px;background:rgba(143,122,102,.35);padding:calc(100% * .02);box-sizing:border-box}
 .g2048-bg{position:absolute;inset:2%;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,1fr);gap:2.4%}
 .g2048-bg i{border-radius:10px;background:rgba(238,228,218,.18)}
 .g2048-tiles{position:absolute;inset:2%}
@@ -180,7 +181,10 @@
                 setTimeout(function () { if (delta.parentNode) delta.parentNode.removeChild(delta); }, 700);
             }
         }
-        setTimeout(function () {
+        if (mergeTimer) clearTimeout(mergeTimer);
+        mergeTimer = setTimeout(function () {
+            mergeTimer = 0;
+            if (!root || !grid) { moving = false; return; }
             mergeQueue.forEach(function (m) {
                 removeTile(m.moving);
                 var t = m.target;
@@ -222,6 +226,8 @@
     }
 
     function reset() {
+        if (mergeTimer) { clearTimeout(mergeTimer); mergeTimer = 0; }
+        moving = false;
         tiles.slice().forEach(removeTile);
         grid = [[null, null, null, null], [null, null, null, null], [null, null, null, null], [null, null, null, null]];
         score = 0;
@@ -236,6 +242,8 @@
 
     function onKey(e) {
         if (!root) return;
+        var tag = (e.target && e.target.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || tag === 'select' || (e.target && e.target.isContentEditable)) return;
         var k = e.key;
         if (k === 'ArrowLeft' || k === 'a' || k === 'A') { move(0, -1); e.preventDefault(); }
         else if (k === 'ArrowRight' || k === 'd' || k === 'D') { move(0, 1); e.preventDefault(); }
@@ -291,6 +299,7 @@
     }
 
     function close() {
+        if (mergeTimer) { clearTimeout(mergeTimer); mergeTimer = 0; }
         if (root) global.removeEventListener('keydown', onKey);
         if (container) { try { container.innerHTML = ''; } catch (e) {} }
         container = null;

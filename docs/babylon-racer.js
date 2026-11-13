@@ -20,7 +20,7 @@
     var impactSparks = null, impactSmoke = null, impactSparkTimer = 0, crashShake = 0, wallImpactCool = 0;
     var interiorRoot = null, interiorLight = null, interiorFill = null, interiorGaugeLight = null, interiorScreenTex = null, centerScreenTex = null, interiorSteeringWheel = null;
     var debris = [], debrisPaintMat = null, debrisCarbonMat = null, debrisTireMat = null;
-    var headlights = [], headlightsOn = false;
+    var headlights = [], headlightsOn = false, highBeamOn = false;
     var motionBlurPost = null, motionBlurStrength = 0.055;
     var vhsPost = null, glowLayer = null;
     var realCarRoot = null, realCarLoading = false, carPaintHex = 0xc2280b;
@@ -43,6 +43,7 @@
     var rapierPromise = null, ready = false, starting = false;
     var raf = 0, lastFrame = 0, accumulator = 0, hudTimer = 0, speedHudTimer = 0, gaugeBoot = 0, suspended = false, readyAnnounced = false;
     var hudCache = null;
+    var lastRenderAt = 0, renderTargetHz = 60;
     var fpsFrames = 0, fpsWindowStart = 0, fpsShown = -1;
     var paused = false, garage = false, cameraMode = 0;
     var distance = 0, displaySpeed = 0, unit = 'mph', sound = true;
@@ -168,12 +169,14 @@
     }
 
     function decodeAudio(url) {
+        var ctx = audioCtx;
+        if (!ctx) return Promise.reject(new Error('audio closed'));
         return fetch(url, { cache: 'force-cache' }).then(function (response) {
             if (!response.ok) throw new Error('audio ' + url);
             return response.arrayBuffer();
         }).then(function (data) {
             return new Promise(function (resolve, reject) {
-                audioCtx.decodeAudioData(data, resolve, reject);
+                ctx.decodeAudioData(data, resolve, reject);
             });
         });
     }
@@ -697,9 +700,9 @@
         createMountains();
         createRoadSigns();
         createTunnels();
+        createTollPlazas();
         createServiceStations();
         createHighwayEvents();
-        createTollPlazas();
         loadStreetLampModel(low);
     }
 
@@ -1225,6 +1228,11 @@
         var brakeMat = trafficShared.tail.clone('motoBrake_' + Math.random().toString(36).slice(2, 6));
         brakeMat.emissiveColor = new BABYLON.Color3(0.55, 0.03, 0.03);
         part('motoTail', 0.30, 0.09, 0.06, 0, 0.72, -0.78, brakeMat);
+        var indL = new BABYLON.StandardMaterial('motoIndL_' + Math.random().toString(36).slice(2, 6), scene);
+        var indR = new BABYLON.StandardMaterial('motoIndR_' + Math.random().toString(36).slice(2, 6), scene);
+        [indL, indR].forEach(function (m) { m.emissiveColor = new BABYLON.Color3(0.1, 0.05, 0.01); m.disableLighting = true; });
+        part('motoIndL', 0.12, 0.07, 0.06, -0.22, 0.66, -0.78, indL);
+        part('motoIndR', 0.12, 0.07, 0.06, 0.22, 0.66, -0.78, indR);
         var wheels = [];
         [-0.72, 0.72].forEach(function (z) {
             var w = BABYLON.MeshBuilder.CreateCylinder('motoWheel', { height: 0.18, diameter: 0.64, tessellation: 14 }, scene);
@@ -1238,7 +1246,8 @@
             root: root, spec: spec, style: 'moto', wheels: wheels, speed: 20, lane: 2, cool: 0,
             paint: paint, brakeMat: brakeMat, cruise: 20, braking: false, laneOffset: 0,
             aiState: 'drive', aiThink: 0, aiPlan: '', aiTargetLane: -1,
-            aiSignalSide: 0, aiCooldown: 1 + Math.random() * 2, boost: 0, aiBlink: Math.random() * 10
+            aiSignalSide: 0, aiCooldown: 1 + Math.random() * 2, boost: 0, aiBlink: Math.random() * 10,
+            indMatL: indL, indMatR: indR
         };
     }
 
@@ -1665,6 +1674,25 @@
             var tailgated = !garage && !runOver && !paused && playerInLane &&
                 gapBehind > 0 && gapBehind < 15 && displaySpeed > car.speed - 2.5;
             if (car.aiCooldown > 0) car.aiCooldown = Math.max(0, car.aiCooldown - dt);
+            // Traffic moves over for roadworks instead of clipping through them.
+            if (car.aiState === 'drive' && car.aiCooldown <= 0) {
+                for (var ei = 0; ei < highwayEvents.length; ei++) {
+                    var evT = highwayEvents[ei];
+                    var dzE = evT.z - car.root.position.z;
+                    if (dzE > 12 && dzE < 55 && Math.abs(evT.off - laneCenters[car.lane]) < 2.2) {
+                        var sides = [car.lane + 1, car.lane - 1];
+                        for (var si = 0; si < sides.length; si++) {
+                            var sl = sides[si];
+                            if (sl >= 0 && sl < laneCenters.length && trafficLaneClear(car, sl)) {
+                                car.lane = sl;
+                                car.aiCooldown = 2.5;
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
 
             if (tailgated && car.aiState === 'drive' && car.aiCooldown <= 0) {
                 car.aiState = 'hesitate';
@@ -1844,7 +1872,8 @@
             var root = res.meshes[0];
             if (!root) return;
             root.parent = carRoot;
-            root.rotation.y = Math.PI;
+            root.rotationQuaternion = null;
+            root.rotation.set(0, Math.PI, 0);
             root.position.y = -0.78;
             var bodyMat = null;
             res.meshes.forEach(function (m) {
@@ -2471,6 +2500,12 @@
         matGlow.disableLighting = true;
         var stationZs = [];
         for (var sz = spawnZ + 2600; sz < ROAD_LENGTH - 120; sz += 2600) stationZs.push(sz);
+        stationZs = stationZs.filter(function (z) {
+            for (var tp = 0; tp < tollPlazas.length; tp++) {
+                if (Math.abs(z - tollPlazas[tp].z) < 140) return false;
+            }
+            return true;
+        });
         stationZs.forEach(function (z, idx) {
             var off = 14.4;
             var x = highwayCurveX(z) + off;
@@ -2486,16 +2521,28 @@
                 m.receiveShadows = true;
                 return m;
             }
-            box('stPad', 8, 0.04, 13, 0, 0.02, 0, matConcrete);
-            box('stCanopy', 8, 0.28, 8, 0, 4.1, 0, matCanopy);
-            box('stPostL', 0.22, 4.1, 0.22, -3.2, 2.05, -3.2, matCanopy);
-            box('stPostR', 0.22, 4.1, 0.22, -3.2, 2.05, 3.2, matCanopy);
-            box('stPostL2', 0.22, 4.1, 0.22, 3.2, 2.05, -3.2, matCanopy);
-            box('stPostR2', 0.22, 4.1, 0.22, 3.2, 2.05, 3.2, matCanopy);
+            box('stPad', 7, 0.04, 13, 0, 0.02, 0, matConcrete);
+            box('stCanopy', 6, 0.28, 8, 0, 4.1, 0, matCanopy);
+            box('stPostL', 0.22, 4.1, 0.22, -2.2, 2.05, -3.2, matCanopy);
+            box('stPostR', 0.22, 4.1, 0.22, -2.2, 2.05, 3.2, matCanopy);
+            box('stPostL2', 0.22, 4.1, 0.22, 2.2, 2.05, -3.2, matCanopy);
+            box('stPostR2', 0.22, 4.1, 0.22, 2.2, 2.05, 3.2, matCanopy);
             box('stSign', 3.4, 0.9, 0.16, 0, 3.2, -5.2, matGlow);
-            box('stPump1', 0.55, 1.5, 0.4, 2.2, 0.75, 1.2, matConcrete);
-            box('stPump2', 0.55, 1.5, 0.4, 2.2, 0.75, -1.2, matConcrete);
+            box('stPump1', 0.55, 1.5, 0.4, 1.6, 0.75, 1.2, matConcrete);
+            box('stPump2', 0.55, 1.5, 0.4, 1.6, 0.75, -1.2, matConcrete);
+            highwayMeshes.push(root);
             serviceStations.push({ z: z, off: off, used: false, timer: 0, msgCool: 0, root: root });
+            if (world && rapier) {
+                var cy = Math.cos(yaw), sy = Math.sin(yaw);
+                [1.2, -1.2].forEach(function (lz) {
+                    var wx = x + 1.6 * cy + lz * sy;
+                    var wz = z - 1.6 * sy + lz * cy;
+                    try {
+                        var b = world.createRigidBody(rapier.RigidBodyDesc.fixed().setTranslation(wx, 0.75, wz));
+                        world.createCollider(rapier.ColliderDesc.cuboid(0.35, 0.75, 0.25), b);
+                    } catch (e) {}
+                });
+            }
         });
     }
 
@@ -2505,7 +2552,7 @@
         var off = p.x - highwayCurveX(p.z);
         for (var i = 0; i < serviceStations.length; i++) {
             var st = serviceStations[i];
-            var near = Math.abs(p.z - st.z) < 10 && Math.abs(off - st.off) < 4.5;
+            var near = Math.abs(p.z - st.z) < 10 && Math.abs(off - st.off) < 2.0;
             if (!near) { st.needExit = false; continue; }
             if (st.needExit) continue;
             // Free, instant full service on entering the bay.
@@ -2525,7 +2572,7 @@
         stripe.emissiveColor = new BABYLON.Color3(0.35, 0.16, 0.02);
         var dark = new BABYLON.StandardMaterial('eventDark', scene);
         dark.diffuseColor = new BABYLON.Color3(0.07, 0.08, 0.09);
-        [spawnZ + 1500, spawnZ + 4200, spawnZ + 7800, spawnZ + 10800].forEach(function (z, idx) {
+        [spawnZ + 1750, spawnZ + 4300, spawnZ + 7900, spawnZ + 10900].forEach(function (z, idx) {
             var lane = 1 + (idx * 2) % 5;
             var off = laneCenters[lane];
             var x = highwayCurveX(z) + off;
@@ -2546,6 +2593,7 @@
                 cone.material = stripe;
                 cone.parent = root;
             }
+            highwayMeshes.push(root);
             highwayEvents.push({ z: z, off: off, root: root, cool: 0 });
         });
     }
@@ -3679,6 +3727,11 @@
                 if (ahead.gap < 14) return false;
                 if (closing > 1 && ahead.gap / closing < 2.2) return false;
             }
+            for (var heS = 0; heS < highwayEvents.length; heS++) {
+                var evS = highwayEvents[heS];
+                var dzS = evS.z - asPos.z;
+                if (dzS > 0 && dzS < 55 && Math.abs(evS.off - laneCenters[lane]) < 2.2) return false;
+            }
             var behind = asLead(lane, -34, 0);
             if (behind) {
                 var dist = -behind.gap;
@@ -3764,7 +3817,13 @@
                         if (autoLane < laneCenters.length - 1) evDirs.push(1);
                         for (var ed = 0; ed < evDirs.length; ed++) {
                             var evLane = autoLane + evDirs[ed];
-                            if (asLaneSafe(evLane)) { asSignalTo(evLane, true); autoNextPlan = 2.5; break; }
+                            if (asLaneSafe(evLane)) {
+                                autoReturnLane = autoLane;
+                                autoOvertake = true;
+                                asSignalTo(evLane, true);
+                                autoNextPlan = 2.5;
+                                break;
+                            }
                         }
                         break;
                     }
@@ -4342,6 +4401,13 @@
             var spdW = vW ? Math.hypot(vW.x, vW.z) : 0;
 
             var fcwOn = false;
+            if (pW) {
+                for (var hi = 0; hi < highwayEvents.length; hi++) {
+                    var evW = highwayEvents[hi];
+                    var dzH = evW.z - pW.z;
+                    if (dzH > 0 && dzH < 45 && Math.abs((pW.x - highwayCurveX(pW.z)) - evW.off) < 2.2) { fcwOn = true; break; }
+                }
+            }
             if (pW && spdW > 3) {
                 for (var ti = 0; ti < traffic.length; ti++) {
                     var tcCar = traffic[ti];
@@ -4374,7 +4440,7 @@
                 tc: tcOn,
                 esc: escOn,
                 grip: tyreHeat > 0.28,
-                high: !!headlightsOn,
+                high: !!highBeamOn,
                 light: !headlightsOn && tunnelDark > 0.10
             };
             Object.keys(warnSet).forEach(function (name) {
@@ -4463,6 +4529,9 @@
         updateCamera(dt);
         updateAsLaneLines();
         updateHud(dt);
+        var frameNow = performance.now();
+        if (frameNow - lastRenderAt < (1000 / renderTargetHz) - 1.5) return;
+        lastRenderAt = frameNow;
         if (scene) scene.render();
     }
 
@@ -4493,7 +4562,16 @@
                 else if (k === 'e') { shiftGear(1); e.preventDefault(); }
                 else if (k === 'r') { resetCar(true); e.preventDefault(); }
                 else if (k === 'c') { cameraMode = (cameraMode + 1) % 2; applyViewMode(); showToast(cameraMode ? 'THIRD PERSON' : 'FIRST PERSON'); e.preventDefault(); }
-                else if (k === 'l') { headlightsOn = !headlightsOn; headlights.forEach(function (light) { light.setEnabled(headlightsOn); light.intensity = headlightsOn ? 4.5 : 0; }); e.preventDefault(); }
+                else if (k === 'l') {
+                    if (!headlightsOn) { headlightsOn = true; highBeamOn = false; }
+                    else if (!highBeamOn) { highBeamOn = true; }
+                    else { headlightsOn = false; highBeamOn = false; }
+                    headlights.forEach(function (light) {
+                        light.setEnabled(headlightsOn);
+                        light.intensity = headlightsOn ? (highBeamOn ? 7.5 : 4.5) : 0;
+                    });
+                    e.preventDefault();
+                }
                 else if (k === 'f') {
                     autoSteer = !autoSteer;
                     if (autoSteer && chassis) {
@@ -4633,6 +4711,8 @@
         hudCache = null;
         paused = false;
         garage = !!(opts && opts.garage);
+        renderTargetHz = isLowPower() ? 30 : 60;
+        lastRenderAt = 0;
         unit = 'kmh';
         currentGear = 'D';
         gearLabel = '1';
@@ -5152,9 +5232,18 @@
             paused = false;
             resetClock = 0;
             if (chassis) resetCar(true, true);
+            if (!realCarRoot && !realCarLoading) loadRealCarModel();
         }
         applyViewMode();
-        resetCamera(true);
+        if (garage && camera) {
+            var cp = carRoot ? carRoot.position : new BABYLON.Vector3(0, 0.9, spawnZ);
+            camPos.set(cp.x, cp.y + 3.0, cp.z + 9.4);
+            camTarget.set(cp.x, cp.y + 0.7, cp.z);
+            camera.position.copyFrom(camPos);
+            camera.setTarget(camTarget);
+        } else {
+            resetCamera(true);
+        }
     }
 
     function setGearMode(mode) {

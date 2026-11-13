@@ -9405,7 +9405,7 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.71";
+const APP_VERSION = "LessFun Public Beta 27.2.72";
 const UPDATE_NOTES = "Warning lights moved directly under the km/h readout";
 
 let updateShutdownTimer = 0;
@@ -12580,13 +12580,6 @@ document.addEventListener('visibilitychange', function () {
 window.addEventListener('blur', function () { attentionPause('Window unfocused — your run is paused'); });
 window.addEventListener('focus', attentionResume);
 
-setInterval(function () {
-    if (!currentGameId) return;
-    if (document.hidden) return;
-    if (!attentionState.autoPaused && Date.now() - attentionState.lastInput > 30000) {
-        attentionPause('Idle — move the mouse or press a key to continue');
-    }
-}, 2000);
 
 function initBatterySaver() {
     if (!navigator.getBattery) return;
