@@ -1334,7 +1334,7 @@
         manualGearTimer = 0;
         revLevel = 0;
         tyreHeat = 0;
-        serviceStations.forEach(function (st) { st.used = false; st.timer = 0; });
+        serviceStations.forEach(function (st) { st.used = false; st.needExit = false; st.timer = 0; });
         engineDamage = 0;
         transDamage = 0;
         bodyDamage = 0;
@@ -2508,7 +2508,8 @@
             var st = serviceStations[i];
             st.msgCool = Math.max(0, st.msgCool - dt);
             var near = Math.abs(p.z - st.z) < 8.5 && Math.abs(off - st.off) < 3.6;
-            if (!near || st.used) { st.timer = 0; continue; }
+            if (!near) { st.timer = 0; st.needExit = false; continue; }
+            if (st.needExit) continue;
             if (spd > 6) {
                 if (st.msgCool <= 0) { st.msgCool = 4; showToast('SERVICE · SLOW TO A STOP'); }
                 st.timer = 0;
@@ -2525,8 +2526,10 @@
             setRunCoins(coinsCollected);
             engineDamage = 0; transDamage = 0; bodyDamage = 0;
             tyreHeat = 0; heatMode = 'idle'; accelHold = 0; brakeHold = 0; coastHold = 0;
-            st.used = true;
-            showToast('SERVICE COMPLETE · REPAIRED & TYRES COOLED');
+            nitro = 100;
+            st.timer = 0;
+            st.needExit = true;
+            showToast('FULL SERVICE · REPAIRED, TYRES COOLED, NOS REFILLED');
             playTone(660, 0.12, 'sine', 0.08, 320);
         }
     }
@@ -3768,6 +3771,21 @@
                     tollHandled = true;
                 }
 
+                for (var he = 0; he < highwayEvents.length; he++) {
+                    var evA = highwayEvents[he];
+                    var dzEv = evA.z - asPos.z;
+                    if (dzEv > 12 && dzEv < 95 && Math.abs(evA.off - laneCenters[autoLane]) < 2.0) {
+                        var evDirs = [];
+                        if (autoLane > 0) evDirs.push(-1);
+                        if (autoLane < laneCenters.length - 1) evDirs.push(1);
+                        for (var ed = 0; ed < evDirs.length; ed++) {
+                            var evLane = autoLane + evDirs[ed];
+                            if (asLaneSafe(evLane)) { asSignalTo(evLane, true); autoNextPlan = 2.5; break; }
+                        }
+                        break;
+                    }
+                }
+
                 var leadA = asLead(autoLane, 4, 95);
                 if (leadA) {
                     var slowLead = leadA.speed < forwardSpeed - 2.5 && leadA.gap < 78;
@@ -3884,7 +3902,7 @@
                     var yawRate = chassis.angvel().y;
                     var curvature = asWrap(roadYawAhead - roadYawNow) / 30;
                     var steerFF = Math.atan(2.75 * curvature) / Math.max(0.2, steerMax);
-                    var steerCmd = headingErr * 2.7 - yawRate * 0.30 + steerFF;
+                    var steerCmd = headingErr * 3.1 - yawRate * 0.38 + steerFF;
 
                     // Never ask the tyres for more lateral grip than they have.
                     var maxLat = 9.5 * asGrip * (autoRecover > 0 ? 0.62 : 1);
@@ -3893,15 +3911,15 @@
                     steerCmd = clamp(steerCmd, -cmdCap, cmdCap);
                     // If it is being asked to correct hard, shed a little speed
                     // so the front tyres can actually deliver the turn.
-                    if (Math.abs(laneErr) > 2.2) autoCurveSlow = 1;
-                    else if (Math.abs(laneErr) < 0.8) autoCurveSlow = 0;
+                    if (Math.abs(laneErr) > 1.4) autoCurveSlow = 1;
+                    else if (Math.abs(laneErr) < 0.5) autoCurveSlow = 0;
 
                     // Barrier corridor: push back toward the road if drifting out.
                     if (asBarrier) {
                         steerCmd += (offsetNow > 0 ? -1 : 1) * 0.55;
                         steerCmd = clamp(steerCmd, -1, 1);
                     }
-                    var rate = autoRecover > 0 ? 7.5 : 15.0;
+                    var rate = autoRecover > 0 ? 10.0 : 22.0;
                     steerTarget += (steerCmd - steerTarget) * Math.min(1, dt * rate);
                 }
             }
@@ -3925,8 +3943,8 @@
                 }
             }
             if (targetSpeed < 1.0 && forwardSpeed > 0.3) { throttle = false; brake = true; }
-            else if (forwardSpeed > targetSpeed + 2.4) { throttle = false; brake = true; }
-            else if (forwardSpeed > targetSpeed + 0.7) { throttle = false; }
+            else if (forwardSpeed > targetSpeed + 1.7) { throttle = false; brake = true; }
+            else if (forwardSpeed > targetSpeed + 0.5) { throttle = false; }
             // The right pedal stays with the driver; AS only lifts/brakes.
 
             // Status strip.
@@ -3948,7 +3966,7 @@
             if (stEl) stEl.classList.remove('is-on');
         }
 
-        steerVisual += (steerTarget - steerVisual) * Math.min(1, dt * 16);
+        steerVisual += (steerTarget - steerVisual) * Math.min(1, dt * 22);
         var steerAngle = steerVisual * steerMax;
         vehicle.setWheelSteering(0, steerAngle);
         vehicle.setWheelSteering(1, steerAngle);
