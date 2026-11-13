@@ -711,6 +711,7 @@ function renderGames() {
         return `
         <div class="game-card${locked ? ' is-disabled' : ''}" onclick="cancelPreloadGame(); openGame(${game.id})" onpointerenter="schedulePreloadGame(${game.id})" onpointerleave="cancelPreloadGame()" onfocus="schedulePreloadGame(${game.id})" onblur="cancelPreloadGame()">
             <div class="game-cover gc-${game.id}" aria-hidden="true">
+                <img class="gc-photo" src="game-art/game-${game.id}.jpg?v=20261537" alt="" loading="lazy" onerror="this.style.display='none'">
                 <span class="gc-badge">${getIcon(game.icon).replace('width="24" height="24"', 'width="16" height="16"')}</span>
                 <span class="gc-art"></span>
             </div>
@@ -9436,7 +9437,7 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.75";
+const APP_VERSION = "LessFun Public Beta 27.2.76";
 const UPDATE_NOTES = "Warning lights moved directly under the km/h readout";
 
 let updateShutdownTimer = 0;
