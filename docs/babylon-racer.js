@@ -2469,7 +2469,9 @@
         matGlow.diffuseColor = new BABYLON.Color3(0.2, 0.9, 0.7);
         matGlow.emissiveColor = new BABYLON.Color3(0.15, 0.85, 0.6);
         matGlow.disableLighting = true;
-        [spawnZ + 2600, spawnZ + 7200, spawnZ + 12500].forEach(function (z, idx) {
+        var stationZs = [];
+        for (var sz = spawnZ + 2600; sz < ROAD_LENGTH - 120; sz += 2600) stationZs.push(sz);
+        stationZs.forEach(function (z, idx) {
             var off = 14.4;
             var x = highwayCurveX(z) + off;
             var root = new BABYLON.TransformNode('serviceStation' + idx, scene);
