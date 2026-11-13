@@ -1547,7 +1547,6 @@ function openGameNow(id) {
                             }).join('') +
                         '</div>' +
                         '<div class="g3d-autosteer" id="g3dAutoSteer" title="Autosteer (F)">AS</div>' +
-                        '<div class="g3d-rain" id="g3dRain">RAIN</div>' +
                         '<div class="g3d-gauge-needle" id="g3dNeedle"></div>' +
                         '<div class="g3d-cluster">' +
                             '<div class="g3d-cluster-warnings" id="g3dWarnings">' +
@@ -9394,7 +9393,7 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.49";
+const APP_VERSION = "LessFun Public Beta 27.2.50";
 const UPDATE_NOTES = "Warning lights moved directly under the km/h readout";
 
 let updateShutdownTimer = 0;

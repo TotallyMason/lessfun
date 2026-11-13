@@ -2295,24 +2295,12 @@
     }
 
     function updateWeather(dt) {
-        if (!rainChip) rainChip = document.getElementById('g3dRain');
-        weatherTimer -= dt;
-        if (weatherTimer <= 0) {
-            weatherTimer = 55 + Math.random() * 70;
-            rainTarget = rainTarget > 0.5 ? 0 : 1;
-            if (rainChip) {
-                rainChip.classList.toggle('is-on', rainTarget > 0.5);
-            }
-        }
-        rainIntensity += (rainTarget - rainIntensity) * Math.min(1, dt * 0.35);
-        if (rainIntensity > 0.02) ensureRain();
-        if (rainSystem) {
-            rainSystem.emitRate = (opts && opts.rainEnabled === false) ? 0 : rainIntensity * (isLowPower() ? 320 : 720);
-            var cp = chassis ? chassis.translation() : { x: 0, y: 0, z: spawnZ };
-            rainSystem.emitter = new BABYLON.Vector3(cp.x, 13, cp.z + 18);
-        }
-        // wet road: less grip, longer braking
-        driveGrip = baseGrip * (1 - rainIntensity * 0.22);
+        // Rain removed.
+        rainIntensity = 0;
+        rainTarget = 0;
+        if (rainSystem) rainSystem.emitRate = 0;
+        if (rainChip) rainChip.classList.remove('is-on');
+        driveGrip = baseGrip;
     }
 
     function createTunnels() {
@@ -4173,7 +4161,6 @@
             updateTraffic(dt);
             updateTolls(dt);
             updateTunnels(dt);
-            updateWeather(dt);
             updateCoins(dt);
         } else if (!paused) {
             updateCoins(dt);
