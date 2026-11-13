@@ -13514,3 +13514,13 @@ body.battery-saver .site-snow{display:none}
     .aod-ui,#aodOverlay.is-on .aod-ui{transition-duration:.01s}
     .aod-moon-orb i{transition:none}
 }
+
+/* Live render-rate counter (Washing Machine) */
+.g3d-fps{position:absolute;top:12px;right:12px;z-index:6;pointer-events:none;
+    padding:6px 10px;border-radius:999px;font:800 10px/1 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+    letter-spacing:.12em;color:rgba(226,246,255,.78);
+    background:rgba(5,14,22,.5);border:1px solid rgba(150,220,240,.28);
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    font-variant-numeric:tabular-nums;transition:color .3s,border-color .3s}
+.g3d-fps.is-low{color:#ffb673;border-color:rgba(255,165,95,.45)}
+@media (max-width:640px){.g3d-fps{top:8px;right:8px;padding:5px 8px;font-size:9px}}

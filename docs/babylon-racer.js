@@ -44,6 +44,7 @@
     var hudCache = null;
     // Adaptive render pacing: only draw the frames this moment actually needs.
     var schedDisplayHz = 60, schedTargetHz = 60, schedLastRender = 0, schedRafLast = 0, schedSamples = [];
+    var fpsFrames = 0, fpsWindowStart = 0, fpsShown = -1;
     var paused = false, garage = false, cameraMode = 0;
     var distance = 0, displaySpeed = 0, unit = 'mph', sound = true;
     var nitro = 100, driftScore = 0, steerVisual = 0;
@@ -3832,6 +3833,9 @@
         schedLastRender = 0;
         schedRafLast = 0;
         schedSamples = [];
+        fpsFrames = 0;
+        fpsWindowStart = 0;
+        fpsShown = -1;
         try { if (audioCtx && audioMaster) audioMaster.gain.setTargetAtTime(sound ? 1.0 : 0, audioCtx.currentTime, 0.08); } catch (e) {}
         try { if (engine) engine.runRenderLoop(frame); } catch (e) {}
     }
@@ -3885,6 +3889,22 @@
             if (now - schedLastRender < interval - 1.5) return;
         }
         schedLastRender = now;
+        // Live FPS counter sampling (rendered frames only).
+        fpsFrames++;
+        if (!fpsWindowStart) fpsWindowStart = now;
+        if (now - fpsWindowStart >= 500) {
+            var measuredFps = Math.max(1, Math.round(fpsFrames * 1000 / (now - fpsWindowStart)));
+            if (measuredFps !== fpsShown) {
+                fpsShown = measuredFps;
+                var fpsEl = document.getElementById('g3dFps');
+                if (fpsEl) {
+                    fpsEl.textContent = measuredFps + ' FPS';
+                    fpsEl.classList.toggle('is-low', measuredFps < 24);
+                }
+            }
+            fpsFrames = 0;
+            fpsWindowStart = now;
+        }
         var dt = Math.min(0.05, Math.max(0.001, (now - lastFrame) / 1000));
         lastFrame = now;
         if (!paused && !garage) {
