@@ -3062,7 +3062,7 @@
                 var c2 = centerScreenTex.getContext();
                 c2.fillStyle = '#050d16'; c2.fillRect(0, 0, 320, 160);
                 c2.fillStyle = '#5fe7ff'; c2.font = '900 20px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
-                c2.textAlign = 'left'; c2.fillText('WASHING MACHINE', 18, 36);
+                c2.textAlign = 'left'; c2.fillText('REDLINE GT', 18, 36);
                 c2.fillStyle = 'rgba(143,216,255,0.62)'; c2.font = '800 12px -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
                 c2.fillText('CITY NAVIGATION · ONLINE', 20, 68);
                 c2.fillStyle = 'rgba(255,255,255,0.10)'; c2.fillRect(20, 88, 280, 2);
