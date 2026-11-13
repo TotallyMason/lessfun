@@ -3336,11 +3336,18 @@
 
         // Tyre heat: builds with speed, cornering load, drift and hard braking.
         var lateralLoad = Math.abs(steerVisual) * forwardSpeed;
-        var heatRate = forwardSpeed * 0.0055 + lateralLoad * 0.0042;
-        if (input.drift) heatRate += 0.09;
-        if (brake && forwardSpeed > 12) heatRate += 0.05;
-        if (throttle && forwardSpeed < driveMaxSpeed * 0.25) heatRate += 0.03;
-        tyreHeat = clamp(tyreHeat + heatRate * dt, 0, 1);
+        var heatRate = forwardSpeed * 0.0050 + lateralLoad * 0.0036;
+        if (input.drift) heatRate += 0.075;
+        if (brake && forwardSpeed > 12) heatRate += 0.042;
+        if (throttle && forwardSpeed < driveMaxSpeed * 0.25) heatRate += 0.025;
+        if (heatRate > 0.06) {
+            // Pushing hard: heat climbs.
+            tyreHeat = clamp(tyreHeat + heatRate * dt, 0, 1);
+        } else {
+            // Coasting or gentle driving cools the tyres quickly.
+            var cool = 0.30 + (0.06 - heatRate) * 2.2;
+            tyreHeat = clamp(tyreHeat - cool * dt, 0, 1);
+        }
         var tyreGripFactor = 1 - tyreHeat * 0.30;
 
         // Stability assist: braking while turning used to spin the car. Add grip

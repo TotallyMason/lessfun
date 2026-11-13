@@ -13500,3 +13500,13 @@ body.battery-saver .site-snow{display:none}
 .idle-ad-car .ia-cabin{left:26%!important;right:30%!important;bottom:48%!important;height:32%!important;border-radius:44px 40px 6px 6px/34px 34px 5px 5px!important}
 .idle-ad-car .ia-roof{left:30%!important;right:36%!important;bottom:78%!important;height:5%!important}
 .idle-ad-car:after{content:"";position:absolute;left:58%;right:2%;bottom:58%;height:6%;border-radius:6px;background:linear-gradient(180deg,rgba(20,24,30,.95),rgba(8,10,14,.95));box-shadow:0 3px 0 rgba(255,255,255,.18);transform:rotate(-3deg)}
+
+/* Warning lights pulse gently instead of sitting on solid */
+.g3d-warn.is-on{animation:g3dWarnPulse 2s ease-in-out infinite;border-color:rgba(255,120,90,.55)!important}
+@keyframes g3dWarnPulse{
+  0%{opacity:.45;box-shadow:0 0 3px rgba(255,90,60,.25);filter:brightness(.95)}
+  50%{opacity:1;box-shadow:0 0 12px rgba(255,120,80,.75);filter:brightness(1.25)}
+  100%{opacity:.45;box-shadow:0 0 3px rgba(255,90,60,.25);filter:brightness(.95)}
+}
+.g3d-tach.is-booting .g3d-warn{animation:g3dWarnBoot .12s steps(2) infinite alternate}
+@media (prefers-reduced-motion: reduce){.g3d-warn.is-on{animation:none;opacity:1}}
