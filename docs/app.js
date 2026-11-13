@@ -594,7 +594,11 @@ function showView(view) {
         if (gnav) gnav.classList.add('active');
         renderViewDeferred('Opening Garage…', function () { renderWalletUI(); renderGarage(); });
     }
-    else if (view === 'settings') { document.getElementById('settingsView').style.display = 'block'; document.getElementById('nav-settings').classList.add('active'); }
+    else if (view === 'settings') {
+        document.getElementById('settingsView').style.display = 'block';
+        document.getElementById('nav-settings').classList.add('active');
+        renderSettingsAccount();
+    }
     else if (view === 'debug') {
         document.getElementById('debugView').style.display = 'block';
         document.getElementById('nav-debug').classList.add('active');
@@ -4291,6 +4295,29 @@ function buyCookieBox(cost) {
     if (currentView === 'store') renderStore();
 }
 
+function renderSettingsAccount() {
+    const title = document.getElementById('settingsAccountTitle');
+    const sub = document.getElementById('settingsAccountSub');
+    const btn = document.getElementById('settingsAccountBtn');
+    if (!title || !sub || !btn) return;
+    const signedIn = !!(currentUser && currentUser.type === 'user' && currentUser.username && currentUser.username !== 'Guest' && currentUser.username !== 'Anonymous-Guest');
+    if (signedIn) {
+        title.textContent = currentUser.username;
+        sub.textContent = 'Signed in — scores, Coins, cars and saves sync across devices.';
+        btn.textContent = 'Log Out';
+    } else {
+        title.textContent = 'Guest mode';
+        sub.textContent = 'Sign in to sync scores, Coins, cars and saves.';
+        btn.textContent = 'Sign In';
+    }
+}
+
+function settingsAccountAction() {
+    const signedIn = !!(currentUser && currentUser.type === 'user' && currentUser.username && currentUser.username !== 'Guest' && currentUser.username !== 'Anonymous-Guest');
+    if (signedIn) { logout(); return; }
+    openAuthModal();
+}
+
 function updateUserSection() {
     const txt=document.getElementById('navProfileText');
     if(txt){
@@ -4315,6 +4342,7 @@ function updateUserSection() {
 
     // Keep featured/disabled game markers correct after sign-in or logout.
     renderGames();
+    renderSettingsAccount();
 }
 
 let devConsoleState = {
@@ -9405,7 +9433,7 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.72";
+const APP_VERSION = "LessFun Public Beta 27.2.73";
 const UPDATE_NOTES = "Warning lights moved directly under the km/h readout";
 
 let updateShutdownTimer = 0;
