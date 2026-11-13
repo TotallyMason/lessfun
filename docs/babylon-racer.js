@@ -11,7 +11,7 @@
     var HDR_URL = 'https://assets.babylonjs.com/environments/environmentSpecular.env';
     var START_Z = 200;
     var ROAD_LENGTH = 24000;
-    var ROAD_WIDTH = 27;
+    var ROAD_WIDTH = 35;
     var SPEED_SCALE = 2;
 
     var engine = null, scene = null, camera = null, canvas = null, container = null;
@@ -2279,13 +2279,13 @@
                 var cx = highwayCurveX(z);
                 // side walls
                 var wl = BABYLON.MeshBuilder.CreateBox('tunnelWallL', { width: 0.7, height: 6.4, depth: step + 0.4 }, scene);
-                wl.position.set(cx - 12.6, 3.2, z);
+                wl.position.set(cx - (ROAD_WIDTH / 2 - 0.9), 3.2, z);
                 parts.push(wl);
                 var wr = BABYLON.MeshBuilder.CreateBox('tunnelWallR', { width: 0.7, height: 6.4, depth: step + 0.4 }, scene);
-                wr.position.set(cx + 12.6, 3.2, z);
+                wr.position.set(cx + (ROAD_WIDTH / 2 - 0.9), 3.2, z);
                 parts.push(wr);
                 // ceiling
-                var ce = BABYLON.MeshBuilder.CreateBox('tunnelCeil', { width: 26, height: 0.7, depth: step + 0.4 }, scene);
+                var ce = BABYLON.MeshBuilder.CreateBox('tunnelCeil', { width: ROAD_WIDTH - 1.2, height: 0.7, depth: step + 0.4 }, scene);
                 ce.position.set(cx, 6.5, z);
                 parts.push(ce);
                 // ceiling lamp every 20 m
@@ -2308,11 +2308,11 @@
             [-1, 1].forEach(function (end) {
                 var pz = z0 + (end > 0 ? len : 0);
                 var pcx = highwayCurveX(pz);
-                var portal = BABYLON.MeshBuilder.CreateBox('tunnelPortal', { width: 27, height: 1.2, depth: 1.6 }, scene);
+                var portal = BABYLON.MeshBuilder.CreateBox('tunnelPortal', { width: ROAD_WIDTH, height: 1.2, depth: 1.6 }, scene);
                 portal.position.set(pcx, 7.0, pz);
                 portal.material = concrete;
                 highwayMeshes.push(portal);
-                [ -13, 13 ].forEach(function (ox) {
+                [ -1, 1 ].forEach(function (sd) { var ox = sd * (ROAD_WIDTH / 2 - 0.4);
                     var post = BABYLON.MeshBuilder.CreateBox('tunnelPortalPost', { width: 1.4, height: 7.2, depth: 1.6 }, scene);
                     post.position.set(pcx + ox, 3.6, pz);
                     post.material = concrete;
@@ -2374,7 +2374,7 @@
             stripMat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
             var stripParts = [];
             for (var st = 0; st < 74; st++) {
-                var strip = BABYLON.MeshBuilder.CreateBox('tollStrip' + p + '_' + st, { width: 24.5, height: 0.05, depth: 0.55 }, scene);
+                var strip = BABYLON.MeshBuilder.CreateBox('tollStrip' + p + '_' + st, { width: ROAD_WIDTH - 2.5, height: 0.05, depth: 0.55 }, scene);
                 strip.position.set(cx, 0.05, z - 99 + st * 1.2);
                 stripParts.push(strip);
             }
