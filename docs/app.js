@@ -1878,6 +1878,7 @@ function openGameNow(id) {
         return;
     }
 
+    var showGarageOnReady = id === 1 && !garageSuppressed;
     if (window.Games3D) {
         window.Games3D.start(id, document.getElementById('g3dCanvas'), {
             name: game.name,
@@ -1899,6 +1900,9 @@ function openGameNow(id) {
                 // Everything is loaded and the first frame is ready — only now
                 // dismiss the loader, then stop showing loading states.
                 if (gameOpenToken) { /* token guard */ }
+                if (id === 1 && window.Games3D && window.Games3D.setGarageMode) {
+                    window.Games3D.setGarageMode(!!showGarageOnReady);
+                }
                 setViewLoaderDetail('Ready');
                 hideViewLoader();
             }
@@ -9401,7 +9405,7 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.64";
+const APP_VERSION = "LessFun Public Beta 27.2.65";
 const UPDATE_NOTES = "Warning lights moved directly under the km/h readout";
 
 let updateShutdownTimer = 0;

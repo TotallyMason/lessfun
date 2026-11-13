@@ -4966,6 +4966,7 @@
             if (chassis) resetCar(true, true);
         }
         applyViewMode();
+        resetCamera(true);
     }
 
     function setGearMode(mode) {
