@@ -41,6 +41,7 @@
     var rapier = null, world = null, chassis = null, vehicle = null;
     var rapierPromise = null, ready = false, starting = false;
     var raf = 0, lastFrame = 0, accumulator = 0, hudTimer = 0, speedHudTimer = 0, gaugeBoot = 0, suspended = false, readyAnnounced = false;
+    var hudCache = null;
     var paused = false, garage = false, cameraMode = 0;
     var distance = 0, displaySpeed = 0, unit = 'mph', sound = true;
     var nitro = 100, driftScore = 0, steerVisual = 0;
@@ -3668,7 +3669,7 @@
                 setText('g3dGaugeGearBig', gearShown);
             }
             setRunCoins(coinsCollected);
-            var needle = $('g3dNeedle');
+            var needle = (hudCache && hudCache.needle) || $('g3dNeedle');
             var booting = gaugeBoot > 0;
             if (needle) {
                 var sweepNorm = clamp(rpm / 8000, 0, 1);
@@ -3683,26 +3684,23 @@
                 var angle = -135 + sweepNorm * 270;
                 needle.style.transform = 'translateX(-50%) rotate(' + angle.toFixed(2) + 'deg)';
             }
-            var tachEl = document.getElementById('g3dTach');
+            var tachEl = (hudCache && hudCache.tach) || document.getElementById('g3dTach');
             if (tachEl) tachEl.classList.toggle('is-booting', booting);
-            // Tyre widget: four wheels fading green -> amber -> red with heat.
-            var tw = document.getElementById('tyreWidget');
-            if (tw) {
-                var hue = Math.round(120 - clamp(tyreHeat, 0, 1) * 120);
-                var lit = 'hsl(' + hue + ',78%,52%)';
-                var glow = 'hsla(' + hue + ',80%,55%,' + (0.35 + tyreHeat * 0.5).toFixed(2) + ')';
-                var wheels = tw.querySelectorAll('.tw-wheel');
-                for (var wi = 0; wi < wheels.length; wi++) {
-                    wheels[wi].style.background = lit;
-                    wheels[wi].style.boxShadow = '0 0 7px ' + glow;
-                }
-                tw.classList.toggle('is-hot', tyreHeat > 0.65);
+            if (!hudCache) {
+                hudCache = {
+                    warn: {},
+                    needle: document.getElementById('g3dNeedle'),
+                    tach: document.getElementById('g3dTach')
+                };
+                ['abs','brake','eng','trans','tire','dmg'].forEach(function (name) {
+                    hudCache.warn[name] = document.querySelector('.g3d-warn[data-warn="' + name + '"]');
+                });
             }
-            var tyreWarn = document.querySelector('.g3d-warn[data-warn="tire"]');
+            var tyreWarn = hudCache.warn.tire;
             if (tyreWarn) tyreWarn.classList.toggle('is-on', tyreHeat > 0.65);
-            var brake = document.querySelector('.g3d-warn[data-warn="brake"]');
+            var brake = hudCache.warn.brake;
             if (brake) brake.classList.toggle('is-on', !!input.brake);
-            var absLight = document.querySelector('.g3d-warn[data-warn="abs"]');
+            var absLight = hudCache.warn.abs;
             if (absLight) absLight.classList.toggle('is-on', !!absActive);
         }
     }
@@ -3905,6 +3903,7 @@
         starting = true;
         ready = false;
         readyAnnounced = false;
+        hudCache = null;
         paused = false;
         garage = false;
         unit = 'kmh';
