@@ -31,7 +31,8 @@
     var CITY_X = 0, CITY_Z = 50000;
     function highwayCurveX(z) {
         var d = z - START_Z;
-        return Math.sin(d / 820) * 18.0 + Math.sin(d / 330) * 5.0;
+        // Bigger, tighter sweeps than the old near-straight road.
+        return Math.sin(d / 320) * 50.0 + Math.sin(d / 150) * 12.0;
     }
     var smokeTexture = null, driftSmoke = null, driftEmitter = null;
     var isSanta = false, flyTime = 0, flyCooldown = 0;
@@ -63,6 +64,13 @@
     var rainSystem = null, rainIntensity = 0, rainTarget = 0, weatherTimer = 25, rainChip = null;
     var tunnels = [], tunnelDark = 0, baseSunIntensity = 0.62, hemi = null;
     var autoSteer = false, autoLane = 3, autoLaneTimer = 0, autoPrevLeft = false, autoPrevRight = false, autoLaneFlash = 0, autoOffset = 1.83, autoDesired = 0;
+    var autoSignal = 0, autoSignalTimer = 0, autoPendingLane = -1;
+    var autoChanging = false, autoChangeT = 1, autoChangeDur = 1.6, autoChangeFrom = 0, autoChangeTo = 0;
+    var autoHands = 0, autoNudge = false, autoOverride = 0, autoRecover = 0;
+    var autoLeftHold = 0, autoRightHold = 0, autoNextPlan = 0, autoOvertake = false, autoReturnLane = 0;
+    var autoBlockedTimer = 0, autoStatusText = '';
+    var autoTapRequest = 0, autoLastSteerAt = 0, autoSteerDownAt = { left: 0, right: 0 }, autoWasOn = false;
+    var autoLeadGap = 0, autoLeadSpeed = 0, autoTgrip = 1;
     var asLaneLines = null, asGuideOffset = 0;
     var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.85, baseGrip = 3.85, tyreHeat = 0;
     var heatMode = 'idle', accelHold = 0, brakeHold = 0, coastHold = 0;
@@ -1568,7 +1576,7 @@
             var car = traffic[i];
             car.root.position.z += car.speed * dt;
             var trafficTargetX = highwayCurveX(car.root.position.z) + laneCenters[car.lane];
-            car.root.position.x += (trafficTargetX - car.root.position.x) * Math.min(1, dt * 2.8);
+            car.root.position.x += (trafficTargetX - car.root.position.x) * Math.min(1, dt * 4.6);
             for (var w = 0; w < car.wheels.length; w++) car.wheels[w].rotation.x += car.speed * dt * 3.2;
             car.cool = Math.max(0, car.cool - dt);
 
@@ -2003,6 +2011,18 @@
         driftSmoke = ps;
     }
 
+    function setAutoStatus(text, tone) {
+        if (text === autoStatusText) return;
+        autoStatusText = text;
+        var el = document.getElementById('g3dAsStatus');
+        if (!el) return;
+        el.classList.add('is-on');
+        el.classList.toggle('is-warn', tone === 'warn');
+        el.classList.toggle('is-nudge', tone === 'nudge');
+        var span = el.querySelector('span');
+        if (span) span.textContent = text;
+    }
+
     // Two thin blue guide lines that show the lane Autosteer is holding.
     function createAsLaneLines() {
         if (!scene || asLaneLines) return;
@@ -2030,7 +2050,7 @@
             mesh.isPickable = false;
             mesh.alwaysSelectAsActiveMesh = true;
             mesh.isVisible = false;
-            return { mesh: mesh, positions: positions, width: width };
+            return { mesh: mesh, positions: positions, width: width, mat: mat };
         }
         // inner core + soft outer glow, one pair per lane edge
         asLaneLines = {
@@ -2038,7 +2058,8 @@
             lines: [
                 [makeLine(0.17, 1.0), makeLine(0.17, 1.0)],
                 [makeLine(0.44, 0.12), makeLine(0.44, 0.12)]
-            ]
+            ],
+            preview: [makeLine(0.13, 0.22), makeLine(0.13, 0.22)]
         };
     }
 
@@ -2049,7 +2070,13 @@
             asLaneLines.lines[g][0].mesh.isVisible = show;
             asLaneLines.lines[g][1].mesh.isVisible = show;
         }
-        if (!show) return;
+        if (!show) {
+            asLaneLines.preview[0].mesh.isVisible = false;
+            asLaneLines.preview[1].mesh.isVisible = false;
+            var stOff = document.getElementById('g3dAsStatus');
+            if (stOff) stOff.classList.remove('is-on');
+            return;
+        }
         var p = chassis.translation();
         // Anchor the guides to the lane the car is actually in, not just the
         // lane Autosteer is aiming for, so both lines stay around the car.
@@ -2075,6 +2102,33 @@
                     pos[o + 5] = z;
                 }
                 line.mesh.setVerticesData(BABYLON.VertexBuffer.PositionKind, pos, true);
+            }
+        }
+
+        // Lane-change preview: a fainter, blinking pair on the target lane.
+        var previewLane = autoChanging ? autoLane : (autoSignalTimer > 0 ? autoPendingLane : -1);
+        var previewOn = previewLane >= 0 && previewLane < laneCenters.length;
+        var pulse = 0.55 + Math.sin(performance.now() * 0.012) * 0.35;
+        for (var ps = 0; ps < 2; ps++) {
+            var pl = asLaneLines.preview[ps];
+            pl.mesh.isVisible = previewOn;
+            pl.mat.alpha = previewOn ? 0.30 * pulse : 0;
+        }
+        if (previewOn) {
+            for (var ps2 = 0; ps2 < 2; ps2++) {
+                var pl2 = asLaneLines.preview[ps2];
+                var pcentre = laneCenters[previewLane] + (ps2 === 0 ? -half : half);
+                var ppos = pl2.positions;
+                var phw = pl2.width * 0.5;
+                for (var pi = 0; pi <= asLaneLines.segs; pi++) {
+                    var pt = pi / asLaneLines.segs;
+                    var pz = p.z - 6 + pt * 96;
+                    var px = highwayCurveX(pz) + pcentre;
+                    var po = pi * 6;
+                    ppos[po] = px - phw; ppos[po + 1] = 0.095; ppos[po + 2] = pz;
+                    ppos[po + 3] = px + phw; ppos[po + 4] = 0.095; ppos[po + 5] = pz;
+                }
+                pl2.mesh.setVerticesData(BABYLON.VertexBuffer.PositionKind, ppos, true);
             }
         }
     }
@@ -2540,10 +2594,11 @@
 
     function createHighwayExits() {
         [spawnZ + 520, spawnZ + 2500].forEach(function (z, index) {
-            createExitGate(7.2, z, null, index === 0 ? 'CITY' : 'CITY 2');
+            var exitX = highwayCurveX(z) + 7.2;
+            createExitGate(exitX, z, null, index === 0 ? 'CITY' : 'CITY 2');
             highwayExits.push(z);
             var arrow = new BABYLON.MeshBuilder.CreateBox('exitArrow' + index, { width: 4.2, height: 0.035, depth: 0.22 }, scene);
-            arrow.position.set(7.2, 0.06, z - 18);
+            arrow.position.set(exitX, 0.06, z - 18);
             var arrowMat = new BABYLON.StandardMaterial('exitArrowMat' + index, scene);
             arrowMat.diffuseColor = new BABYLON.Color3(0.18, 0.85, 1);
             arrowMat.emissiveColor = arrowMat.diffuseColor;
@@ -2656,7 +2711,7 @@
     function returnToHighway() {
         if (worldMode !== 'city') return;
         setWorldMode('highway');
-        chassis.setTranslation({ x: 0, y: 0.92, z: savedHighwayZ + 70 }, true);
+        chassis.setTranslation({ x: highwayCurveX(savedHighwayZ + 70), y: 0.92, z: savedHighwayZ + 70 }, true);
         chassis.setLinvel({ x: 0, y: 0, z: 18 }, true);
         chassis.setAngvel({ x: 0, y: 0, z: 0 }, true);
         portalCooldown = 2.5;
@@ -3362,8 +3417,16 @@
                 if (dzc > -10 && dzc < 95 && dzc < best) { best = dzc; nearest = dzc; }
             }
             if (nearest > 0) dsWanted = Math.min(dsWanted, Math.max(5, nearest / 2.4));
-            var curveAhead = Math.abs(highwayCurveX(pos.z + 45) - highwayCurveX(pos.z)) / 45;
-            if (curveAhead > 0.012) dsWanted = Math.min(dsWanted, Math.max(9, 15 / curveAhead));
+            // Curvature-based speed: don't ask the tyres for more lateral grip
+            // than they have on the bend ahead.
+            var cvA = highwayCurveX(pos.z + 22) - 2 * highwayCurveX(pos.z + 11) + highwayCurveX(pos.z);
+            var cvB = highwayCurveX(pos.z + 55) - 2 * highwayCurveX(pos.z + 40) + highwayCurveX(pos.z + 25);
+            var curvatureAhead = Math.max(Math.abs(cvA) / (11 * 11), Math.abs(cvB) / (15 * 15));
+            var gripForCurve = clamp(1 - tyreHeat * 0.30 - rainIntensity * 0.35, 0.45, 1);
+            if (curvatureAhead > 0.00001) {
+                var curveSpeed = Math.sqrt((6.2 * gripForCurve) / curvatureAhead);
+                dsWanted = Math.min(dsWanted, Math.max(11, curveSpeed));
+            }
             dsWanted = Math.min(dsWanted, driveMaxSpeed * (1 - rainIntensity * 0.28));
             for (var tp = 0; tp < tollPlazas.length; tp++) {
                 var dzToll = tollPlazas[tp].z - pos.z;
@@ -3385,49 +3448,106 @@
             var velDS = chassis.linvel();
             computeAutoDesired(posDS, Math.hypot(velDS.x, velDS.z));
         }
-        if (autoSteer) {
-            // A / D are lane requests only (A = right, D = left in this view).
-            if (input.left && !autoPrevLeft && autoLane < laneCenters.length - 1) { autoLane += 1; autoLaneTimer = 0.55; autoLaneFlash = 1.0; }
-            if (input.right && !autoPrevRight && autoLane > 0) { autoLane -= 1; autoLaneTimer = 0.55; autoLaneFlash = 1.0; }
-            autoPrevLeft = input.left;
-            autoPrevRight = input.right;
-            autoLaneFlash = Math.max(0, autoLaneFlash - dt);
-        }
-        if (autoSteer && forwardSpeed > 1.5) {
-            var q = chassis.rotation();
-            var yaw = Math.atan2(2 * (q.w * q.y + q.x * q.z), 1 - 2 * (q.y * q.y + q.z * q.z));
-            var pos = chassis.translation();
-            var offsetNow = pos.x - highwayCurveX(pos.z);
+        // ============================================================
+        //  Autosteer: pure pursuit + yaw damping + curvature feed-forward,
+        //  signal-then-change lane logic, barrier corridor and grip limits.
+        // ============================================================
+        var asGrip = clamp(1 - tyreHeat * 0.30 - rainIntensity * 0.35, 0.45, 1);
+        autoTgrip = asGrip;
+        var asPos = chassis ? chassis.translation() : { x: 0, z: 0 };
+        var asOffset = asPos.x - highwayCurveX(asPos.z);
+        var asEdge = ROAD_WIDTH / 2 - 2.4;
+        var asBarrier = Math.abs(asOffset) > asEdge - 2.2;
 
-            if (autoLaneTimer <= 0 && Math.abs(offsetNow - laneCenters[autoLane]) > 5.0) {
-                var bestLane = 3, bestDist = 1e9;
-                for (var li = 0; li < laneCenters.length; li++) {
-                    var dLane = Math.abs(laneCenters[li] - offsetNow);
-                    if (dLane < bestDist) { bestDist = dLane; bestLane = li; }
+        function asWrap(a) {
+            while (a > Math.PI) a -= Math.PI * 2;
+            while (a < -Math.PI) a += Math.PI * 2;
+            return a;
+        }
+
+        function asLead(lane, from, to) {
+            if (!chassis || lane < 0 || lane >= laneCenters.length) return null;
+            var laneX = highwayCurveX(asPos.z) + laneCenters[lane];
+            var best = null;
+            for (var k = 0; k < traffic.length; k++) {
+                var c = traffic[k];
+                if (!c || !c.root || !c.root.isEnabled()) continue;
+                if (Math.abs(c.root.position.x - laneX) > 2.6) continue;
+                var dz = c.root.position.z - asPos.z;
+                if (dz > from && dz < to && (!best || dz < best.gap)) {
+                    best = { gap: dz, speed: c.speed || 0 };
                 }
-                autoLane = bestLane;
             }
+            return best;
+        }
+
+        function asLaneSafe(lane) {
+            if (lane < 0 || lane >= laneCenters.length) return false;
+            var ahead = asLead(lane, 0, 55);
+            if (ahead) {
+                var closing = Math.max(0, forwardSpeed - ahead.speed);
+                if (ahead.gap < 14) return false;
+                if (closing > 1 && ahead.gap / closing < 2.2) return false;
+            }
+            var behind = asLead(lane, -34, 0);
+            if (behind) {
+                var dist = -behind.gap;
+                var closingB = Math.max(0, behind.speed - forwardSpeed);
+                if (dist < 12) return false;
+                if (closingB > 1 && dist / closingB < 1.7) return false;
+            }
+            return true;
+        }
+
+        function asSignalTo(target, urgent) {
+            if (!autoSteer || autoChanging || autoSignalTimer > 0) return;
+            if (target < 0 || target >= laneCenters.length || target === autoLane) return;
+            if (!asLaneSafe(target)) { autoBlockedTimer = 0.9; return; }
+            autoPendingLane = target;
+            autoSignal = target > autoLane ? 1 : -1;
+            autoSignalTimer = urgent ? 0.30 : 0.62;
+            autoLaneTimer = Math.max(autoLaneTimer, 0.2);
+        }
+
+        if (!autoSteer) {
+            autoWasOn = false;
+            autoHands = 0; autoNudge = false; autoOverride = 0; autoRecover = 0;
+            autoSignalTimer = 0; autoSignal = 0; autoPendingLane = -1;
+            autoChanging = false; autoChangeT = 1;
+            autoLeftHold = 0; autoRightHold = 0; autoNextPlan = 0; autoOvertake = false;
+        } else if (chassis) {
+            // Any transition into AS, or a fresh AS session, starts the
+            // hands-on clock. This keeps the 5 s nudge reliable even if the
+            // key handler belongs to an earlier game instance.
+            if (!autoWasOn || autoLastSteerAt <= 0) autoLastSteerAt = performance.now();
+            // Throttle/brake deliberately do NOT reset this: only steering
+            // input proves the driver is holding the wheel. Wall-clock time
+            // means the nudge still arrives after 5 s at any frame rate.
+            if (input.left || input.right || input.pointerActive) autoLastSteerAt = performance.now();
+            autoNudge = autoLastSteerAt > 0 && performance.now() - autoLastSteerAt > 5000 && autoOverride < 0.15;
+            autoWasOn = true;
+
+            if (input.left) autoLeftHold += dt; else autoLeftHold = 0;
+            if (input.right) autoRightHold += dt; else autoRightHold = 0;
+            if (autoLeftHold > 0.45 || autoRightHold > 0.45 || input.pointerActive) autoOverride = 1;
+            else autoOverride = Math.max(0, autoOverride - dt * 0.7);
+
+            if (autoTapRequest) {
+                asSignalTo(autoLane + autoTapRequest, false);
+                autoTapRequest = 0;
+            }
+            autoRecover = Math.max(0, autoRecover - dt);
+            autoBlockedTimer = Math.max(0, autoBlockedTimer - dt);
+            autoNextPlan = Math.max(0, autoNextPlan - dt);
             autoLaneTimer = Math.max(0, autoLaneTimer - dt);
 
-            // Distance to the nearest car in a lane (0 when clear).
-            function nearestInLane(laneIdx, from, to) {
-                var laneX = highwayCurveX(pos.z) + laneCenters[laneIdx];
-                var nearest = 0, best = 1e9;
-                for (var k = 0; k < traffic.length; k++) {
-                    var c = traffic[k];
-                    if (!c || !c.root || !c.root.isEnabled()) continue;
-                    if (Math.abs(c.root.position.x - laneX) > 2.6) continue;
-                    var dz = c.root.position.z - pos.z;
-                    if (dz > from && dz < to && dz < best) { best = dz; nearest = dz; }
-                }
-                return nearest;
-            }
-
-            // Head for an open toll gate if one is coming up.
-            for (var tpi = 0; tpi < tollPlazas.length; tpi++) {
-                var plazaAhead = tollPlazas[tpi];
-                var dzPlaza = plazaAhead.z - pos.z;
-                if (dzPlaza > 0 && dzPlaza < 160 && autoLaneTimer <= 0) {
+            // Plan toll routing, overtakes and returns only when settled.
+            if (!autoChanging && autoSignalTimer <= 0 && autoLaneTimer <= 0 && autoNextPlan <= 0) {
+                var tollHandled = false;
+                for (var tpi = 0; tpi < tollPlazas.length && !tollHandled; tpi++) {
+                    var plazaAhead = tollPlazas[tpi];
+                    var dzPlaza = plazaAhead.z - asPos.z;
+                    if (dzPlaza <= 0 || dzPlaza >= 170) continue;
                     var bestOpen = -1, bestOpenDist = 1e9;
                     for (var gli = 0; gli < laneCenters.length; gli++) {
                         var gateX = highwayCurveX(plazaAhead.z) + laneCenters[gli];
@@ -3436,87 +3556,190 @@
                             if (Math.abs(plazaAhead.lanes[gl].x - gateX) < 2.2) { gateLane = plazaAhead.lanes[gl]; break; }
                         }
                         if (gateLane && (gateLane.etc || gateLane.anim > 0.55 || gateLane.broken)) {
-                            var dGate = Math.abs(laneCenters[gli] - offsetNow);
+                            var dGate = Math.abs(laneCenters[gli] - asOffset);
                             if (dGate < bestOpenDist) { bestOpenDist = dGate; bestOpen = gli; }
                         }
                     }
-                    if (bestOpen >= 0 && bestOpen !== autoLane) {
-                        autoLane = bestOpen;
-                        autoLaneTimer = 0.6;
-                        autoLaneFlash = 1.1;
+                    if (bestOpen >= 0 && bestOpen !== autoLane) asSignalTo(bestOpen, true);
+                    tollHandled = true;
+                }
+
+                var leadA = asLead(autoLane, 4, 95);
+                if (leadA) {
+                    var slowLead = leadA.speed < forwardSpeed - 2.5 && leadA.gap < 78;
+                    var stoppedLead = leadA.speed < 1.5 && leadA.gap < 65;
+                    if ((slowLead || stoppedLead) && forwardSpeed > 5) {
+                        var dirs = [];
+                        if (autoLane > 0) dirs.push(-1);
+                        if (autoLane < laneCenters.length - 1) dirs.push(1);
+                        var bestDir = 0, bestScore = -1;
+                        for (var di = 0; di < dirs.length; di++) {
+                            var cand = autoLane + dirs[di];
+                            if (!asLaneSafe(cand)) continue;
+                            var candLead = asLead(cand, 0, 90);
+                            var score = candLead ? candLead.gap : 999;
+                            if (score > bestScore) { bestScore = score; bestDir = dirs[di]; }
+                        }
+                        if (bestDir) {
+                            autoReturnLane = autoLane;
+                            autoOvertake = true;
+                            asSignalTo(autoLane + bestDir, !!stoppedLead);
+                            autoNextPlan = 2.8;
+                        }
                     }
-                    break;
+                }
+
+                if (autoOvertake && autoLane !== autoReturnLane && forwardSpeed > 5) {
+                    var backDir = autoReturnLane > autoLane ? 1 : -1;
+                    var returnLane = autoLane + backDir;
+                    if (asLaneSafe(returnLane) && !asLead(autoLane, 0, 55)) {
+                        asSignalTo(returnLane, false);
+                        autoNextPlan = 3.2;
+                    }
+                }
+                if (autoLane === autoReturnLane) autoOvertake = false;
+            }
+
+            // Signal, then commit. The move itself is a smooth S-curve.
+            if (autoSignalTimer > 0) {
+                autoSignalTimer -= dt;
+                if (autoSignalTimer <= 0) {
+                    if (autoPendingLane >= 0 && asLaneSafe(autoPendingLane)) {
+                        autoChanging = true;
+                        autoChangeFrom = autoOffset;
+                        autoChangeTo = laneCenters[autoPendingLane];
+                        autoChangeT = 0;
+                        autoChangeDur = clamp(1.5 + Math.abs(autoChangeTo - autoChangeFrom) / 2.6 + forwardSpeed / 95, 1.5, 4.4);
+                        autoLane = autoPendingLane;
+                        autoLaneTimer = 1.0;
+                    } else {
+                        autoBlockedTimer = 1.1;
+                    }
+                    autoPendingLane = -1;
+                    autoSignal = 0;
+                }
+            }
+            if (autoChanging) {
+                autoChangeT = Math.min(1, autoChangeT + dt / Math.max(0.6, autoChangeDur));
+                var ease = autoChangeT * autoChangeT * (3 - 2 * autoChangeT);
+                autoOffset = autoChangeFrom + (autoChangeTo - autoChangeFrom) * ease;
+                if (autoChangeT >= 1) {
+                    autoChanging = false;
+                    autoOffset = autoChangeTo;
+                    autoLaneTimer = Math.max(autoLaneTimer, 0.6);
+                }
+            } else if (autoSignalTimer <= 0) {
+                autoOffset += (laneCenters[autoLane] - autoOffset) * Math.min(1, dt * 6.5);
+                if (Math.abs(laneCenters[autoLane] - autoOffset) < 0.02) autoOffset = laneCenters[autoLane];
+            }
+            autoOffset = clamp(autoOffset, -asEdge, asEdge);
+
+            // Steering: manual override wins while A/D is held.
+            if (autoOverride > 0.05) {
+                var manSteer = (input.left ? 1 : 0) + (input.right ? -1 : 0);
+                if (input.pointerActive) manSteer += input.pointerSteer;
+                steerTarget = clamp(manSteer, -1, 1);
+            } else if (forwardSpeed > 1.5) {
+                var q = chassis.rotation();
+                var yaw = Math.atan2(2 * (q.w * q.y + q.x * q.z), 1 - 2 * (q.y * q.y + q.z * q.z));
+                var pos = chassis.translation();
+                var offsetNow = pos.x - highwayCurveX(pos.z);
+
+                if (!autoChanging && autoLaneTimer <= 0 && Math.abs(offsetNow - laneCenters[autoLane]) > 5.2) {
+                    var bestLane = 3, bestDist = 1e9;
+                    for (var li = 0; li < laneCenters.length; li++) {
+                        var dLane = Math.abs(laneCenters[li] - offsetNow);
+                        if (dLane < bestDist) { bestDist = dLane; bestLane = li; }
+                    }
+                    autoLane = bestLane;
+                }
+
+                var vel = chassis.linvel();
+                var spd = Math.hypot(vel.x, vel.z);
+                var slip = 0;
+                if (spd > 2) slip = asWrap(Math.atan2(vel.x, vel.z) - yaw);
+
+                if (Math.abs(slip) > 0.35) {
+                    autoRecover = 2.5;
+                    autoSignalTimer = 0; autoPendingLane = -1; autoSignal = 0;
+                    autoChanging = false; autoChangeT = 1;
+                    throttle = false; brake = false;
+                    var roadYawSpin = Math.atan2(highwayCurveX(pos.z + 14) - highwayCurveX(pos.z), 14);
+                    steerTarget = clamp(asWrap(roadYawSpin - yaw) * 1.35, -1, 1);
+                    var ang = chassis.angvel();
+                    try { chassis.setAngvel({ x: ang.x, y: ang.y * (1 - Math.min(0.6, dt * 5.0)), z: ang.z }, true); } catch (e) {}
+                } else {
+                    var look = clamp(9 + forwardSpeed * 0.78, 10, 34);
+                    var lookZ = pos.z + look;
+                    var roadYawNow = Math.atan2(highwayCurveX(pos.z + 16) - highwayCurveX(pos.z), 16);
+                    var roadYawLook = Math.atan2(highwayCurveX(lookZ) - highwayCurveX(lookZ - 16), 16);
+                    var targetX = clamp(highwayCurveX(lookZ) + autoOffset,
+                        highwayCurveX(lookZ) - asEdge, highwayCurveX(lookZ) + asEdge);
+                    var lateral = (targetX - pos.x) * Math.cos(yaw) - (lookZ - pos.z) * Math.sin(yaw);
+                    var headingErr = asWrap(roadYawLook - yaw);
+                    var yawRate = chassis.angvel().y;
+                    var authority = clamp(1.15 - forwardSpeed / 95, 0.42, 1.0);
+                    var curvature = asWrap(roadYawLook - roadYawNow) / Math.max(8, look * 0.6);
+                    var steerFF = Math.atan(2.75 * curvature) / Math.max(0.2, steerMax);
+                    var steerCmd = lateral * 0.20 * authority + headingErr * 0.95 - yawRate * 0.20 + steerFF;
+
+                    // Never ask the tyres for more lateral grip than they have.
+                    var maxLat = 7.4 * asGrip * (autoRecover > 0 ? 0.62 : 1);
+                    var latCap = Math.atan(2.75 * maxLat / Math.max(30, forwardSpeed * forwardSpeed));
+                    var cmdCap = clamp(latCap / Math.max(0.2, steerMax), 0.14, 1);
+                    steerCmd = clamp(steerCmd, -cmdCap, cmdCap);
+
+                    // Barrier corridor: push back toward the road if drifting out.
+                    if (asBarrier) {
+                        steerCmd += (offsetNow > 0 ? -1 : 1) * 0.55;
+                        steerCmd = clamp(steerCmd, -1, 1);
+                    }
+                    var rate = autoRecover > 0 ? 4.5 : 8.5;
+                    steerTarget += (steerCmd - steerTarget) * Math.min(1, dt * rate);
                 }
             }
 
-            var gap = nearestInLane(autoLane, -10, 90);
-
-            // Lane change only when the target lane is genuinely clear.
-            if (gap > 0 && autoLaneTimer <= 0) {
-                var options = [];
-                [1, -1].forEach(function (dir) {
-                    var cand = autoLane + dir;
-                    if (cand < 0 || cand >= laneCenters.length) return;
-                    var ahead = nearestInLane(cand, 0, 45);
-                    var behind = nearestInLane(cand, -22, 0);
-                    if (ahead === 0 && behind === 0) options.push(cand);
-                });
-                if (options.length) {
-                    autoLane = options[0];
-                    autoLaneTimer = 1.4;
-                    autoLaneFlash = 1.0;
+            // Speed safety: time-gap following, stopped cars, grip, barriers.
+            autoLeadGap = 0; autoLeadSpeed = 0;
+            var leadS = asLead(autoLane, -4, 110);
+            var targetSpeed = autoDesired;
+            if (autoRecover > 0) targetSpeed = Math.min(targetSpeed, driveMaxSpeed * 0.55);
+            targetSpeed *= (0.78 + 0.22 * asGrip);
+            if (asBarrier) targetSpeed = Math.min(targetSpeed, driveMaxSpeed * 0.55);
+            if (leadS) {
+                autoLeadGap = leadS.gap;
+                autoLeadSpeed = leadS.speed;
+                var safeGap = (1.7 + (1 - asGrip) * 0.9) * Math.max(7, forwardSpeed);
+                if (leadS.speed < 1.5 && leadS.gap < 75) {
+                    targetSpeed = Math.min(targetSpeed, Math.max(0, (leadS.gap - 9) * 0.85));
+                } else {
+                    targetSpeed = Math.min(targetSpeed, leadS.speed + Math.max(0, leadS.gap - safeGap) * 0.55);
                 }
             }
+            if (targetSpeed < 1.0 && forwardSpeed > 0.3) { throttle = false; brake = true; }
+            else if (forwardSpeed > targetSpeed + 2.4) { throttle = false; brake = true; }
+            else if (forwardSpeed > targetSpeed + 0.7) { throttle = false; }
+            // The right pedal stays with the driver; AS only lifts/brakes.
 
-            // Adaptive speed control: brake smoothly, never slam into a car.
-            var gapNow = nearestInLane(autoLane, -10, 90);
-            if (gapNow > 0) {
-                var closing = forwardSpeed > 1 ? (gapNow / forwardSpeed) : 99;
-                if (gapNow < 38 && closing < 3.2) {
-                    throttle = false;
-                    brake = true;
-                } else if (gapNow < 60) {
-                    throttle = false;
-                }
-            }
-
-            // Spin recovery before lane-following.
-            var vel = chassis.linvel();
-            var spd = Math.hypot(vel.x, vel.z);
-            var slip = 0;
-            if (spd > 2) {
-                var velYaw = Math.atan2(vel.x, vel.z);
-                slip = velYaw - yaw;
-                while (slip > Math.PI) slip -= Math.PI * 2;
-                while (slip < -Math.PI) slip += Math.PI * 2;
-            }
-            if (Math.abs(slip) > 0.35) {
-                throttle = false;
-                brake = false;
-                var roadYawSpin = Math.atan2(highwayCurveX(pos.z + 14) - highwayCurveX(pos.z), 14);
-                var straighten = ((roadYawSpin - yaw) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
-                steerTarget = clamp(straighten * 1.35, -1, 1);
-                var ang = chassis.angvel();
-                try { chassis.setAngvel({ x: ang.x, y: ang.y * (1 - Math.min(0.6, dt * 5.0)), z: ang.z }, true); } catch (e) {}
-                return;
-            }
-
-            // Speed-aware lane keeping: look further ahead the faster we go,
-            // with less steering authority at speed so it cannot over-correct.
-            var look = 9 + Math.min(18, forwardSpeed * 0.55);
-            var blend = Math.min(1, dt * (autoLaneFlash > 0 ? 8.0 : 6.5));
-            autoOffset += (laneCenters[autoLane] - autoOffset) * blend;
-            if (Math.abs(laneCenters[autoLane] - autoOffset) < 0.02) autoOffset = laneCenters[autoLane];
-
-            var lookZ = pos.z + look;
-            var targetX = highwayCurveX(lookZ) + autoOffset;
-            var dxT = targetX - pos.x;
-            var dzT = lookZ - pos.z;
-            var lateral = dxT * Math.cos(yaw) - dzT * Math.sin(yaw);
-            var authority = clamp(1.15 - forwardSpeed / 90, 0.45, 1.0);
-            var steerCmd = clamp(lateral * 0.26 * authority, -1, 1);
-            steerTarget += (steerCmd - steerTarget) * Math.min(1, dt * 10);
+            // Status strip.
+            var statusText = 'HOLDING LANE ' + (autoLane + 1);
+            var statusTone = '';
+            if (autoNudge) { statusText = 'HOLD THE WHEEL'; statusTone = 'nudge'; }
+            else if (autoOverride > 0.06) { statusText = 'MANUAL OVERRIDE'; statusTone = 'warn'; }
+            else if (autoRecover > 0) { statusText = 'RECOVERING · REDUCED SPEED'; statusTone = 'warn'; }
+            else if (asBarrier) { statusText = 'BARRIER · CORRECTING'; statusTone = 'warn'; }
+            else if (autoBlockedTimer > 0) { statusText = 'LANE BLOCKED'; statusTone = 'warn'; }
+            else if (autoChanging) { statusText = 'CHANGING TO LANE ' + (autoLane + 1); }
+            else if (autoSignalTimer > 0) { statusText = 'SIGNALLING · LANE ' + (autoPendingLane + 1); }
+            else if (leadS && autoLeadGap > 0) { statusText = 'FOLLOWING · ' + Math.round(autoLeadGap) + ' M'; }
+            else if (asGrip < 0.72) { statusText = 'GRIP LOW · ASSIST ON'; statusTone = 'warn'; }
+            setAutoStatus(statusText, statusTone);
+        } else {
+            setAutoStatus('', '');
+            var stEl = document.getElementById('g3dAsStatus');
+            if (stEl) stEl.classList.remove('is-on');
         }
+
         steerVisual += (steerTarget - steerVisual) * Math.min(1, dt * 10);
         var steerAngle = steerVisual * steerMax;
         vehicle.setWheelSteering(0, steerAngle);
@@ -3622,7 +3845,7 @@
         lastPlayerZ = t.z;
 
         if (worldMode === 'highway' && t.z > ROAD_LENGTH - 220) {
-            chassis.setTranslation({ x: 0, y: 0.92, z: spawnZ + 20 }, true);
+            chassis.setTranslation({ x: highwayCurveX(spawnZ + 20), y: 0.92, z: spawnZ + 20 }, true);
             chassis.setLinvel({ x: 0, y: 0, z: 0 }, true);
             resetRunWorld();
         }
@@ -3640,7 +3863,7 @@
     function resetCar(keepDistance, silent) {
         if (!chassis) return;
         var resetZ = spawnZ;
-        chassis.setTranslation({ x: 0, y: 0.92, z: resetZ }, true);
+        chassis.setTranslation({ x: highwayCurveX(resetZ), y: 0.92, z: resetZ }, true);
         chassis.setRotation({ x: 0, y: 0, z: 0, w: 1 }, true);
         chassis.setLinvel({ x: 0, y: 0, z: 0 }, true);
         chassis.setAngvel({ x: 0, y: 0, z: 0 }, true);
@@ -3775,7 +3998,7 @@
     function syncCarVisual(dt) {
         if (!carRoot) return;
         if (!chassis) {
-            carRoot.position.set(0, 0.92, spawnZ);
+            carRoot.position.set(highwayCurveX(spawnZ), 0.92, spawnZ);
             carRoot.rotationQuaternion = BABYLON.Quaternion.Identity();
             return;
         }
@@ -3997,8 +4220,8 @@
                 if (!k) return;
                 if (k === 'w' || k === 'arrowup') { input.throttle = true; e.preventDefault(); }
                 else if (k === 's' || k === 'arrowdown') { input.brake = true; e.preventDefault(); }
-                else if (k === 'a' || k === 'arrowleft') { input.left = true; e.preventDefault(); }
-                else if (k === 'd' || k === 'arrowright') { input.right = true; e.preventDefault(); }
+                else if (k === 'a' || k === 'arrowleft') { input.left = true; autoSteerDownAt.left = performance.now(); e.preventDefault(); }
+                else if (k === 'd' || k === 'arrowright') { input.right = true; autoSteerDownAt.right = performance.now(); e.preventDefault(); }
                 else if (k === ' ') {
                     if (isSanta) { if (!e.repeat) startFly(); }
                     else input.brake = true;
@@ -4025,6 +4248,15 @@
                         }
                         autoLane = bestLane;
                         autoLaneTimer = 0.5;
+                        autoHands = 0;
+                        autoLastSteerAt = performance.now();
+                        autoNudge = false;
+                        autoOverride = 0;
+                        autoRecover = 0;
+                        autoSignalTimer = 0;
+                        autoPendingLane = -1;
+                        autoChanging = false;
+                        autoChangeT = 1;
                     }
                     var chip = document.getElementById('g3dAutoSteer');
                     if (chip) chip.classList.toggle('is-on', autoSteer);
@@ -4036,8 +4268,13 @@
                 var k = String(e.key || '').toLowerCase();
                 if (k === 'w' || k === 'arrowup') input.throttle = false;
                 else if (k === 's' || k === 'arrowdown') input.brake = false;
-                else if (k === 'a' || k === 'arrowleft') input.left = false;
-                else if (k === 'd' || k === 'arrowright') input.right = false;
+                else if (k === 'a' || k === 'arrowleft') {
+                    input.left = false;
+                    if (autoSteer && autoSteerDownAt.left && performance.now() - autoSteerDownAt.left < 450) autoTapRequest = 1;
+                } else if (k === 'd' || k === 'arrowright') {
+                    input.right = false;
+                    if (autoSteer && autoSteerDownAt.right && performance.now() - autoSteerDownAt.right < 450) autoTapRequest = -1;
+                }
                 else if (k === ' ') input.brake = false;
                 else if (k === 'shift') input.nitro = false;
                 else if (k === 'x') input.drift = false;
@@ -4716,7 +4953,7 @@
         if (!chassis) return;
         var d = Math.max(0, num(targetDistance, 0));
         var tx = clamp(num(targetX, 0), -10.2, 10.2);
-        chassis.setTranslation({ x: tx, y: 0.92, z: spawnZ + d }, true);
+        chassis.setTranslation({ x: highwayCurveX(spawnZ + d) + tx, y: 0.92, z: spawnZ + d }, true);
         chassis.setLinvel({ x: 0, y: 0, z: 0 }, true);
         chassis.setAngvel({ x: 0, y: 0, z: 0 }, true);
         distance = Math.max(distance, d);
@@ -4771,7 +5008,7 @@
             if (!chassis) return null;
             var p = chassis.translation();
             var offset = p.x - highwayCurveX(p.z);
-            return { x: p.x, z: p.z, offset: offset, lane: autoLane, laneCenter: laneCenters[autoLane], steer: steerVisual, auto: autoSteer };
+            return { x: p.x, z: p.z, offset: offset, lane: autoLane, laneCenter: laneCenters[autoLane], steer: steerVisual, auto: autoSteer, nudge: autoNudge, override: autoOverride, sinceSteer: Math.round((performance.now() - autoLastSteerAt) / 100) / 10, signal: autoSignalTimer, changing: autoChanging, pending: autoPendingLane };
         },
         getWeather: function () { return { rain: rainIntensity }; },
         getTyreHeat: function () { return tyreHeat; },

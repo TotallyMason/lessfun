@@ -1529,6 +1529,7 @@ function openGameNow(id) {
             '<div id="g3dCanvas" class="game3d-canvas"></div>' +
             (game.id === 1 ? '<div class="g3d-fps" id="g3dFps" aria-hidden="true">-- FPS</div>' : '') +
             (game.id === 1 ? '<div class="g3d-mobile-speed" id="g3dMobileSpeed"><b id="g3dMSpeed">0</b><span>km/h</span><em id="g3dMGear">1</em></div>' : '') +
+            (game.id === 1 ? '<div class="g3d-as-status" id="g3dAsStatus"><i></i><span>HOLDING LANE</span></div>' : '') +
 
             (game.id === 1 ?
                 '<div class="g3d-gauges" id="g3dGauges">' +
@@ -9393,7 +9394,7 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.48";
+const APP_VERSION = "LessFun Public Beta 27.2.49";
 const UPDATE_NOTES = "Warning lights moved directly under the km/h readout";
 
 let updateShutdownTimer = 0;
