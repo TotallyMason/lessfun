@@ -710,7 +710,10 @@ function renderGames() {
         const locked = disabled[game.id] && !isOwner();
         return `
         <div class="game-card${locked ? ' is-disabled' : ''}" onclick="cancelPreloadGame(); openGame(${game.id})" onpointerenter="schedulePreloadGame(${game.id})" onpointerleave="cancelPreloadGame()" onfocus="schedulePreloadGame(${game.id})" onblur="cancelPreloadGame()">
-            <div class="game-icon">${getIcon(game.icon).replace('width="24" height="24"', 'width="28" height="28"')}</div>
+            <div class="game-cover gc-${game.id}" aria-hidden="true">
+                <span class="gc-badge">${getIcon(game.icon).replace('width="24" height="24"', 'width="16" height="16"')}</span>
+                <span class="gc-art"></span>
+            </div>
             <h2 class="game-card-title">${game.name}${siteSettings.featured_game && gameBySlug(siteSettings.featured_game) && gameBySlug(siteSettings.featured_game).id === game.id ? ' <span class="game-featured-tag">FEATURED</span>' : ''}</h2>
             <p>${game.description}</p>
             ${locked ? '<span class="game-locked-tag">Temporarily unavailable</span>' : ''}
@@ -9433,7 +9436,7 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.74";
+const APP_VERSION = "LessFun Public Beta 27.2.75";
 const UPDATE_NOTES = "Warning lights moved directly under the km/h readout";
 
 let updateShutdownTimer = 0;
