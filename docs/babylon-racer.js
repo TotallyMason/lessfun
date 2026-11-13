@@ -61,6 +61,7 @@
     var training = false, trainingStep = 0, trainingRoot = null, trainingProps = [], trainingCooldown = 0, trainingHold = 0;
     var eject = null, crashFlashEl = null;
     var tollPlazas = [], rumbleShake = 0;
+    var serviceStations = [], highwayEvents = [];
     var rainSystem = null, rainIntensity = 0, rainTarget = 0, weatherTimer = 25, rainChip = null;
     var tunnels = [], tunnelDark = 0, baseSunIntensity = 0.62, hemi = null;
     var autoSteer = false, autoLane = 3, autoLaneTimer = 0, autoPrevLeft = false, autoPrevRight = false, autoLaneFlash = 0, autoOffset = 1.83, autoDesired = 0;
@@ -104,7 +105,8 @@
         truck: { w: 2.35, l: 7.0, bodyH: 0.72, cabinH: 0.78, cabinL: 1.95, cabinZ: 2.20, y: 0.82 },
         bus:   { w: 2.52, l: 9.4, bodyH: 1.34, cabinH: 0.62, cabinL: 7.3, cabinZ: -0.30, y: 1.02 },
         hatch: { w: 1.78, l: 3.9, bodyH: 0.46, cabinH: 0.42, cabinL: 1.60, cabinZ: -0.15, y: 0.62 },
-        exotic:{ w: 1.94, l: 4.5, bodyH: 0.30, cabinH: 0.26, cabinL: 1.35, cabinZ: -0.05, y: 0.50 }
+        exotic:{ w: 1.94, l: 4.5, bodyH: 0.30, cabinH: 0.26, cabinL: 1.35, cabinZ: -0.05, y: 0.50 },
+        moto:  { w: 0.70, l: 2.05, bodyH: 0.24, cabinH: 0.18, cabinL: 0.70, cabinZ: 0.05, y: 0.42 }
     };
 
     var input = {
@@ -695,6 +697,8 @@
         createMountains();
         createRoadSigns();
         createTunnels();
+        createServiceStations();
+        createHighwayEvents();
         createTollPlazas();
         loadStreetLampModel(low);
     }
@@ -1193,6 +1197,51 @@
         };
     }
 
+    function makeMotorcycle(colorHex) {
+        ensureTrafficShared();
+        var spec = TRAFFIC_SPECS.moto;
+        var root = new BABYLON.TransformNode('traffic_moto', scene);
+        var key = 'moto_' + String(colorHex);
+        if (!trafficPaintCache[key]) {
+            var pm = new BABYLON.PBRMaterial('trafficPaint_' + key, scene);
+            pm.albedoColor = color3(colorHex);
+            pm.metallic = 0.55;
+            pm.roughness = 0.32;
+            trafficPaintCache[key] = pm;
+        }
+        var paint = trafficPaintCache[key];
+        function part(name, w, h, d, x, y, z, mat) {
+            var m = BABYLON.MeshBuilder.CreateBox(name, { width: w, height: h, depth: d }, scene);
+            m.position.set(x, y, z);
+            m.material = mat;
+            m.parent = root;
+            m.receiveShadows = true;
+            return m;
+        }
+        part('motoBody', 0.52, 0.34, 1.45, 0, 0.62, 0, paint);
+        part('motoTank', 0.42, 0.22, 0.55, 0, 0.83, 0.12, paint);
+        part('motoSeat', 0.36, 0.12, 0.5, 0, 0.84, -0.42, trafficShared.trim);
+        part('motoFair', 0.46, 0.42, 0.28, 0, 0.62, 0.78, trafficShared.trim);
+        var brakeMat = trafficShared.tail.clone('motoBrake_' + Math.random().toString(36).slice(2, 6));
+        brakeMat.emissiveColor = new BABYLON.Color3(0.55, 0.03, 0.03);
+        part('motoTail', 0.30, 0.09, 0.06, 0, 0.72, -0.78, brakeMat);
+        var wheels = [];
+        [-0.72, 0.72].forEach(function (z) {
+            var w = BABYLON.MeshBuilder.CreateCylinder('motoWheel', { height: 0.18, diameter: 0.64, tessellation: 14 }, scene);
+            w.rotation.z = Math.PI / 2;
+            w.position.set(0, 0.32, z);
+            w.material = trafficShared.tire;
+            w.parent = root;
+            wheels.push(w);
+        });
+        return {
+            root: root, spec: spec, style: 'moto', wheels: wheels, speed: 20, lane: 2, cool: 0,
+            paint: paint, brakeMat: brakeMat, cruise: 20, braking: false, laneOffset: 0,
+            aiState: 'drive', aiThink: 0, aiPlan: '', aiTargetLane: -1,
+            aiSignalSide: 0, aiCooldown: 1 + Math.random() * 2, boost: 0, aiBlink: Math.random() * 10
+        };
+    }
+
     function createTrafficBody(car) {
         if (!car || !world || !rapier || car.body) return;
         var spec = car.spec || TRAFFIC_SPECS.sedan;
@@ -1252,6 +1301,9 @@
             for (var i = 0; i < count; i++) {
                 traffic.push(makeTrafficCar(styles[i % styles.length], colors[i % colors.length]));
             }
+            // Lane-filtering motorcycles for variety.
+            traffic.push(makeMotorcycle(0x1a1a1e));
+            traffic.push(makeMotorcycle(0xd0342c));
         }
         var pz = spawnZ;
         for (var t = 0; t < traffic.length; t++) {
@@ -1282,6 +1334,7 @@
         manualGearTimer = 0;
         revLevel = 0;
         tyreHeat = 0;
+        serviceStations.forEach(function (st) { st.used = false; st.timer = 0; });
         engineDamage = 0;
         transDamage = 0;
         bodyDamage = 0;
@@ -2400,6 +2453,134 @@
                 });
             });
             tunnels.push({ from: z0, to: z0 + len });
+        }
+    }
+
+    function createServiceStations() {
+        serviceStations = [];
+        var matConcrete = new BABYLON.PBRMaterial('stationPad', scene);
+        matConcrete.albedoColor = new BABYLON.Color3(0.34, 0.35, 0.35);
+        matConcrete.roughness = 0.8;
+        var matCanopy = new BABYLON.PBRMaterial('stationCanopy', scene);
+        matCanopy.albedoColor = new BABYLON.Color3(0.10, 0.13, 0.16);
+        matCanopy.metallic = 0.5;
+        matCanopy.roughness = 0.35;
+        var matGlow = new BABYLON.StandardMaterial('stationGlow', scene);
+        matGlow.diffuseColor = new BABYLON.Color3(0.2, 0.9, 0.7);
+        matGlow.emissiveColor = new BABYLON.Color3(0.15, 0.85, 0.6);
+        matGlow.disableLighting = true;
+        [spawnZ + 2600, spawnZ + 7200, spawnZ + 12500].forEach(function (z, idx) {
+            var off = 14.4;
+            var x = highwayCurveX(z) + off;
+            var root = new BABYLON.TransformNode('serviceStation' + idx, scene);
+            var yaw = Math.atan2(highwayCurveX(z + 5) - highwayCurveX(z - 5), 10);
+            root.rotation.y = yaw;
+            root.position.set(x, 0.02, z);
+            function box(name, w, h, d, bx, by, bz, mat) {
+                var m = BABYLON.MeshBuilder.CreateBox(name, { width: w, height: h, depth: d }, scene);
+                m.position.set(bx, by, bz);
+                m.material = mat;
+                m.parent = root;
+                m.receiveShadows = true;
+                return m;
+            }
+            box('stPad', 8, 0.04, 13, 0, 0.02, 0, matConcrete);
+            box('stCanopy', 8, 0.28, 8, 0, 4.1, 0, matCanopy);
+            box('stPostL', 0.22, 4.1, 0.22, -3.2, 2.05, -3.2, matCanopy);
+            box('stPostR', 0.22, 4.1, 0.22, -3.2, 2.05, 3.2, matCanopy);
+            box('stPostL2', 0.22, 4.1, 0.22, 3.2, 2.05, -3.2, matCanopy);
+            box('stPostR2', 0.22, 4.1, 0.22, 3.2, 2.05, 3.2, matCanopy);
+            box('stSign', 3.4, 0.9, 0.16, 0, 3.2, -5.2, matGlow);
+            box('stPump1', 0.55, 1.5, 0.4, 2.2, 0.75, 1.2, matConcrete);
+            box('stPump2', 0.55, 1.5, 0.4, 2.2, 0.75, -1.2, matConcrete);
+            serviceStations.push({ z: z, off: off, used: false, timer: 0, msgCool: 0, root: root });
+        });
+    }
+
+    function updateServiceStations(dt) {
+        if (!chassis || garage || runOver || worldMode !== 'highway') return;
+        var p = chassis.translation();
+        var off = p.x - highwayCurveX(p.z);
+        var spd = Math.hypot(chassis.linvel().x, chassis.linvel().z);
+        for (var i = 0; i < serviceStations.length; i++) {
+            var st = serviceStations[i];
+            st.msgCool = Math.max(0, st.msgCool - dt);
+            var near = Math.abs(p.z - st.z) < 8.5 && Math.abs(off - st.off) < 3.6;
+            if (!near || st.used) { st.timer = 0; continue; }
+            if (spd > 6) {
+                if (st.msgCool <= 0) { st.msgCool = 4; showToast('SERVICE · SLOW TO A STOP'); }
+                st.timer = 0;
+                continue;
+            }
+            st.timer += dt;
+            if (st.timer < 2) continue;
+            if (coinsCollected < 25) {
+                if (st.msgCool <= 0) { st.msgCool = 4; showToast('SERVICE · NEED 25 COINS'); }
+                st.timer = 0;
+                continue;
+            }
+            coinsCollected -= 25;
+            setRunCoins(coinsCollected);
+            engineDamage = 0; transDamage = 0; bodyDamage = 0;
+            tyreHeat = 0; heatMode = 'idle'; accelHold = 0; brakeHold = 0; coastHold = 0;
+            st.used = true;
+            showToast('SERVICE COMPLETE · REPAIRED & TYRES COOLED');
+            playTone(660, 0.12, 'sine', 0.08, 320);
+        }
+    }
+
+    function createHighwayEvents() {
+        highwayEvents = [];
+        var stripe = new BABYLON.StandardMaterial('eventStripe', scene);
+        stripe.diffuseColor = new BABYLON.Color3(0.95, 0.55, 0.12);
+        stripe.emissiveColor = new BABYLON.Color3(0.35, 0.16, 0.02);
+        var dark = new BABYLON.StandardMaterial('eventDark', scene);
+        dark.diffuseColor = new BABYLON.Color3(0.07, 0.08, 0.09);
+        [spawnZ + 1500, spawnZ + 4200, spawnZ + 7800, spawnZ + 10800].forEach(function (z, idx) {
+            var lane = 1 + (idx * 2) % 5;
+            var off = laneCenters[lane];
+            var x = highwayCurveX(z) + off;
+            var root = new BABYLON.TransformNode('roadEvent' + idx, scene);
+            root.position.set(x, 0, z);
+            root.rotation.y = Math.atan2(highwayCurveX(z + 5) - highwayCurveX(z - 5), 10);
+            var barrier = BABYLON.MeshBuilder.CreateBox('eventBarrier', { width: 2.8, height: 0.95, depth: 0.28 }, scene);
+            barrier.position.set(0, 0.5, 0);
+            barrier.material = stripe;
+            barrier.parent = root;
+            var bar = BABYLON.MeshBuilder.CreateBox('eventBar', { width: 2.8, height: 0.12, depth: 0.32 }, scene);
+            bar.position.set(0, 0.98, 0);
+            bar.material = dark;
+            bar.parent = root;
+            for (var ci = -1; ci <= 1; ci++) {
+                var cone = BABYLON.MeshBuilder.CreateCylinder('eventCone', { height: 0.62, diameterTop: 0.06, diameterBottom: 0.34, tessellation: 8 }, scene);
+                cone.position.set(ci * 1.35, 0.31, 1.2);
+                cone.material = stripe;
+                cone.parent = root;
+            }
+            highwayEvents.push({ z: z, off: off, root: root, cool: 0 });
+        });
+    }
+
+    function updateHighwayEvents(dt) {
+        if (!chassis || garage || runOver || worldMode !== 'highway') return;
+        var p = chassis.translation();
+        var off = p.x - highwayCurveX(p.z);
+        for (var i = 0; i < highwayEvents.length; i++) {
+            var ev = highwayEvents[i];
+            ev.cool = Math.max(0, ev.cool - dt);
+            if (ev.cool > 0) continue;
+            if (Math.abs(p.z - ev.z) < 2.4 && Math.abs(off - ev.off) < 1.7) {
+                ev.cool = 2.5;
+                var v = chassis.linvel();
+                var dirX = off >= ev.off ? 1 : -1;
+                chassis.setLinvel({ x: v.x + dirX * 8, y: Math.max(v.y, 1.1), z: v.z * 0.58 }, true);
+                chassis.setAngvel({ x: 0, y: (Math.random() - 0.5) * 1.6, z: 0 }, true);
+                bodyDamage = Math.min(1, bodyDamage + 0.16);
+                engineDamage = Math.min(1, engineDamage + 0.05);
+                triggerImpactFx(p.x, p.z, 10);
+                showToast('ROADWORKS HIT · DAMAGE TAKEN');
+                playTone(120, 0.18, 'square', 0.07, 60);
+            }
         }
     }
 
@@ -4248,6 +4429,8 @@
             updateTolls(dt);
             updateTunnels(dt);
             updateCoins(dt);
+            updateServiceStations(dt);
+            updateHighwayEvents(dt);
         } else if (!paused) {
             updateCoins(dt);
         }

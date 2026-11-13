@@ -9405,7 +9405,7 @@ async function verifyAccountState() {
 }
 function initViewCounter(){ const v=parseInt(localStorage.getItem('lfv')||'0')+1; localStorage.setItem('lfv',v); if(document.getElementById('viewCounterDisplay')) document.getElementById('viewCounterDisplay').textContent=v.toLocaleString(); }
 
-const APP_VERSION = "LessFun Public Beta 27.2.66";
+const APP_VERSION = "LessFun Public Beta 27.2.67";
 const UPDATE_NOTES = "Warning lights moved directly under the km/h readout";
 
 let updateShutdownTimer = 0;
