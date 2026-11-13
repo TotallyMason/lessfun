@@ -42,6 +42,8 @@
     var rapierPromise = null, ready = false, starting = false;
     var raf = 0, lastFrame = 0, accumulator = 0, hudTimer = 0, speedHudTimer = 0, gaugeBoot = 0, suspended = false, readyAnnounced = false;
     var hudCache = null;
+    // Adaptive render pacing: only draw the frames this moment actually needs.
+    var schedDisplayHz = 60, schedTargetHz = 60, schedLastRender = 0, schedRafLast = 0, schedSamples = [];
     var paused = false, garage = false, cameraMode = 0;
     var distance = 0, displaySpeed = 0, unit = 'mph', sound = true;
     var nitro = 100, driftScore = 0, steerVisual = 0;
@@ -3720,13 +3722,62 @@
         paused = false;
         lastFrame = performance.now();
         accumulator = 0;
+        schedLastRender = 0;
+        schedRafLast = 0;
+        schedSamples = [];
         try { if (audioCtx && audioMaster) audioMaster.gain.setTargetAtTime(sound ? 1.0 : 0, audioCtx.currentTime, 0.08); } catch (e) {}
         try { if (engine) engine.runRenderLoop(frame); } catch (e) {}
+    }
+
+    // Estimate the real refresh rate of the display from rAF arrival times.
+    function measureDisplayHz(now) {
+        if (schedRafLast) {
+            var gap = now - schedRafLast;
+            if (gap > 3.5 && gap < 36) {
+                schedSamples.push(1000 / gap);
+                if (schedSamples.length > 40) schedSamples.shift();
+                if (schedSamples.length > 3) {
+                    var sorted = schedSamples.slice().sort(function (a, b) { return a - b; });
+                    schedDisplayHz = sorted[Math.floor(sorted.length / 2)];
+                }
+            }
+        }
+        schedRafLast = now;
+    }
+
+    // How many frames per second does this moment actually need?
+    // Stationary = 1 fps. Moving scales with speed, inputs and nitro,
+    // capped at 120 and never above what the display can present.
+    function neededRenderHz() {
+        var cap = Math.min(120, Math.max(30, schedDisplayHz));
+        if (paused) return 1;
+        if (garage || eject) return cap;
+        var speedFrac = clamp(displaySpeed / Math.max(1, driveMaxSpeed), 0, 1);
+        var still = displaySpeed < 0.35 && !input.throttle && !input.brake && !input.drift &&
+            !input.left && !input.right && !input.pointerActive &&
+            Math.abs(steerVisual) < 0.02 && !runOver;
+        if (still) return 1;
+        var hz = 20 + speedFrac * 100;
+        if (input.throttle || input.brake) hz += 18;
+        if (input.nitro && nitro > 0 && input.throttle) hz += 14;
+        if (input.drift) hz += 10;
+        return Math.min(cap, Math.max(20, Math.round(hz)));
     }
 
     function frame() {
         if (!active || suspended) return;
         var now = performance.now();
+        measureDisplayHz(now);
+        schedTargetHz = neededRenderHz();
+        // Skip this rAF tick when the current moment does not need a new frame.
+        // lastFrame is deliberately not advanced, so the next real frame gets
+        // the full elapsed delta and physics stays in real time.
+        var capHz = Math.min(120, Math.max(30, schedDisplayHz));
+        if (schedTargetHz < capHz - 1 && schedLastRender) {
+            var interval = 1000 / schedTargetHz;
+            if (now - schedLastRender < interval - 1.5) return;
+        }
+        schedLastRender = now;
         var dt = Math.min(0.05, Math.max(0.001, (now - lastFrame) / 1000));
         lastFrame = now;
         if (!paused && !garage) {
@@ -3778,6 +3829,9 @@
                 if (tag === 'input' || tag === 'textarea' || tag === 'select' || (e.target && e.target.isContentEditable)) return;
                 var k = String(e.key || '').toLowerCase();
                 if (!k) return;
+                // Wake the renderer immediately so stationary 1 fps mode still
+                // reacts to camera/light/gear changes without waiting a second.
+                if (!e.repeat) schedLastRender = 0;
                 if (k === 'w' || k === 'arrowup') { input.throttle = true; e.preventDefault(); }
                 else if (k === 's' || k === 'arrowdown') { input.brake = true; e.preventDefault(); }
                 else if (k === 'a' || k === 'arrowleft') { input.left = true; e.preventDefault(); }
@@ -4523,7 +4577,9 @@
             maxMph: Math.round(driveMaxSpeed * 2.23694),
             nitro: Math.round(nitro),
             audio: !!(audioCtx && audioCtx.state === 'running'),
-            audioLoops: Object.keys(audioLoops).length
+            audioLoops: Object.keys(audioLoops).length,
+            renderHz: schedTargetHz,
+            displayHz: Math.round(schedDisplayHz)
         };
     }
     function getCurrentScore() { return runScore(); }
