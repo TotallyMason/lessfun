@@ -62,6 +62,7 @@
     var tunnels = [], tunnelDark = 0, baseSunIntensity = 0.62, hemi = null;
     var autoSteer = false, autoLane = 3, autoLaneTimer = 0, autoPrevLeft = false, autoPrevRight = false, autoLaneFlash = 0, autoOffset = 1.83, autoDesired = 0;
     var driveMaxSpeed = 67, driveAccel = 1, driveGrip = 3.85, baseGrip = 3.85, tyreHeat = 0;
+    var heatMode = 'idle', accelHold = 0, brakeHold = 0, coastHold = 0;
     var laneCenters = [-11.25, -6.75, -2.25, 2.25, 6.75, 11.25];
     var traffic = [], coinPickups = [], trafficTimer = 0;
     var remoteRacers = {}, localRacerName = '';
@@ -1235,6 +1236,10 @@
         manualGearTimer = 0;
         revLevel = 0;
         tyreHeat = 0;
+        heatMode = 'idle';
+        accelHold = 0;
+        brakeHold = 0;
+        coastHold = 0;
         gearShiftTimer = 0;
         pendingGear = null;
         pendingGearIndex = null;
@@ -3334,19 +3339,25 @@
         vehicle.setWheelEngineForce(2, rearForce);
         vehicle.setWheelEngineForce(3, rearForce);
 
-        // Tyre heat: builds with speed, cornering load, drift and hard braking.
-        var lateralLoad = Math.abs(steerVisual) * forwardSpeed;
-        var heatRate = forwardSpeed * 0.0050 + lateralLoad * 0.0036;
-        if (input.drift) heatRate += 0.075;
-        if (brake && forwardSpeed > 12) heatRate += 0.042;
-        if (throttle && forwardSpeed < driveMaxSpeed * 0.25) heatRate += 0.025;
-        if (heatRate > 0.06) {
-            // Pushing hard: heat climbs.
-            tyreHeat = clamp(tyreHeat + heatRate * dt, 0, 1);
+        // Tyre heat is state based: it only starts after 5 s of continuous
+        // throttle or braking, and only cools after 5 s of neither.
+        if (throttle) {
+            accelHold += dt; brakeHold = 0; coastHold = 0;
+        } else if (brake) {
+            brakeHold += dt; accelHold = 0; coastHold = 0;
         } else {
-            // Coasting or gentle driving cools the tyres quickly.
-            var cool = 0.30 + (0.06 - heatRate) * 2.2;
-            tyreHeat = clamp(tyreHeat - cool * dt, 0, 1);
+            coastHold += dt; accelHold = 0; brakeHold = 0;
+        }
+        if (accelHold >= 5 || brakeHold >= 5) heatMode = 'heating';
+        if (coastHold >= 5) heatMode = 'cooling';
+
+        var lateralLoad = Math.abs(steerVisual) * forwardSpeed;
+        if (heatMode === 'heating') {
+            var heatRate = 0.045 + forwardSpeed * 0.0045 + lateralLoad * 0.0032;
+            if (input.drift) heatRate += 0.07;
+            tyreHeat = clamp(tyreHeat + heatRate * dt, 0, 1);
+        } else if (heatMode === 'cooling') {
+            tyreHeat = clamp(tyreHeat - 0.32 * dt, 0, 1);
         }
         var tyreGripFactor = 1 - tyreHeat * 0.30;
 
